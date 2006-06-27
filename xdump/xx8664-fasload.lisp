@@ -72,14 +72,34 @@
       
 ))
 
+
 (add-xload-backend *x8664-linux-xload-backend*)
 
 
+(defparameter *x8664-freebsd-xload-backend*
+  (make-backend-xload-info
+   :name  :freebsdx8664
+   :macro-apply-code-function 'x8664-fixup-macro-apply-code
+   :closure-trampoline-code *x8664-closure-trampoline-code*
+   :udf-code *x8664-udf-code*
+   :default-image-name "ccl:ccl;fx86-boot64"
+   :default-startup-file-name "level-1.fx64fsl"
+   :subdirs '("ccl:level-0;X86;X8664;" "ccl:level-0;X86;")
+   :compiler-target-name :freebsdx8664
+   :image-base-address #x300000000000
+   :nil-relative-symbols x86::*x86-nil-relative-symbols*
+   :static-space-init-function 'x8664-initialize-static-space
+      
+))
+
+(add-xload-backend *x8664-freebsd-xload-backend*)
 
 #+x8664-target
 (progn
   #+linux-target
-  (setq *xload-default-backend* *x8664-linux-xload-backend*))
+  (setq *xload-default-backend* *x8664-linux-xload-backend*)
+  #+freebsd-target
+  (setq *xload-default-backend* *x8664-freebsd-xload-backend*))
 
 
 
