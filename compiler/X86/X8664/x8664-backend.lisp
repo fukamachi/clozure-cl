@@ -206,6 +206,7 @@
 		:p2-compile 'x862-compile
 		:target-specific-features
 		'(:x8664 :x86-target :freebsd-target :freebsdx86-target :x8664-target
+                  :freebsdx8664-target                  
                   :little-endian-target
                   :64-bit-target)
 		:target-fasl-pathname (make-pathname :type "fx64fsl")
