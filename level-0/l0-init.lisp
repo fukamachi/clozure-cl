@@ -68,6 +68,7 @@
     #+freebsd-target :freebsd-target
     #+freebsdx86-target :freebsdx86-target
     #+freebsdx8664-target :freebsdx8664-target
+    #+freebsdx8664-target :freebsdx8664-host
     #+poweropen-target :poweropen-target
     #+64-bit-target :64-bit-target
     #+64-bit-target :64-bit-host
