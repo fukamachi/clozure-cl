@@ -26,8 +26,8 @@
 
 
 
-; Bootstrapping. Real version is in l1-aprims.
-; Called by expansion of with-pstrs
+;;; Bootstrapping. Real version is in l1-aprims.
+;;; Called by expansion of with-pstrs
 
 (defun byte-length (string &optional script start end)
     (declare (ignore script))
@@ -77,9 +77,10 @@
 (defvar *rtld-next*)
 (defvar *rtld-default*)
 (setq *rtld-next* (%incf-ptr (%null-ptr) -1)
-      *rtld-default* (%int-to-ptr 0))
+      *rtld-default* (%int-to-ptr #+linux-target 0
+				  #-linux-target -2))
 
-#+linux-target
+#+(or linux-target freebsd-target)
 (progn
 
 (defvar *dladdr-entry*)
@@ -128,18 +129,18 @@
     
 (defvar *shared-libraries* nil)
 
-#+linux-target
+#+(or linux-target freebsd-target)
 (progn
 
 (defun soname-ptr-from-link-map (map)
   (with-macptrs ((dyn-strings)
 		 (dynamic-entries (pref map :link_map.l_ld)))
     (let* ((soname-offset nil))
-      ;;; Walk over the entries in the file's dynamic segment;
-      ;;; the last such entry will have a tag of #$DT_NULL.
-      ;;; Note the (loaded) address of the dynamic string table
-      ;;; and the offset of the #$DT_SONAME string in that string
-      ;;; table.
+      ;;; Walk over the entries in the file's dynamic segment; the
+      ;;; last such entry will have a tag of #$DT_NULL.  Note the
+      ;;; (loaded,on Linux; relative to link_map.l_addr on FreeBSD)
+      ;;; address of the dynamic string table and the offset of the
+      ;;; #$DT_SONAME string in that string table.
       (loop
 	  (case #+32-bit-target (pref dynamic-entries :<E>lf32_<D>yn.d_tag)
                 #+64-bit-target (pref dynamic-entries :<E>lf64_<D>yn.d_tag)
@@ -156,8 +157,13 @@
 			      (pref dynamic-entries
 				    :<E>lf32_<D>yn.d_un.d_ptr)
                               #+64-bit-target
+			      #+linux-target
                               (pref dynamic-entries
-				    :<E>lf64_<D>yn.d_un.d_ptr))))
+				    :<E>lf64_<D>yn.d_un.d_ptr)
+			      #+freebsd-target
+			      (%inc-ptr (pref map :link_map.l_addr)
+					(pref dynamic-entries
+					      :<E>lf64_<D>yn.d_un.d_val)))))
 	  (%setf-macptr dynamic-entries
 			(%inc-ptr dynamic-entries
                                   #+32-bit-target
@@ -213,8 +219,14 @@
           shlib))))
 
 
+(defun %get-r-debug ()
+  (let* ((addr (ff-call (%kernel-import target::kernel-import-get-r-debug)
+			address)))
+    (unless (%null-ptr-p addr)
+      addr)))
+
 (defun %link-map-address ()
-  (let* ((r_debug (foreign-symbol-address "_r_debug")))
+  (let* ((r_debug (%get-r-debug)))
     (if r_debug
       (pref r_debug :r_debug.r_map)
       (let* ((p (or (foreign-symbol-address "_dl_loaded")
@@ -237,12 +249,14 @@
 	     :void)))
   
 (defun init-shared-libraries ()
+  #+freebsd-target (dbg)
   (setq *dladdr-entry* (foreign-symbol-entry "dladdr"))
   (when (null *shared-libraries*)
     (%walk-shared-libraries #'shlib-from-map-entry)
     (dolist (l *shared-libraries*)
       ;;; It seems to be necessary to open each of these libraries
       ;;; yet again, specifying the RTLD_GLOBAL flag.
+      #+linux-target
       (%dlopen-shlib l)
       (setf (shlib.opened-by-lisp-kernel l) t))))
 
@@ -465,7 +479,7 @@ return a fixnum representation of that address, else return NIL."
 
 (defvar *statically-linked* nil)
 
-#+linux-target
+#+(or linux-target freebsd-target)
 (progn
 
 (defun %library-base-containing-address (address)
@@ -519,8 +533,10 @@ return a fixnum representation of that address, else return NIL."
 ;;; if the dylib or module is not found in *shared-libraries* list it is added
 ;;; if not found in the OS list it returns nil
 ;;;
-;;; got this error before putting in the call to NSIsObjectNameDefinedInImage
-;;; dyld: /usr/local/lisp/ccl/dppccl dead lock (dyld operation attempted in a thread already doing a dyld operation)
+;;; got this error before putting in the call to
+;;; NSIsObjectNameDefinedInImage dyld: /usr/local/lisp/ccl/dppccl dead
+;;; lock (dyld operation attempted in a thread already doing a dyld
+;;; operation)
 ;;;
 
 (defun shlib-containing-address (addr name)
@@ -569,7 +585,7 @@ return a fixnum representation of that address, else return NIL."
 ;; end Darwin progn
 )
 
-#-(or linux-target darwinppc-target)
+#-(or linux-target darwinppc-target freebsd-target)
 (defun shlib-containing-entry (entry &optional name)
   (declare (ignore entry name))
   *rtld-default*)
