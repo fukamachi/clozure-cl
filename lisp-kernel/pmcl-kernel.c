@@ -98,6 +98,7 @@ Boolean use_mach_exception_handling =
 #include <sys/resource.h>
 #include <dlfcn.h>
 #include <elf.h> 
+#include <link.h>
 #endif
 
 #include <ctype.h>
@@ -1772,15 +1773,15 @@ get_r_debug()
 {
 #if defined(LINUX) || defined(FREEBSD)
 #if WORD_SIZE == 64
-  extern Elf64_Dyn _DYNAMIC;
+  extern Elf64_Dyn _DYNAMIC[];
   Elf64_Dyn *dp;
 #else
-  extern Elf32_Dyn _DYNAMIC;
+  extern Elf32_Dyn _DYNAMIC[];
   Elf32_Dyn *dp;
 #endif
   int tag;
 
-  for (dp = &_DYNAMIC; (tag = dp->d_tag) != 0; dp++) {
+  for (dp = _DYNAMIC; (tag = dp->d_tag) != 0; dp++) {
     if (tag == DT_DEBUG) {
       return (void *)(dp->d_un.d_ptr);
     }
