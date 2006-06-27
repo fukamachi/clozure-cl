@@ -129,7 +129,10 @@ _exportfn(C(switch_to_foreign_stack))
 	__(movq %r9,%rcx)
 	__(jmp *%rax)
 _endfn
-		
+
+_exportfn(C(freebsd_sigreturn))
+	__(movl $417,%eax)	/* SYS_sigreturn */
+	__(syscall)				
 _exportfn(C(get_vector_registers))
 _endfn
 
