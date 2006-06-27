@@ -1,4 +1,3 @@
-;;; x86-trap-support
 ;;;
 ;;;   Copyright (C) 2005-2006 Clozure Associates and contributors
 ;;;   This file is part of OpenMCL.  
