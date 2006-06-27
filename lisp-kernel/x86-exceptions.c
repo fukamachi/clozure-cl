@@ -1038,7 +1038,7 @@ setup_sigaltstack(area *a)
   a->low += 8192;
   stack.ss_size = 8192;
   stack.ss_flags = 0;
-
+  mmap(stack.ss_sp,stack.ss_size, PROT_READ|PROT_WRITE|PROT_EXEC,MAP_FIXED|MAP_ANON|MAP_PRIVATE,-1,0);
   sigaltstack(&stack, NULL);
 }
 
