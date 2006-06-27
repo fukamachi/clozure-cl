@@ -747,7 +747,8 @@
 
 #+x86-target
 (defconstant yield-syscall
-  #+linux-target 24)
+  #+linux-target 24
+  #+freebsd-target 321)
 
 (defconstant gf-code-size 16)
 
@@ -778,7 +779,7 @@
   allocate_vstack
   register_cstack
   raise-thread-interrupt
-  metering-control
+  get-r-debug
   restore-soft-stack-limit
   egc-control
   lisp-bug
