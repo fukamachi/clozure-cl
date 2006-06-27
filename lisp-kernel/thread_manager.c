@@ -292,6 +292,9 @@ suspend_resume_handler(int signo, siginfo_t *info, ExceptionInformation *context
 #ifdef DARWIN
   DarwinSigReturn(context);
 #endif
+#ifdef FREEBSD
+  freebsd_sigreturn(context);
+#endif
 }
 
   
