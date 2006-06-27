@@ -64,6 +64,10 @@
     #+darwinppc-target :darwinppc-host
     #+darwinppc-target :darwin
     #+darwinppc-target :darwin-target
+    #+freebsd-target :freebsd-host
+    #+freebsd-target :freebsd-target
+    #+freebsdx86-target :freebsdx86-target
+    #+freebsdx8664-target :freebsdx8664-target
     #+poweropen-target :poweropen-target
     #+64-bit-target :64-bit-target
     #+64-bit-target :64-bit-host
