@@ -575,7 +575,7 @@
   allocate_vstack
   register_cstack
   raise-thread-interrupt
-  metering-control
+  get-r-debug
   restore-soft-stack-limit
   egc-control
   lisp-bug
