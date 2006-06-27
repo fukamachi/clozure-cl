@@ -205,7 +205,7 @@
 	    ((:linuxppc32 :darwinppc32 :linuxppc64 :darwinppc64)
 	     '(ppc-error-signal ppc-trap-support
 	       ppc-threads-utils ppc-callback-support))
-            ((:linuxx8664 :freebsd86664)
+            ((:linuxx8664 :freebsdx8664)
              '(x86-error-signal x86-trap-support
                x86-threads-utils x86-callback-support)))))
 
@@ -427,7 +427,8 @@
     (:linuxppc32 "ppc-boot")
     (:darwinppc64 "ppc-boot64.image")
     (:linuxppc64 "ppc-boot64")
-    (:linuxx8664 "x86-boot64")))
+    (:linuxx8664 "x86-boot64")
+    (:freebsdx8664 "fx86-boot64")))
 
 (defun standard-kernel-name (&optional (target (backend-name *host-backend*)))
   (ecase target
@@ -435,7 +436,8 @@
     (:linuxppc32 "ppccl")
     (:darwinppc64 "dppccl64")
     (:linuxppc64 "ppccl64")
-    (:linuxx8664 "lx86cl64")))
+    (:linuxx8664 "lx86cl64")
+    (:freebsdx8664 "fx86cl64")))
 
 (defun standard-image-name (&optional (target (backend-name *host-backend*)))
   (ecase target
@@ -443,7 +445,8 @@
     (:linuxppc32 "PPCCL")
     (:darwinppc64 "dppccl64.image")
     (:linuxppc64 "PPCCL64")
-    (:linuxx8664 "LX86CL64")))
+    (:linuxx8664 "LX86CL64")
+    (:freebsdx8664 "FX86CL64")))
 
 (defun kernel-build-directory (&optional (target (backend-name *host-backend*)))
   (ecase target
@@ -451,7 +454,8 @@
     (:linuxppc32 "linuxppc")
     (:darwinppc64 "darwinppc64")
     (:linuxppc64 "linuxppc64")
-    (:linuxx8664 "linuxx8664")))
+    (:linuxx8664 "linuxx8664")
+    (:freebsdx8664 "freebsd8664")))
 
 (defun rebuild-ccl (&key full clean kernel force (reload t) exit reload-arguments)
   (when full
