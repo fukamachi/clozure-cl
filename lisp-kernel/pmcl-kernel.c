@@ -97,6 +97,7 @@ Boolean use_mach_exception_handling =
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <dlfcn.h>
+#include <elf.h> 
 #endif
 
 #include <ctype.h>
@@ -1740,7 +1741,7 @@ set_errno(int val)
 void *
 xFindSymbol(void* handle, char *name)
 {
-#ifdef LINUX
+#if defined(LINUX) || defined(FREEBSD)
   return dlsym(handle, name);
 #endif
 #ifdef DARWIN
@@ -1764,6 +1765,28 @@ xFindSymbol(void* handle, char *name)
   Bug(NULL, "How did this happen ?");
 #endif
 #endif
+}
+
+void *
+get_r_debug()
+{
+#if defined(LINUX) || defined(FREEBSD)
+#if WORD_SIZE == 64
+  extern Elf64_Dyn _DYNAMIC;
+  Elf64_Dyn *dp;
+#else
+  extern Elf32_Dyn _DYNAMIC;
+  Elf32_Dyn *dp;
+#endif
+  int tag;
+
+  for (dp = &_DYNAMIC; (tag = dp->d_tag) != 0; dp++) {
+    if (tag == DT_DEBUG) {
+      return (void *)(dp->d_un.d_ptr);
+    }
+  }
+#endif
+  return NULL;
 }
 
 
