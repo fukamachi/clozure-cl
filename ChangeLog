@@ -1,3 +1,50 @@
+2006-06-27 08:55  gb
+
+	* lisp-kernel/x86-exceptions.c: map the altstack
+	read/write/execute.
+
+2006-06-27 08:54  gb
+
+	* lisp-kernel/thread_manager.c: Fix os_get_stack_bounds() for
+	FreeBSD.
+
+2006-06-27 08:54  gb
+
+	* lisp-kernel/Threads.h: FreeBSD needs prototypes from
+	<pthread_np.h>
+
+2006-06-27 08:53  gb
+
+	* lib/compile-ccl.lisp: New (renamed) kernel-build-direcory for
+	:freebsdx8664.
+
+2006-06-27 08:53  gb
+
+	* level-1/x86-trap-support.lisp: freebsd x8664 GPR indices.  (Needs
+	testing.)
+	
+	Don't conditionalize as much code. Indices/offsets are
+	platform-specific, but accessors defiend in terms of them needn't
+	be.
+
+2006-06-27 08:51  gb
+
+	* level-1/x86-callback-support.lisp: Remove 1st line (bogus
+	comment.)
+
+2006-06-27 08:50  gb
+
+	* level-0/l0-init.lisp: More freebsd x8664 features.
+
+2006-06-27 08:50  gb
+
+	* scripts/openmcl64: Update for FreeBSD/amd64.
+
+2006-06-27 08:47  gb
+
+	* compiler/X86/X8664/x8664-backend.lisp: FreeBSD backend has
+	:freebsdx8664-target as a target-specific-feature.
+
 2006-06-27 05:05  gb
 
 	* lisp-kernel/: freebsdx8664/Makefile, freebsd8664/Makefile,
