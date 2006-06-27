@@ -75,7 +75,19 @@ are running on, or NIL if we can't find any useful information."
                                 #+x86-target "model name"))
                        ((null line))
                     (let* ((matched (cpu-info-match target line)))
-                      (when matched (return matched))))))))))
+                      (when matched (return matched)))))))
+            #+freebsd-target
+            (%stack-block ((ret 512)
+                           (mib (* (record-length :uint))))
+              (setf (%get-unsigned-long mib 0)
+                    #$CTL_HW
+                    (%get-unsigned-long mib (record-length :uint))
+                    #$HW_MODEL)
+              (rlet ((oldsize :uint 512))
+                (if (eql 0 (#_sysctl mib 2 ret oldsize (%null-ptr) 0))
+                  (%get-cstring ret)
+                  1)))
+            )))
 
 
 (defun software-type ()
