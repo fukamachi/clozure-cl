@@ -1231,7 +1231,7 @@
              (:linuxppc32 (%nx1-operator eabi-syscall))
              ((:darwinppc32 :darwinppc64 :linuxppc64)
               (%nx1-operator poweropen-syscall))
-             (:linuxx8664 (%nx1-operator syscall))))))
+             ((:linuxx8664 :freebsdx8664) (%nx1-operator syscall))))))
 
 (defun nx1-ff-call-internal (address-expression arg-specs-and-result-spec operator )
   (let* ((specs ())
