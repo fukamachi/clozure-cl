@@ -248,13 +248,13 @@
 	     :void)))
   
 (defun init-shared-libraries ()
-  #+freebsd-target (dbg)
   (setq *dladdr-entry* (foreign-symbol-entry "dladdr"))
   (when (null *shared-libraries*)
     (%walk-shared-libraries #'shlib-from-map-entry)
     (dolist (l *shared-libraries*)
-      ;;; It seems to be necessary to open each of these libraries
-      ;;; yet again, specifying the RTLD_GLOBAL flag.
+      ;;; On Linux, it seems to be necessary to open each of these
+      ;;; libraries yet again, specifying the RTLD_GLOBAL flag.
+      ;;; On FreeBSD, it seems desirable -not- to do that.
       #+linux-target
       (%dlopen-shlib l)
       (setf (shlib.opened-by-lisp-kernel l) t))))
