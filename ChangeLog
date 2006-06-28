@@ -1,3 +1,10 @@
+2006-06-28 05:24  gb
+
+	* level-0/l0-cfm-support.lisp: *rtld-default* wants to be a null
+	pointer on DarwinPPC32 (at the very least, that platform's
+	xFindSymbol gets confused by anything but a null pointer/global
+	lookup.)
+
 2006-06-28 05:09  gb
 
 	* level-1/version.lisp: Bump.  Call the FreeBSD/AMD64 version
