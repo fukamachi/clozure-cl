@@ -569,6 +569,39 @@ extend_tcr_tlb(TCR *tcr, ExceptionInformation *xp)
 }
 
 
+#ifdef FREEBSD
+static
+char mxcsr_bit_to_fpe_code[] = {
+  FPE_FLTINV,                   /* ie */
+  0,                            /* de */
+  FPE_FLTDIV,                   /* ze */
+  FPE_FLTOVF,                   /* oe */
+  FPE_FLTUND,                   /* ue */
+  FPE_FLTRES                    /* pe */
+};
+
+void
+freebsd_decode_vector_fp_exception(siginfo_t *info, ExceptionInformation *xp)
+{
+  /* If the exception appears to be an XMM FP exception, try to
+     determine what it was by looking at bits in the mxcsr.
+  */
+  if (info->si_code == 0) {
+    struct savefpu *fpu = (struct savefpu *) &(xp->uc_mcontext.mc_fpstate);
+    uint32_t mxcsr = fpu->sv_env.en_mxcsr;
+    int xbit, maskbit;
+   
+    for (xbit = 0, maskbit = MXCSR_IM_BIT; xbit < 6; xbit++, maskbit++) {
+      if ((mxcsr & (1 << xbit)) &&
+          !(mxcsr & (1 << maskbit))) {
+        info->si_code = mxcsr_bit_to_fpe_code[xbit];
+        return;
+      }
+    }
+  }
+}
+#endif
+
 Boolean
 handle_exception(int signum, siginfo_t *info, ExceptionInformation  *context, TCR *tcr)
 {
@@ -647,6 +680,15 @@ handle_exception(int signum, siginfo_t *info, ExceptionInformation  *context, TC
     break;
     
   case SIGFPE:
+#ifdef FREEBSD
+    /* As of 6.1, FreeBSD/AMD64 doesn't seem real comfortable
+       with this newfangled XMM business (and therefore info->si_code
+       is often 0 on an XMM FP exception.
+       Try to figure out what really happened by decoding mxcsr
+       bits.
+    */
+    freebsd_decode_vector_fp_exception(info,context);
+#endif
     return handle_floating_point_exception(tcr, context, info);
 
   default:
