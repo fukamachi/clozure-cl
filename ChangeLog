@@ -1,3 +1,14 @@
+2006-06-28 05:09  gb
+
+	* level-1/version.lisp: Bump.  Call the FreeBSD/AMD64 version
+	"Alpha", which may be a bit generous (pretty regular deadlock,
+	random thread creation errors, other bugs.)
+
+2006-06-28 05:07  gb
+
+	* lisp-kernel/freebsdx8664/.gdbinit: new; awfully similar to linux
+	x86-64 version.
+
 2006-06-28 04:04  gb
 
 	* lisp-kernel/x86-exceptions.c: FreeBSD doesn't do a good job of
