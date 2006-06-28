@@ -1,3 +1,24 @@
+2006-06-28 04:04  gb
+
+	* lisp-kernel/x86-exceptions.c: FreeBSD doesn't do a good job of
+	identifying the cause of XMM FP exceptions.  Try to do that by
+	looking at MXCSR bits.
+
+2006-06-28 04:03  gb
+
+	* lisp-kernel/x86-spentry64.s: FreeBSD syscalls set carry flag to
+	indicate error return.
+
+2006-06-28 04:03  gb
+
+	* level-1/: l1-sockets.lisp, linux-files.lisp,
+	x86-trap-support.lisp: Some FreeBSD changes/fixes.
+
+2006-06-28 04:02  gb
+
+	* level-0/l0-cfm-support.lisp: Remove a #+freebsd-target
+	breakpoint.
+
 2006-06-27 18:08  gb
 
 	* level-0/l0-cfm-support.lisp: fix (?) nested #+/#-.  Maybe.
