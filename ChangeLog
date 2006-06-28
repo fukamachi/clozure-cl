@@ -1,3 +1,16 @@
+2006-06-27 18:08  gb
+
+	* level-0/l0-cfm-support.lisp: fix (?) nested #+/#-.  Maybe.
+
+2006-06-27 17:30  gb
+
+	* lisp-kernel/x86-exceptions.h: Fix Linux def of IS_MAYBE_INT_TRAP.
+
+2006-06-27 17:27  gb
+
+	* lisp-kernel/pmcl-kernel.c: (possibly) make get_r_debug more
+	portable; possibly break it completely ...
+
 2006-06-27 08:55  gb
 
 	* lisp-kernel/x86-exceptions.c: map the altstack
