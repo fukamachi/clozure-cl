@@ -188,7 +188,6 @@ OS environment."
 	(%get-cstring env-ptr))))
   )
 
-#-freebsd-target
 (defun setenv (key value &optional (overwrite t))
   "Set the value of the environment variable named by name, in the OS
 environment. If there is no such environment variable, create it."
@@ -598,9 +597,9 @@ any EXTERNAL-ENTRY-POINTs known to be defined by it to become unresolved."
 	(%errno-disp status)))))
 
 
-;;; I believe that the Darwin syscall infterface is rather ... odd.
+;;; I believe that the Darwin/FreeBSD syscall infterface is rather ... odd.
 ;;; Use libc's interface.
-#+darwinppc-target
+#+(or darwinppc-target freebsd-target)
 (defun pipe ()
   (%stack-block ((pipes 8))
     (let* ((status (#_pipe pipes)))

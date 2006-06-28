@@ -523,7 +523,7 @@ the socket is not connected."))
       (when nodelay
 	(int-setsockopt fd
 			#+linux-target #$SOL_TCP
-			#+darwin-target #$IPPROTO_TCP
+			#+(or freebsd-target darwin-target) #$IPPROTO_TCP
 			#$TCP_NODELAY 1))
       (when (or local-port local-host)
 	(let* ((proto (if (eq type :stream) "tcp" "udp"))
@@ -936,9 +936,34 @@ unsigned IP address."
     (socket-call socket "setsockopt"
       (c_setsockopt socket level optname valptr (record-length :signed)))))
 
-(defloadvar *h-errno* (foreign-symbol-address #+darwinppc-target "_h_errno"
-                                              #-darwinppc-target "h_errno"))
-#+darwinppc-target
+#+(or darwin-target linux-target)
+(defloadvar *h-errno-variable-address* nil)
+#+linux-target
+(defloadvar *h-errno-function-address* nil)
+
+(defun h-errno-location ()
+  #+darwin-target
+  ;; As of Tiger, Darwin doesn't seem to have grasped the concept
+  ;; of thread-local storage for h_errno.
+  (or *h-errno-variable-address*
+      (setq *h-errno-variable-address* (foreign-symbol-address "_h_errno")))
+  ;; Supported versions of FreeBSD seem to have grasped that concept.
+  #+freebsd-target
+  (#_ __h_error)
+  #+linux-target
+  ;; Current versions of Linux support thread-specific h_errno,
+  ;; but older versions may not.
+  (if *h-errno-function-address*
+    (ff-call *h-errno-function-address* :address)
+    (or *h-errno-variable-address*
+        (let* ((entry (foreign-symbol-entry "__h_errno_location")))
+          (if entry
+            (ff-call (setq *h-errno-function-address* entry) :address)
+            (setq *h-errno-variable-address*
+                  (foreign-symbol-address  "h_errno")))))))
+            
+
+#+(or darwinppc-target freebsd-target)
 (defun c_gethostbyaddr (addr)
   (rlet ((addrp :unsigned))
     (setf (pref addrp :unsigned) addr)
@@ -947,7 +972,7 @@ unsigned IP address."
        (declare (dynamic-extent hp))
        (if (not (%null-ptr-p hp))
 	 (%get-cstring (pref hp :hostent.h_name))
-	 (values nil (pref *h-errno* :signed)))))))
+	 (values nil (pref (h-errno-location) :signed)))))))
 
 #+linux-target
 (defun c_gethostbyaddr (addr)
@@ -968,7 +993,7 @@ unsigned IP address."
 		 (%get-cstring (pref (%get-ptr hp) :hostent.h_name))
 	       (values nil (- (pref herr :signed)))))))))))
 
-#+darwinppc-target
+#+(or darwinppc-target freebsd-target)
 (defun c_gethostbyname (name)
   (with-cstrs ((name (string name)))
     (without-interrupts
@@ -977,7 +1002,7 @@ unsigned IP address."
        (if (not (%null-ptr-p hp))
 	 (%get-unsigned-long
 	  (%get-ptr (pref hp :hostent.h_addr_list)))
-	 (values nil (pref *h-errno* :signed)))))))
+	 (values nil (pref (h-errno-location) :signed)))))))
 
 #+linux-target
 (defun c_gethostbyname (name)
@@ -1014,15 +1039,15 @@ unsigned IP address."
       (%setf-macptr p (#_inet_ntoa addrp))
       (unless (%null-ptr-p p) (%get-cstring p)))))
 
-;;; On both of these platforms, the argument is a (:struct :in_addr),
+;;; On all of these platforms, the argument is a (:struct :in_addr),
 ;;; a single word that should be passed by value.  The FFI translator
 ;;; seems to lose the :struct, so just using #_ doesn't work (that
 ;;; sounds like a bug in the FFI translator.)
-#+(or darwinppc-target linuxx8664-target)
+#+(or darwinppc-target linuxx8664-target freebsd-target)
 (defun _inet_ntoa (addr)
   (with-macptrs ((p))
     (%setf-macptr p (external-call #+darwinppc-target "_inet_ntoa"
-                                   #+linuxx8664-target "inet_ntoa"
+                                   #-darwinppc-target "inet_ntoa"
 				   :unsigned-fullword addr
 				   :address))
     (unless (%null-ptr-p p) (%get-cstring p))))				   

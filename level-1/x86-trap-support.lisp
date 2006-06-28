@@ -47,7 +47,7 @@
 
 #+freebsdx8664-target
 (progn
-  (defconstant gp-regs-offset (get-field-offset :ucontext.uc_mcontext))
+  (defconstant gp-regs-offset (get-field-offset :ucontext_t.uc_mcontext))
   (defconstant flags-register-offset 22)
   (defparameter *encoded-gpr-to-indexed-gpr*
     #(7					;rax
