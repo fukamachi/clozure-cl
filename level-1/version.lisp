@@ -19,9 +19,11 @@
 (defparameter *openmcl-major-version* 1)
 (defparameter *openmcl-minor-version* 1)
 (defparameter *openmcl-revision* 0)
-(defparameter *openmcl-suffix* "pre-060623")
+(defparameter *openmcl-suffix* "pre-060628")
 (defparameter *openmcl-dev-level*
-  #+x8664-target "Beta" #-x8664-target nil)
+  #+ppc-target nil
+  #+freebsdx8664-target "Alpha"
+  #+linuxx8664-target "Beta")
 
 (defparameter *openmcl-version* (format nil "~d.~d~@[.~d~]~@[-~a~] (~@[~A: ~]~~A)"
 					*openmcl-major-version*
