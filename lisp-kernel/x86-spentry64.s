@@ -4054,6 +4054,11 @@ _spentry(syscall)
 	__(pop %r8)
 	__(pop %r9)
 	__(syscall)
+        __ifdef([FREEBSD])
+        __(jnc 0f)
+        __(negq %rax)
+0:      
+        __endif        
 	__(movq %rbp,%rsp)
 	__(movq %rsp,%rcontext:tcr.foreign_sp)        
 	__(clr %save3)
