@@ -77,8 +77,8 @@
 (defvar *rtld-next*)
 (defvar *rtld-default*)
 (setq *rtld-next* (%incf-ptr (%null-ptr) -1)
-      *rtld-default* (%int-to-ptr #+linux-target 0
-				  #-linux-target -2))
+      *rtld-default* (%int-to-ptr #+(or linux-target darwin-target)  0
+				  #-(or linux-target darwin-target)  -2))
 
 #+(or linux-target freebsd-target)
 (progn
