@@ -156,11 +156,10 @@
                               #+32-bit-target
 			      (pref dynamic-entries
 				    :<E>lf32_<D>yn.d_un.d_ptr)
-                              #+64-bit-target
-			      #+linux-target
+			      #+(and 64-bit-target linux-target)
                               (pref dynamic-entries
 				    :<E>lf64_<D>yn.d_un.d_ptr)
-			      #+freebsd-target
+			      #+(and 64-bit-target freebsd-target)
 			      (%inc-ptr (pref map :link_map.l_addr)
 					(pref dynamic-entries
 					      :<E>lf64_<D>yn.d_un.d_val)))))
