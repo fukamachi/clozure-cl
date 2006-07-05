@@ -1,3 +1,11 @@
+OpenMCL 1.1-pre-060705
+- Bug fixes again.  Some internal changes to support a FreeBSD/AMD64
+  port that's not quite ready.
+
+- :MCL is back on *features*; there seem to be too many packages out
+  there that expect it to be, and there hasn't been enough advance
+  notice of its pending removal.
+    
 OpenMCL 1.1-pre-060623
 - Mostly bug fixes (a CLOS bug that prevented the ObjC bridge from 
   working, FIXNUM arrays weren't quite finished on PPC)
