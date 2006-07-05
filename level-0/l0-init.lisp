@@ -78,6 +78,7 @@
     #+ppc-target :big-endian-host
     #+x86-target :little-endian-target
     #+x86-target :little-endian-host
+    :mcl                                ;deprecated
     )
   "a list of symbols that describe features provided by the
    implementation")
