@@ -1,3 +1,12 @@
+2006-07-04 22:24  gb
+
+	* level-1/linux-files.lisp: Use NATIVE-TRANSLATED-NAMESTRING on the
+	PROGRAM arg to RUN-PROGRAM.
+
+2006-07-04 22:23  gb
+
+	* level-1/version.lisp: Bump.
+
 2006-06-29 02:11  gb
 
 	* lisp-kernel/image.h, xdump/heap-image.lisp: Bump
