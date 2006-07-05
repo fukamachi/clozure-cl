@@ -1,3 +1,12 @@
+2006-07-05 02:38  gb
+
+	* release-notes.txt: Update.
+
+2006-07-05 02:22  gb
+
+	* level-0/l0-init.lisp: Reluctantly put :MCL back on *features*;
+	its removal needs to be better publicized.
+
 2006-07-04 22:24  gb
 
 	* level-1/linux-files.lisp: Use NATIVE-TRANSLATED-NAMESTRING on the
