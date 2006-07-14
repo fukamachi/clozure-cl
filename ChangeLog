@@ -1,3 +1,7 @@
+2006-07-14 05:57  gb
+
+	* compiler/nx0.lisp: NX-FORM-TYPEP: unqoute constants.
+
 2006-07-13 16:01  gb
 
 	* level-1/l1-typesys.lisp: SPECIALIZED-ARRAY-ELEMENT-TYPES needs to
