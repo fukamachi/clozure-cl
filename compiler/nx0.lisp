@@ -2195,7 +2195,7 @@ Or something. Right? ~s ~s" var varbits))
 (defun nx-form-typep (arg type &optional (env *nx-lexical-environment*))
   (setq type (type-expand type))
   (if (constantp arg)
-    (typep arg type)
+    (typep (nx-unquote arg) type)
     (subtypep (nx-form-type arg env) type)))
 
 
