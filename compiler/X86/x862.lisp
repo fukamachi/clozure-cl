@@ -6351,7 +6351,8 @@
 (defx862 x862-%aref1 %aref1 (seg vreg xfer v i)
   (let* ((vtype (acode-form-type v t))
          (atype (if vtype (specifier-type vtype)))
-         (keyword (if atype
+         (keyword (if (and atype
+                           (not (array-ctype-complexp atype)))
                     (funcall
                         (arch::target-array-type-name-from-ctype-function
                          (backend-target-arch *target-backend*))
@@ -6363,7 +6364,8 @@
 (defx862 x862-%aset1 aset1 (seg vreg xfer v i n)
   (let* ((vtype (acode-form-type v t))
          (atype (if vtype (specifier-type vtype)))
-         (keyword (if atype
+         (keyword (if (and atype
+                           (not (array-ctype-complexp atype)))
                     (funcall
                         (arch::target-array-type-name-from-ctype-function
                          (backend-target-arch *target-backend*))
