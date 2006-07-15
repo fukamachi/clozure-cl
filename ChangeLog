@@ -1,3 +1,16 @@
+2006-07-15 15:02  gb
+
+	* level-1/l1-error-system.lisp: Insert some fresh lines in the
+	IMPOSSIBLE-NUMBER condition :REPORT method.
+
+2006-07-15 15:00  gb
+
+	* compiler/X86/x862.lisp: x862-%aref1,x862-%aset1: don't try to do
+	simple vector operations unless we're sure that the vector is a
+	(SIMPLE-ARRAY * (*)) and we know the element-type (these were
+	leaping into the simple-typed-vector case when the element-type was
+	known but the vector wasn't known to be SIMPLE.
+
 2006-07-14 05:57  gb
 
 	* compiler/nx0.lisp: NX-FORM-TYPEP: unqoute constants.
