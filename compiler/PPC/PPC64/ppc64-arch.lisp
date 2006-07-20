@@ -242,7 +242,7 @@
 (define-subtag symbol gvector-funcallable 1)
 
 (define-subtag catch-frame fulltag-nodeheader-1 0)
-(define-subtag lisp-thread fulltag-nodeheader-1 1)
+(define-subtag basic-stream fulltag-nodeheader-1 1)
 (define-subtag lock fulltag-nodeheader-1 2)
 (define-subtag hash-vector fulltag-nodeheader-1 3)
 (define-subtag pool fulltag-nodeheader-1 4)
@@ -397,19 +397,7 @@
   name
   )
 
-(define-fixedsized-object lisp-thread
-  tcr
-  name
-  cs-size
-  vs-size
-  ts-size
-  initial-function.args
-  interrupt-functions
-  interrupt-lock
-  startup-function
-  state
-  state-change-lock
-)
+
 
 (define-fixedsized-object symbol
   pname
@@ -712,6 +700,7 @@
     (:value-cell . ,subtag-value-cell)
     (:instance . ,subtag-instance )
     (:lock . ,subtag-lock )
+    (:basic-stream . ,subtag-basic-stream)
     (:slot-vector . ,subtag-slot-vector)
     (:simple-string . ,subtag-simple-base-string )
     (:bit-vector . ,subtag-bit-vector )

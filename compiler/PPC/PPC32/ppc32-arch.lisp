@@ -215,7 +215,7 @@
 (defconstant min-non-numeric-node-subtag subtag-catch-frame)
 (assert (> min-non-numeric-node-subtag max-numeric-subtag))
 (define-node-subtag function 5)
-(define-node-subtag lisp-thread 6)
+(define-node-subtag basic-stream 6)
 (define-node-subtag symbol 7)
 (define-node-subtag lock 8)
 (define-node-subtag hash-vector 9)
@@ -228,8 +228,7 @@
 (define-node-subtag istruct 16)
 (define-node-subtag value-cell 17)
 (define-node-subtag xfunction 18)       ; Function for cross-development
-;;;(define-node-subtag svar 19)
-(defconstant max-non-array-node-subtag (logior (ash 19 ntagbits) fulltag-nodeheader))
+(defconstant max-non-array-node-subtag (logior (ash 18 ntagbits) fulltag-nodeheader))
 
 (define-subtag character fulltag-imm 9)
 (define-subtag vsp-protect fulltag-imm 7)
@@ -324,19 +323,7 @@
   name
   )
 
-(define-fixedsized-object lisp-thread
-  tcr
-  name
-  cs-size
-  vs-size
-  ts-size
-  initial-function.args
-  interrupt-functions
-  interrupt-lock
-  startup-function
-  state
-  state-change-lock
-)
+
 
 (define-fixedsized-object symbol
   pname
@@ -657,6 +644,7 @@
     (:instance . ,subtag-instance )
     (:lock . ,subtag-lock )
     (:slot-vector . ,subtag-slot-vector)
+    (:basic-stream . ,subtag-basic-stream)
     (:simple-string . ,subtag-simple-base-string )
     (:bit-vector . ,subtag-bit-vector )
     (:signed-8-bit-vector . ,subtag-s8-vector )

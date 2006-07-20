@@ -393,7 +393,7 @@
 (define-subtag weak fulltag-nodeheader-0 5)
 (define-subtag package fulltag-nodeheader-0 6)
 (define-subtag slot-vector fulltag-nodeheader-0 7)
-(define-subtag lisp-thread fulltag-nodeheader-0 8)
+(define-subtag basic-stream fulltag-nodeheader-0 8)
 (define-subtag function fulltag-nodeheader-0 9)
 
 (define-subtag ratio fulltag-nodeheader-1 1)
@@ -541,19 +541,7 @@
   name
   )
 
-(define-fixedsized-object lisp-thread ()
-  tcr
-  name
-  cs-size
-  vs-size
-  ts-size
-  initial-function.args
-  interrupt-functions
-  interrupt-lock
-  startup-function
-  state
-  state-change-lock
-)
+
 
 ;;; If we're pointing at the "symbol-vector", we can use these
 (define-fixedsized-object symptr ()
@@ -837,6 +825,7 @@
     (:value-cell . ,subtag-value-cell)
     (:instance . ,subtag-instance )
     (:lock . ,subtag-lock )
+    (:basic-stream . ,subtag-basic-stream)
     (:slot-vector . ,subtag-slot-vector)
     (:simple-string . ,subtag-simple-base-string )
     (:bit-vector . ,subtag-bit-vector )
