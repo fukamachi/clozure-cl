@@ -1,3 +1,11 @@
+2006-07-20 03:43  gb
+
+	* level-1/: l1-boot-2.lisp, l1-sockets.lisp, l1-streams.lisp,
+	l1-sysio.lisp: First (rough) cut at making streams "private"
+	(effectively always locked by the "owning" thread) to reduce some
+	locking overhead.  More to come, some of which will be a little
+	tricky to bootstrap.
+
 2006-07-20 01:09  gb
 
 	* lisp-kernel/: ppc-constants32.h, ppc-constants32.s,
