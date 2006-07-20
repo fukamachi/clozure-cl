@@ -1259,6 +1259,24 @@
 (defconstant max-stack-area-code area-tstack)
 (defconstant min-heap-area-code area-readonly)
 
+
+;;; Lisp threads, which barely need to exist and aren't worth burning
+;;; a separate tag on ...
+(def-accessors (lisp-thread) %svref
+  nil                                   ;'lisp-thread
+  lisp-thread.tcr
+  lisp-thread.name
+  lisp-thread.cs-size
+  lisp-thread.vs-size
+  lisp-thread.ts-size
+  lisp-thread.initial-function.args
+  lisp-thread.interrupt-functions
+  lisp-thread.interrupt-lock
+  lisp-thread.startup-function
+  lisp-thread.state
+  lisp-thread.state-change-lock
+  )
+      
 (provide "LISPEQU")
 
 ;;; End of lispequ.lisp
