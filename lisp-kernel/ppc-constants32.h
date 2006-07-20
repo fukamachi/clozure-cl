@@ -177,7 +177,7 @@ typedef struct cons {
 
 #define subtag_catch_frame NODE_SUBTAG(4)
 #define subtag_function NODE_SUBTAG(5)
-#define subtag_sgbuf NODE_SUBTAG(6)
+#define subtag_basic_stream NODE_SUBTAG(6)
 #define subtag_symbol NODE_SUBTAG(7)
 #define subtag_lock NODE_SUBTAG(8)
 #define subtag_hash_vector NODE_SUBTAG(9)

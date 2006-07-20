@@ -297,7 +297,7 @@ define_subtag(pool,fulltag_nodeheader_0,4)
 define_subtag(weak,fulltag_nodeheader_0,5)
 define_subtag(package,fulltag_nodeheader_0,6)
 define_subtag(slot_vector,fulltag_nodeheader_0,7)
-define_subtag(lisp_thread,fulltag_nodeheader_0,8)
+define_subtag(basic_stream,fulltag_nodeheader_0,8)
 define_subtag(function,fulltag_nodeheader_0,9)
 	
 define_subtag(ratio,fulltag_nodeheader_1,1)

@@ -126,7 +126,7 @@ gvector_funcallable = fulltag_nodeheader_0
 define_subtag(function,gvector_funcallable,0)
 define_subtag(symbol,gvector_funcallable,1)
 define_subtag(catch_frame,fulltag_nodeheader_1,0)
-define_subtag(lisp_thread,fulltag_nodeheader_1,1)
+define_subtag(basic_stream,fulltag_nodeheader_1,1)
 define_subtag(lock,fulltag_nodeheader_1,2)
 define_subtag(hash_vector,fulltag_nodeheader_1,3)
 define_subtag(pool,fulltag_nodeheader_1,4)

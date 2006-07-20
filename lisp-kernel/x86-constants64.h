@@ -162,7 +162,7 @@
 #define subtag_weak SUBTAG(fulltag_nodeheader_0,5)
 #define subtag_package SUBTAG(fulltag_nodeheader_0,6)
 #define subtag_slot_vector SUBTAG(fulltag_nodeheader_0,7)
-#define subtag_lisp_thread SUBTAG(fulltag_nodeheader_0,8)
+#define subtag_basic_stream SUBTAG(fulltag_nodeheader_0,8)
 #define subtag_function SUBTAG(fulltag_nodeheader_0,9)
 
 #define subtag_ratio SUBTAG(fulltag_nodeheader_1,1)

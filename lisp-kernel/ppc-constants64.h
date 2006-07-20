@@ -115,7 +115,7 @@
 #define subtag_function SUBTAG(gvector_funcallable,0)
 #define subtag_symbol SUBTAG(gvector_funcallable,1)
 #define subtag_catch_frame SUBTAG(fulltag_nodeheader_1,0)
-#define subtag_lisp_thread SUBTAG(fulltag_nodeheader_1,1)
+#define subtag_basic_stream SUBTAG(fulltag_nodeheader_1,1)
 #define subtag_lock SUBTAG(fulltag_nodeheader_1,2)
 #define subtag_hash_vector SUBTAG(fulltag_nodeheader_1,3)
 #define subtag_pool SUBTAG(fulltag_nodeheader_1,4)
