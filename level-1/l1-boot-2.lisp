@@ -82,11 +82,12 @@ present and false otherwise. This variable shouldn't be set by user code.")
 
 (def-ccl-pointers fd-streams ()
   (setq *stdin*	(make-fd-stream 0
+                                :private nil
                                 :direction :input
                                 :interactive (not *batch-flag*)))
-  (setq *stdout* (make-fd-stream 1 :direction :output))
+  (setq *stdout* (make-fd-stream 1 :direction :output :private nil))
 
-  (setq *stderr* (make-fd-stream 2 :direction :output))
+  (setq *stderr* (make-fd-stream 2 :direction :output :private nil))
   (if *batch-flag*
     (let* ((tty-fd (let* ((fd (fd-open "/dev/tty" #$O_RDWR)))
                      (if (>= fd 0) fd)))
@@ -95,8 +96,9 @@ present and false otherwise. This variable shouldn't be set by user code.")
         (setq
          *terminal-input* (make-fd-stream tty-fd
                                           :direction :input
-                                          :interactive t)
-         *terminal-output* (make-fd-stream tty-fd :direction :output)
+                                          :interactive t
+                                          :private nil)
+         *terminal-output* (make-fd-stream tty-fd :direction :output :private nil)
          *terminal-io* (make-echoing-two-way-stream
                         *terminal-input* *terminal-output*))
         (progn

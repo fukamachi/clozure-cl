@@ -383,20 +383,36 @@
   `(with-lock-grabbed-maybe (,lock)
     ,@body))
 
-; ioblock must really be an ioblock or you will crash
+;;; ioblock must really be an ioblock or you will crash
+;;; Also: the expression "ioblock" is evaluated multiple times.
+
+(declaim (inline check-ioblock-owner))
+(defun check-ioblock-owner (ioblock)
+  (let* ((owner (ioblock-owner ioblock)))
+    (if owner
+      (or (eq owner *current-process*)
+          (error "Stream ~s is private to ~s" (ioblock-stream ioblock) owner)))))
+
 (defmacro with-ioblock-input-locked ((ioblock) &body body)
-  `(with-ioblock-lock-grabbed ((locally (declare (optimize (speed 3) (safety 0)))
-                                   (ioblock-inbuf-lock ,ioblock)))
-     ,@body))
+  `(if (check-ioblock-owner ,ioblock)
+    (progn ,@body)
+    (with-ioblock-lock-grabbed ((locally (declare (optimize (speed 3) (safety 0)))
+                                  (ioblock-inbuf-lock ,ioblock)))
+      ,@body)))
+
 (defmacro with-ioblock-output-locked ((ioblock) &body body)
-  `(with-ioblock-lock-grabbed ((locally (declare (optimize (speed 3) (safety 0)))
-                                   (ioblock-outbuf-lock ,ioblock)))
-     ,@body))
+  `(if (check-ioblock-owner ,ioblock)
+    (progn ,@body)
+    (with-ioblock-lock-grabbed ((locally (declare (optimize (speed 3) (safety 0)))
+                                  (ioblock-outbuf-lock ,ioblock)))
+      ,@body)))
 
 (defmacro with-ioblock-output-locked-maybe ((ioblock) &body body)
-  `(with-ioblock-lock-grabbed-maybe ((locally (declare (optimize (speed 3) (safety 0)))
-				       (ioblock-outbuf-lock ,ioblock)))
-     ,@body))
+  `(if (check-ioblock-owner ,ioblock)
+    (progn ,@body)
+    (with-ioblock-lock-grabbed-maybe ((locally (declare (optimize (speed 3) (safety 0)))
+                                        (ioblock-outbuf-lock ,ioblock)))
+      ,@body)))
 
 (defun %ioblock-advance (ioblock read-p)
   (funcall (ioblock-advance-function ioblock)
@@ -883,6 +899,7 @@
                             close-function
                             element-shift
                             interactive
+                            private
                             &allow-other-keys)
   (declare (ignorable element-shift))
   (let* ((ioblock (or (let* ((ioblock (stream-ioblock stream nil)))
@@ -890,6 +907,8 @@
                           (setf (ioblock-stream ioblock) stream)
                           ioblock))
                       (stream-create-ioblock stream))))
+    (when private
+      (setf (ioblock-owner ioblock) *current-process*))
     (when insize
       (unless (ioblock-inbuf ioblock)
         (multiple-value-bind (buffer ptr in-size-in-octets)
@@ -899,7 +918,8 @@
                                 :bufptr ptr
                                 :size in-size-in-octets
                                 :limit insize))
-          (setf (ioblock-inbuf-lock ioblock) (make-lock))
+          (unless private
+            (setf (ioblock-inbuf-lock ioblock) (make-lock)))
           (setf (ioblock-element-shift ioblock) (max 0 (ceiling (log  (/ in-size-in-octets insize) 2))))
           )))
     (if share-buffers-p
@@ -920,7 +940,8 @@
                                   :count 0
                                   :limit outsize
                                   :size out-size-in-octets))
-            (setf (ioblock-outbuf-lock ioblock) (make-lock))
+            (unless private
+              (setf (ioblock-outbuf-lock ioblock) (make-lock)))
             (setf (ioblock-element-shift ioblock) (max 0 (ceiling (log (/ out-size-in-octets outsize) 2))))
             ))))
     (when element-type
@@ -976,7 +997,8 @@
 			  (interactive t)
 			  (elements-per-buffer *elements-per-buffer*)
 			  (element-type 'character)
-			  (class 'fd-stream))
+			  (class 'fd-stream)
+                          (private t))
   (let* ((in-p (member direction '(:io :input)))
          (out-p (member direction '(:io :output)))
          (char-p (or (eq element-type 'character)
@@ -994,7 +1016,8 @@
 			 :eofp-function (if in-p 'fd-stream-eofp)
 			 :force-output-function (if out-p
 						  (select-stream-force-output-function class))
-			 :close-function 'fd-stream-close)))
+			 :close-function 'fd-stream-close
+                         :private private)))
   
 ;;;  Fundamental streams.
 
@@ -1794,6 +1817,14 @@
   (declare (dynamic-extent args))
   (apply #'make-ioblock :stream stream args))
 
+(defmethod stream-owner ((stream stream))
+  )
+
+(defmethod stream-owner ((stream buffered-stream-mixin))
+  (let* ((ioblock (stream-ioblock stream nil)))
+    (and ioblock (ioblock-owner ioblock))))
+
+
 (defclass buffered-input-stream-mixin
           (buffered-stream-mixin fundamental-input-stream)
   ())
@@ -2456,7 +2487,8 @@
                                                (t :create)))
                       (external-format :default)
 		      (class *default-file-stream-class*)
-                      (elements-per-buffer *elements-per-buffer*))
+                      (elements-per-buffer *elements-per-buffer*)
+                      (private t))
   "Return a stream which reads from or writes to FILENAME.
   Defined keywords:
    :DIRECTION - one of :INPUT, :OUTPUT, :IO, or :PROBE
@@ -2475,7 +2507,8 @@
 			  if-does-not-exist
 			  elements-per-buffer
 			  class
-			  external-format))
+			  external-format
+                          private))
       (retry-open ()
                   :report (lambda (stream) (format stream "Retry opening ~s" filename))
                   nil))))

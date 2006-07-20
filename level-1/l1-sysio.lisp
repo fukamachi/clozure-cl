@@ -506,7 +506,8 @@ is :UNIX.")
 			 if-does-not-exist
 			 elements-per-buffer
 			 class
-			 external-format)
+			 external-format
+                         private)
 
   (let* ((temp-name nil)
          (dir (pathname-directory filename))
@@ -542,9 +543,9 @@ is :UNIX.")
 		  ((not native-truename)
 		   (setq native-truename (%create-file filename)))
 		  ((memq direction '(:output :io))
-		   #|			;
-					; this prevents us from writing a file that is open for anything            
-					; but does not protect against reading a file that is open for :output
+		   #| ;;
+                   ;; this prevents us from writing a file that is open for anything            
+                   ;;l but does not protect against reading a file that is open for :output
 		   (when (and bits (eq direction :output)(neq 0 (logand bits #x81)))
 		   (signal-file-error EBUSY filename))
 		   |#
@@ -566,7 +567,8 @@ is :UNIX.")
             (if (not (eq fd-kind :file))
               (make-fd-stream fd :direction direction
                               :element-type element-type
-                              :elements-per-buffer elements-per-buffer)
+                              :elements-per-buffer elements-per-buffer
+                              :private private)
               (let* ((in-p (member direction '(:io :input)))
                      (out-p (member direction '(:io :output)))
                      (io-p (eq direction :io))
@@ -609,7 +611,8 @@ is :UNIX.")
                                  (if out-p
                                    'output-file-force-output))
                                :device fd
-                               :external-format real-external-format))
+                               :external-format real-external-format
+                               :private private))
                      (ioblock (stream-ioblock fstream)))
                 (setf (stream-filename fstream) (namestring pathname)
                       (stream-actual-filename fstream) temp-name)
