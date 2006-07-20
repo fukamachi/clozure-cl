@@ -349,7 +349,8 @@
   (eof nil)
   (interactive nil)
   (dirty nil)
-  (outbuf-lock nil))
+  (outbuf-lock nil)
+  (owner nil))
 
 
 ;;; Functions on ioblocks.  So far, we aren't saying anything
@@ -419,11 +420,14 @@
 	  (return-from %ioblock-read-byte :eof))
 	(setq idx (io-buffer-idx buf)
 	      limit (io-buffer-count buf)))
-      (let ((byte (uvref (io-buffer-buffer buf) idx)))
-	(setf (io-buffer-idx buf) (the fixnum (1+ idx)))
-	(if (characterp byte) (%char-code byte) byte)))))
+      (setf (io-buffer-idx buf) (the fixnum (1+ idx)))
+      (aref (the (simple-array (unsigned-byte 8) (*))
+              (io-buffer-buffer buf)) idx))))
 
-(defun %ioblock-tyi (ioblock &optional (hang t))
+(declaim (inline %ioblock-tyi))
+
+(defun %ioblock-tyi (ioblock)
+  (declare (optimize (speed 3) (safety 0)))
   (if (ioblock-untyi-char ioblock)
     (prog1 (ioblock-untyi-char ioblock)
       (setf (ioblock-untyi-char ioblock) nil))
@@ -432,13 +436,32 @@
 	   (limit (io-buffer-count buf)))
       (declare (fixnum idx limit))
       (when (= idx limit)
-	(unless (%ioblock-advance ioblock hang)
+	(unless (%ioblock-advance ioblock t)
 	  (return-from %ioblock-tyi (if (ioblock-eof ioblock) :eof)))
 	(setq idx (io-buffer-idx buf)
 	      limit (io-buffer-count buf)))
-      (let ((byte (uvref (io-buffer-buffer buf) idx)))
-	(setf (io-buffer-idx buf) (the fixnum (1+ idx)))
-	(if (characterp byte) byte (%code-char byte))))))
+      (setf (io-buffer-idx buf) (the fixnum (1+ idx)))
+      (schar (io-buffer-buffer buf) idx))))
+
+(declaim (inline %ioblock-tyy-no-hang))
+
+(defun %ioblock-tyi-no-hang (ioblock)
+  (declare (optimize (speed 3) (safety 0)))
+  (if (ioblock-untyi-char ioblock)
+    (prog1 (ioblock-untyi-char ioblock)
+      (setf (ioblock-untyi-char ioblock) nil))
+    (let* ((buf (ioblock-inbuf ioblock))
+	   (idx (io-buffer-idx buf))
+	   (limit (io-buffer-count buf)))
+      (declare (fixnum idx limit))
+      (when (= idx limit)
+	(unless (%ioblock-advance ioblock nil)
+	  (return-from %ioblock-tyi-no-hang (if (ioblock-eof ioblock) :eof)))
+	(setq idx (io-buffer-idx buf)
+	      limit (io-buffer-count buf)))
+      (setf (io-buffer-idx buf) (the fixnum (1+ idx)))
+      (schar (io-buffer-buffer buf) idx))))
+
 
 (defun %ioblock-peek-char (ioblock)
   (or (ioblock-untyi-char ioblock)
@@ -1754,9 +1777,10 @@
    (element-type :initarg :element-type :reader %buffered-stream-element-type)))
 
 (defun stream-ioblock (stream &optional (error-if-nil t))
-  (or (%stream-ioblock stream)
-      (when error-if-nil
-        (error "~s is closed" stream))))
+  (with-slots (ioblock) stream
+    (or ioblock
+        (when error-if-nil
+          (error "~s is closed" stream)))))
 
 (defmethod stream-device ((s buffered-stream-mixin) direction)
   (declare (ignore direction))
@@ -1891,7 +1915,7 @@
 
 (defmethod stream-read-char-no-hang ((stream buffered-character-input-stream-mixin))
   (with-stream-ioblock-input (ioblock stream :speedy t)
-    (%ioblock-tyi ioblock nil)))
+    (%ioblock-tyi-no-hang ioblock)))
 
 (defmethod stream-peek-char ((stream buffered-character-input-stream-mixin))
   (with-stream-ioblock-input (ioblock stream :speedy t)
