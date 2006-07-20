@@ -21,33 +21,10 @@
 (defvar *bind-io-control-vars-per-process* nil
   "If true, bind I/O control variables per process")
 
-(eval-when (:compile-toplevel :execute)
-  (macrolet ((thread-accessor (name)
-	       `(defmacro ,(intern
-			    (concatenate 'string "LISP-THREAD." (string name)))
-		 (thread)
-		 `(%svref ,thread ,,(intern
-				     (concatenate
-				      'string
-				      "LISP-THREAD."
-				      (string name)
-				      "-CELL")
-				     "TARGET")))))
-    (progn
-      (thread-accessor tcr)
-      (thread-accessor name)
-      (thread-accessor cs-size)
-      (thread-accessor vs-size)
-      (thread-accessor ts-size)
-      (thread-accessor initial-function.args)
-      (thread-accessor interrupt-functions)
-      (thread-accessor interrupt-lock)
-      (thread-accessor startup-function)
-      (thread-accessor state)
-      (thread-accessor state-change-lock))))
+
 	     
 (defun lisp-thread-p (thing)
-  (eq (typecode thing) target::subtag-lisp-thread))
+  (istruct-typep thing 'lisp-thread))
 
 (setf (type-predicate 'lisp-thread) 'lisp-thread-p)
 
@@ -153,7 +130,7 @@
        target::fixnum-shift))
 
 (defun %cons-lisp-thread (name &optional tcr)
-  (%gvector target::subtag-lisp-thread
+  (%istruct 'lisp-thread
 	    tcr
 	    name
 	    0

@@ -215,7 +215,7 @@
 		     (declare (fixnum low high))
 		     (incf used (- high low))))
 		 (values free used)))))
-    (let* ((tcr (%svref thread target::lisp-thread.tcr-cell)))
+    (let* ((tcr (lisp-thread.tcr thread)))
       (if (or (null tcr)
 	      (zerop (%fixnum-ref (%fixnum-ref tcr target::tcr.cs-area))))
 	(values 0 0 0 0 0 0)

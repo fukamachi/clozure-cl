@@ -200,9 +200,7 @@
 
 
 (defun process-tcr (p)
-  (%svref (process-thread p) target::lisp-thread.tcr-cell))
-
-
+  (lisp-thread.tcr (process-thread p)))
 
 
 
