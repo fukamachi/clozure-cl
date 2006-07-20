@@ -1,3 +1,35 @@
+2006-07-20 01:09  gb
+
+	* lisp-kernel/: ppc-constants32.h, ppc-constants32.s,
+	ppc-constants64.h, ppc-constants64.s, x86-constants64.h,
+	x86-constants64.s: subtag_lisp_thread -> subtag_basic_stream.
+
+2006-07-20 01:09  gb
+
+	* library/lispequ.lisp: new (istruct-based) LISP-THREAD accessors.
+
+2006-07-20 01:08  gb
+
+	* level-1/version.lisp: Bump.
+
+2006-07-20 01:07  gb
+
+	* level-1/l1-streams.lisp: Introduce "owner" slot in basic ioblock.
+	 A little tricky to bootstrap.
+
+2006-07-20 01:05  gb
+
+	* level-0/l0-misc.lisp, level-1/l1-processes.lisp,
+	level-1/l1-clos-boot.lisp, level-1/l1-lisp-threads.lisp: Use new
+	(istruct-based) lisp-thread accessors.
+
+2006-07-20 01:02  gb
+
+	* compiler/: PPC/PPC32/ppc32-arch.lisp, PPC/PPC64/ppc64-arch.lisp,
+	X86/X8664/x8664-arch.lisp: Get rid of the lisp-thread subtag
+	(lisp-thread's are ISTRUCTs now); re-use it for (to-be-introduced)
+	BASIC-STREAM.
+
 2006-07-15 15:02  gb
 
 	* level-1/l1-error-system.lisp: Insert some fresh lines in the
