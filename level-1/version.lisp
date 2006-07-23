@@ -19,7 +19,7 @@
 (defparameter *openmcl-major-version* 1)
 (defparameter *openmcl-minor-version* 1)
 (defparameter *openmcl-revision* 0)
-(defparameter *openmcl-suffix* "pre-060720")
+(defparameter *openmcl-suffix* "pre-060723a")
 (defparameter *openmcl-dev-level*
   #+ppc-target nil
   #+freebsdx8664-target "Alpha"
