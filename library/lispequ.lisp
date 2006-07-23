@@ -1276,7 +1276,26 @@
   lisp-thread.state
   lisp-thread.state-change-lock
   )
-      
+
+;;; "basic" (e.g., builtin, non-extensible) streams.
+(def-accessors (basic-stream) %svref
+  basic-stream.class                    ; a class object
+  basic-stream.flags                    ; fixnum; bits.
+  basic-stream.state                    ; typically an ioblock
+)
+
+(def-accessors (basic-file-stream) %svref
+  basic-file-stream.class                    ; a class object
+  basic-file-stream.flags                    ; fixnum; bits.
+  basic-file-stream.state                    ; typically an ioblock
+  basic-file-stream.filename
+  basic-file-stream.actual-filename
+  )
+
+  
+  
+
+
 (provide "LISPEQU")
 
 ;;; End of lispequ.lisp
