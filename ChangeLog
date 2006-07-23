@@ -1,3 +1,17 @@
+2006-07-23 01:12  gb
+
+	* level-1/: l1-sysio.lisp, l1-streams.lisp, l1-boot-2.lisp,
+	l1-sockets.lisp: Fix a few botches.
+	
+	:private arg to stream creation primitives replaced with :sharing,
+	which can have values:
+	
+	 :private (the default; stream can only be accessed by the creating
+	thread)
+	 :lock	(the old, often slow, default); most accesses to stream
+	involve locking
+	 :nil or :external (stream code doesn't enforce exclusion).
+
 2006-07-22 23:57  gb
 
 	* level-1/l1-streams.lisp: Bootstrapping stuff.
