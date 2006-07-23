@@ -1177,7 +1177,6 @@ Generic-function's   : ~s~%" method (or (generic-function-name gf) gf) (flatten-
         (if (fboundp 'typep)(typep form (car class-cell)) t)))))
 
 
-;(defvar puke nil)
 
 (defun %require-type-class-cell (arg class-cell)
   ; sort of weird  
@@ -2104,6 +2103,8 @@ to replace that class with ~s" name old-class new-class)
               #'(lambda (s) (%structure-class-of s))) ; need DEFSTRUCT
         (setf (%svref v target::subtag-istruct)
               #'(lambda (i) (or (find-class (%svref i 0) nil) *istruct-class*)))
+        (setf (%svref v target::subtag-basic-stream)
+              #'(lambda (b) (basic-stream.class b)))
         (setf (%svref v target::subtag-instance)
               #'%class-of-instance)
         (setf (%svref v #+ppc-target target::subtag-symbol #+x86-target target::tag-symbol)
