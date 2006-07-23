@@ -3159,6 +3159,17 @@ to be at least partially steppable."
 
 (declare-arch-specific-macro area-succ)
 
+(defmacro with-ioblock-lock-grabbed ((lock)
+                                       &body body)
+  `(with-lock-grabbed (,lock)
+    ,@body))
+
+(defmacro with-ioblock-lock-grabbed-maybe ((lock)
+					   &body body)
+  `(with-lock-grabbed-maybe (,lock)
+    ,@body))
+
+
 (defmacro do-gc-areas ((area) &body body)
   (let ((initial-area (gensym)))
     `(let* ((,initial-area (%get-kernel-global 'all-areas))
@@ -3169,6 +3180,85 @@ to be at least partially steppable."
          (when (eql ,area ,initial-area)
            (return))
          ,@body))))
-   
+
+(defmacro with-stream-ioblock-input ((ioblock stream &key
+                                             speedy)
+                                  &body body)
+  `(let ((,ioblock (stream-ioblock ,stream t)))
+     ,@(when speedy `((declare (optimize (speed 3) (safety 0)))))
+     (with-ioblock-input-locked (,ioblock) ,@body)))
+
+(defmacro with-stream-ioblock-output ((ioblock stream &key
+                                             speedy)
+                                  &body body)
+  `(let ((,ioblock (stream-ioblock ,stream t)))
+     ,@(when speedy `((declare (optimize (speed 3) (safety 0)))))
+     (with-ioblock-output-locked (,ioblock) ,@body)))
+
+(defmacro with-stream-ioblock-output-maybe ((ioblock stream &key
+						     speedy)
+					    &body body)
+  `(let ((,ioblock (stream-ioblock ,stream t)))
+    ,@(when speedy `((declare (optimize (speed 3) (safety 0)))))
+    (with-ioblock-output-locked-maybe (,ioblock) ,@body)))
+
+(defmacro with-ioblock-input-locked ((ioblock) &body body)
+  (let* ((lock (gensym)))
+    `(let* ((,lock (locally (declare (optimize (speed 3) (safety 0)))
+                                  (ioblock-inbuf-lock ,ioblock))))
+      (if ,lock
+        (with-ioblock-lock-grabbed ((locally (declare (optimize (speed 3) (safety 0)))
+                                  (ioblock-inbuf-lock ,ioblock)))
+          ,@body)
+        (progn
+          (check-ioblock-owner ,ioblock)
+          ,@body)))))
+
+(defmacro with-ioblock-output-locked ((ioblock) &body body)
+  (let* ((lock (gensym)))
+    `(let* ((,lock (locally (declare (optimize (speed 3) (safety 0)))
+                                  (ioblock-inbuf-lock ,ioblock))))
+      (if ,lock
+        (with-ioblock-lock-grabbed ((locally (declare (optimize (speed 3) (safety 0)))
+                                  (ioblock-outbuf-lock ,ioblock)))
+          ,@body)
+        (progn
+          (check-ioblock-owner ,ioblock)
+          ,@body)))))
+
+
+
+(defmacro with-ioblock-output-locked-maybe ((ioblock) &body body)
+  (let* ((lock (gensym)))
+    `(let* ((,lock (locally (declare (optimize (speed 3) (safety 0)))
+                                  (ioblock-inbuf-lock ,ioblock))))
+      (if ,lock
+        (with-ioblock-lock-grabbed-maybe ((locally (declare (optimize (speed 3) (safety 0)))
+                                            (ioblock-outbuf-lock ,ioblock)))
+          ,@body)
+        (progn
+          (check-ioblock-owner ,ioblock)
+          ,@body)))))
+
+;;; Use this when it's possible that the fd might be in
+;;; a non-blocking state.  Body must return a negative of
+;;; the os error number on failure.
+;;; The use of READ-FROM-STRING below is certainly ugly, but macros
+;;; that expand into reader-macros don't generally trigger the reader-macro's
+;;; side-effects.  (Besides, the reader-macro might return a different
+;;; value when the macro function is expanded than it did when the macro
+;;; function was defined; this can happen during cross-compilation.)
+(defmacro with-eagain (fd direction &body body)
+  (let* ((res (gensym))
+	 (eagain (symbol-value (read-from-string "#$EAGAIN"))))
+   `(loop
+      (let ((,res (progn ,@body)))
+	(if (eql ,res (- ,eagain))
+	  (,(ecase direction
+	     (:input 'process-input-wait)
+	     (:output 'process-output-wait))
+	   ,fd)
+	  (return ,res))))))
+
 (defsetf interrupt-level set-interrupt-level)
 
