@@ -568,13 +568,13 @@ the socket is not connected."))
 		    type connect remote-host remote-port eol format
 		    keepalive reuse-address nodelay broadcast linger
 		    local-port local-host backlog class out-of-band-inline
-		    local-filename remote-filename private)
+		    local-filename remote-filename sharing)
   "Create and return a new socket."
   (declare (dynamic-extent keys))
   (declare (ignore type connect remote-host remote-port eol format
 		   keepalive reuse-address nodelay broadcast linger
 		   local-port local-host backlog class out-of-band-inline
-		   local-filename remote-filename private))
+		   local-filename remote-filename sharing))
   (ecase address-family
     ((:file) (apply #'make-file-socket keys))
     ((nil :internet) (apply #'make-ip-socket keys))))
@@ -665,7 +665,7 @@ the socket is not connected."))
   (make-file-socket-stream fd :format format :eol eol :class class))
 
 
-(defun make-tcp-stream (fd &key format eol (class 'tcp-stream) private &allow-other-keys)
+(defun make-tcp-stream (fd &key format eol (class 'tcp-stream) sharing &allow-other-keys)
   (declare (ignore eol))		;???
   (let ((element-type (ecase format
 			((nil :text) 'character)
@@ -676,9 +676,9 @@ the socket is not connected."))
 		    :class class
 		    :direction :io
 		    :element-type element-type
-                    :private private)))
+                    :sharing sharing)))
 
-(defun make-file-socket-stream (fd &key format eol (class 'file-socket-stream)  private &allow-other-keys)
+(defun make-file-socket-stream (fd &key format eol (class 'file-socket-stream)  sharing &allow-other-keys)
   (declare (ignore eol))		;???
   (let ((element-type (ecase format
 			((nil :text) 'character)
@@ -689,7 +689,7 @@ the socket is not connected."))
 		    :class class
 		    :direction :io
 		    :element-type element-type
-                    :private private)))
+                    :sharing sharing)))
 
 (defun make-tcp-listener-socket (fd &rest keys &key backlog &allow-other-keys)
   (socket-call nil "listen" (c_listen fd (or backlog 5)))

@@ -273,9 +273,7 @@
 
 (defmethod close ((stream stream) &key abort)
   (declare (ignore abort))
-  (with-slots ((closed closed)) stream
-    (unless closed
-      (setf closed t))))
+  (open-stream-p stream))
 
 
 
@@ -417,25 +415,41 @@
           (error "Stream ~s is private to ~s" (ioblock-stream ioblock) owner)))))
 
 (defmacro with-ioblock-input-locked ((ioblock) &body body)
-  `(if (check-ioblock-owner ,ioblock)
-    (progn ,@body)
-    (with-ioblock-lock-grabbed ((locally (declare (optimize (speed 3) (safety 0)))
+  (let* ((lock (gensym)))
+    `(let* ((,lock (locally (declare (optimize (speed 3) (safety 0)))
+                                  (ioblock-inbuf-lock ,ioblock))))
+      (if ,lock
+        (with-ioblock-lock-grabbed ((locally (declare (optimize (speed 3) (safety 0)))
                                   (ioblock-inbuf-lock ,ioblock)))
-      ,@body)))
+          ,@body)
+        (progn
+          (check-ioblock-owner ,ioblock)
+          ,@body)))))
+
 
 (defmacro with-ioblock-output-locked ((ioblock) &body body)
-  `(if (check-ioblock-owner ,ioblock)
-    (progn ,@body)
-    (with-ioblock-lock-grabbed ((locally (declare (optimize (speed 3) (safety 0)))
+  (let* ((lock (gensym)))
+    `(let* ((,lock (locally (declare (optimize (speed 3) (safety 0)))
+                                  (ioblock-inbuf-lock ,ioblock))))
+      (if ,lock
+        (with-ioblock-lock-grabbed ((locally (declare (optimize (speed 3) (safety 0)))
                                   (ioblock-outbuf-lock ,ioblock)))
-      ,@body)))
+          ,@body)
+        (progn
+          (check-ioblock-owner ,ioblock)
+          ,@body)))))
 
 (defmacro with-ioblock-output-locked-maybe ((ioblock) &body body)
-  `(if (check-ioblock-owner ,ioblock)
-    (progn ,@body)
-    (with-ioblock-lock-grabbed-maybe ((locally (declare (optimize (speed 3) (safety 0)))
-                                        (ioblock-outbuf-lock ,ioblock)))
-      ,@body)))
+  (let* ((lock (gensym)))
+    `(let* ((,lock (locally (declare (optimize (speed 3) (safety 0)))
+                                  (ioblock-inbuf-lock ,ioblock))))
+      (if ,lock
+        (with-ioblock-lock-grabbed-maybe ((locally (declare (optimize (speed 3) (safety 0)))
+                                            (ioblock-outbuf-lock ,ioblock)))
+          ,@body)
+        (progn
+          (check-ioblock-owner ,ioblock)
+          ,@body)))))
 
 (defun %ioblock-advance (ioblock read-p)
   (funcall (ioblock-advance-function ioblock)
@@ -481,6 +495,45 @@
 	      limit (io-buffer-count buf)))
       (setf (io-buffer-idx buf) (the fixnum (1+ idx)))
       (schar (io-buffer-buffer buf) idx))))
+
+(declaim (inline %private-ioblock-tyi))
+(defun %private-ioblock-tyi (ioblock)
+  (declare (optimize (speed 3) (safety 0)))
+  (check-ioblock-owner ioblock)
+  (if (ioblock-untyi-char ioblock)
+    (prog1 (ioblock-untyi-char ioblock)
+      (setf (ioblock-untyi-char ioblock) nil))
+    (let* ((buf (ioblock-inbuf ioblock))
+	   (idx (io-buffer-idx buf))
+	   (limit (io-buffer-count buf)))
+      (declare (fixnum idx limit))
+      (when (= idx limit)
+	(unless (%ioblock-advance ioblock t)
+	  (return-from %private-ioblock-tyi (if (ioblock-eof ioblock) :eof)))
+	(setq idx (io-buffer-idx buf)
+	      limit (io-buffer-count buf)))
+      (setf (io-buffer-idx buf) (the fixnum (1+ idx)))
+      (schar (io-buffer-buffer buf) idx))))
+
+(declaim (inline %locked-ioblock-tyi))
+(defun %locked-ioblock-tyi (ioblock)
+  (declare (optimize (speed 3) (safety 0)))
+  (with-ioblock-lock-grabbed ((locally (declare (optimize (speed 3) (safety 0)))
+                                (ioblock-inbuf-lock ioblock)))
+    (if (ioblock-untyi-char ioblock)
+      (prog1 (ioblock-untyi-char ioblock)
+        (setf (ioblock-untyi-char ioblock) nil))
+      (let* ((buf (ioblock-inbuf ioblock))
+             (idx (io-buffer-idx buf))
+             (limit (io-buffer-count buf)))
+        (declare (fixnum idx limit))
+        (when (= idx limit)
+          (unless (%ioblock-advance ioblock t)
+            (return-from %locked-ioblock-tyi (if (ioblock-eof ioblock) :eof)))
+          (setq idx (io-buffer-idx buf)
+                limit (io-buffer-count buf)))
+        (setf (io-buffer-idx buf) (the fixnum (1+ idx)))
+        (schar (io-buffer-buffer buf) idx)))))
 
 (declaim (inline %ioblock-tyy-no-hang))
 
@@ -922,15 +975,22 @@
                             close-function
                             element-shift
                             interactive
-                            private
+                            (sharing :private)
+                            character-p
                             &allow-other-keys)
   (declare (ignorable element-shift))
+  (when sharing
+    (unless (or (eq sharing :private)
+                (eq sharing :lock))
+      (if (eq sharing :external)
+        (setq sharing nil)
+        (report-bad-arg sharing '(member nil :private :lock :external)))))
   (let* ((ioblock (or (let* ((ioblock (stream-ioblock stream nil)))
                         (when ioblock
                           (setf (ioblock-stream ioblock) stream)
                           ioblock))
                       (stream-create-ioblock stream))))
-    (when private
+    (when (eq sharing :private)
       (setf (ioblock-owner ioblock) *current-process*))
     (when insize
       (unless (ioblock-inbuf ioblock)
@@ -941,8 +1001,14 @@
                                 :bufptr ptr
                                 :size in-size-in-octets
                                 :limit insize))
-          (unless private
+          (when (eq sharing :lock)
             (setf (ioblock-inbuf-lock ioblock) (make-lock)))
+          (if character-p
+            (setf (ioblock-read-char-function ioblock)
+                   (case sharing
+                     (:private '%private-ioblock-tyi)
+                     (:lock '%locked-ioblock-tyi)
+                     (t '%ioblock-tyi))))
           (setf (ioblock-element-shift ioblock) (max 0 (ceiling (log  (/ in-size-in-octets insize) 2))))
           )))
     (if share-buffers-p
@@ -963,7 +1029,7 @@
                                   :count 0
                                   :limit outsize
                                   :size out-size-in-octets))
-            (unless private
+            (when (eq sharing :lock)
               (setf (ioblock-outbuf-lock ioblock) (make-lock)))
             (setf (ioblock-element-shift ioblock) (max 0 (ceiling (log (/ out-size-in-octets outsize) 2))))
             ))))
@@ -1021,7 +1087,7 @@
 			  (elements-per-buffer *elements-per-buffer*)
 			  (element-type 'character)
 			  (class 'fd-stream)
-                          (private t))
+                          (sharing :private))
   (let* ((in-p (member direction '(:io :input)))
          (out-p (member direction '(:io :output)))
          (char-p (or (eq element-type 'character)
@@ -1040,7 +1106,8 @@
 			 :force-output-function (if out-p
 						  (select-stream-force-output-function class))
 			 :close-function 'fd-stream-close
-                         :private private)))
+                         :sharing sharing
+                         :character-p char-p)))
   
 ;;;  Fundamental streams.
 
@@ -1129,6 +1196,9 @@
 (defclass fundamental-binary-input-stream (fundamental-input-stream
                                            fundamental-binary-stream
                                            binary-input-stream)
+    ())
+
+(defclass binary-output-stream (output-stream binary-stream)
     ())
 
 (defclass fundamental-binary-output-stream (fundamental-output-stream
@@ -1627,7 +1697,6 @@
   (declare (ignore abort))
   (when (slot-value s 'string)
     (setf (slot-value s 'string) nil)
-    (call-next-method)
     t))
 
 (defmethod print-object ((s string-stream) out)
@@ -2536,7 +2605,7 @@
                       (external-format :default)
 		      (class *default-file-stream-class*)
                       (elements-per-buffer *elements-per-buffer*)
-                      (private t))
+                      (sharing :private))
   "Return a stream which reads from or writes to FILENAME.
   Defined keywords:
    :DIRECTION - one of :INPUT, :OUTPUT, :IO, or :PROBE
@@ -2556,7 +2625,7 @@
 			  elements-per-buffer
 			  class
 			  external-format
-                          private))
+                          sharing))
       (retry-open ()
                   :report (lambda (stream) (format stream "Retry opening ~s" filename))
                   nil))))

@@ -507,7 +507,7 @@ is :UNIX.")
 			 elements-per-buffer
 			 class
 			 external-format
-                         private)
+                         sharing)
 
   (let* ((temp-name nil)
          (dir (pathname-directory filename))
@@ -568,7 +568,7 @@ is :UNIX.")
               (make-fd-stream fd :direction direction
                               :element-type element-type
                               :elements-per-buffer elements-per-buffer
-                              :private private)
+                              :sharing sharing)
               (let* ((in-p (member direction '(:io :input)))
                      (out-p (member direction '(:io :output)))
                      (io-p (eq direction :io))
@@ -612,7 +612,7 @@ is :UNIX.")
                                    'output-file-force-output))
                                :device fd
                                :external-format real-external-format
-                               :private private))
+                               :sharing sharing))
                      (ioblock (stream-ioblock fstream)))
                 (setf (stream-filename fstream) (namestring pathname)
                       (stream-actual-filename fstream) temp-name)
