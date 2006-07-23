@@ -371,10 +371,10 @@
 (defun ioblock-no-binary-output (ioblock)
   (report-bad-arg (ioblock-stream ioblock) '(and binary-stream output-stream)))
 
-(defun ioblock-no-character-input (ioblock)
+(defun ioblock-no-charr-input (ioblock)
   (report-bad-arg (ioblock-stream ioblock) '(and character-stream input-stream)))
 
-(defun ioblock-no-character-output (ioblock)
+(defun ioblock-no-char-output (ioblock)
   (report-bad-arg (ioblock-stream ioblock) '(and character-stream output-stream)))
 
 
@@ -394,16 +394,6 @@
 
 
 
-(defmacro with-ioblock-lock-grabbed ((lock)
-                                       &body body)
-  `(with-lock-grabbed (,lock)
-    ,@body))
-
-(defmacro with-ioblock-lock-grabbed-maybe ((lock)
-					   &body body)
-  `(with-lock-grabbed-maybe (,lock)
-    ,@body))
-
 ;;; ioblock must really be an ioblock or you will crash
 ;;; Also: the expression "ioblock" is evaluated multiple times.
 
@@ -414,51 +404,25 @@
       (or (eq owner *current-process*)
           (error "Stream ~s is private to ~s" (ioblock-stream ioblock) owner)))))
 
-(defmacro with-ioblock-input-locked ((ioblock) &body body)
-  (let* ((lock (gensym)))
-    `(let* ((,lock (locally (declare (optimize (speed 3) (safety 0)))
-                                  (ioblock-inbuf-lock ,ioblock))))
-      (if ,lock
-        (with-ioblock-lock-grabbed ((locally (declare (optimize (speed 3) (safety 0)))
-                                  (ioblock-inbuf-lock ,ioblock)))
-          ,@body)
-        (progn
-          (check-ioblock-owner ,ioblock)
-          ,@body)))))
 
 
-(defmacro with-ioblock-output-locked ((ioblock) &body body)
-  (let* ((lock (gensym)))
-    `(let* ((,lock (locally (declare (optimize (speed 3) (safety 0)))
-                                  (ioblock-inbuf-lock ,ioblock))))
-      (if ,lock
-        (with-ioblock-lock-grabbed ((locally (declare (optimize (speed 3) (safety 0)))
-                                  (ioblock-outbuf-lock ,ioblock)))
-          ,@body)
-        (progn
-          (check-ioblock-owner ,ioblock)
-          ,@body)))))
 
-(defmacro with-ioblock-output-locked-maybe ((ioblock) &body body)
-  (let* ((lock (gensym)))
-    `(let* ((,lock (locally (declare (optimize (speed 3) (safety 0)))
-                                  (ioblock-inbuf-lock ,ioblock))))
-      (if ,lock
-        (with-ioblock-lock-grabbed-maybe ((locally (declare (optimize (speed 3) (safety 0)))
-                                            (ioblock-outbuf-lock ,ioblock)))
-          ,@body)
-        (progn
-          (check-ioblock-owner ,ioblock)
-          ,@body)))))
+
 
 (defun %ioblock-advance (ioblock read-p)
   (funcall (ioblock-advance-function ioblock)
            (ioblock-stream ioblock)
            ioblock
            read-p))
+
 (declaim (inline %ioblock-read-byte))
 
-;;; Should only be called with the ioblock locked
+;;; Should only be called with the ioblock locked, if that's necessary.
+;;; The whole "bivalent streams" nonsense makes this more complicated
+;;; than it should be.  (Yes, I understand the rationale for that,
+;;; but discovering what type of array we have on each call isn't
+;;; a good approach to the problem.)  That's actually not entirely
+;;; the fault of bivalent streams, to be honest.
 (defun %ioblock-read-byte (ioblock)
   (declare (optimize (speed 3) (safety 0)))
   (if (ioblock-untyi-char ioblock)
@@ -474,8 +438,59 @@
 	(setq idx (io-buffer-idx buf)
 	      limit (io-buffer-count buf)))
       (setf (io-buffer-idx buf) (the fixnum (1+ idx)))
-      (aref (the (simple-array (unsigned-byte 8) (*))
-              (io-buffer-buffer buf)) idx))))
+      (let* ((vec (io-buffer-buffer buf)))
+        (if (typep vec 'simple-string)
+          (aref (the (simple-array (unsigned-byte 8) (*))
+                  vec) idx)
+          (uvref vec idx))))))
+
+(declaim (inline %private-ioblock-read-byte))
+(defun %private-ioblock-read-byte (ioblock)
+  (declare (optimize (speed 3) (safety 0)))
+  (check-ioblock-owner ioblock)
+  (if (ioblock-untyi-char ioblock)
+    (prog1 (%char-code (ioblock-untyi-char ioblock))
+      (setf (ioblock-untyi-char ioblock) nil))
+    (let* ((buf (ioblock-inbuf ioblock))
+	   (idx (io-buffer-idx buf))
+	   (limit (io-buffer-count buf)))
+      (declare (fixnum idx limit))
+      (when (= idx limit)
+	(unless (%ioblock-advance ioblock t)
+	  (return-from %private-ioblock-read-byte :eof))
+	(setq idx (io-buffer-idx buf)
+	      limit (io-buffer-count buf)))
+      (setf (io-buffer-idx buf) (the fixnum (1+ idx)))
+      (let* ((vec (io-buffer-buffer buf)))
+        (if (typep vec 'simple-string)
+          (aref (the (simple-array (unsigned-byte 8) (*))
+                  vec) idx)
+          (uvref vec idx))))))
+
+(defun %locked-ioblock-read-byte (ioblock)
+  (declare (optimize (speed 3) (safety 0)))
+  (with-ioblock-lock-grabbed ((locally (declare (optimize (speed 3) (safety 0)))
+                                (ioblock-inbuf-lock ioblock)))
+  (if (ioblock-untyi-char ioblock)
+    (prog1 (%char-code (ioblock-untyi-char ioblock))
+      (setf (ioblock-untyi-char ioblock) nil))
+    (let* ((buf (ioblock-inbuf ioblock))
+	   (idx (io-buffer-idx buf))
+	   (limit (io-buffer-count buf)))
+      (declare (fixnum idx limit))
+      (when (= idx limit)
+	(unless (%ioblock-advance ioblock t)
+	  (return-from %locked-ioblock-read-byte :eof))
+	(setq idx (io-buffer-idx buf)
+	      limit (io-buffer-count buf)))
+      (setf (io-buffer-idx buf) (the fixnum (1+ idx)))
+      (let* ((vec (io-buffer-buffer buf)))
+        (if (typep vec 'simple-string)
+          (aref (the (simple-array (unsigned-byte 8) (*))
+                  vec) idx)
+          (uvref vec idx)))))))
+
+
 
 (declaim (inline %ioblock-tyi))
 
@@ -1915,8 +1930,10 @@
 (defmethod open-stream-p ((s buffered-stream-mixin))
   (with-slots (ioblock) s
     (not (null ioblock))))
-  
-(defun stream-ioblock (stream &optional (error-if-nil t))
+
+(declaim (inline stream-ioblock))
+
+(defun stream-ioblock (stream error-if-nil)
   (with-slots (ioblock) stream
     (or ioblock
         (when error-if-nil
@@ -2036,30 +2053,10 @@
 
 
 
-(defmacro with-stream-ioblock-input ((ioblock stream &key
-                                             speedy)
-                                  &body body)
-  `(let ((,ioblock (stream-ioblock ,stream)))
-     ,@(when speedy `((declare (optimize (speed 3) (safety 0)))))
-     (with-ioblock-input-locked (,ioblock) ,@body)))
-
-(defmacro with-stream-ioblock-output ((ioblock stream &key
-                                             speedy)
-                                  &body body)
-  `(let ((,ioblock (stream-ioblock ,stream)))
-     ,@(when speedy `((declare (optimize (speed 3) (safety 0)))))
-     (with-ioblock-output-locked (,ioblock) ,@body)))
-
-(defmacro with-stream-ioblock-output-maybe ((ioblock stream &key
-						     speedy)
-					    &body body)
-  `(let ((,ioblock (stream-ioblock ,stream)))
-    ,@(when speedy `((declare (optimize (speed 3) (safety 0)))))
-    (with-ioblock-output-locked-maybe (,ioblock) ,@body)))
 
 (defmethod stream-read-char ((stream buffered-character-input-stream-mixin))
-  (with-stream-ioblock-input (ioblock stream :speedy t)
-    (%ioblock-tyi ioblock)))
+  (let* ((ioblock (stream-ioblock stream t)))
+    (funcall (ioblock-read-char-function ioblock) ioblock)))
 
 (defmethod stream-read-char-no-hang ((stream buffered-character-input-stream-mixin))
   (with-stream-ioblock-input (ioblock stream :speedy t)
@@ -2316,25 +2313,7 @@
 
 
   
-;;; Use this when it's possible that the fd might be in
-;;; a non-blocking state.  Body must return a negative of
-;;; the os error number on failure.
-;;; The use of READ-FROM-STRING below is certainly ugly, but macros
-;;; that expand into reader-macros don't generally trigger the reader-macro's
-;;; side-effects.  (Besides, the reader-macro might return a different
-;;; value when the macro function is expanded than it did when the macro
-;;; function was defined; this can happen during cross-compilation.)
-(defmacro with-eagain (fd direction &body body)
-  (let* ((res (gensym))
-	 (eagain (symbol-value (read-from-string "#$EAGAIN"))))
-   `(loop
-      (let ((,res (progn ,@body)))
-	(if (eql ,res (- ,eagain))
-	  (,(ecase direction
-	     (:input 'process-input-wait)
-	     (:output 'process-output-wait))
-	   ,fd)
-	  (return ,res))))))
+
 
 
 (defun ticks-to-timeval (ticks tv)
