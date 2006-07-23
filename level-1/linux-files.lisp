@@ -675,13 +675,13 @@ any EXTERNAL-ENTRY-POINTs known to be defined by it to become unresolved."
 	  (report-bad-arg direction '(member :input :output))))))
     ((or pathname string)
      (with-open-stream (file (apply #'open object keys))
-       (let* ((fd (fd-dup (ioblock-device (stream-ioblock file)))))
+       (let* ((fd (fd-dup (ioblock-device (stream-ioblock file t)))))
          (values fd
                  nil
                  (cons fd close-in-parent)
                  (cons fd close-on-error)))))
     (fd-stream
-     (let ((fd (fd-dup (ioblock-device (stream-ioblock object)))))
+     (let ((fd (fd-dup (ioblock-device (stream-ioblock object t)))))
        (values fd
 	       nil
 	       (cons fd close-in-parent)

@@ -299,7 +299,7 @@ is :UNIX.")
     (let* ((file-ioblock (stream-ioblock s nil)))
       (format out "(~s/" (stream-filename s))
       (if file-ioblock
-	(format out "~d)" (file-ioblock-device (stream-ioblock s)))
+	(format out "~d)" (file-ioblock-device file-ioblock))
 	(format out ":closed")))))
 	    
 (defmethod stream-create-ioblock ((stream file-stream) &rest args &key)
@@ -469,7 +469,7 @@ is :UNIX.")
 
 (defmethod close ((s file-stream) &key abort)
   (when (open-stream-p s)
-    (let* ((ioblock (stream-ioblock s))
+    (let* ((ioblock (stream-ioblock s t))
 	   (filename (stream-filename s))
 	   (actual-filename (stream-actual-filename s)))
       (when actual-filename
@@ -612,8 +612,10 @@ is :UNIX.")
                                    'output-file-force-output))
                                :device fd
                                :external-format real-external-format
-                               :sharing sharing))
-                     (ioblock (stream-ioblock fstream)))
+                               :sharing sharing
+                               :character-p (or (eq element-type 'character)
+                                                (subtypep element-type 'character))))
+                     (ioblock (stream-ioblock fstream t)))
                 (setf (stream-filename fstream) (namestring pathname)
                       (stream-actual-filename fstream) temp-name)
                 (setf (file-ioblock-fileeof ioblock)

@@ -290,7 +290,7 @@ for udp-socket."))
 (defmethod socket-type ((socket stream-file-socket)) :stream)
 
 
-;; An active TCP socket is an honest-to-goodness stream.
+;;; An active TCP socket is an honest-to-goodness stream.
 (defclass tcp-stream (tcp-socket fd-stream
 				 buffered-binary-io-stream-mixin
 				 buffered-character-io-stream-mixin)
@@ -316,7 +316,7 @@ make-socket."))
     :bivalent))
 
 (defmethod socket-device ((stream tcp-stream))
-  (let ((ioblock (stream-ioblock stream)))
+  (let ((ioblock (stream-ioblock stream nil)))
     (and ioblock (ioblock-device ioblock))))
 
 (defmethod select-stream-class ((class tcp-stream) in-p out-p char-p)
