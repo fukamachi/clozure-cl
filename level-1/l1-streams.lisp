@@ -30,13 +30,26 @@
 ;;;
 
 (defclass stream ()
-  ((direction :initarg :direction :initform nil :reader stream-direction)
-   (closed :initform nil)))
+  ())
 
 (defclass input-stream (stream)
   ((shared-resource :initform nil :accessor input-stream-shared-resource)))
 
 (defclass output-stream (stream) ())
+
+(defmethod stream-direction ((s stream))
+  )
+
+(defmethod stream-direction ((s input-stream))
+  (if (typep s 'output-stream)
+    :io
+    :input))
+
+(defmethod stream-direction ((s output-stream))
+  (if (typep s 'input-stream)
+    :io
+    :output))
+
 
 ;;; The "direction" argument only helps us dispatch on two-way streams:
 ;;; it's legal to ask for the :output device of a stream that's only open
@@ -222,12 +235,6 @@
 	 :format-control (format nil "~a during ~a"
 				 (%strerror error-number) context)))
 
-(defmethod initialize-instance :after ((stream input-stream) &key)
-  (let ((direction (slot-value stream 'direction)))
-    (if (null direction)
-      (set-slot-value stream 'direction :input)
-      (if (eq direction :output)
-        (set-slot-value stream 'direction :io)))))
 
 
 (defmethod stream-write-char ((stream stream) char)
@@ -276,7 +283,7 @@
   (report-bad-arg x 'stream))
 
 (defmethod open-stream-p ((stream stream))
-  (not (slot-value stream 'closed)))
+  t)
 
 (defmethod stream-fresh-line ((stream output-stream))
   (terpri stream)
@@ -350,11 +357,27 @@
   (interactive nil)
   (dirty nil)
   (outbuf-lock nil)
-  (owner nil))
+  (owner nil)
+  (read-char-function 'ioblock-no-char-input)
+  (read-byte-function 'ioblock-no-binary-input)
+  (write-char-function 'ioblock-no-char-output)
+  (write-byte-function 'ioblock-no-binary-output))
 
 
 ;;; Functions on ioblocks.  So far, we aren't saying anything
 ;;; about how streams use them.
+
+(defun ioblock-no-binary-input (ioblock)
+  (report-bad-arg (ioblock-stream ioblock) '(and binary-stream input-stream)))
+
+(defun ioblock-no-binary-output (ioblock)
+  (report-bad-arg (ioblock-stream ioblock) '(and binary-stream output-stream)))
+
+(defun ioblock-no-character-input (ioblock)
+  (report-bad-arg (ioblock-stream ioblock) '(and character-stream input-stream)))
+
+(defun ioblock-no-character-output (ioblock)
+  (report-bad-arg (ioblock-stream ioblock) '(and character-stream output-stream)))
 
 
 (defun ioblock-octets-to-elements (ioblock octets)
@@ -1048,17 +1071,27 @@
 (defmethod input-stream-p ((s fundamental-output-stream))
   (typep s 'fundamental-input-stream))
 
-(defclass fundamental-character-stream (fundamental-stream)
+(defclass binary-stream (stream)
+    ())
+
+(defclass character-stream (stream)
+    ())
+
+(defclass fundamental-character-stream (fundamental-stream character-stream)
     ())
 
 (defmethod stream-element-type ((s fundamental-character-stream))
   'character)
 
-(defclass fundamental-binary-stream (fundamental-stream)
+(defclass fundamental-binary-stream (fundamental-stream binary-stream)
+    ())
+
+(defclass character-input-stream (input-stream character-stream)
     ())
 
 (defclass fundamental-character-input-stream (fundamental-input-stream
-                                              fundamental-character-stream)
+                                              fundamental-character-stream
+                                              character-input-stream)
     ())
 
 (defmethod stream-read-char-no-hang ((s fundamental-character-input-stream))
@@ -1082,25 +1115,34 @@
 (defmethod stream-read-line ((s fundamental-character-input-stream))
   (generic-read-line s))
 
+(defclass character-output-stream (output-stream character-stream)
+    ())
+
 (defclass fundamental-character-output-stream (fundamental-output-stream
-                                               fundamental-character-stream)
+                                               fundamental-character-stream
+                                               character-output-stream)
+    ())
+
+(defclass binary-input-stream (input-stream binary-stream)
     ())
 
 (defclass fundamental-binary-input-stream (fundamental-input-stream
-                                           fundamental-binary-stream)
+                                           fundamental-binary-stream
+                                           binary-input-stream)
     ())
 
 (defclass fundamental-binary-output-stream (fundamental-output-stream
-                                            fundamental-binary-stream)
+                                            fundamental-binary-stream
+                                            binary-output-stream)
     ())
 
 
 (defmethod stream-read-byte ((s t))
-  (report-bad-arg s '(and input-stream fundamental-binary-stream)))
+  (report-bad-arg s '(and input-stream binary-stream)))
 
 (defmethod stream-write-byte ((s t) b)
   (declare (ignore b))
-  (report-bad-arg s '(and output-stream fundamental-binary-stream)))
+  (report-bad-arg s '(and output-stream binary-stream)))
 
 (defmethod stream-length ((s stream) &optional new)
   (declare (ignore new)))
@@ -1578,6 +1620,9 @@
   (or (%string-stream-string s)
       (error "~s is closed" s)))
 
+(defmethod open-stream-p ((s string-stream))
+  (not (null (%string-stream-string s))))
+
 (defmethod close  ((s string-stream) &key abort)
   (declare (ignore abort))
   (when (slot-value s 'string)
@@ -1587,8 +1632,7 @@
 
 (defmethod print-object ((s string-stream) out)
   (print-unreadable-object (s out :type t :identity t)
-    (let* ((closed (slot-value s 'closed)))
-      (when closed (format out "~s" closed)))))
+    (unless (open-stream-p s)  (format out " ~s" :closed))))
 
 (defclass string-output-stream (string-stream fundamental-character-output-stream)
     ((column :initform 0 :accessor %stream-column)))
@@ -1799,6 +1843,10 @@
   ((ioblock :reader %stream-ioblock :writer (setf stream-ioblock) :initform nil)
    (element-type :initarg :element-type :reader %buffered-stream-element-type)))
 
+(defmethod open-stream-p ((s buffered-stream-mixin))
+  (with-slots (ioblock) s
+    (not (null ioblock))))
+  
 (defun stream-ioblock (stream &optional (error-if-nil t))
   (with-slots (ioblock) stream
     (or ioblock
