@@ -1,3 +1,9 @@
+2006-07-24 02:43  gb
+
+	* level-1/l1-sysio.lisp: FILE-STREAM is now abstract (and some
+	sublasses may get that way); FUNDAMENTAL-FILE-STREAM is an
+	implementation of it (and BASIC-FILE-STREAM soon will be.)
+
 2006-07-23 03:05  gb
 
 	* level-1/l1-clos-boot.lisp: *class-table* entry for BASIC-STREAM.
