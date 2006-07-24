@@ -47,7 +47,12 @@
   (declare (ignore recursive-p))
   (setq input-stream (designated-input-stream input-stream))
   (check-eof
-   (stream-read-char input-stream)
+   (if (typep input-stream 'basic-stream)
+     (let* ((ioblock (basic-stream.state input-stream)))
+       (if ioblock
+         (funcall (ioblock-read-char-function ioblock) ioblock)
+         (error "~s is closed" input-stream)))
+     (stream-read-char input-stream))
    input-stream
    eof-error-p
    eof-value))
