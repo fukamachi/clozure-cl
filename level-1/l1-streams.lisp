@@ -32,8 +32,10 @@
 (defclass stream ()
   ())
 
+
 (defclass input-stream (stream)
-  ((shared-resource :initform nil :accessor input-stream-shared-resource)))
+  ())
+
 
 (defclass output-stream (stream) ())
 
@@ -1080,10 +1082,14 @@
 			    &allow-other-keys)
   (declare (dynamic-extent initargs))
   (let* ((class (find-class class-name))
-	 (s (apply #'make-instance class :allow-other-keys t initargs)))
+	 (s
+          (if (subtypep class (find-class 'basic-stream))
+            (apply #'make-basic-stream-instance class :allow-other-keys t initargs)
+            (apply #'make-instance class :allow-other-keys t initargs))))
     (apply #'init-stream-ioblock s initargs)
     s))
-    
+
+
 
 
 (defmethod select-stream-class ((s symbol) in-p out-p char-p)
@@ -1096,13 +1102,18 @@
   (select-stream-class (class-prototype s) in-p out-p char-p))
 
 
+
 (defun make-fd-stream (fd &key
 			  (direction :input)
 			  (interactive t)
 			  (elements-per-buffer *elements-per-buffer*)
 			  (element-type 'character)
 			  (class 'fd-stream)
-                          (sharing :private))
+                          (sharing :private)
+                          (basic nil))
+  (when basic
+    (setq class (map-to-basic-stream-class-name class))
+    (setq basic (subtypep (find-class class) 'basic-stream)))
   (let* ((in-p (member direction '(:io :input)))
          (out-p (member direction '(:io :output)))
          (char-p (or (eq element-type 'character)
@@ -1115,11 +1126,15 @@
 			 :interactive interactive
 			 :element-type element-type
 			 :advance-function (if in-p
-					     (select-stream-advance-function class))
+                                             (if basic
+                                               'fd-stream-advance
+                                               (select-stream-advance-function class)))
 			 :listen-function (if in-p 'fd-stream-listen)
 			 :eofp-function (if in-p 'fd-stream-eofp)
 			 :force-output-function (if out-p
-						  (select-stream-force-output-function class))
+                                                  (if basic
+                                                    'fd-stream-force-output
+                                                    (select-stream-force-output-function class)))
 			 :close-function 'fd-stream-close
                          :sharing sharing
                          :character-p char-p)))
@@ -1130,7 +1145,7 @@
     ())
 
 (defclass fundamental-input-stream (fundamental-stream input-stream)
-    ())
+    ((shared-resource :initform nil :accessor input-stream-shared-resource)))
 
 (defclass fundamental-output-stream (fundamental-stream output-stream)
     ())
@@ -1220,6 +1235,7 @@
                                             fundamental-binary-stream
                                             binary-output-stream)
     ())
+
 
 
 (defmethod stream-read-byte ((s t))
@@ -1317,6 +1333,100 @@
       (if (eq b :eof)
 	(return i)
 	(setf (uvref vector i) b)))))
+
+
+;;; File streams, in the abstract.
+
+(defclass file-stream (stream)
+    ())
+
+
+;;; "Basic" (non-extensible) streams.
+
+
+(defun basic-stream-p (x)
+  (= (the fixnum (typecode x)) target::subtag-basic-stream))
+
+(setf (type-predicate 'basic-stream) 'basic-stream-p)
+
+(make-built-in-class 'basic-stream 'stream)
+(make-built-in-class 'basic-file-stream 'basic-stream 'file-stream)
+(make-built-in-class 'basic-character-stream 'basic-stream 'character-stream)
+(make-built-in-class 'basic-binary-stream 'basic-stream 'binary-stream)
+
+(make-built-in-class 'basic-input-stream 'basic-stream 'input-stream)
+(make-built-in-class 'basic-output-stream 'basic-stream 'input-stream)
+(make-built-in-class 'basic-character-input-stream 'basic-input-stream 'basic-character-stream)
+(make-built-in-class 'basic-character-output-stream 'basic-output-stream 'basic-character-stream)
+(make-built-in-class 'basic-character-io-stream 'basic-character-input-stream 'basic-character-output-stream)
+(make-built-in-class 'basic-binary-input-stream 'basic-input-stream 'basic-binary-stream)
+(make-built-in-class 'basic-binary-output-stream 'basic-output-stream 'basic-binary-stream)
+(make-built-in-class 'basic-binary-io-stream 'basic-binary-input-stream 'basic-binary-output-stream)
+
+
+(defmethod select-stream-class ((s (eql 'basic-stream)) in-p out-p char-p)
+  (if char-p
+    (if in-p
+      (if out-p
+        'basic-character-io-stream
+        'basic-character-input-stream)
+      'basic-character-output-stream)
+    (if in-p
+      (if out-p
+        'basic-binary-io-stream
+        'basic-binary-input-stream)
+      'basic-binary-output-stream)))
+
+
+(defmethod map-to-basic-stream-class-name (name)
+  name)
+
+(defmethod map-to-basic-stream-class-name ((name (eql 'fd-stream)))
+  'basic-stream)
+
+(defun allocate-basic-stream (class)
+  (if (subtypep class 'basic-file-stream)
+    (gvector :basic-stream class 0 nil nil nil nil)
+    (gvector :basic-stream class 0 nil nil)))
+
+(defmethod initialize-basic-stream ((s basic-stream) &key &allow-other-keys)
+  )
+
+(defmethod initialize-basic-stream :after  ((s basic-input-stream) &key &allow-other-keys)
+  (setf (basic-stream.flags s)
+        (logior (ash 1 basic-stream-flag.open-input) (basic-stream.flags s))))
+
+(defmethod initialize-basic-stream :after ((s basic-output-stream) &key &allow-other-keys)
+  (setf (basic-stream.flags s)
+        (logior (ash 1 basic-stream-flag.open-output) (basic-stream.flags s))))
+
+(defmethod initialize-basic-stream :after ((s basic-binary-stream) &key &allow-other-keys)
+  (setf (basic-stream.flags s)
+        (logior (ash 1 basic-stream-flag.open-binary) (basic-stream.flags s))))
+
+(defun make-basic-stream-instance (class &rest initargs)
+  (let* ((s (allocate-basic-stream class)))
+    (apply #'initialize-basic-stream s initargs)
+    s))
+
+(defmethod %stream-ioblock ((s basic-stream))
+  (basic-stream.state s))
+
+(defmethod (setf stream-ioblock) (ioblock (s basic-stream))
+  (setf (basic-stream.state s) ioblock))
+
+(defmethod stream-create-ioblock ((stream basic-stream) &rest args &key)
+  (declare (dynamic-extent args))
+  (apply #'make-ioblock :stream stream args))
+
+(defmethod stream-read-char ((s basic-character-input-stream))
+  (let* ((ioblock (basic-stream.state s)))
+    (if ioblock
+      (funcall (ioblock-read-char-function ioblock) ioblock)
+      (error "~s is closed" s))))
+       
+
+
 
 ;;; Synonym streams.
 
@@ -1934,10 +2044,9 @@
 (declaim (inline stream-ioblock))
 
 (defun stream-ioblock (stream error-if-nil)
-  (with-slots (ioblock) stream
-    (or ioblock
-        (when error-if-nil
-          (error "~s is closed" stream)))))
+  (or (%stream-ioblock stream)
+      (when error-if-nil
+        (error "~s is closed" stream))))
 
 (defmethod stream-device ((s buffered-stream-mixin) direction)
   (declare (ignore direction))
@@ -2372,6 +2481,7 @@
 (defmethod select-stream-advance-function ((s fd-stream))
   'fd-stream-advance)
 
+
 (defmethod select-stream-force-output-function ((s symbol))
   (select-stream-force-output-function (find-class s)))
 
@@ -2567,9 +2677,6 @@
   :initializer 'stream-clear-output)
 
 ;;;File streams.
-(defparameter *use-new-file-streams* t)
-
-(defparameter *default-file-stream-class* 'file-stream)
 
 (defun open (filename &key (direction :input)
                       (element-type 'base-char)
@@ -2582,7 +2689,7 @@
                                                 :error)
                                                (t :create)))
                       (external-format :default)
-		      (class *default-file-stream-class*)
+		      (class 'file-stream)
                       (elements-per-buffer *elements-per-buffer*)
                       (sharing :private))
   "Return a stream which reads from or writes to FILENAME.
