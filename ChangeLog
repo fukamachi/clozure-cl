@@ -1,3 +1,17 @@
+2006-07-24 04:55  gb
+
+	* lib/streams.lisp: READ-CHAR bypasses STREAM-READ-CHAR for
+	BASIC-STREAMs.
+
+2006-07-24 04:55  gb
+
+	* level-1/l1-streams.lisp: Some BASIC-STREAM stuff starts to
+	appear.
+
+2006-07-24 04:51  gb
+
+	* library/lispequ.lisp: Add a plist to basic-/basic-file-stream.
+
 2006-07-24 02:43  gb
 
 	* level-1/l1-sysio.lisp: FILE-STREAM is now abstract (and some
