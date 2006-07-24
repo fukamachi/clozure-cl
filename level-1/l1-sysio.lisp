@@ -275,26 +275,26 @@ is :UNIX.")
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defclass file-stream (fd-stream)
+(defclass fundamental-file-stream (fd-stream file-stream)
     ((filename :initform nil :initarg :filename :accessor file-stream-filename)
      (actual-filename :initform nil :initarg :actual-filename)
      (external-format :initform :default :initarg :external-format
 		      :accessor file-stream-external-format)))
   
 
-(defmethod stream-filename ((s file-stream))
+(defmethod stream-filename ((s fundamental-file-stream))
   (file-stream-filename s))
 
 (defmethod stream-actual-filename ((s file-stream))
   (slot-value s 'actual-filename))
 
-(defmethod (setf stream-filename) (new (s file-stream))
+(defmethod (setf stream-filename) (new (s fundamental-file-stream))
   (setf (file-stream-filename s) new))
 
-(defmethod (setf stream-actual-filename) (new (s file-stream))
+(defmethod (setf stream-actual-filename) (new (s fundamental-file-stream))
   (setf (slot-value s 'actual-filename) new))
 
-(defmethod print-object ((s file-stream) out)
+(defmethod print-object ((s fundamental-file-stream) out)
   (print-unreadable-object (s out :type t :identity t)
     (let* ((file-ioblock (stream-ioblock s nil)))
       (format out "(~s/" (stream-filename s))
@@ -302,40 +302,40 @@ is :UNIX.")
 	(format out "~d)" (file-ioblock-device file-ioblock))
 	(format out ":closed")))))
 	    
-(defmethod stream-create-ioblock ((stream file-stream) &rest args &key)
+(defmethod stream-create-ioblock ((stream fundamental-file-stream) &rest args &key)
   (declare (dynamic-extent args))
   (apply #'make-file-ioblock :stream stream args))
 
-(defclass file-input-stream (file-stream fd-input-stream)
+(defclass fundamental-file-input-stream (fundamental-file-stream fd-input-stream)
     ())
 
-(defclass file-output-stream (file-stream fd-output-stream)
+(defclass fundamental-file-output-stream (fundamental-file-stream fd-output-stream)
     ())
 
-(defclass file-io-stream (file-stream fd-io-stream)
+(defclass fundamental-file-io-stream (fundamental-file-stream fd-io-stream)
     ())
 
-(defclass file-character-input-stream (file-input-stream
+(defclass fundamental-file-character-input-stream (fundamental-file-input-stream
 					  fd-character-input-stream)
     ())
 
-(defclass file-character-output-stream (file-output-stream
-					   fd-character-output-stream)
+(defclass fundamental-file-character-output-stream (fundamental-file-output-stream
+                                                    fd-character-output-stream)
     ())
 
-(defclass file-character-io-stream (file-io-stream
+(defclass fundamental-file-character-io-stream (fundamental-file-io-stream
 				       fd-character-io-stream)
     ())
 
-(defclass file-binary-input-stream (file-input-stream
-				       fd-binary-input-stream)
+(defclass fundamental-file-binary-input-stream (fundamental-file-input-stream
+                                                fd-binary-input-stream)
     ())
 
-(defclass file-binary-output-stream (file-output-stream
-					fd-binary-output-stream)
+(defclass fundamental-file-binary-output-stream (fundamental-file-output-stream
+                                                 fd-binary-output-stream)
     ())
 
-(defclass file-binary-io-stream (file-io-stream fd-binary-io-stream)
+(defclass fundamental-file-binary-io-stream (fundamental-file-io-stream fd-binary-io-stream)
     ())
 
 ;;; This stuff is a lot simpler if we restrict the hair to the
@@ -343,20 +343,20 @@ is :UNIX.")
 ;;; about flushing the shared buffer before filling it, and things
 ;;; like that.)
 
-(defmethod stream-clear-input ((f file-input-stream))
+(defmethod stream-clear-input ((f fundamental-file-input-stream))
   (with-stream-ioblock-input (file-ioblock f :speedy t)
     (call-next-method)
     (synch-file-octet-filepos file-ioblock)
     nil))
     
-(defmethod stream-clear-input ((f file-io-stream))
+(defmethod stream-clear-input ((f fundamental-file-io-stream))
   (with-stream-ioblock-input (file-ioblock f :speedy t)
     (stream-force-output f)		
     (call-next-method)
     (synch-file-octet-filepos file-ioblock)
     nil))
 
-(defmethod stream-clear-output ((f file-output-stream))
+(defmethod stream-clear-output ((f fundamental-file-output-stream))
   (with-stream-ioblock-output (file-ioblock f :speedy t)
     (call-next-method)
     (synch-file-octet-filepos file-ioblock)
@@ -435,39 +435,39 @@ is :UNIX.")
     (setf (file-ioblock-octet-pos file-ioblock) newoctetpos)
     (file-ioblock-seek file-ioblock newoctetpos)))
 
-(defmethod stream-position ((stream file-input-stream) &optional newpos)
+(defmethod stream-position ((stream fundamental-file-input-stream) &optional newpos)
   (with-stream-ioblock-input (file-ioblock stream :speedy t)
     (%ioblock-input-file-position file-ioblock newpos)))
 
 
 
-(defmethod stream-position ((stream file-output-stream) &optional newpos)
+(defmethod stream-position ((stream fundamental-file-output-stream) &optional newpos)
   (with-stream-ioblock-output (file-ioblock stream :speedy t)
     (%ioblock-output-file-position file-ioblock newpos)))
 
 
 
-(defmethod stream-position ((stream file-io-stream) &optional newpos)
+(defmethod stream-position ((stream fundamental-file-io-stream) &optional newpos)
   (with-stream-ioblock-input (file-ioblock stream :speedy t)
     (%ioblock-io-file-position file-ioblock newpos)))
 
 
 
-(defmethod stream-length ((stream file-input-stream) &optional newlen)
+(defmethod stream-length ((stream fundamental-file-input-stream) &optional newlen)
   (with-stream-ioblock-input (file-ioblock stream :speedy t)
     (%ioblock-input-file-length file-ioblock newlen)))
 
 
 
-(defmethod stream-length ((s file-output-stream) &optional newlen)
+(defmethod stream-length ((s fundamental-file-output-stream) &optional newlen)
   (with-stream-ioblock-output (file-ioblock s :speedy t)
     (%ioblock-output-file-length file-ioblock newlen)))
 
-(defmethod stream-length ((s file-io-stream) &optional newlen)
+(defmethod stream-length ((s fundamental-file-io-stream) &optional newlen)
   (with-stream-ioblock-input (file-ioblock s :speedy t)
     (%ioblock-output-file-length file-ioblock newlen)))
 
-(defmethod close ((s file-stream) &key abort)
+(defmethod close ((s fundamental-file-stream) &key abort)
   (when (open-stream-p s)
     (let* ((ioblock (stream-ioblock s t))
 	   (filename (stream-filename s))
@@ -485,19 +485,19 @@ is :UNIX.")
 (defmethod select-stream-class ((class file-stream) in-p out-p char-p)
   (if char-p
     (if (and in-p out-p)
-      'file-character-io-stream
+      'fundamental-file-character-io-stream
       (if in-p
-	'file-character-input-stream
+	'fundamental-file-character-input-stream
 	(if out-p
-	  'file-character-output-stream
-	  'file-stream)))
+	  'fundamental-file-character-output-stream
+	  'fundamental-file-stream)))
     (if (and in-p out-p)
-      'file-binary-io-stream
+      'fundamental-file-binary-io-stream
       (if in-p
-	'file-binary-input-stream
+	'fundamental-file-binary-input-stream
 	(if out-p
-	  'file-binary-output-stream
-	  'file-stream)))))
+	  'fundamental-file-binary-output-stream
+	  'fundamental-file-stream)))))
 
 (defun make-file-stream (filename
 			 direction
@@ -632,7 +632,7 @@ is :UNIX.")
                   (push fstream *open-file-streams*))
                 fstream))))))))
 
-(defmethod stream-external-format ((s file-stream))
+(defmethod stream-external-format ((s fundamental-file-stream))
   (file-stream-external-format s))
 
 (defmethod stream-external-format ((s broadcast-stream))
