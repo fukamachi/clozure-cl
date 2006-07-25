@@ -1534,6 +1534,9 @@
 (define-compiler-macro macptrp (n)
   `(eql (typecode ,n) ,(nx-lookup-target-uvector-subtag :macptr)))
 
+(define-compiler-macro basic-stream-p (n)
+  `(eql (typecode ,n) ,(nx-lookup-target-uvector-subtag :basic-stream)))
+
 (define-compiler-macro aref (&whole call a &rest subscripts &environment env)
   (let* ((ctype (if (nx-form-typep a 'array env)
                   (specifier-type (nx-form-type a env))))
