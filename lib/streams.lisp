@@ -44,18 +44,20 @@
 	(values string nil)))))
 
 (defun read-char (&optional input-stream (eof-error-p t) eof-value recursive-p)
-  (declare (ignore recursive-p))
+  (declare (ignore recursive-p)
+           (optimize (speed 3) (space 0)))
   (setq input-stream (designated-input-stream input-stream))
-  (check-eof
-   (if (typep input-stream 'basic-stream)
-     (let* ((ioblock (basic-stream.state input-stream)))
-       (if ioblock
+  (if (typep input-stream 'basic-stream)
+    (let* ((ioblock (basic-stream.state input-stream)))
+      (if ioblock
+        (check-eof
          (funcall (ioblock-read-char-function ioblock) ioblock)
-         (error "~s is closed" input-stream)))
-     (stream-read-char input-stream))
-   input-stream
-   eof-error-p
-   eof-value))
+         input-stream eof-error-p eof-value)
+        (stream-is-closed input-stream)))
+    (check-eof (stream-read-char input-stream)
+               input-stream
+               eof-error-p
+               eof-value)))
 
 (defun unread-char (char &optional input-stream)
   (let* ((input-stream (designated-input-stream input-stream)))
@@ -87,11 +89,19 @@
   (check-eof (stream-read-char-no-hang input-stream) input-stream eof-error-p eof-value))
 
 (defun read-byte (stream &optional (eof-error-p t) eof-value)
-  (check-eof
-   (stream-read-byte stream)
-   stream
-   eof-error-p
-   eof-value))
+  (if (typep stream 'basic-stream)
+    (let* ((ioblock (basic-stream.state stream)))
+      (if ioblock
+        (check-eof (funcall (ioblock-read-byte-function ioblock) ioblock)
+                   stream
+                   eof-error-p
+                   eof-value)
+        (stream-is-closed ioblock)))
+    (check-eof
+     (stream-read-byte stream)
+     stream
+     eof-error-p
+     eof-value)))
 
 ;;;;;;;;;;;; OUTPUT STREAMS
 
