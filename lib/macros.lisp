@@ -3260,5 +3260,9 @@ to be at least partially steppable."
 	   ,fd)
 	  (return ,res))))))
 
+(defmacro basic-stream-ioblock (s)
+  `(or (basic-stream.state ,s)
+    (stream-is-closed ,s)))
+
 (defsetf interrupt-level set-interrupt-level)
 
