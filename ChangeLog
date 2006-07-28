@@ -1,3 +1,12 @@
+2006-07-28 04:17  gb
+
+	* level-1/version.lisp: Bump.
+
+2006-07-28 04:15  gb
+
+	* level-1/l1-streams.lisp: A couple of more (soon-to-be-used) slots
+	in IOBLOCK.
+
 2006-07-28 01:17  gb
 
 	* level-1/l1-streams.lisp: Lots of changes; lots more to go.
