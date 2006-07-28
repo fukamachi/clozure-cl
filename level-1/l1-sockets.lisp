@@ -321,6 +321,7 @@ make-socket."))
 
 (defmethod select-stream-class ((class tcp-stream) in-p out-p char-p)
   (declare (ignore char-p)) ; TODO: is there any real reason to care about this?
+  ;; Yes, in general.  There is.
   (assert (and in-p out-p) () "Non-bidirectional tcp stream?")
   'tcp-stream)
 
@@ -676,7 +677,8 @@ the socket is not connected."))
 		    :class class
 		    :direction :io
 		    :element-type element-type
-                    :sharing sharing)))
+                    :sharing sharing
+                    :character-p t)))
 
 (defun make-file-socket-stream (fd &key format eol (class 'file-socket-stream)  sharing &allow-other-keys)
   (declare (ignore eol))		;???
@@ -689,7 +691,8 @@ the socket is not connected."))
 		    :class class
 		    :direction :io
 		    :element-type element-type
-                    :sharing sharing)))
+                    :sharing sharing
+                    :character-p t)))
 
 (defun make-tcp-listener-socket (fd &rest keys &key backlog &allow-other-keys)
   (socket-call nil "listen" (c_listen fd (or backlog 5)))
