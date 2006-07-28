@@ -482,7 +482,7 @@ is :UNIX.")
       (setq *open-file-streams* (nremove s *open-file-streams*))
       (call-next-method))))
 
-(defmethod select-stream-class ((class file-stream) in-p out-p char-p)
+(defmethod select-stream-class ((class fundamental-file-stream) in-p out-p char-p)
   (if char-p
     (if (and in-p out-p)
       'fundamental-file-character-io-stream
