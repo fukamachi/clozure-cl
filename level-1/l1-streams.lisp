@@ -360,8 +360,10 @@
   (owner nil)
   (read-char-function 'ioblock-no-char-input)
   (read-byte-function 'ioblock-no-binary-input)
+  (write-byte-function 'ioblock-no-binary-output)
   (write-char-function 'ioblock-no-char-output)
-  (write-byte-function 'ioblock-no-binary-output))
+  (encoding nil)
+  (alternate-line-termination nil))
 
 
 ;;; Functions on ioblocks.  So far, we aren't saying anything
