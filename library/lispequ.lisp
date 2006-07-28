@@ -1298,6 +1298,7 @@
 (defenum (:prefix "BASIC-STREAM-FLAG.")
   open-input
   open-output
+  open-character
   open-binary
   file-stream)
   
