@@ -1,3 +1,38 @@
+2006-07-28 01:17  gb
+
+	* level-1/l1-streams.lisp: Lots of changes; lots more to go.
+
+2006-07-28 01:16  gb
+
+	* level-1/l1-sockets.lisp: Pass :CHARACTER-P T to MAKE-FD-STREAM.
+
+2006-07-28 00:58  gb
+
+	* examples/cocoa-listener.lisp: Want :SHARING :LOCK on listener
+	output.
+	
+	(SLIME probably faces the same issue; should probably do something
+	in the auto-flush case.  Of course, it's hard to know just what to
+	do in that case. or at least what to do safely in that case.)
+
+2006-07-28 00:49  gb
+
+	* level-1/l1-sysio.lisp: Define SELECT-STREAM-CLASS on
+	FUNDAMENTAL-FILE-STREAM.
+
+2006-07-28 00:49  gb
+
+	* lib/streams.lisp: READ-BYTE for BASIC-STREAMs.
+
+2006-07-28 00:48  gb
+
+	* library/lispequ.lisp: Need an explicit
+	BASIC-STREAM-FLAG.OPEN-CHARACTER bit, due to bivalence.
+
+2006-07-28 00:47  gb
+
+	* lib/macros.lisp: BASIC-STREAM-IOBLOCK.
+
 2006-07-25 03:48  gb
 
 	* compiler/optimizers.lisp: Compiler-macro for BASIC-STREAM-P.
