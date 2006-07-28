@@ -51,6 +51,7 @@
            procname
            input-stream
            (make-fd-stream output-fd :direction :output
+                           :sharing :lock
                            :elements-per-buffer
                            (#_fpathconf
                             output-fd
