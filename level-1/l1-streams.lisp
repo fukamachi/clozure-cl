@@ -1445,6 +1445,7 @@
 
 (make-built-in-class 'basic-input-stream 'basic-stream 'input-stream)
 (make-built-in-class 'basic-output-stream 'basic-stream 'input-stream)
+(make-built-in-class 'basic-io-stream 'basic-input-stream 'basic-output-stream)
 (make-built-in-class 'basic-character-input-stream 'basic-input-stream 'basic-character-stream 'character-input-stream)
 (make-built-in-class 'basic-character-output-stream 'basic-output-stream 'basic-character-stream 'character-output-stream)
 (make-built-in-class 'basic-character-io-stream 'basic-character-input-stream 'basic-character-output-stream)
@@ -1489,7 +1490,7 @@
 
 (defun allocate-basic-stream (class)
   (if (subtypep class 'basic-file-stream)
-    (gvector :basic-stream class 0 nil nil nil nil)
+    (gvector :basic-stream class 0 nil nil nil nil nil)
     (gvector :basic-stream class 0 nil nil)))
 
 (defmethod initialize-basic-stream ((s basic-stream) &key &allow-other-keys)
