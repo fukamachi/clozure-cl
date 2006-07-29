@@ -1091,8 +1091,7 @@ initially NIL.")
 (set-dispatch-macro-character #\# #\- #'read-conditional)
 
 
-(defresource *parse-string-resource*
-  :constructor (make-string 255 :element-type 'base-char))
+
 
 ;;;arg=0 : read form, error if eof
 ;;;arg=nil : read form, eof-val if eof.
