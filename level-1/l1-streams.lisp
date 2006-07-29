@@ -2363,6 +2363,11 @@
   (with-stream-ioblock-output (ioblock stream :speedy t)
     (%ioblock-write-byte ioblock byte)))
 
+(defmethod stream-write-byte ((stream basic-binary-output-stream) byte)
+  (let* ((ioblock (basic-stream-ioblock stream)))
+    (with-ioblock-output-locked (ioblock)
+      (%ioblock-write-byte ioblock byte))))
+
 (defmethod stream-write-char ((stream buffered-character-output-stream-mixin) char)
   (with-stream-ioblock-output (ioblock stream :speedy t)
     (%ioblock-write-char ioblock char)))
@@ -2467,6 +2472,13 @@
 				 iv start length)
   (with-stream-ioblock-output (ioblock s :speedy t)
     (%ioblock-out-ivect ioblock iv start length)))
+
+(defmethod stream-write-ivector ((s basic-output-stream)
+				 iv start length)
+  (let* ((ioblock (basic-stream-ioblock s)))
+    (with-ioblock-output-locked (ioblock)
+      (%ioblock-out-ivect ioblock iv start length))))
+
 
 (defmethod stream-read-ivector ((s buffered-character-input-stream-mixin)
 				iv start nb)
@@ -2897,7 +2909,7 @@
 		      (class 'fundamental-file-stream)
                       (elements-per-buffer *elements-per-buffer*)
                       (sharing :private)
-                      (basic nil))
+                      (basic t))
   "Return a stream which reads from or writes to FILENAME.
   Defined keywords:
    :DIRECTION - one of :INPUT, :OUTPUT, :IO, or :PROBE
