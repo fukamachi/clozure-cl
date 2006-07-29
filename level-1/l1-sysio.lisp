@@ -604,6 +604,26 @@ is :UNIX.")
 	  'fundamental-file-binary-output-stream
 	  'fundamental-file-stream)))))
 
+(defmethod map-to-basic-stream-class-name ((name (eql 'fundamental-file-stream)))
+  'basic-file-stream)
+
+(defmethod select-stream-class ((class (eql 'basic-file-stream)) in-p out-p char-p)
+  (if char-p
+    (if (and in-p out-p)
+      'basic-file-character-io-stream
+      (if in-p
+	'basic-file-character-input-stream
+	(if out-p
+	  'basic-file-character-output-stream
+	  'basic-file-stream)))
+    (if (and in-p out-p)
+      'basic-file-binary-io-stream
+      (if in-p
+	'basic-file-binary-input-stream
+	(if out-p
+	  'basic-file-binary-output-stream
+	  'basic-file-stream)))))
+
 (defun make-file-stream (filename
 			 direction
 			 element-type
@@ -612,13 +632,14 @@ is :UNIX.")
 			 elements-per-buffer
 			 class
 			 external-format
-                         sharing)
+                         sharing
+                         basic)
 
   (let* ((temp-name nil)
          (dir (pathname-directory filename))
          (filename (if (eq (car dir) :relative)
-                       (full-pathname filename)
-                       filename))
+                     (full-pathname filename)
+                     filename))
          (pathname (pathname filename))) 
     (block open
       (if (or (memq element-type '(:default character base-char))
@@ -648,7 +669,7 @@ is :UNIX.")
 		  ((not native-truename)
 		   (setq native-truename (%create-file filename)))
 		  ((memq direction '(:output :io))
-		   #| ;;
+		   #|;;
                    ;; this prevents us from writing a file that is open for anything            
                    ;;l but does not protect against reading a file that is open for :output
 		   (when (and bits (eq direction :output)(neq 0 (logand bits #x81)))
@@ -673,8 +694,13 @@ is :UNIX.")
               (make-fd-stream fd :direction direction
                               :element-type element-type
                               :elements-per-buffer elements-per-buffer
-                              :sharing sharing)
-              (let* ((in-p (member direction '(:io :input)))
+                              :sharing sharing
+                              :basic basic)
+              (progn
+                (when basic
+                  (setq class (map-to-basic-stream-class-name class))
+                  (setq basic (subtypep (find-class class) 'basic-stream)))
+                (let* ((in-p (member direction '(:io :input)))
                      (out-p (member direction '(:io :output)))
                      (io-p (eq direction :io))
                      (char-p (or (eq element-type 'character)
@@ -735,7 +761,7 @@ is :UNIX.")
                 (if (eq direction :probe)
                   (close fstream)
                   (push fstream *open-file-streams*))
-                fstream))))))))
+                fstream)))))))))
 
 (defmethod stream-external-format ((s fundamental-file-stream))
   (file-stream-external-format s))
