@@ -2896,7 +2896,8 @@
                       (external-format :default)
 		      (class 'fundamental-file-stream)
                       (elements-per-buffer *elements-per-buffer*)
-                      (sharing :private))
+                      (sharing :private)
+                      (basic nil))
   "Return a stream which reads from or writes to FILENAME.
   Defined keywords:
    :DIRECTION - one of :INPUT, :OUTPUT, :IO, or :PROBE
@@ -2916,7 +2917,8 @@
 			  elements-per-buffer
 			  class
 			  external-format
-                          sharing))
+                          sharing
+                          basic))
       (retry-open ()
                   :report (lambda (stream) (format stream "Retry opening ~s" filename))
                   nil))))
