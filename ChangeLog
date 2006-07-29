@@ -1,3 +1,17 @@
+2006-07-29 03:40  gb
+
+	* level-1/l1-sysio.lisp: Most BASIC-FILE-STREAM stuff.
+
+2006-07-29 03:40  gb
+
+	* library/lispequ.lisp: BASIC-FILE-STREAM.EXTERNAL-FORMAT, at least
+	for now.
+
+2006-07-29 03:39  gb
+
+	* level-1/l1-streams.lisp: BASIC-IO-STREAM; ALLOCATE-BASIC-STREAM
+	makes one more slot in BASIC-FILE-STREAM.
+
 2006-07-28 04:17  gb
 
 	* level-1/version.lisp: Bump.
