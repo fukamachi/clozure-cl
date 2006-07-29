@@ -1,3 +1,23 @@
+2006-07-29 06:27  gb
+
+	* library/lispequ.lisp: Resources aren't thread-private, need
+	locks.
+
+2006-07-29 06:26  gb
+
+	* level-1/l1-sysio.lisp: MAKE-FILE-STREAM: support for
+	BASIC-STREAMs.
+
+2006-07-29 06:26  gb
+
+	* level-1/l1-streams.lisp: OPEN handles BASIC-STREAMs; not yet the
+	default.
+
+2006-07-29 06:25  gb
+
+	* level-1/l1-reader.lisp: *PARSE-STRING-RESOURCE* probably hasn't
+	been used in 10 or 12 years.
+
 2006-07-29 03:40  gb
 
 	* level-1/l1-sysio.lisp: Most BASIC-FILE-STREAM stuff.
