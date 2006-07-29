@@ -1,3 +1,9 @@
+2006-07-29 08:41  gb
+
+	* level-1/l1-streams.lisp: STREAM-WRITE-BYTE, STREAM-WRITE-IVECTOR.
+	 :BASIC defaults to T in OPEN; BASIC-FILE-STREAM probably still
+	needs READ/WRITE- SEQUENCE support.
+
 2006-07-29 07:39  gb
 
 	* level-1/l1-aprims.lisp: ALLOCATE-RESOURCE, FREE-RESOURCE: use
