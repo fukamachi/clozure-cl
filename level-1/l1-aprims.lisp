@@ -1210,30 +1210,30 @@ of 32KBytes in earlier versions.)"
 
 (defun allocate-resource (resource)
   (setq resource (require-type resource 'resource))
-  (let ((pool (resource.pool resource))
-        res)
-    (without-interrupts
-     (let ((data (pool.data pool)))
-       (when data
-         (setf res (car data)
-               (pool.data pool) (cdr (the cons data)))
-         (free-cons data))))
-    (if res
-      (let ((initializer (resource.initializer resource)))
-        (when initializer
-          (funcall initializer res)))
-      (setq res (funcall (resource.constructor resource))))
-    res))
+  (with-lock-grabbed ((resource.lock resource))
+    (let ((pool (resource.pool resource))
+          res)
+      (let ((data (pool.data pool)))
+        (when data
+          (setf res (car data)
+                (pool.data pool) (cdr (the cons data)))
+          (free-cons data)))
+      (if res
+        (let ((initializer (resource.initializer resource)))
+          (when initializer
+            (funcall initializer res)))
+        (setq res (funcall (resource.constructor resource))))
+      res)))
 
 (defun free-resource (resource instance)
   (setq resource (require-type resource 'resource))
-  (let ((pool (resource.pool resource))
-        (destructor (resource.destructor resource)))
-    (when destructor
-      (funcall destructor instance))
-    (without-interrupts
-     (setf (pool.data pool)
-           (cheap-cons instance (pool.data pool)))))
+  (with-lock-grabbed ((resource.lock resource))
+    (let ((pool (resource.pool resource))
+          (destructor (resource.destructor resource)))
+      (when destructor
+        (funcall destructor instance))
+      (setf (pool.data pool)
+            (cheap-cons instance (pool.data pool)))))
   resource)
 
 
