@@ -1292,6 +1292,7 @@
   basic-file-stream.info                ; a plist for less-often-used things.
   basic-file-stream.filename
   basic-file-stream.actual-filename
+  basic-file-stream.external-format
   )
 
 ;;; Bits in basic-stream.flags
