@@ -68,7 +68,8 @@
   resource.constructor
   resource.destructor
   resource.initializer
-  resource.pool)
+  resource.pool
+  resource.lock)
 
 (defmacro gvector (type-keyword &rest initial-values)
   `(%gvector ,(type-keyword-code type-keyword) ,@initial-values))
@@ -89,7 +90,7 @@
 
 
 (defmacro %cons-resource (constructor &optional destructor initializer)
-  `(%istruct 'resource ,constructor ,destructor ,initializer (%cons-pool)))
+  `(%istruct 'resource ,constructor ,destructor ,initializer (%cons-pool) (make-lock)))
 
 
 
