@@ -70,7 +70,8 @@ _endfn
 /*  Return actual old value. */
 _exportfn(C(store_conditional))
 	__(mov %rsi,%rax)
-	__(lock cmpxchgq %rdx,(%rdi))
+	__(lock) 
+        __(cmpxchgq %rdx,(%rdi))
 	__(cmovne %rdx,%rax)
 	__(ret)	
 _endfn
@@ -79,7 +80,8 @@ _endfn
 /*	of *%rdi. */
 
 _exportfn(C(atomic_swap))
-	__(lock xchg %rsi,(%rdi))
+	__(lock) 
+        __(xchg %rsi,(%rdi))
 	__(mov %rsi,%rax)
 	__(ret)
 _endfn
@@ -91,7 +93,8 @@ _exportfn(C(atomic_ior))
 0:	__(movq (%rdi),	%rax)
 	__(movq %rax,%rcx)
 	__(orq %rsi,%rcx)
-	__(lock cmpxchg %rcx,(%rdi))
+	__(lock)
+        __(cmpxchg %rcx,(%rdi))
         __(jnz 0b)
 	__(andq %rsi,%rax)
 	__(ret)
