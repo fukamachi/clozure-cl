@@ -162,6 +162,11 @@ typedef struct area_list {
 #ifdef SOLARIS
 #define IMAGE_BASE_ADDRESS 0xfffffc7fff000000L
 #endif
+#ifdef DARWIN
+#ifdef X8664
+#define IMAGE_BASE_ADDRESS 0x300000000000L
+#endif
+#endif
 #endif
 
 #define PURESPACE_RESERVE 0x04000000 /* 64MB */
