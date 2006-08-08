@@ -26,6 +26,17 @@ typedef u8_t opcode, *pc;
 #endif
 #endif
 
+#ifdef DARWIN
+#ifdef X8664
+#define xpGPRvector(x) ((natural *)(&(UC_MCONTEXT(x)->ss.rax)))
+#define xpGPR(x,gprno) (xpGPRvector(x)[gprno])
+#define set_xpGPR(x,gpr,new) xpGPR((x),(gpr)) = (natural)(new)
+#define xpPC(x) (xpGPR(x,Iip))
+#define xpFPRvector(x) ((natural *)(&(UC_MCONTEXT(x)->fs.fp_stmm0)))
+#define xpMMXreg(x,n)  (xpFPRvector(x)[gprno])
+#endif
+#endif
+
 #ifdef FREEBSD
 #ifdef X8664
 #include <machine/fpu.h>
