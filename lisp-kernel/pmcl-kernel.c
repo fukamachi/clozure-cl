@@ -85,8 +85,8 @@ Boolean use_mach_exception_handling =
 #endif
 ;
 
-#ifdef PPC64
-/* Assume that if the OS is new enough to support PPC64, it has
+#if WORD_SIZE == 64
+/* Assume that if the OS is new enough to support PPC64/X8664, it has
    a reasonable dlfcn.h
 */
 #include <dlfcn.h>
@@ -1746,7 +1746,7 @@ xFindSymbol(void* handle, char *name)
   return dlsym(handle, name);
 #endif
 #ifdef DARWIN
-#ifdef PPC64
+#if defined(PPC64) || defined(X8664)
   if (handle == NULL) {
     handle = RTLD_DEFAULT;
   }    
