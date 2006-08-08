@@ -102,6 +102,11 @@ char* Iregnames[] = {"???", "rdi", "rsi", "rdx", "rcx", "r8 ", "r9 ", "rax",
                      "rbx", "rbp", "r10", "r11", "r12", "r13", "r14", "r15",
                      "???", "???", "???", "???", "???", "???", "???", "rsp"};
 #endif
+#ifdef DARWIN
+char* Iregnames[] = {"rax", "rbx", "rcx", "rdx", "rdi", "rsi",
+                     "rbp", "rsp", "r8 ", "r9 ", "r10", "r11", "r12", "r13",
+                     "r14", "r15", "rip", "rfl"};
+#endif
 #endif
 
 void
