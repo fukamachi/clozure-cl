@@ -1,3 +1,44 @@
+2006-08-08 13:07  gb
+
+	* lisp-kernel/darwinx8664/Makefile: New file.
+
+2006-08-08 13:07  gb
+
+	* lisp-kernel/x86-exceptions.h: xp accessors for Darwinx8664.
+
+2006-08-08 13:06  gb
+
+	* lisp-kernel/x86-constants64.h: REG_* constants for Darwin.
+
+2006-08-08 13:05  gb
+
+	* lisp-kernel/x86-asmutils64.s: Darwin assembler doesn't like lock
+	instructions on the same line as the locked instruction.  (Maybe
+	there's a better way to do this, than just pretending that lock is
+	a standalone instruction, but that lock instruction does seem to be
+	treated as a prefix.)
+
+2006-08-08 13:03  gb
+
+	* lisp-kernel/pmcl-kernel.c: Treat X8664 like PPC64 (e.g., use
+	dlfcn) on Darwin.
+
+2006-08-08 13:02  gb
+
+	* lisp-kernel/lisptypes.h: xcode 2.4 headers: <i386/ucontext.h>
+	doesn't define mcontext64, but lots of other things reference it. 
+	#define it here for now, but that'll likely break when the headers
+	are fixed.
+
+2006-08-08 12:58  gb
+
+	* lisp-kernel/lisp-debug.c: Define Iregnames for darwinx8664.
+
+2006-08-08 12:58  gb
+
+	* lisp-kernel/area.h: Define an IMAGE_BASE_ADDRESS for
+	x8664/Darwin.
+
 2006-07-29 08:41  gb
 
 	* level-1/l1-streams.lisp: STREAM-WRITE-BYTE, STREAM-WRITE-IVECTOR.
