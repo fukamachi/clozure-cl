@@ -66,6 +66,15 @@ typedef u32_t unsigned_of_pointer_size;
 #if WORD_SIZE == 64
 typedef struct ucontext64 ExceptionInformation;
 #define UC_MCONTEXT(UC) UC->uc_mcontext64
+#ifdef X8664
+/* Broken <i386/ucontext.h> in xcode 2.4 */
+#include <sys/ucontext.h>
+struct mcontext64 {
+	x86_exception_state64_t	es;
+	x86_thread_state64_t 	ss;	
+	x86_float_state64_t	fs;
+};
+#endif
 #else
 typedef struct ucontext ExceptionInformation;
 #define UC_MCONTEXT(UC) UC->uc_mcontext
