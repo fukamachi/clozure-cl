@@ -1,3 +1,19 @@
+2006-08-17 10:41  phil
+
+	* examples/FFI/:
+	Allocating-foreign-data-on-the-lisp-heap/ptrtest-compile.sh,
+	Allocating-foreign-data-on-the-lisp-heap/ptrtest.c,
+	Allocating-foreign-data-on-the-lisp-heap/ptrtest.lisp,
+	Using-basic-calls-and-types/Readme.rtf,
+	Using-basic-calls-and-types/typetest-compile.sh,
+	Using-basic-calls-and-types/typetest.c,
+	Using-basic-calls-and-types/typetest.lisp: Initial version
+
+2006-08-17 10:40  phil
+
+	* examples/FFI/Allocating-foreign-data-on-the-lisp-heap/Readme.rtf:
+	[no log message]
+
 2006-08-08 13:07  gb
 
 	* lisp-kernel/darwinx8664/Makefile: New file.
