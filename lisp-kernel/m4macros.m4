@@ -37,7 +37,8 @@ ifdef([DARWIN],[define([SYSstabs],[BSDstabs])
 	        define([LocalLabelPrefix],[L])
 	        define([StartTextLabel],[Ltext0])
 	        define([EndTextLabel],[Letext])
-		define([POWEROPENABI],[])])
+                ifdef([PPC],[
+		define([POWEROPENABI],[])])])
 
 ifdef([LINUX],[define([SYSstabs],[ELFstabs])
 	       define([HaveWeakSymbols],[])
@@ -282,10 +283,12 @@ define([equate_if_defined],[ifdef($1,[
 
 equate_if_defined([DARWIN])
 equate_if_defined([LINUX])
-equate_if_defined([FREBSD])
+equate_if_defined([FREEBSD])
 equate_if_defined([SOLARIS])
 equate_if_defined([PPC64])
 equate_if_defined([X8664])
+
+equate_if_defined([HAVE_TLS])
 
 
 
