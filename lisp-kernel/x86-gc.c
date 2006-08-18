@@ -2980,25 +2980,8 @@ purify_cstack_area(area *a, BytePtr low, BytePtr high, area *to, int what)
 void
 purify_xp(ExceptionInformation *xp, BytePtr low, BytePtr high, area *to, int what)
 {
-  unsigned long *regs = (unsigned long *) xpGPRvector(xp);
+  natural *regs = (natural *) xpGPRvector(xp);
 
-#ifdef PPC
-  int r;
-
-  /* registers >= fn should be treated as roots.
-     The PC, LR, loc_pc, and CTR should be treated as "locatives".
-   */
-
-  for (r = fn; r < 32; r++) {
-    copy_ivector_reference((LispObj*) (&(regs[r])), low, high, to, what);
-  };
-
-  purify_locref((LispObj*) (&(regs[loc_pc])), low, high, to, what);
-
-  purify_locref((LispObj*) (&(xpPC(xp))), low, high, to, what);
-  purify_locref((LispObj*) (&(xpLR(xp))), low, high, to, what);
-  purify_locref((LispObj*) (&(xpCTR(xp))), low, high, to, what);
-#endif
 
 #ifdef X86
 #ifdef X8664
