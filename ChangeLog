@@ -1,3 +1,65 @@
+2006-08-18 09:50  gb
+
+	* lisp-kernel/thread_manager.c: Enable FP underflow detection on
+	x8664.	Should do this on PPC as well, and should probably offer
+	some backward-compatible behavior for reader.
+
+2006-08-18 09:47  gb
+
+	* compiler/X86/X8664/x8664-backend.lisp: Dress up the Darwin x86-64
+	backend a little.
+	
+	Explicily define lisp-context-register slot in each backend (%gs
+	for those imolementations that follow the standard ABI, %fs for
+	Darwin.)
+
+2006-08-18 09:44  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: Use :rcontext when
+	necessary.
+
+2006-08-18 09:43  gb
+
+	* compiler/X86/: x86-backend.lisp, x86-lap.lisp: Recognize
+	:rcontext as a reference to the backend's LISP-CONTEXT-REGISTER
+	slot.
+
+2006-08-18 09:42  gb
+
+	* compiler/backend.lisp: Backend now has a lisp-context-register
+	slot.
+
+2006-08-18 09:42  gb
+
+	* compiler/X86/X8664/x8664-arch.lisp: No more (constant) rcontext.
+
+2006-08-18 09:40  gb
+
+	* level-0/X86/: x86-def.lisp, x86-float.lisp, x86-io.lisp,
+	x86-misc.lisp, x86-symbol.lisp, x86-utils.lisp: Refer to rcontext
+	segment register as :rcontext, since x86-64 Darwin doesn't laugh
+	and play like the other children.
+
+2006-08-18 09:29  gb
+
+	* lisp-kernel/x86-exceptions.c: Copy some of the Mach exception
+	code from the PPC version and tweak it a little; needs more work.
+
+2006-08-18 09:27  gb
+
+	* lisp-kernel/x86-exceptions.h: Provide some interim Darwin
+	conditionalization.
+
+2006-08-18 09:25  gb
+
+	* lisp-kernel/m4macros.m4: Spell FREEBSD correctly.
+	
+	Generate an equate for HAVE_TLS.
+
+2006-08-18 09:23  gb
+
+	* lisp-kernel/x86-gc.c: Changes in purify_xp().
+
 2006-08-18 09:19  gb
 
 	* lisp-kernel/x86-spentry64.s: Darwin x86-64 assembler doesn't like
