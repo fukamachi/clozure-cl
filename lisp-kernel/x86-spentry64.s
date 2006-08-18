@@ -185,7 +185,8 @@ _endsubp(misc_ref)
 	
 _startfn(C(misc_ref_common))
 	__(movzbl %imm1_b,%imm1_l)
-	__(jmp *local_label(misc_ref_jmp)(,%imm1,8))
+        __(lea local_label(misc_ref_jmp)(%rip),%temp2)
+	__(jmp *(%temp2,%imm1,8))
 	.p2align 3
 local_label(misc_ref_jmp):	
 	/* 00-0f   */
@@ -619,7 +620,8 @@ _endsubp(misc_set)
 		
 _startfn(C(misc_set_common))
 	__(movzbl %imm1_b,%imm1_l)
-	__(jmp *local_label(misc_set_jmp)(,%imm1,8))
+        __(lea local_label(misc_set_jmp)(%rip),%temp2)
+	__(jmp *(%temp2,%imm1,8))
 	.p2align 3
 local_label(misc_set_jmp):		
 	/* 00-0f   */
@@ -1719,7 +1721,8 @@ C(egc_rplaca):
         __(andl $63,%imm0_l)
         __(shrq $bitmap_shift,%imm1)
         __(xorb $63,%imm0_b)
-        __(lock btsq %imm0,(%temp0,%imm1,8))
+        __(lock)
+        __(btsq %imm0,(%temp0,%imm1,8))
         __(jmp *%ra0)
 _endsubp(rplaca)
 
@@ -1740,7 +1743,8 @@ C(egc_rplacd):
         __(andl $63,%imm0_l)
         __(shrq $bitmap_shift,%imm1)
         __(xorb $63,%imm0_b)
-        __(lock btsq %imm0,(%temp0,%imm1,8))
+        __(lock)
+        __(btsq %imm0,(%temp0,%imm1,8))
         __(jmp *%ra0)
 _endsubp(rplacd)
 
@@ -1764,7 +1768,8 @@ C(egc_gvset):
         __(andl $63,%imm0_l)
         __(shrq $bitmap_shift,%imm1)
         __(xorb $63,%imm0_b)
-        __(lock btsq %imm0,(%temp0,%imm1,8))
+        __(lock) 
+        __(btsq %imm0,(%temp0,%imm1,8))
         __(jmp *%ra0)                
 _endsubp(gvset)
 
@@ -1790,7 +1795,8 @@ C(egc_set_hash_key):
         __(andl $63,%imm0_l)
         __(shrq $bitmap_shift,%imm1)
         __(xorb $63,%imm0_b)
-        __(lock btsq %imm0,(%temp0,%imm1,8))
+        __(lock)
+        __( btsq %imm0,(%temp0,%imm1,8))
         /* Now memoize the address of the hash vector   */
         __(movq %arg_x,%imm0)
         __(subq lisp_global(heap_start),%imm0)
@@ -1799,7 +1805,8 @@ C(egc_set_hash_key):
         __(andl $63,%imm0_l)
         __(shrq $bitmap_shift,%imm1)
         __(xorb $63,%imm0_b)
-        __(lock btsq %imm0,(%temp0,%imm1,8))
+        __(lock)
+        __(btsq %imm0,(%temp0,%imm1,8))
         __(jmp *%ra0)                
 _endsubp(set_hash_key)
 
@@ -1817,7 +1824,8 @@ C(egc_store_node_conditional):
 	__(cmpq %arg_y,%temp1)
 	__(movq %temp1,%imm0)
 	__(jne 3f)
-	__(lock cmpxchgq %arg_z,(%arg_x,%imm1))
+	__(lock)
+        __(cmpxchgq %arg_z,(%arg_x,%imm1))
         .globl C(egc_store_node_conditional_success_test)
 C(egc_store_node_conditional_success_test):
 	__(jne 0f)
@@ -1831,7 +1839,8 @@ C(egc_store_node_conditional_success_test):
         __(andl $63,%imm0_l)
         __(shrq $bitmap_shift,%imm1)
         __(xorb $63,%imm0_b)
-        __(lock btsq %imm0,(%temp1,%imm1,8))
+        __(lock)
+        __(btsq %imm0,(%temp1,%imm1,8))
         .globl C(egc_write_barrier_end)
 C(egc_write_barrier_end):
 2:      __(movl $t_value,%arg_z_l)
@@ -4193,10 +4202,12 @@ _spentry(callback)
 	__(push %r15)
 	__(push %rbx)
 	__(push %rbp)
-	/* TCR initialized for lisp ?   */
-	__(movq %fs:current_tcr@TPOFF+tcr.linear,%rax)
-	__(testq %rax,%rax)
-	__(jne 1f)
+        __ifdef([HAVE_TLS])
+	 /* TCR initialized for lisp ?   */
+	 __(movq %fs:current_tcr@TPOFF+tcr.linear,%rax)
+	 __(testq %rax,%rax)
+	 __(jne 1f)
+        __endif
 	__(movq %r11,%r12)
 	__(ref_global(get_tcr,%rax))
 	__(movq $1,%rdi)
