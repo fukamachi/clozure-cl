@@ -544,7 +544,11 @@ new_tcr(natural vstack_size, natural tstack_size)
   tcr->lisp_fpscr.words.l = 0xd0;
 #endif
 #ifdef X86
-  tcr->lisp_mxcsr = (1 << MXCSR_DM_BIT) | (1 << MXCSR_UM_BIT) | (1 << MXCSR_PM_BIT);
+  tcr->lisp_mxcsr = (1 << MXCSR_DM_BIT) | 
+#if 0
+    (1 << MXCSR_UM_BIT) | 
+#endif
+    (1 << MXCSR_PM_BIT);
 #endif
   tcr->save_allocbase = tcr->save_allocptr = (void *) VOID_ALLOCPTR;
   tcr->tlb_limit = 2048<<fixnumshift;
