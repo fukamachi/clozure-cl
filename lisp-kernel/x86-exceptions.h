@@ -115,3 +115,9 @@ extern void freebsd_sigreturn(ExceptionInformation *);
 #define IS_MAYBE_INT_TRAP(info,xp) (xp->uc_mcontext.mc_trapno == T_PROTFLT)
 #define SIGRETURN(context) freebsd_sigreturn(context)
 #endif
+
+#ifdef DARWIN
+#define SIGNUM_FOR_INTN_TRAP SIGSEGV /* Not really, but our Mach handler fakes that */
+#define IS_MAYBE_INT_TRAP(info,xp) 0 /* Fix this */
+#define SIGRETURN(context)
+#endif
