@@ -164,6 +164,7 @@
                 :target-arch x8664::*x8664-target-arch*
                 :define-callback 'define-x8664-callback
                 :defcallback-body 'defcallback-body-x8664
+                :lisp-context-register x8664::gs
                 ))
 
 
@@ -179,6 +180,7 @@
 		:p2-compile 'x862-compile
 		:target-specific-features
 		'(:x8664 :x86-target :darwin-target :darwinx86-target :x8664-target
+                  :darwinx8664-target
                   :little-endian-target
                   :64-bit-target)
 		:target-fasl-pathname (make-pathname :type "dx64fsl")
@@ -192,6 +194,7 @@
                 :target-arch x8664::*x8664-target-arch*
                 :define-callback 'define-x8664-callback
                 :defcallback-body 'defcallback-body-x8664
+                :lisp-context-register x8664::fs
                 ))
 
 #+freebsdx86-target
@@ -220,7 +223,8 @@
                 :target-arch x8664::*x8664-target-arch*
                 :define-callback 'define-x8664-callback
                 :defcallback-body 'defcallback-body-x8664
-                :platform-syscall-mask (logior platform-os-freebsd platform-cpu-x86 platform-word-size-64)                
+                :platform-syscall-mask (logior platform-os-freebsd platform-cpu-x86 platform-word-size-64)
+                :lisp-context-register x8664::gs
                 ))
 
 #+(or linuxx86-target (not x86-target))
