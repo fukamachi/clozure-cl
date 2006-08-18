@@ -56,7 +56,8 @@
   (define-vinsn nil)
   (platform-syscall-mask 0)
   (define-callback nil)
-  (defcallback-body nil))
+  (defcallback-body nil)
+  (lisp-context-register 0))
 
 (defmethod print-object ((b backend) s)
   (print-unreadable-object (b s :type t :identity t)
