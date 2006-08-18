@@ -349,6 +349,9 @@
 (defun lookup-x86-register (regname designator)
   (let* ((r (typecase regname
               (symbol (or (gethash (string regname) x86::*x86-registers*)
+                          (if (eq regname :rcontext)
+                            (svref x86::*x8664-register-entries*
+                                   (ccl::backend-lisp-context-register *target-backend*)))
                           (and (boundp regname)
                                (let* ((val (symbol-value regname)))
                                  (and (typep val 'fixnum)

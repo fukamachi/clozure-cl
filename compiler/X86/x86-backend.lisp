@@ -196,12 +196,14 @@
                        (if (atom op)
                          (if (typep op 'fixnum)
                            op
-                           (if (constantp op)
-                             (progn
-                               (if (keywordp op)
-                                 (pushnew op referenced-labels))
-                               (eval op))
-                             (find-name op)))
+                           (if (eq op :rcontext)
+                             (backend-lisp-context-register *target-backend*)
+                             (if (constantp op)
+                               (progn
+                                 (if (keywordp op)
+                                   (pushnew op referenced-labels))
+                                 (eval op))
+                               (find-name op))))
                          (if (eq (car op) :^)
                            (list :^ (simplify-simple-operand (cadr op)))
                            (if (eq (car op) :apply)
