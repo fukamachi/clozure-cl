@@ -175,9 +175,9 @@
     (single-value-return)))
 
 (defx86lapfunction %heap-bytes-allocated ()
-  (movq (@ (% rcontext) x8664::tcr.last-allocptr) (% temp0))
-  (movq (@ (% rcontext) x8664::tcr.save-allocptr) (% temp1))
-  (movq (@ (% rcontext) x8664::tcr.total-bytes-allocated) (% imm0))
+  (movq (@ (% :rcontext) x8664::tcr.last-allocptr) (% temp0))
+  (movq (@ (% :rcontext) x8664::tcr.save-allocptr) (% temp1))
+  (movq (@ (% :rcontext) x8664::tcr.total-bytes-allocated) (% imm0))
   (movq (% temp0) (% temp2))
   (subq (% temp1) (% temp0))
   (testq (% temp2) (% temp2))
@@ -258,23 +258,23 @@
   (single-value-return))
 
 (defx86lapfunction interrupt-level ()
-  (movq (@ (% rcontext) x8664::tcr.tlb-pointer) (% imm1))
+  (movq (@ (% :rcontext) x8664::tcr.tlb-pointer) (% imm1))
   (movq (@ x8664::interrupt-level-binding-index (% imm1)) (% arg_z))
   (single-value-return))
 
 (defx86lapfunction set-interrupt-level ((new arg_z))
-  (movq (@ (% rcontext) x8664::tcr.tlb-pointer) (% imm1))
+  (movq (@ (% :rcontext) x8664::tcr.tlb-pointer) (% imm1))
   (trap-unless-fixnum new)
   (movq (% new) (@ x8664::interrupt-level-binding-index (% imm1)))
   (single-value-return))
 
 (defx86lapfunction %current-tcr ()
-  (movq (@ (% rcontext) x8664::tcr.linear) (% arg_z))
+  (movq (@ (% :rcontext) x8664::tcr.linear) (% arg_z))
   (single-value-return))
 
 (defx86lapfunction %tcr-toplevel-function ((tcr arg_z))
   (check-nargs 1)
-  (cmpq (% tcr) (@ (% x8664::rcontext) x8664::tcr.linear))
+  (cmpq (% tcr) (@ (% :rcontext) x8664::tcr.linear))
   (movq (% rsp) (% imm0))
   (movq (@ x8664::tcr.vs-area (% tcr)) (% temp0))
   (movq (@ x8664::area.high (% temp0)) (% imm1))
@@ -288,7 +288,7 @@
 
 (defx86lapfunction %set-tcr-toplevel-function ((tcr arg_y) (fun arg_z))
   (check-nargs 2)
-  (cmpq (% tcr) (@ (% x8664::rcontext) x8664::tcr.linear))
+  (cmpq (% tcr) (@ (% :rcontext) x8664::tcr.linear))
   (movq (% rsp) (% imm0))
   (movq (@ x8664::tcr.vs-area (% tcr)) (% temp0))
   (movq (@ x8664::area.high (% temp0)) (% imm1))
@@ -408,7 +408,7 @@
   ;;; If we aren't the writer, return NIL.
   ;;; If we are and the value's about to go to 0, clear the writer field.
   (movq (@ x8664::lock.writer (% lock)) (% imm0))
-  (cmpq (% imm0) (@ (% rcontext) x8664::tcr.linear))
+  (cmpq (% imm0) (@ (% :rcontext) x8664::tcr.linear))
   (jne @fail)
   (addq ($ '1) (@ x8664::lock._value (% lock)))
   (jne @home)
@@ -536,7 +536,7 @@
 
   ; Pop dynamic bindings until we get to db-link
   (lwz imm0 12 vsp)                     ; db-link
-  (lwz imm1 x8664::tcr.db-link x8664::rcontext)
+  (lwz imm1 x8664::tcr.db-link :rcontext)
   (cmp cr0 imm0 imm1)
   (beq cr0 @restore-regs)               ; .SPunbind-to expects there to be something to do
   (bla .SPunbind-to)
@@ -676,7 +676,7 @@
 
 
 (defx86lapfunction %current-db-link ()
-  (movq (@ (% rcontext) x8664::tcr.db-link) (% arg_z))
+  (movq (@ (% :rcontext) x8664::tcr.db-link) (% arg_z))
   (single-value-return))
 
 (defx86lapfunction %no-thread-local-binding-marker ()

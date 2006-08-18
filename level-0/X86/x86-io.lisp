@@ -21,7 +21,7 @@
 ;;; not very smart yet
 
 (defx86lapfunction %get-errno ()
-  (movq (@ (% rcontext) x8664::tcr.errno-loc) (% imm1))
+  (movq (@ (% :rcontext) x8664::tcr.errno-loc) (% imm1))
   (movslq (@ (% imm1)) (% imm0))
   (movss (% fp0) (@ (% imm1)))
   (negq (% imm0))
