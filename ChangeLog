@@ -1,3 +1,18 @@
+2006-08-18 09:19  gb
+
+	* lisp-kernel/x86-spentry64.s: Darwin x86-64 assembler doesn't like
+	absolute jumps, prefers slower ones.
+	
+	Move lock prefixes to their own lines, to satisfy you-know-who.
+	
+	If we don't have thread-local-storage (TLS), it's hard to avoid the
+	get_tcr() call on each calback.
+
+2006-08-18 09:13  gb
+
+	* lisp-kernel/: freebsdx8664/Makefile, linuxx8664/Makefile: Tell m4
+	that we HAVE_TLS.
+
 2006-08-17 10:41  phil
 
 	* examples/FFI/:
