@@ -1,3 +1,48 @@
+2006-08-20 17:10  gb
+
+	* xdump/xx8664-fasload.lisp: :darwinx8664 stuff.
+
+2006-08-20 17:10  gb
+
+	* lib/db-io.lisp: :struct-by-value: don't read-time conditionalize
+	(do other things still use read-time conditionals ?)
+
+2006-08-20 17:09  gb
+
+	* compiler/X86/X8664/x8664-backend.lisp: Darwinx8664: overload %gs,
+	setup syscall mask.
+
+2006-08-20 17:08  gb
+
+	* compiler/nx1.lisp: Handle syscall, ff-call for :darwinx8664 as
+	well.
+
+2006-08-20 17:06  gb
+
+	* library/darwinx664-syscalls.lisp: New file; or's in the bit for
+	Unix syscalls on Darwinx8664.  (Screw: should (carefully) review
+	word-size issues.)
+
+2006-08-20 17:03  gb
+
+	* library/darwinppc-syscalls.lisp: Mask for PPC.
+
+2006-08-20 17:02  gb
+
+	* level-0/l0-io.lisp, level-1/l1-sockets.lisp,
+	level-1/linux-files.lisp: Syscall conditionalization.
+
+2006-08-20 17:01  gb
+
+	* level-1/l1-streams.lisp: Syscall conditionalization.
+	
+	SELECTION-INPUT-STREAM created with :sharing :lock.
+
+2006-08-20 17:00  gb
+
+	* examples/objc-runtime.lisp: Fencepost in
+	POINTER-IN-CFSTRING-SECTION-P.
+
 2006-08-20 16:16  gb
 
 	* library/: darwinppc-syscalls.lisp, darwin-syscalls.lisp: rename
