@@ -22,8 +22,10 @@
   (require "PPC-LINUX-SYSCALLS")
   #+linuxx8664-target
   (require "X8664-LINUX-SYSCALLS")
-  #+darwin-target
-  (require "DARWIN-SYSCALLS")
+  #+darwinppc-target
+  (require "DARWINPPC-SYSCALLS")
+  #+darwinx8664-target
+  (require "DARWINX8664-SYSCALLS")
   #+freebsdx8664-target
   (require "X8664-FREEBSD-SYSCALLS"))
 
@@ -2862,7 +2864,8 @@
 (defun make-selection-input-stream (fd &key peer-fd (elements-per-buffer *elements-per-buffer*))
   (let* ((s (make-fd-stream fd
                             :elements-per-buffer elements-per-buffer
-                            :class 'selection-input-stream)))
+                            :class 'selection-input-stream
+                            :sharing :lock)))
     (setf (slot-value s 'peer-fd) peer-fd)
     s))
 
