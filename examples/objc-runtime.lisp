@@ -365,7 +365,7 @@
   (defun pointer-in-cfstring-section-p (ptr)
     (let* ((addr (%ptr-to-int ptr))
            (min 0)
-           (max (length cfstring-sections-vector)))
+           (max (1- (length cfstring-sections-vector))))
       (do* ()
            ((> min max))
         (let* ((mid (ash (+ min max) -1))
