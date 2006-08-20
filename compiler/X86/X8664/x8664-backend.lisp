@@ -178,6 +178,7 @@
 		:p2-vinsn-templates *x8664-vinsn-templates*
 		:p2-template-hash-name '*x8664-vinsn-templates*
 		:p2-compile 'x862-compile
+                :platform-syscall-mask (logior platform-os-darwin platform-cpu-x86 platform-word-size-64) 
 		:target-specific-features
 		'(:x8664 :x86-target :darwin-target :darwinx86-target :x8664-target
                   :darwinx8664-target
@@ -194,7 +195,8 @@
                 :target-arch x8664::*x8664-target-arch*
                 :define-callback 'define-x8664-callback
                 :defcallback-body 'defcallback-body-x8664
-                :lisp-context-register x8664::fs
+                ;; Overload %gs until Apple straightens things out.
+                :lisp-context-register x8664::gs
                 ))
 
 #+freebsdx86-target
