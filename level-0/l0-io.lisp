@@ -21,8 +21,10 @@
   (require "PPC-LINUX-SYSCALLS")
   #+linuxx8664-target
   (require "X8664-LINUX-SYSCALLS")
-  #+darwin-target
-  (require "DARWIN-SYSCALLS")
+  #+darwinppc-target
+  (require "DARWINPPC-SYSCALLS")
+  #+darwinx8664-target
+  (require "DARWINX8664-SYSCALLS")
   #+freebsd-target
   (require "X8664-FREEBSD-SYSCALLS")
   )
