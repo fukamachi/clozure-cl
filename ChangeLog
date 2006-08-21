@@ -1,3 +1,11 @@
+2006-08-20 20:35  gb
+
+	* library/darwinx664-syscalls.lisp: typo
+
+2006-08-20 20:35  gb
+
+	* library/darwinx8664-syscalls.lisp: spell name right
+
 2006-08-20 17:10  gb
 
 	* xdump/xx8664-fasload.lisp: :darwinx8664 stuff.
