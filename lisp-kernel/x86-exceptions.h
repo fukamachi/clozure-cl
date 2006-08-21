@@ -35,6 +35,13 @@ typedef u8_t opcode, *pc;
 #define xpFPRvector(x) ((natural *)(&(UC_MCONTEXT(x)->fs.fp_stmm0)))
 #define xpMMXreg(x,n)  (xpFPRvector(x)[gprno])
 #endif
+#include <mach/mach.h>
+#include <mach/mach_error.h>
+#include <mach/machine/thread_state.h>
+#include <mach/machine/thread_status.h>
+
+pthread_mutex_t *mach_exception_lock;
+
 #endif
 
 #ifdef FREEBSD
@@ -120,4 +127,10 @@ extern void freebsd_sigreturn(ExceptionInformation *);
 #define SIGNUM_FOR_INTN_TRAP SIGSEGV /* Not really, but our Mach handler fakes that */
 #define IS_MAYBE_INT_TRAP(info,xp) 0 /* Fix this */
 #define SIGRETURN(context)
+#endif
+
+/* Please go away. */
+#ifdef DARWIN_GS_HACK
+extern Boolean ensure_gs_pthread(void);
+extern void set_gs_address(void *);
 #endif
