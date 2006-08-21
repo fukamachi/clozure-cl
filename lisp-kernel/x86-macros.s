@@ -444,4 +444,36 @@ define([check_pending_interrupt],[
 	check_pending_enabled_interrupt(macro_label(done))
 macro_label(done):
 ])
-			
+
+/* This should only be called from a foreign context; it should be */
+/* assumed to bash all non-volatile C registers.  And of course it's */
+/* ugly, awful, non-portable, and slow.  %rdi should point to the */
+/* linear address that %gs should be made to address (tcr or pthread data) */
+        			
+ifdef([DARWIN_GS_HACK],[
+define([set_gs_base],[
+        ifelse($1,[],[
+        ],[
+        movq $1,%rdi
+        ])
+        movl [$]0x3000003,%eax
+        syscall
+])
+
+/* %gs addresses the tcr.  Make it address pthread data before running */
+/* foreign code */        
+        
+define([set_foreign_gs_base],[
+        set_gs_base([%rcontext:tcr.osid])
+])
+
+/* %gs addresses the tcr.  Get the linear address of the tcr and */
+/* copy it to $1 */
+
+define([save_tcr_linear],[
+        movq %rcontxt:tcr.linear,$1
+]) 
+	
+])
+
+        
