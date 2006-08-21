@@ -1771,76 +1771,8 @@ pseudo_signal_handler(int signum, ExceptionInformation *context, TCR *tcr)
 } 
 
 
-int
-thread_set_fp_exceptions_enabled(mach_port_t thread, Boolean enabled)
-{
-#ifdef X8664
-  x86_thread_state64_t ts;
-#else
-  x86_thread_state_t ts;
-#endif
-  mach_msg_type_number_t thread_state_count;
 
-#ifdef X8664
-  thread_state_count = X86_THREAD_STATE64_COUNT;
-#else
-  thread_state_count = X86_THREAD_STATE_COUNT;
-#endif
-  thread_get_state(thread, 
-#ifdef X8664
-		   X86_THREAD_STATE64,	/* GPRs, some SPRs  */
-#else
-		   X86_THREAD_STATE,	/* GPRs, some SPRs  */
-#endif
-		   (thread_state_t)&ts,
-		   &thread_state_count);
-  if (enabled) {
-    ts.srr1 |= MSR_FE0_FE1_MASK;
-  } else {
-    ts.srr1 &= ~MSR_FE0_FE1_MASK;
-  }
-  /* 
-     Hack-o-rama warning (isn't it about time for such a warning?):
-     pthread_kill() seems to want to lose the MSR's FE0/FE1 bits.
-     Our handler for lisp's use of pthread_kill() pushes a phony
-     lisp frame on the stack and force the context to resume at
-     the UUO in enable_fp_exceptions(); the "saveLR" field of that
-     lisp frame contains the -real- address that process_interrupt
-     should have returned to, and the fact that it's in a lisp
-     frame should convince the GC to notice that address if it
-     runs in the tiny time window between returning from our
-     interrupt handler and ... here.
-     If the top frame on the stack is a lisp frame, discard it
-     and set ts.srr0 to the saveLR field in that frame.  Otherwise,
-     just adjust ts.srr0 to skip over the UUO.
-  */
-  {
-    lisp_frame *tos = (lisp_frame *)ts.r1,
-      *next_frame = tos->backlink;
-    
-    if (tos == (next_frame -1)) {
-      ts.srr0 = tos->savelr;
-      ts.r1 = (LispObj) next_frame;
-    } else {
-      ts.srr0 += 4;
-    }
-  }
-  thread_set_state(thread, 
-#ifdef X8664
-		   X86_THREAD_STATE64,	/* GPRs, some SPRs  */
-#else
-		   X86_THREAD_STATE,	/* GPRs, some SPRs  */
-#endif
-		   (thread_state_t)&ts,
-#ifdef X8664
-                   X86_THREAD_STATE64_COUNT
-#else
-		   X86_THREAD_STATE_COUNT
-#endif
-                   );
 
-  return 0;
-}
 
 /*
   This function runs in the exception handling thread.  It's
