@@ -289,6 +289,8 @@ equate_if_defined([PPC64])
 equate_if_defined([X8664])
 
 equate_if_defined([HAVE_TLS])
+/* DARWIN_GS_HACK is hopefully short-lived */
+equate_if_defined([DARWIN_GS_HACK])
 
 
 
@@ -302,6 +304,7 @@ ifdef([PPC64],[],[
 define([USE_EABI_C_FRAME],[])
 undefine([USE_POWEROPEN_C_FRAME])
 ])])
+
 
 
 
