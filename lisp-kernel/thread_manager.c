@@ -490,6 +490,10 @@ setup_tcr_extra_segment(TCR *tcr)
 #ifdef LINUX
   arch_prctl(ARCH_SET_GS, (natural)tcr);
 #endif
+#ifdef DARWIN
+  /* There's no way to do this yet.  See DARWIN_GS_HACK */
+  /* darwin_set_x8664_fs_reg(tcr); */
+#endif
   tcr->linear = tcr;
 }
 
