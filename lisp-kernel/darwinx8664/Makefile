@@ -52,9 +52,23 @@ LD = ld64
 LDFLAGS = -M -arch x8664 -dynamic  -o $@ -e start -seg1addr 0x6000
 AS = as
 M4 = gm4
-M4FLAGS = -DDARWIN -DX86 -DX8664
+###
+### DARWIN_GS_HACK enables some awful, dangerous, and slow workarounds
+### for the fact that early versions of x86-64 Darwin don't provide
+### working mechanisms for threads to address thread-local-data
+### relative to a spare segment register.  We instead use the
+### undocumented mechanism which the pthreads library uses to
+### keep pthread data in %gs, and switch %gs between pthread data
+### when running foreign code and lisp tcr data when running lisp
+### code.  Hopefully, we won't have to do this for very long.
+###
+### (Things like i386_set_ldt() are defined, but not implemented
+### correctly on the libc side and not implemented at all on the
+### Mach kernel side.)
+###
+M4FLAGS = -DDARWIN -DX86 -DX8664 -DDARWIN_GS_HACK
 ASFLAGS = -arch x86_64
-CDEFINES = -DDARWIN -DX86 -DX8664 $(BROKEN_PREPROCESSOR_WORKAROUND)
+CDEFINES = -DDARWIN -DX86 -DX8664 -DDARWIN_GS_HACK
 CDEBUG = -g
 COPT = -O2
 
