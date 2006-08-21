@@ -69,11 +69,13 @@ typedef struct ucontext64 ExceptionInformation;
 #ifdef X8664
 /* Broken <i386/ucontext.h> in xcode 2.4 */
 #include <sys/ucontext.h>
+#ifndef _MCONTEXT64_T /* A guess at what'll be defined when this is fixed */
 struct mcontext64 {
 	x86_exception_state64_t	es;
 	x86_thread_state64_t 	ss;	
 	x86_float_state64_t	fs;
 };
+#endif
 #endif
 #else
 typedef struct ucontext ExceptionInformation;
