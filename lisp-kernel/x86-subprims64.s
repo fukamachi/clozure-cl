@@ -82,6 +82,9 @@ _exportfn(C(start_lisp))
 	__(push %r13)
 	__(push %r14)
 	__(push %r15)
+        __ifdef([DARWIN_GS_HACK])
+         __(set_gs_base())
+        __endif
 	__(sub $8,%rsp)	/* %rsp is now 16-byte aligned  */
 	/* Put harmless values in lisp node registers  */
 	__(clr %arg_z)
@@ -110,8 +113,11 @@ _exportfn(C(start_lisp))
 	__(pop %r13)
 	__(pop %r12)
 	__(pop %rbx)
-	__(movl $nil_value,%eax)
         __(ldmxcsr %rcontext:tcr.foreign_mxcsr)
+        __ifdef([DARWIN_GS_HACK])
+         __(set_foreign_gs_base)
+        __endif
+	__(movl $nil_value,%eax)
 	__(leave)
 	__(ret)
 _endfn
