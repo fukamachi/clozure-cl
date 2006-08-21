@@ -1,3 +1,45 @@
+2006-08-20 23:59  gb
+
+	* lisp-kernel/darwinx8664/Makefile: Define DARWIN_GS_HACK.
+
+2006-08-20 23:58  gb
+
+	* lisp-kernel/x86-exceptions.c: Still needs lots of work.
+
+2006-08-20 23:58  gb
+
+	* lisp-kernel/x86-exceptions.h: Include Mach stuff on Darwin;
+	prototypes for DARWIN_GS_HACK %gs segment switching.
+
+2006-08-20 23:57  gb
+
+	* lisp-kernel/x86-subprims64.s: Manipulate the %gs register when a
+	lisp thread starts, exits and DARWIN_GS_HACK is defined.
+	
+	This isn't so bad, but doing it around every ff-call might be.
+
+2006-08-20 23:56  gb
+
+	* lisp-kernel/x86-macros.s: DARWIN_GS_HACK macros.
+
+2006-08-20 23:53  gb
+
+	* lisp-kernel/thread_manager.c: Note the need for DARWIN_GS_HACK.
+
+2006-08-20 23:51  gb
+
+	* lisp-kernel/x86-asmutils64.s: DARWIN_GS_HACK hacks.
+
+2006-08-20 23:51  gb
+
+	* lisp-kernel/m4macros.m4: Hope that the need for DARWIN_GS_HACK is
+	also temporary.
+
+2006-08-20 23:50  gb
+
+	* lisp-kernel/lisptypes.h: Hope that the workaround for missing
+	mcontext64 in x8664 Darwin is temporary.
+
 2006-08-20 20:35  gb
 
 	* library/darwinx664-syscalls.lisp: typo
