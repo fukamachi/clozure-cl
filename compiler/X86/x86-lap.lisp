@@ -1239,7 +1239,6 @@
       (dolist (form body)
         (x86-lap-form form fraglist instruction)))))          
                 
-#-x86-target
 (defun cross-create-x86-function (name frag-list constants bits debug-info)
   (let* ((constants-vector (%alloc-misc (+ (length constants)
                                            (+ 2
@@ -1326,7 +1325,9 @@
     (fill-for-alignment frag-list)
     ;;(show-frag-bytes frag-list)
     (funcall #-x86-target #'cross-create-x86-function
-             #+x86-target #'create-x86-function
+             #+x86-target (if (eq *target-backend* *host-backend*)
+                            #'create-x86-function
+                            #'cross-create-x86-function)
              name frag-list *x86-lap-constants* bits nil)))
 
 
