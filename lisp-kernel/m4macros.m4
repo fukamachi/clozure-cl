@@ -38,7 +38,10 @@ ifdef([DARWIN],[define([SYSstabs],[BSDstabs])
 	        define([StartTextLabel],[Ltext0])
 	        define([EndTextLabel],[Letext])
                 ifdef([PPC],[
-		define([POWEROPENABI],[])])])
+		define([POWEROPENABI],[])])
+                ifdef([X86],[
+                define([SYSCALL_SETS_CARRY_ON_ERROR],[])])
+])
 
 ifdef([LINUX],[define([SYSstabs],[ELFstabs])
 	       define([HaveWeakSymbols],[])
@@ -54,7 +57,10 @@ ifdef([FREEBSD],[define([SYSstabs],[ELFstabs])
 	       define([HaveWeakSymbols],[])
 	       define([LocalLabelPrefix],[.L])
 	       define([StartTextLabel],[.Ltext0])
-	       define([EndTextLabel],[.Letext])])
+	       define([EndTextLabel],[.Letext])]
+                ifdef([X86],[
+                define([SYSCALL_SETS_CARRY_ON_ERROR],[])])
+)
 
 ifdef([SOLARIS],[define([SYSstabs],[ELFstabs])
 	       define([HaveWeakSymbols],[])
@@ -291,6 +297,8 @@ equate_if_defined([X8664])
 equate_if_defined([HAVE_TLS])
 /* DARWIN_GS_HACK is hopefully short-lived */
 equate_if_defined([DARWIN_GS_HACK])
+
+equate_if_defined([SYSCALL_SETS_CARRY_ON_ERROR])
 
 
 
