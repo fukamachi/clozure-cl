@@ -525,6 +525,7 @@ handle_floating_point_exception(TCR *tcr, ExceptionInformation *xp, siginfo_t *i
   int code = info->si_code, rfn = 0, skip;
   pc program_counter = (pc)xpPC(xp);
   LispObj rpc = (LispObj) program_counter, xcf, cmain = nrs_CMAIN.vcell,
+
     save_rbp = xpGPR(xp,Irbp), save_vsp = xpGPR(xp,Isp);
 
   if ((fulltag_of(cmain) == fulltag_misc) &&
@@ -691,6 +692,10 @@ handle_exception(int signum, siginfo_t *info, ExceptionInformation  *context, TC
 #endif
     return handle_floating_point_exception(tcr, context, info);
 
+  case SIGBUS:
+    return handle_fault(tcr, context, info);
+    
+    
   default:
     return false;
   }
@@ -768,13 +773,18 @@ exit_signal_handler(TCR *tcr, int old_valence)
 }
 
 void
-signal_handler(int signum, siginfo_t *info, ExceptionInformation  *context)
+signal_handler(int signum, siginfo_t *info, ExceptionInformation  *context, TCR *tcr)
 {
+#ifdef DARWIN_GS_HACK
+  Boolean gs_was_tcr = ensure_gs_pthread();
+#endif
   xframe_list xframe_link;
   int old_valence;
-  TCR* tcr = get_tcr(false);
+#ifndef DARWIN
+  tcr = get_tcr(false);
 
   old_valence = prepare_to_wait_for_exception_lock(tcr, context);
+#endif
   wait_for_exception_lock_in_handler(tcr,context, &xframe_link);
 
 
@@ -788,8 +798,15 @@ signal_handler(int signum, siginfo_t *info, ExceptionInformation  *context)
     }
   }
   unlock_exception_lock_in_handler(tcr);
+#ifndef DARWIN
   exit_signal_handler(tcr, old_valence);
+#endif
   /* raise_pending_interrupt(tcr); */
+#ifdef DARWIN_GS_HACK
+  if (gs_was_tcr) {
+    set_gs_address(tcr);
+  }
+#endif
   SIGRETURN(context);
 }
 
@@ -845,9 +862,8 @@ copy_ucontext(ExceptionInformation *context, LispObj *current, copy_ucontext_las
 }
 
 LispObj *
-find_foreign_rsp(ExceptionInformation *xp, area *foreign_area, TCR *tcr)
+find_foreign_rsp(LispObj rsp, area *foreign_area, TCR *tcr)
 {
-  LispObj rsp = xpGPR(xp, Isp);
 
   if (((BytePtr)rsp < foreign_area->low) ||
       ((BytePtr)rsp > foreign_area->high)) {
@@ -860,7 +876,7 @@ void
 altstack_signal_handler(int signum, siginfo_t *info, ExceptionInformation  *context)
 {
   TCR* tcr = get_tcr(true);
-  LispObj *foreign_rsp = find_foreign_rsp(context, tcr->cs_area, tcr);
+  LispObj *foreign_rsp = find_foreign_rsp(xpGPR(context,Isp), tcr->cs_area, tcr);
 #ifdef LINUX
   fpregset_t fpregs = NULL;
 #else
@@ -885,6 +901,9 @@ altstack_signal_handler(int signum, siginfo_t *info, ExceptionInformation  *cont
 void
 interrupt_handler (int signum, siginfo_t *info, ExceptionInformation *context)
 {
+#ifdef DARWIN_GS_HACK
+  Boolean gs_was_tcr = ensure_gs_pthread();
+#endif
   TCR *tcr = get_interrupt_tcr(false);
   if (tcr) {
     if (TCR_INTERRUPT_LEVEL(tcr) < 0) {
@@ -923,6 +942,11 @@ interrupt_handler (int signum, siginfo_t *info, ExceptionInformation *context)
       }
     }
   }
+#ifdef DARWIN_GS_HACK
+  if (gs_was_tcr) {
+    set_gs_address(tcr);
+  }
+#endif
   SIGRETURN(context);
 }
 
@@ -930,7 +954,7 @@ void
 altstack_interrupt_handler (int signum, siginfo_t *info, ExceptionInformation *context)
 {
   TCR *tcr = get_interrupt_tcr(false);
-  LispObj *foreign_rsp = find_foreign_rsp(context, tcr->cs_area, tcr);
+  LispObj *foreign_rsp = find_foreign_rsp(xpGPR(context,Isp), tcr->cs_area, tcr);
 #ifdef LINUX
   fpregset_t fpregs = NULL;
 #else
@@ -990,7 +1014,7 @@ void
 altstack_suspend_resume_handler(int signum, siginfo_t *info, ExceptionInformation  *context)
 {
   TCR* tcr = get_tcr(true);
-  LispObj *foreign_rsp = find_foreign_rsp(context, tcr->cs_area, tcr);
+  LispObj *foreign_rsp = find_foreign_rsp(xpGPR(context,Isp), tcr->cs_area, tcr);
 #ifdef LINUX
   fpregset_t fpregs = NULL;
 #else
@@ -1437,6 +1461,7 @@ gc_from_xp(ExceptionInformation *xp, signed_natural param)
 #define TCR_TO_EXCEPTION_PORT(tcr) ((mach_port_t)((natural)(tcr)))
 
 pthread_mutex_t _mach_exception_lock, *mach_exception_lock;
+extern void pseudo_sigreturn(ExceptionInformation *);
 
 
 #define LISP_EXCEPTIONS_HANDLED_MASK \
@@ -1547,23 +1572,23 @@ restore_mach_thread_state(mach_port_t thread, ExceptionInformation *pseudosigcon
 
   /* Set the thread's FP state from the pseudosigcontext */
   kret = thread_set_state(thread,
-                          X86_FLOAT_STATE,
+                          x86_FLOAT_STATE,
                           (thread_state_t)&(mc->fs),
-                          X86_FLOAT_STATE_COUNT);
+                          x86_FLOAT_STATE_COUNT);
 
   MACH_CHECK_ERROR("setting thread FP state", kret);
 
   /* The thread'll be as good as new ... */
-#ifdef PPC64
+#if WORD_SIZE == 64
   kret = thread_set_state(thread,
-                          X86_THREAD_STATE64,
+                          x86_THREAD_STATE64,
                           (thread_state_t)&(mc->ss),
-                          X86_THREAD_STATE64_COUNT);
+                          x86_THREAD_STATE64_COUNT);
 #else
   kret = thread_set_state(thread, 
-                          X86_THREAD_STATE32,
+                          x86_THREAD_STATE32,
                           (thread_state_t)&(mc->ss),
-                          X86_THREAD_STATE32_COUNT);
+                          x86_THREAD_STATE32_COUNT);
 #endif
   MACH_CHECK_ERROR("setting thread state", kret);
 }  
@@ -1603,13 +1628,16 @@ do_pseudo_sigreturn(mach_port_t thread, TCR *tcr)
 
 ExceptionInformation *
 create_thread_context_frame(mach_port_t thread, 
-			    natural *new_stack_top)
-{
+			    natural *new_stack_top,
+                            siginfo_t **info_ptr,
+                            TCR *tcr,
 #ifdef X8664
-  x86_thread_state64_t ts;
+                            x86_thread_state64_t *ts
 #else
-  x86_thread_state_t ts;
+                            x86_thread_state_t *ts
 #endif
+                            )
+{
   mach_msg_type_number_t thread_state_count;
   kern_return_t result;
   int i,j;
@@ -1621,28 +1649,18 @@ create_thread_context_frame(mach_port_t thread,
 #endif
   natural stackp, backlink;
 
-#ifdef X8664
-  thread_state_count = X86_THREAD_STATE64_COUNT;
-  result = thread_get_state(thread,
-                            X86_THREAD_STATE64,
-                            (thread_state_t)&ts,
-                            &thread_state_count);
-#else
-  thread_state_count = MACHINE_THREAD_STATE_COUNT;
-  result = thread_get_state(thread, 
-                            X86_THREAD_STATE,	/* GPRs, some SPRs  */
-                            (thread_state_t)&ts,
-                            &thread_state_count);
-#endif
   
   if (result != KERN_SUCCESS) {
     get_tcr(true);
     Bug(NULL, "Exception thread can't obtain thread state, Mach result = %d", result);
   }
-  stackp = ts.r1;
-  backlink = stackp;
+  stackp = (LispObj) find_foreign_rsp(ts->rsp,tcr->cs_area,tcr);
   stackp = TRUNC_DOWN(stackp, C_REDZONE_LEN, C_STK_ALIGN);
-  stackp -= sizeof(*pseudosigcontext);
+  stackp = TRUNC_DOWN(stackp, sizeof(siginfo_t), C_STK_ALIGN);
+  if (info_ptr) {
+    *info_ptr = (siginfo_t *)stackp;
+  }
+  stackp = TRUNC_DOWN(stackp,sizeof(*pseudosigcontext), C_STK_ALIGN);
   pseudosigcontext = (ExceptionInformation *) ptr_from_lispobj(stackp);
 
   stackp = TRUNC_DOWN(stackp, sizeof(*mc), C_STK_ALIGN);
@@ -1651,34 +1669,32 @@ create_thread_context_frame(mach_port_t thread,
 #else
   mc = (struct mcontext *) ptr_from_lispobj(stackp);
 #endif
-  bcopy(&ts,&(mc->ss),sizeof(ts));
+  
+  bcopy(ts,&(mc->ss),sizeof(*ts));
 
-  thread_state_count = X86_FLOAT_STATE_COUNT;
+  thread_state_count = x86_FLOAT_STATE_COUNT;
   thread_get_state(thread,
-		   X86_FLOAT_STATE,
+		   x86_FLOAT_STATE,
 		   (thread_state_t)&(mc->fs),
 		   &thread_state_count);
 
 
 #ifdef X8664
-  thread_state_count = X86_EXCEPTION_STATE64_COUNT;
+  thread_state_count = x86_EXCEPTION_STATE64_COUNT;
 #else
-  thread_state_count = X86_EXCEPTION_STATE_COUNT;
+  thread_state_count = x86_EXCEPTION_STATE_COUNT;
 #endif
   thread_get_state(thread,
 #ifdef X8664
-                   X86_EXCEPTION_STATE64,
+                   x86_EXCEPTION_STATE64,
 #else
-		   X86_EXCEPTION_STATE,
+		   x86_EXCEPTION_STATE,
 #endif
 		   (thread_state_t)&(mc->es),
 		   &thread_state_count);
 
 
   UC_MCONTEXT(pseudosigcontext) = mc;
-  stackp = TRUNC_DOWN(stackp, C_PARAMSAVE_LEN, C_STK_ALIGN);
-  stackp -= C_LINKAGE_LEN;
-  *(natural *)ptr_from_lispobj(stackp) = backlink;
   if (new_stack_top) {
     *new_stack_top = stackp;
   }
@@ -1687,7 +1703,7 @@ create_thread_context_frame(mach_port_t thread,
 
 /*
   This code sets up the user thread so that it executes a "pseudo-signal
-  handler" function when it resumes.  Create a linux sigcontext struct
+  handler" function when it resumes.  Create a fake ucontext struct
   on the thread's stack and pass it as an argument to the pseudo-signal
   handler.
 
@@ -1707,23 +1723,33 @@ setup_signal_frame(mach_port_t thread,
 		   void *handler_address,
 		   int signum,
                    int code,
-		   TCR *tcr)
+		   TCR *tcr,
+#ifdef X8664
+                   x86_thread_state64_t *ts
+#else
+                   x86_thread_state_t *ts
+#endif
+                   )
 {
 #ifdef X8664
-  x86_thread_state64_t ts;
+  x86_thread_state64_t new_ts;
 #else
-  x86_thread_state_t ts;
+  x86_thread_state_t new_ts;
 #endif
-  mach_msg_type_number_t thread_state_count;
   ExceptionInformation *pseudosigcontext;
   int i, j;
   kern_return_t result;
-  natural stackp;
+  natural stackp, *stackpp;
+  siginfo_t *info;
 
 #ifdef DEBUG_MACH_EXCEPTIONS
   fprintf(stderr,"Setting up exception handling for 0x%x\n", tcr);
 #endif
-  pseudosigcontext = create_thread_context_frame(thread, &stackp);
+  pseudosigcontext = create_thread_context_frame(thread, &stackp, &info, tcr,  ts);
+  bzero(info, sizeof(*info));
+  info->si_code = code;
+  info->si_addr = (void *)(UC_MCONTEXT(pseudosigcontext)->es.faultvaddr);
+  info->si_signo = signum;
   pseudosigcontext->uc_onstack = 0;
   pseudosigcontext->uc_sigmask = (sigset_t) 0;
   tcr->pending_exception_context = pseudosigcontext;
@@ -1736,26 +1762,27 @@ setup_signal_frame(mach_port_t thread,
      args) when the thread's resumed.
   */
 
-  ts.srr0 = (natural) handler_address;
-  ts.srr1 = (int) xpMSR(pseudosigcontext) & ~MSR_FE0_FE1_MASK;
-  ts.r1 = stackp;
-  ts.r3 = signum;
-  ts.r4 = (natural)pseudosigcontext;
-  ts.r5 = (natural)tcr;
-  ts.lr = (natural)pseudo_sigreturn;
+  new_ts.rip = (natural) handler_address;
+  stackpp = (natural *)stackp;
+  *--stackpp = (natural)pseudo_sigreturn;
+  stackp = (natural)stackpp;
+  new_ts.rdi = signum;
+  new_ts.rsi = (natural)info;
+  new_ts.rdx = (natural)pseudosigcontext;
+  new_ts.rcx = (natural)tcr;
+  new_ts.rsp = stackp;
 
 
 #ifdef X8664
-  ts.r13 = xpGPR(pseudosigcontext,13);
   thread_set_state(thread,
-                   X86_THREAD_STATE64,
-                   (thread_state_t)&ts,
-                   X86_THREAD_STATE64_COUNT);
+                   x86_THREAD_STATE64,
+                   (thread_state_t)&new_ts,
+                   x86_THREAD_STATE64_COUNT);
 #else
   thread_set_state(thread, 
-		   MACHINE_THREAD_STATE,
-		   (thread_state_t)&ts,
-		   MACHINE_THREAD_STATE_COUNT);
+		   x86_THREAD_STATE,
+		   (thread_state_t)&new_ts,
+		   x86_THREAD_STATE_COUNT);
 #endif
 #ifdef DEBUG_MACH_EXCEPTIONS
   fprintf(stderr,"Set up exception context for 0x%x at 0x%x\n", tcr, tcr->pending_exception_context);
@@ -1763,12 +1790,6 @@ setup_signal_frame(mach_port_t thread,
   return 0;
 }
 
-
-void
-pseudo_signal_handler(int signum, ExceptionInformation *context, TCR *tcr)
-{
-  signal_handler(signum, NULL, context, tcr);
-} 
 
 
 
@@ -1792,6 +1813,19 @@ pseudo_signal_handler(int signum, ExceptionInformation *context, TCR *tcr)
   Some exceptions could and should be handled here directly.
 */
 
+/* We need the thread's state earlier on x86_64 than we did on PPC;
+   the PC won't fit in code_vector[1].  We shouldn't try to get it
+   lazily (via catch_exception_raise_state()); until we own the
+   exception lock, we shouldn't have it in userspace (since a GCing
+   thread wouldn't know that we had our hands on it.)
+*/
+
+#ifdef X8664
+#define ts_pc(t) t.rip
+#else
+#define ts_pc(t) t.eip
+#endif
+
 kern_return_t
 catch_exception_raise(mach_port_t exception_port,
 		      mach_port_t thread,
@@ -1803,40 +1837,57 @@ catch_exception_raise(mach_port_t exception_port,
   int signum = 0, code = *code_vector, code1;
   TCR *tcr = TCR_FROM_EXCEPTION_PORT(exception_port);
   kern_return_t kret;
+#ifdef X8664
+  x86_thread_state64_t ts;
+#else
+  x86_thread_state_t ts;
+#endif
+  mach_msg_type_number_t thread_state_count;
+
 
 #ifdef DEBUG_MACH_EXCEPTIONS
   fprintf(stderr, "obtaining Mach exception lock in exception thread\n");
 #endif
 
+
   if (pthread_mutex_trylock(mach_exception_lock) == 0) {
+#ifdef X8664
+    thread_state_count = x86_THREAD_STATE64_COUNT;
+    thread_get_state(thread,
+                     x86_THREAD_STATE64,
+                     (thread_state_t)&ts,
+                     &thread_state_count);
+#else
+    thread_state_count = x86_THREAD_STATE_COUNT;
+    thread_get_state(thread,
+                     x86_THREAD_STATE,
+                     (thread_state_t)&ts,
+                     &thread_state_count);
+#endif
     if (tcr->flags & (1<<TCR_FLAG_BIT_PENDING_EXCEPTION)) {
       CLR_TCR_FLAG(tcr,TCR_FLAG_BIT_PENDING_EXCEPTION);
     } 
     if ((exception == EXC_BAD_INSTRUCTION) &&
-        (code_vector[0] == EXC_X86_UNIPL_INST) &&
-        (((code1 = code_vector[1]) == (int)pseudo_sigreturn) ||
-         (code1 == (int)enable_fp_exceptions) ||
-         (code1 == (int)disable_fp_exceptions))) {
-      if (code1 == (int)pseudo_sigreturn) {
-        kret = do_pseudo_sigreturn(thread, tcr);
+        ((natural)(ts_pc(ts)) == (natural)pseudo_sigreturn)) {
+      kret = do_pseudo_sigreturn(thread, tcr);
 #if 0
       fprintf(stderr, "Exception return in 0x%x\n",tcr);
 #endif
-        
-      } else if (code1 == (int)enable_fp_exceptions) {
-        kret = thread_set_fp_exceptions_enabled(thread, true);
-      } else kret =  thread_set_fp_exceptions_enabled(thread, false);
     } else if (tcr->flags & (1<<TCR_FLAG_BIT_PROPAGATE_EXCEPTION)) {
       CLR_TCR_FLAG(tcr,TCR_FLAG_BIT_PROPAGATE_EXCEPTION);
       kret = 17;
     } else {
       switch (exception) {
       case EXC_BAD_ACCESS:
-        signum = SIGSEGV;
+        signum = SIGBUS;
         break;
         
       case EXC_BAD_INSTRUCTION:
-        signum = SIGILL;
+        if (code == EXC_I386_GPFLT) {
+          signum = SIGSEGV;
+        } else {
+          signum = SIGILL;
+        }
         break;
       
       case EXC_SOFTWARE:
@@ -1852,10 +1903,11 @@ catch_exception_raise(mach_port_t exception_port,
       }
       if (signum) {
         kret = setup_signal_frame(thread,
-                                  (void *)pseudo_signal_handler,
+                                  (void *)signal_handler,
                                   signum,
                                   code,
-                                  tcr);
+                                  tcr, 
+                                  &ts);
 #if 0
       fprintf(stderr, "Setup pseudosignal handling in 0x%x\n",tcr);
 #endif
@@ -2169,7 +2221,24 @@ mach_suspend_tcr(TCR *tcr)
   
   result = suspend_mach_thread(mach_thread);
   if (result) {
-    pseudosigcontext = create_thread_context_frame(mach_thread, NULL);
+    mach_msg_type_number_t thread_state_count;
+#ifdef X8664
+    x86_thread_state64_t ts;
+    thread_state_count = x86_THREAD_STATE64_COUNT;
+    thread_get_state(mach_thread,
+                     x86_THREAD_STATE64,
+                     (thread_state_t)&ts,
+                     &thread_state_count);
+#else
+    x86_thread_state_t ts;
+    thread_state_count = x86_THREAD_STATE_COUNT;
+    thread_get_state(mach_thread,
+                     x86_THREAD_STATE,
+                     (thread_state_t)&ts,
+                     &thread_state_count);
+#endif
+
+    pseudosigcontext = create_thread_context_frame(mach_thread, NULL, NULL,tcr, &ts);
     pseudosigcontext->uc_onstack = 0;
     pseudosigcontext->uc_sigmask = (sigset_t) 0;
     tcr->suspend_context = pseudosigcontext;
