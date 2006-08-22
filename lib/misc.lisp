@@ -45,7 +45,7 @@
 are running on, or NIL if we can't find any useful information."
   (or *machine-version*
       (setq *machine-version*
-            #+darwinppc-target
+            #+darwin-target
             (block darwin-machine-version
               (%stack-block ((mib 8))
                 (setf (%get-long mib 0) #$CTL_HW
