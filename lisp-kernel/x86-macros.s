@@ -13,7 +13,7 @@
 /*   http://opensource.franz.com/preamble.html  */
 
 
-/* Try to make macros follow GAS/ATT conventions, were source precedes  */
+/* Try to make macros follow GAS/ATT conventions, where source precedes  */
 /* destination.  */
 
 define([lisp_global],[lisp_globals.$1])
@@ -284,7 +284,7 @@ define([_rplacd],[
 	
 	
 define([tra],[
-	.p2align 3
+        .p2align 3
 	ifelse($2,[],[
 	.long 0
 	],[
@@ -471,7 +471,7 @@ define([set_foreign_gs_base],[
 /* copy it to $1 */
 
 define([save_tcr_linear],[
-        movq %rcontxt:tcr.linear,$1
+        movq %rcontext:tcr.linear,$1
 ]) 
 	
 ])
