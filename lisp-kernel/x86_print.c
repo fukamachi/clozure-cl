@@ -63,31 +63,55 @@ add_c_string(char *s)
   add_string(s, strlen(s));
 }
 
-char numbuf[64];
+char numbuf[64], *digits = "012456789ABCDEF";
+
 
 void
-sprint_signed_decimal(signed_natural n)
+sprint_unsigned_decimal_aux(natural n, Boolean first)
 {
-  sprintf(numbuf, "%ld", n);
-  add_c_string(numbuf);
+  if (n == 0) {
+    if (first) {
+      add_char('0');
+    }
+  } else {
+    sprint_unsigned_decimal_aux(n/10, false);
+    add_char(digits[n%10]);
+  }
 }
 
 void
 sprint_unsigned_decimal(natural n)
 {
-  sprintf(numbuf, "%lu", n);
-  add_c_string(numbuf);
+  sprint_unsigned_decimal_aux(n, true);
 }
+
+void
+sprint_signed_decimal(signed_natural n)
+{
+  if (n < 0) {
+    add_char('-');
+    n = -n;
+  }
+  sprint_unsigned_decimal(n);
+}
+
 
 void
 sprint_unsigned_hex(natural n)
 {
-#if WORD_SIZE==64
-  sprintf(numbuf, "#x%016lx", n);
+  int i, 
+    ndigits =
+#if WORD_SIZE == 64
+    16
 #else
-  sprintf(numbuf, "#x%08lx", n);
+    8
 #endif
-  add_c_string(numbuf);
+    ;
+
+  add_c_string("#0x");
+  for (i = 0; i < ndigits; i++) {
+    add_char(digits[(n>>(4*(ndigits-(i+1))))&15]);
+  }
 }
 
 void
@@ -209,8 +233,9 @@ sprint_random_vector(LispObj o, unsigned subtag, natural elements)
   add_c_string("#<");
   sprint_unsigned_decimal(elements);
   add_c_string("-element vector subtag = ");
-  sprintf(numbuf, "%02X @", subtag);
-  add_c_string(numbuf);
+  add_char(digits[subtag>>4]);
+  add_char(digits[subtag&15]);
+  add_c_string(" @");
   sprint_unsigned_hex(o);
   add_c_string(" (");
   add_c_string(vector_subtag_name(subtag));
