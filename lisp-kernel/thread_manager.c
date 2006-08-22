@@ -256,6 +256,9 @@ get_interrupt_tcr(Boolean create)
   void
 suspend_resume_handler(int signo, siginfo_t *info, ExceptionInformation *context)
 {
+#ifdef DARWIN_GS_HACK
+  Boolean gs_was_tcr = ensure_gs_pthread();
+#endif
   TCR *tcr = get_interrupt_tcr(false);
 
   if (signo == thread_suspend_signal) {
@@ -287,7 +290,12 @@ suspend_resume_handler(int signo, siginfo_t *info, ExceptionInformation *context
 #endif
   }
 #if WAIT_FOR_RESUME_ACK
-    SEM_RAISE(tcr->suspend);
+  SEM_RAISE(tcr->suspend);
+#endif
+#ifdef DARWIN_GS_HACK
+  if (gs_was_tcr) {
+    set_gs_address(tcr);
+  }
 #endif
 #ifdef DARWIN
   DarwinSigReturn(context);
@@ -442,7 +450,7 @@ allocate_tcr()
   for (;;) {
     tcr = calloc(1, sizeof(TCR));
 #ifdef DARWIN
-#ifdef PPC64
+#if WORD_SIZE == 64
     if (((unsigned)((natural)tcr)) != ((natural)tcr)) {
       tcr->next = chain;
       chain = tcr;
@@ -494,7 +502,6 @@ setup_tcr_extra_segment(TCR *tcr)
   /* There's no way to do this yet.  See DARWIN_GS_HACK */
   /* darwin_set_x8664_fs_reg(tcr); */
 #endif
-  tcr->linear = tcr;
 }
 
 #endif
@@ -519,6 +526,10 @@ new_tcr(natural vstack_size, natural tstack_size)
 #endif
 #else
   TCR *tcr = allocate_tcr();
+#endif
+
+#ifdef X8664
+  tcr->linear = tcr;
 #endif
 
 #if (WORD_SIZE == 64)
