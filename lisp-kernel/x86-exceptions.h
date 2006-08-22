@@ -27,6 +27,8 @@ typedef u8_t opcode, *pc;
 #endif
 
 #ifdef DARWIN
+/* DarwinSigReturn works around an old G5 bug */
+#define DarwinSigReturn(context)
 #ifdef X8664
 #define xpGPRvector(x) ((natural *)(&(UC_MCONTEXT(x)->ss.rax)))
 #define xpGPR(x,gprno) (xpGPRvector(x)[gprno])
@@ -125,7 +127,7 @@ extern void freebsd_sigreturn(ExceptionInformation *);
 
 #ifdef DARWIN
 #define SIGNUM_FOR_INTN_TRAP SIGSEGV /* Not really, but our Mach handler fakes that */
-#define IS_MAYBE_INT_TRAP(info,xp) 0 /* Fix this */
+#define IS_MAYBE_INT_TRAP(info,xp) (info->si_code == EXC_I386_GPFLT)
 #define SIGRETURN(context)
 #endif
 
