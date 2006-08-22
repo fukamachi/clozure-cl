@@ -734,7 +734,8 @@
 #+x86-target
 (defconstant yield-syscall
   #+linux-target 24
-  #+freebsd-target 321)
+  #+freebsd-target 321
+  #+darwin-target #x100003d)
 
 (defconstant gf-code-size 16)
 
