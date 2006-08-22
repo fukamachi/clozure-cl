@@ -69,6 +69,11 @@
     #+freebsdx86-target :freebsdx86-target
     #+freebsdx8664-target :freebsdx8664-target
     #+freebsdx8664-target :freebsdx8664-host
+    #+darwin-target :darwin-host
+    #+darwin-target :darwin-target
+    #+darwinx86-target :darwinx86-target
+    #+darwinx8664-target :darwinx8664-target
+    #+darwinx8664-target :darwinx8664-host
     #+poweropen-target :poweropen-target
     #+64-bit-target :64-bit-target
     #+64-bit-target :64-bit-host
