@@ -44,12 +44,14 @@ VPATH = ..
 RM = /bin/rm
 LD = ld64
 
-### The -pagezero_size/-seg1addr args are an attempt to work around a
-### bug (#4057702) in ld64.
+### the  -pagezero_size and -seg1addr arguments below are critical; if
+### we accept the default pagezero size, we don't seem to be able to
+### mmap in the low 32 bits of the address space (at least the very
+### low end of that) and we may need to ensure that some addresses
+### are in that range.  (OK, so these exact values may be less than
+### critical ...)
 
-### The -seg1addr and -pagezero_size arguments below are nonsense;
-### early versions of ld64 were/are broken.
-LDFLAGS = -M -arch x8664 -dynamic  -o $@ -e start -seg1addr 0x6000
+LDFLAGS = -arch x86_64 -dynamic  -o $@  -pagezero_size 0x1000 -seg1addr 0x8000
 AS = as
 M4 = gm4
 ###
@@ -70,7 +72,7 @@ M4FLAGS = -DDARWIN -DX86 -DX8664 -DDARWIN_GS_HACK
 ASFLAGS = -arch x86_64
 CDEFINES = -DDARWIN -DX86 -DX8664 -DDARWIN_GS_HACK
 CDEBUG = -g
-COPT = -O2
+COPT = # -O2
 
 .s.o:
 	$(M4) $(M4FLAGS) -I../ $< | $(AS) $(ASFLAGS) -o $@
@@ -105,17 +107,10 @@ all:	../../dx86cl64
 # KSPOBJ=
 
 OSEARLYLIBS = -lcrt1.o
-OSLATELIBS = -lSystem -lmx
+OSLATELIBS = -lSystem
 
-# If the linker can find an absolute path to -lSystemStubs, use
-# -lSystemStubs; otherwise, just use libgcc.a
-SYSTEMSTUBSPATH = $(shell $(CC) --print-file-name=libSystemStubs.a)
-SYSTEMSTUBSABSOLUTE = $(shell expr $(SYSTEMSTUBSPATH) : "^/*")
-ifeq ($(SYSTEMSTUBSABSOLUTE),1)
-OSMIDDLELIBS = -lSystemStubs
-else
-OSMIDDLELIBS = -lgcc
-endif
+OSMIDDLELIBS = 
+
 
 OSLIBS = $(OSEARLYLIBS) $(OSMIDDLELIBS) $(OSLATELIBS)
 
