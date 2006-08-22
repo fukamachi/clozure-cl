@@ -595,15 +595,12 @@
                      (fill-for-alignment frag-list)
                      (x862-lap-process-regsave-info frag-list regsave-label regsave-mask regsave-addr)
                      (setf (afunc-lfun afunc)
-                           (#+x86-target
-                            create-x86-function
-                            #-x86-target
-                            cross-create-x86-function
-                            fname
-                            frag-list
-                            *x862-constant-alist*
-                            bits
-                            debug-info)))
+                           #+x86-target
+                           (if (eq *host-backend* *target-backend*)
+                             (create-x86-function fname frag-list *x862-constant-alist* bits debug-info)
+                             (cross-create-x86-function fname frag-list *x862-constant-alist* bits debug-info))
+                           #-x86-target
+                           (cross-create-x86-function fname frag-list *x862-constant-alist* bits debug-info)))
                    (x862-digest-symbols))))
           (backend-remove-labels))))
     afunc))
@@ -619,14 +616,20 @@
     (x862-fixup-fwd-refs f))
   (let ((fwd-refs (afunc-fwd-refs afunc)))
     (when fwd-refs
-      (let* ((v (function-to-function-vector (afunc-lfun afunc)))
+      (let* ((native-x8664-functions #-x8664-target nil
+                                     #+x8664-target (eq *target-backend*
+                                                        *host-backend*))
+             (v (if native-x8664-functions
+                  (function-to-function-vector (afunc-lfun afunc))
+                  (afunc-lfun afunc)))
              (vlen (uvsize v)))
         (declare (fixnum vlen))
         (dolist (ref fwd-refs)
           (let* ((ref-fun (afunc-lfun ref)))
-            (do* ((i #+x8664-target (%function-code-words
-                                     (%function-vector-to-function v))
-                     #-x8664-target 1
+            (do* ((i (if native-x8664-functions
+                       (%function-code-words
+                        (%function-vector-to-function v))
+                       1)
                      (1+ i)))
                  ((= i vlen))
               (declare (fixnum i))
