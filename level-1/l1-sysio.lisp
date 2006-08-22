@@ -74,9 +74,10 @@
 		    (return :macos)))))))))
 
 (defvar *default-external-format* :unix
-  "The value of this variable is used when :EXTERNAL-FORMAT is unspecified
-or specified as :DEFAULT. It can meaningfully be given any of the values
-:UNIX, :MACOS, or :INFERRED, each of which is interpreted as described above.
+  "The value of this variable is used when :EXTERNAL-FORMAT is
+unspecified or specified as :DEFAULT. It can meaningfully be given any
+of the values :UNIX, :MACOS, or :INFERRED, each of which is
+interpreted as described in the documentation.
 
 Because there's some risk that unsolicited newline translation could have
 undesirable consequences, the initial value of this variable in OpenMCL
@@ -768,6 +769,13 @@ is :UNIX.")
 
 (defmethod stream-external-format ((s basic-file-stream))
   (basic-file-stream.external-format s))
+
+(defmethod file-stream-external-format ((s basic-file-stream))
+  (basic-file-stream.external-format s))
+
+(defmethod (setf file-stream-external-format) (new (s basic-file-stream))
+  (setf (basic-file-stream.external-format s) new))
+
 
 (defmethod stream-external-format ((s broadcast-stream))
   (let* ((last (last-broadcast-stream s)))
