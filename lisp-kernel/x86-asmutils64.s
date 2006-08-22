@@ -101,8 +101,27 @@ _exportfn(C(atomic_ior))
 _endfn
         
         
+/* Logand the value in *rdi with the value in rsi (presumably a bitmask with exactly 1 */
+/* bit set.)  Return the value now in *rdi (for some value of "now" */
+
+_exportfn(C(atomic_and))
+0:	__(movq (%rdi),	%rax)
+	__(movq %rax,%rcx)
+	__(and %rsi,%rcx)
+	__(lock)
+        __(cmpxchg %rcx,(%rdi))
+        __(jnz 0b)
+	__(movq %rcx,%rax)
+	__(ret)
+_endfn
 
 
+        __ifdef([DARWIN])
+_exportfn(C(pseudo_sigreturn))
+        __(ud2b)
+        __(jmp C(pseudo_sigreturn))
+_endfn
+        __endif                        
 
 /* int cpuid (int code, int *pebx, int *pecx, int *pedx)  */
 /*	          %rdi,     %rsi,      %rdx,      %rcx    	     */
@@ -145,7 +164,7 @@ _endfn
         
         __ifdef([DARWIN_GS_HACK])
 /* Check (in and ugly, non-portale way) to see if %gs is addressing
-   threads data.  If it was, return 0; otherwise, assume that it's
+   pthreads data.  If it was, return 0; otherwise, assume that it's
    addressing a lisp tcr and set %gs to point to the tcr's tcr.osid,
    then return 1. */
 	
