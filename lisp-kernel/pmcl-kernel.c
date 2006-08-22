@@ -529,7 +529,7 @@ BytePtr pure_space_start, pure_space_active, pure_space_limit;
 BytePtr static_space_start, static_space_active, static_space_limit;
 
 #ifdef DARWIN
-#ifdef PPC64
+#if WORD_SIZE == 64
 #define vm_region vm_region_64
 #endif
 
@@ -544,12 +544,12 @@ address_unmapped_p(char *addr, natural len)
 {
   vm_address_t vm_addr = (vm_address_t)addr;
   vm_size_t vm_size;
-#ifdef PPC64
+#if WORD_SIZE == 64
   vm_region_basic_info_data_64_t vm_info;
 #else
   vm_region_basic_info_data_t vm_info;
 #endif
-#ifdef PPC64
+#if WORD_SIZE == 64
   mach_msg_type_number_t vm_info_size = VM_REGION_BASIC_INFO_COUNT_64;
 #else
   mach_msg_type_number_t vm_info_size = VM_REGION_BASIC_INFO_COUNT;
@@ -560,7 +560,7 @@ address_unmapped_p(char *addr, natural len)
   kret = vm_region(mach_task_self(),
 		   &vm_addr,
 		   &vm_size,
-#ifdef PPC64
+#if WORD_SIZE == 64
                    VM_REGION_BASIC_INFO_64,
 #else
 		   VM_REGION_BASIC_INFO,
@@ -1257,6 +1257,10 @@ remap_spjump()
                 -1,
                 0),
     old = &spjump_start;
+  if (new == (pc)-1) {
+    perror("remap spjump");
+    exit(1);
+  }
   bcopy(old, new, 0x1000);
 }
 #endif
@@ -1547,7 +1551,9 @@ xMakeDataExecutable(void *start, unsigned long nbytes)
     */
     return;
   }
+#ifndef X86
   flush_cache_lines(base, (end-base)/cache_block_size, cache_block_size);
+#endif
 }
 
 int
