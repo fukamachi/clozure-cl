@@ -1,3 +1,138 @@
+2006-08-22 02:08  gb
+
+	* lisp-kernel/x86_print.c: Try not to use sprintf() (at least not
+	for printing integers), since it seems to need access to pthread
+	data (and calling print_lisp_object() from GDB might fail if %gs is
+	pointing at the lisp TCR.)
+
+2006-08-22 02:06  gb
+
+	* lisp-kernel/x86-spentry64.s: Unbox %arg_z (boxed entrypoint)
+	earlier in _SPffcall, before entering foreign context.	(Need to
+	check PPC version(s) as well.)
+	
+	Use DARWIN_GS_HACK to swap %gs memory around when transitioning
+	between foreign code and lisp.
+
+2006-08-22 02:04  gb
+
+	* lisp-kernel/x86-macros.s: Fix a typo.
+
+2006-08-22 02:04  gb
+
+	* lisp-kernel/x86-exceptions.h: Define a few more things ...
+
+2006-08-22 02:03  gb
+
+	* lisp-kernel/x86-exceptions.c: Lots of changes, especially to Mach
+	exception handling code.
+	
+	Do the DARWIN_GS_HACK things to overload %gs.
+
+2006-08-22 02:02  gb
+
+	* lisp-kernel/x86-asmutils64.s: atomic_and(), pseudo_sigreturn()
+	for DarwinX8664.
+
+2006-08-22 02:01  gb
+
+	* lisp-kernel/thread_manager.c: Some PPC64 conditionalizations
+	should really have tested WORD_SIZE.
+	
+	DARWIN_GS_HACK stuff around suspend/resume signal handlers.  (May
+	not be necessary.)
+	
+	Ensure that tcr.linear gets set on x86, even if not HAVE_TLS.
+
+2006-08-22 01:59  gb
+
+	* lisp-kernel/pmcl-kernel.c: Don't really flush cache lines on
+	x8664.
+	
+	Some PPC64 conditionalizations should really have tested WORD_SIZE.
+
+2006-08-22 01:58  gb
+
+	* lisp-kernel/m4macros.m4: Define SYSCALL_SETS_CARRY_ON_ERROR for
+	FreeBSDX664, DarwinX8664.
+
+2006-08-22 01:57  gb
+
+	* lisp-kernel/darwinx8664/Makefile: Much smaller pagezero, much
+	lower seg1addr.
+	
+	Something in the (m4-generated) symbolic info in some .s files is
+	screwy and causes ld64 to segfault; it's currently necesssary to
+	use "strip -S" on the assembler-generated .o files.
+
+2006-08-22 01:55  gb
+
+	* scripts/openmcl64: Untested changes for Darwinx8664.
+
+2006-08-22 01:54  gb
+
+	* xdump/xx8664-fasload.lisp: Fix typo in darwinx8664
+	xload-backend-info (compiler target is :darwinx8664, not
+	:linuxx8664).
+
+2006-08-22 01:53  gb
+
+	* lib/nfcomp.lisp: Dump concatenated functions from xfunctions when
+	cross-compiling to x86 from x86.
+
+2006-08-22 01:52  gb
+
+	* lib/misc.lisp: MACHINE-VERSION:  conditionalize on :DARWIN-TARGET
+	(not :DARWINPPC-TARGET).
+
+2006-08-22 01:50  gb
+
+	* lib/foreign-types.lisp: :DARWIN-TARGET (not :DARWINPPC-TARGET).
+
+2006-08-22 01:50  gb
+
+	* lib/compile-ccl.lisp: :DARWINX8664 stuff.
+
+2006-08-22 01:49  gb
+
+	* level-1/version.lisp: Bump.
+
+2006-08-22 01:49  gb
+
+	* level-1/l1-sysio.lisp: FILE-STREAM-EXTERNAL-FORMAT stuff for
+	BASIC-STREAMs.
+
+2006-08-22 01:48  gb
+
+	* level-1/: l1-sockets.lisp, linux-files.lisp: Conditionalize on
+	DARWIN-TARGET, not DARWINPPC-TARGET.
+
+2006-08-22 01:47  gb
+
+	* level-0/l0-init.lisp: DarwinX8664 *features*.
+
+2006-08-22 01:47  gb
+
+	* level-0/l0-cfm-support.lisp: Some DARWINPPC-TARGET conditionals
+	really want to be DARWIN-TARGET.
+
+2006-08-22 01:46  gb
+
+	* compiler/X86/X8664/x8664-arch.lisp: YIELD-SYSCALL for
+	DarwinX8664.
+
+2006-08-22 01:45  gb
+
+	* compiler/X86/x862.lisp: Use CROSS-CREATE-X86-FUNCTION if not
+	compiling natively.
+	
+	Fix X862-FIXUP-FWD-REFS if not native function on x86.
+
+2006-08-22 01:44  gb
+
+	* compiler/X86/x86-lap.lisp: Ensure that CROSS-CREATE-X86-FUNCTION
+	is defined, even on x86.  Use it if not compiling natively on x86.
+
 2006-08-20 23:59  gb
 
 	* lisp-kernel/darwinx8664/Makefile: Define DARWIN_GS_HACK.
