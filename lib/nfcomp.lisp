@@ -1391,24 +1391,26 @@ Will differ from *compiling-file* during an INCLUDE")
   (if (and (not (eq *fasl-backend* *host-backend*))
            (typep f 'function))
     (break "Dumping a native function constant ~s during cross-compilation." f))
-  (let* ((code-size (%function-code-words f))
-         (function-vector (%function-to-function-vector f))
-         (function-size (uvsize function-vector)))
-    (fasl-out-opcode $fasl-clfun f)
-    (fasl-out-count function-size)
-    (fasl-out-count code-size)
-    (fasl-out-ivect function-vector 0 (ash code-size 3))
-    (do* ((k code-size (1+ k)))
-         ((= k function-size))
-      (declare (fixnum k))
-      (fasl-dump-form (uvref function-vector k)))))
+  (if (and (= (typecode f) target::subtag-xfunction)
+           (= (typecode (uvref f 0)) target::subtag-u8-vector))
+    (fasl-xdump-clfun f)
+    (let* ((code-size (%function-code-words f))
+           (function-vector (%function-to-function-vector f))
+           (function-size (uvsize function-vector)))
+      (fasl-out-opcode $fasl-clfun f)
+      (fasl-out-count function-size)
+      (fasl-out-count code-size)
+      (fasl-out-ivect function-vector 0 (ash code-size 3))
+      (do* ((k code-size (1+ k)))
+           ((= k function-size))
+        (declare (fixnum k))
+        (fasl-dump-form (uvref function-vector k))))))
         
 
   
 
 ;;; Write a "concatenated function"; for now, assume that the target
-;;; is x8664 and the host is a PPC.
-#-x86-target
+;;; is x8664.
 (defun fasl-xdump-clfun (f)
   (let* ((code (uvref f 0))
          (code-size (dpb (uvref code 3)
