@@ -433,7 +433,7 @@ the operating system."
 		    (setq lose t))))))))
 	(when (or (not lose) (not win)) (return)))))
 
-;;; end darwinppc-target
+;;; end darwin-target
 )  
 
 
@@ -584,7 +584,7 @@ return a fixnum representation of that address, else return NIL."
 ;; end Darwin progn
 )
 
-#-(or linux-target darwinppc-target freebsd-target)
+#-(or linux-target darwin-target freebsd-target)
 (defun shlib-containing-entry (entry &optional name)
   (declare (ignore entry name))
   *rtld-default*)
