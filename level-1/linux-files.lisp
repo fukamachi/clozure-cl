@@ -243,7 +243,7 @@ given is that of a group to which the current user belongs."
   (%stat-values
    #+linux-target
    (#_ __fxstat #$_STAT_VER_LINUX fd stat)
-   #+(or darwinppc-target freebsd-target)
+   #-linux-target
    (syscall syscalls::fstat fd stat)
    stat))
 
@@ -292,7 +292,7 @@ given is that of a group to which the current user belongs."
 (defun %uts-string (result idx buf)
   (if (eql 0 result)
     (%get-cstring (%inc-ptr buf (* #+linux-target #$_UTSNAME_LENGTH
-				   #+darwinppc-target #$_SYS_NAMELEN
+				   #+darwin-target #$_SYS_NAMELEN
                                    #+freebsd-target #$SYS_NMLN idx)))
     "unknown"))
 
@@ -302,7 +302,7 @@ given is that of a group to which the current user belongs."
   (%stack-block ((buf (* #$_UTSNAME_LENGTH 6)))  
     (%uts-string (syscall syscalls::uname buf) idx buf)))
 
-#+darwinppc-target
+#+darwin-target
 (defun %uname (idx)
   (%stack-block ((buf (* #$_SYS_NAMELEN 5)))
     (%uts-string (#_uname buf) idx buf)))
@@ -508,7 +508,7 @@ any EXTERNAL-ENTRY-POINTs known to be defined by it to become unresolved."
             (unload-foreign-variables lib)
 	    (unload-library-entrypoints lib)))))))
 
-#+darwinppc-target
+#+darwin-target
 ;; completely specifies whether to remove it totally from our list
 (defun close-shared-library (lib &key (completely nil))
   "If completely is T, set the reference count of library to 0. Otherwise,
@@ -601,7 +601,7 @@ any EXTERNAL-ENTRY-POINTs known to be defined by it to become unresolved."
 
 ;;; I believe that the Darwin/FreeBSD syscall infterface is rather ... odd.
 ;;; Use libc's interface.
-#+(or darwinppc-target freebsd-target)
+#+(or darwin-target freebsd-target)
 (defun pipe ()
   (%stack-block ((pipes 8))
     (let* ((status (#_pipe pipes)))
@@ -1087,7 +1087,7 @@ created with :WAIT NIL.) Return T if successful; signal an error otherwise."
 (defun cpu-count ()
   (or *cpu-count*
       (setq *cpu-count*
-            #+darwinppc-target
+            #+darwin-target
             (rlet ((info :host_basic_info)
                    (count :mach_msg_type_number_t #$HOST_BASIC_INFO_COUNT))
               (if (eql #$KERN_SUCCESS (#_host_info (#_mach_host_self)

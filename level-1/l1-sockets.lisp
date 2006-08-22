@@ -409,10 +409,10 @@ safer to mess with directly as there is less magic going on."))
 
 (defun path-from-unix-address (addr)
   (when (= #$AF_LOCAL (pref addr :sockaddr_un.sun_family))
-    #+darwinppc-target
+    #+darwin-target
     (%str-from-ptr (pref addr :sockaddr_un.sun_path)
 		   (- (pref addr :sockaddr_un.sun_len) 2))
-    #-darwinppc-target
+    #-darwinc-target
     (%get-cstring (pref addr :sockaddr_un.sun_path))))
 
 (defun local-socket-filename (fd socket)
@@ -970,7 +970,7 @@ unsigned IP address."
                   (foreign-symbol-address  "h_errno")))))))
             
 
-#+(or darwinppc-target freebsd-target)
+#+(or darwin-target freebsd-target)
 (defun c_gethostbyaddr (addr)
   (rlet ((addrp :unsigned))
     (setf (pref addrp :unsigned) addr)
@@ -1000,7 +1000,7 @@ unsigned IP address."
 		 (%get-cstring (pref (%get-ptr hp) :hostent.h_name))
 	       (values nil (- (pref herr :signed)))))))))))
 
-#+(or darwinppc-target freebsd-target)
+#+(or darwin-target freebsd-target)
 (defun c_gethostbyname (name)
   (with-cstrs ((name (string name)))
     (without-interrupts
@@ -1050,11 +1050,11 @@ unsigned IP address."
 ;;; a single word that should be passed by value.  The FFI translator
 ;;; seems to lose the :struct, so just using #_ doesn't work (that
 ;;; sounds like a bug in the FFI translator.)
-#+(or darwinppc-target linuxx8664-target freebsd-target)
+#+(or darwin-target linuxx8664-target freebsd-target)
 (defun _inet_ntoa (addr)
   (with-macptrs ((p))
-    (%setf-macptr p (external-call #+darwinppc-target "_inet_ntoa"
-                                   #-darwinppc-target "inet_ntoa"
+    (%setf-macptr p (external-call #+darwin-target "_inet_ntoa"
+                                   #-darwin-target "inet_ntoa"
 				   :unsigned-fullword addr
 				   :address))
     (unless (%null-ptr-p p) (%get-cstring p))))				   
@@ -1116,9 +1116,9 @@ unsigned IP address."
       
 
 (defun c_bind (sockfd sockaddr addrlen)
-  #+(or darwinppc-target linuxx8664-target freebsd-target)
+  #+(or darwin-target linuxx8664-target freebsd-target)
   (progn
-    #+(or darwinppc-target freebsd-target)
+    #+(or darwin-target freebsd-target)
     (setf (pref sockaddr :sockaddr_in.sin_len) addrlen)
     (syscall syscalls::bind sockfd sockaddr addrlen))
   #+linuxppc-target
@@ -1137,7 +1137,7 @@ unsigned IP address."
       (syscall syscalls::socketcall 2 params))))
 
 (defun c_connect (sockfd addr len)
-  #+(or darwinppc-target linuxx8664-target freebsd-target)
+  #+(or darwin-target linuxx8664-target freebsd-target)
   (syscall syscalls::connect sockfd addr len)
   #+linuxppc-target
   (progn
@@ -1155,7 +1155,7 @@ unsigned IP address."
       (syscall syscalls::socketcall 3 params))))
 
 (defun c_listen (sockfd backlog)
-  #+(or darwinppc-target linuxx8664-target freebsd-target)
+  #+(or darwin-target linuxx8664-target freebsd-target)
   (syscall syscalls::listen sockfd backlog)
   #+linuxppc-target
   (progn
@@ -1171,7 +1171,7 @@ unsigned IP address."
       (syscall syscalls::socketcall 4 params))))
 
 (defun c_accept (sockfd addrp addrlenp)
-  #+(or darwinppc-target linuxx8664-target freebsd-target)
+  #+(or darwin-target linuxx8664-target freebsd-target)
   (syscall syscalls::accept sockfd addrp addrlenp)
   #+linuxppc-target
   (progn
@@ -1189,7 +1189,7 @@ unsigned IP address."
       (syscall syscalls::socketcall 5 params))))
 
 (defun c_getsockname (sockfd addrp addrlenp)
-  #+(or darwinppc-target linuxx8664-target freebsd-target)
+  #+(or darwin-target linuxx8664-target freebsd-target)
   (syscall syscalls::getsockname sockfd addrp addrlenp)
   #+linuxppc-target
   (progn
@@ -1207,7 +1207,7 @@ unsigned IP address."
       (syscall syscalls::socketcall 6 params))))
 
 (defun c_getpeername (sockfd addrp addrlenp)
-  #+(or darwinppc-target linuxx8664-target freebsd-target)
+  #+(or darwin-target linuxx8664-target freebsd-target)
   (syscall syscalls::getpeername sockfd addrp addrlenp)
   #+linuxppc-target
   (progn
@@ -1225,7 +1225,7 @@ unsigned IP address."
       (syscall syscalls::socketcall 7 params))))
 
 (defun c_socketpair (domain type protocol socketsptr)
-  #+(or darwinppc-target linuxx8664-target freebsd-target)
+  #+(or darwin-target linuxx8664-target freebsd-target)
   (syscall syscalls::socketpair domain type protocol socketsptr)
   #+linuxppc-target
   (progn
@@ -1247,7 +1247,7 @@ unsigned IP address."
 
 
 (defun c_sendto (sockfd msgptr len flags addrp addrlen)
-  #+(or darwinppc-target linuxx8664-target freebsd-target)
+  #+(or darwin-target linuxx8664-target freebsd-target)
   (syscall syscalls::sendto sockfd msgptr len flags addrp addrlen)
   #+linuxppc-target
   (progn
@@ -1271,7 +1271,7 @@ unsigned IP address."
       (syscall syscalls::socketcall 11 params))))
 
 (defun c_recvfrom (sockfd bufptr len flags addrp addrlenp)
-  #+(or darwinppc-target linuxx8664-target freebsd-target)
+  #+(or darwin-target linuxx8664-target freebsd-target)
   (syscall syscalls::recvfrom sockfd bufptr len flags addrp addrlenp)
   #+linuxppc-target
   (progn
@@ -1295,7 +1295,7 @@ unsigned IP address."
       (syscall syscalls::socketcall 12 params))))
 
 (defun c_shutdown (sockfd how)
-  #+(or darwinppc-target linuxx8664-target freebsd-target)
+  #+(or darwin-target linuxx8664-target freebsd-target)
   (syscall syscalls::shutdown sockfd how)
   #+linuxppc-target
   (progn
@@ -1311,7 +1311,7 @@ unsigned IP address."
       (syscall syscalls::socketcall 13 params))))
 
 (defun c_setsockopt (sockfd level optname optvalp optlen)
-  #+(or darwinppc-target linuxx8664-target freebsd-target)
+  #+(or darwin-target linuxx8664-target freebsd-target)
   (syscall syscalls::setsockopt sockfd level optname optvalp optlen)
   #+linuxppc-target
   (progn
@@ -1333,7 +1333,7 @@ unsigned IP address."
       (syscall syscalls::socketcall 14 params))))
 
 (defun c_getsockopt (sockfd level optname optvalp optlenp)
-  #+(or darwinppc-target linuxx8664-target freebsd-target)
+  #+(or darwin-target linuxx8664-target freebsd-target)
   (syscall syscalls::getsockopt sockfd level optname optvalp optlenp)
   #+linuxppc-target
   (progn
@@ -1355,7 +1355,7 @@ unsigned IP address."
       (syscall syscalls::socketcall 15 params))))
 
 (defun c_sendmsg (sockfd msghdrp flags)
-  #+(or darwinppc-target linuxx8664-target freebsd-target)
+  #+(or darwin-target linuxx8664-target freebsd-target)
   (syscall syscalls::sendmsg sockfd msghdrp flags)
   #+linuxppc-target
   (progn
@@ -1373,7 +1373,7 @@ unsigned IP address."
       (syscall syscalls::socketcall 16 params))))
 
 (defun c_recvmsg (sockfd msghdrp flags)
-  #+(or darwinppc-target linuxx8664-target freebsd-target)
+  #+(or darwin-target linuxx8664-target freebsd-target)
   (syscall syscalls::recvmsg sockfd msghdrp flags)
   #+linuxppc-target
   (progn
