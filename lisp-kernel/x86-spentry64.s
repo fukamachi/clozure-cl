@@ -3960,6 +3960,13 @@ _endsubp(builtin_aref1)
 /*   the function result will be in %rax (and possibly %rdx) or %xmm0 (+ %xmm1).  */
 
 _spentry(ffcall)
+        /* Unbox %arg_z.  It's either a fixnum or macptr (or bignum) ;
+          if not a fixnum, get the first word */
+        __(unbox_fixnum(%arg_z,%imm0))
+	__(testb $fixnummask,%arg_z_b)
+        __(je 0f)
+        __(movq macptr.address(%arg_z),%imm0)
+0:              
 	/* Save lisp registers   */
 	__(push %temp0)
 	__(push %temp1)
@@ -3981,23 +3988,42 @@ _spentry(ffcall)
 	__(stmxcsr %rcontext:tcr.lisp_mxcsr)
 	__(movq $TCR_STATE_FOREIGN,%rcontext:tcr.valence)
 	__(emms)
-	__(movq (%rsp),%rbp)
 	__(ldmxcsr %rcontext:tcr.foreign_mxcsr)
+	__(movq (%rsp),%rbp)
+        __ifdef([DARWIN_GS_HACK])
+         /* At this point, %imm0=%rax is live (contains
+            the entrypoint); the lisp registers are
+            all saved, and the foreign arguments are
+            on the foreign stack (about to be popped
+            off).  Save the linear TCR address in %save0/%r15
+            so that we can restore it later, and preserve
+            the entrypoint somewhere where C won't bash it.
+            Note that dereferencing the entrypoint from
+            foreign code has never been safe (unless it's
+            a fixnum */
+         __(save_tcr_linear(%save0))
+         __(movq %imm0,%save1)
+         __(set_foreign_gs_base())
+         __(movq %save1,%imm0)
+        __endif
 	__(addq $2*node_size,%rsp)
-	__(unbox_fixnum(%arg_z,%r11))
-	__(testb $fixnummask,%arg_z_b)
-	__(movq %arg_z,%r10)
 	__(pop %rdi)
 	__(pop %rsi)
 	__(pop %rdx)
-	__(je 0f)
-	__(mov macptr.address(%r10),%r11)
-0:		
 	__(pop %rcx)
 	__(pop %r8)
 	__(pop %r9)
-	__(call *%r11)
+	__(call *%rax)
 	__(movq %rbp,%rsp)
+        __ifdef([DARWIN_GS_HACK])
+         /* %rax/%rdx contains the return value (maybe), %save0 still
+            contains the linear tcr address.  Preserve %rax/%rdx here. */
+         __(movq %rax,%save1)
+         __(movq %rdx,%save2)
+         __(set_gs_base(%save0))
+         __(movq %save1,%rax)
+         __(movq %save2,%rdx)
+        __endif
 	__(movq %rsp,%rcontext:tcr.foreign_sp)        
 	__(clr %save3)
 	__(clr %save2)
@@ -4063,9 +4089,9 @@ _spentry(syscall)
 	__(pop %r8)
 	__(pop %r9)
 	__(syscall)
-        __ifdef([FREEBSD])
-        __(jnc 0f)
-        __(negq %rax)
+        __ifdef([SYSCALL_SETS_CARRY_ON_ERROR])
+         __(jnc 0f)
+         __(negq %rax)
 0:      
         __endif        
 	__(movq %rbp,%rsp)
@@ -4213,6 +4239,12 @@ _spentry(callback)
 	__(movq $1,%rdi)
 	__(movq %r12,%r11)
 	__(call *%rax)
+        __ifdef([DARWIN_GS_HACK])
+         /* linear TCR address in now in %rax; callback index was
+            saved in %r12 a moment ago. */
+         __(set_gs_base(%rax))
+         __(movq %r12,%r11)
+        __endif
 1:	/* Align foreign stack for lisp   */
         __(subq $node_size,%rsp)
 	__(pushq %rcontext:tcr.foreign_sp)
@@ -4254,6 +4286,10 @@ __(tra(local_label(back_from_callback)))
 	__(pop %rcontext:tcr.foreign_sp)
         __(addq $node_size,%rsp)
         __(ldmxcsr %rcontext:tcr.foreign_mxcsr)
+        __ifdef([DARWIN_GS_HACK])
+         /* Lucky us; nothing is live here */
+         __(set_foreign_gs_base())
+        __endif
 	__(pop %rbp)
 	__(pop %rbx)
 	__(pop %r15)
