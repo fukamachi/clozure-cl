@@ -103,7 +103,7 @@
    :default-image-name "ccl:ccl;x86-boot64.image"
    :default-startup-file-name "level-1.dx64fsl"
    :subdirs '("ccl:level-0;X86;X8664;" "ccl:level-0;X86;")
-   :compiler-target-name :linuxx8664
+   :compiler-target-name :darwinx8664
    :image-base-address #x300000000000
    :nil-relative-symbols x86::*x86-nil-relative-symbols*
    :static-space-init-function 'x8664-initialize-static-space
