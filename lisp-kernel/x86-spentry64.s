@@ -4038,7 +4038,13 @@ _spentry(ffcall)
 	__(clr %fn)
 	__(clr %ra0)
 	__(pxor %fpzero,%fpzero)
-        __(stmxcsr %rcontext:tcr.ffi_exception)
+        /* Darwin's math library seems to be pretty casual
+           about causing spurious FP exceptions */
+        __ifdef([DARWIN])
+         __(movl %arg_x_l,%rcontext:tcr.ffi_exception)
+        __else
+         __(stmxcsr %rcontext:tcr.ffi_exception)
+        __endif
 	__(movq $TCR_STATE_LISP,%rcontext:tcr.valence)
 	__(movq %rcontext:tcr.save_vsp,%rsp)
 	__(ldmxcsr %rcontext:tcr.lisp_mxcsr)
