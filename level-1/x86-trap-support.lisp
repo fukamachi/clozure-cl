@@ -68,6 +68,37 @@
       15                                ;r15
       )))
 
+#+darwinx8664-target
+(progn
+  (eval-when (:compile-toplevel :execute)
+    (or (load-record :mcontext64)
+        (def-foreign-type nil
+            (:struct :mcontext64
+                     (:es :x86_exception_state64_t)
+                     (:ss :x86_thread_state64_t)
+                     (:fs :x86_float_state64_t)))))
+  (defconstant gp-regs-offset (+ (get-field-offset :ucontext64.uc_mcontext64)
+                                 (get-field-offset :mcontext64.ss)))
+  (defconstant flags-register-offset 17)
+  (defparameter *encoded-gpr-to-indexed-gpr*
+    #(0					;rax
+      2					;rcx
+      3					;rdx
+      1					;rbx
+      7                                 ;rsp
+      6					;rbp
+      5                                 ;rsi
+      4                                 ;rdi
+      8                                 ;r8
+      9                                 ;r9
+      10				;r10
+      11                                ;r11
+      12				;r12
+      13				;r13
+      14				;r14
+      15                                ;r15
+      )))
+
 (defun indexed-gpr-lisp (xp igpr)
   (%get-object xp (+ gp-regs-offset (ash igpr x8664::word-shift))))
 (defun (setf indexed-gpr-lisp) (new xp igpr)
