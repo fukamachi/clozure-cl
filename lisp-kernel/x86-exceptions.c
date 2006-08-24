@@ -570,7 +570,7 @@ extend_tcr_tlb(TCR *tcr, ExceptionInformation *xp)
 }
 
 
-#ifdef FREEBSD
+#if defined(FREEBSD) || defined(DARWIN)
 static
 char mxcsr_bit_to_fpe_code[] = {
   FPE_FLTINV,                   /* ie */
@@ -582,25 +582,48 @@ char mxcsr_bit_to_fpe_code[] = {
 };
 
 void
-freebsd_decode_vector_fp_exception(siginfo_t *info, ExceptionInformation *xp)
+decode_vector_fp_exception(siginfo_t *info, uint32_t mxcsr)
 {
   /* If the exception appears to be an XMM FP exception, try to
      determine what it was by looking at bits in the mxcsr.
   */
-  if (info->si_code == 0) {
-    struct savefpu *fpu = (struct savefpu *) &(xp->uc_mcontext.mc_fpstate);
-    uint32_t mxcsr = fpu->sv_env.en_mxcsr;
-    int xbit, maskbit;
-   
-    for (xbit = 0, maskbit = MXCSR_IM_BIT; xbit < 6; xbit++, maskbit++) {
-      if ((mxcsr & (1 << xbit)) &&
-          !(mxcsr & (1 << maskbit))) {
-        info->si_code = mxcsr_bit_to_fpe_code[xbit];
-        return;
-      }
+  int xbit, maskbit;
+  
+  for (xbit = 0, maskbit = MXCSR_IM_BIT; xbit < 6; xbit++, maskbit++) {
+    if ((mxcsr & (1 << xbit)) &&
+        !(mxcsr & (1 << maskbit))) {
+      info->si_code = mxcsr_bit_to_fpe_code[xbit];
+      return;
     }
   }
 }
+
+#ifdef FREEBSD
+void
+freebsd_decode_vector_fp_exception(siginfo_t *info, ExceptionInformation *xp)
+{
+  if (info->si_code == 0) {
+    struct savefpu *fpu = (struct savefpu *) &(xp->uc_mcontext.mc_fpstate);
+    uint32_t mxcsr = fpu->sv_env.en_mxcsr;
+
+    decode_vector_fp_exception(info, mxcsr);
+  }
+}
+#endif
+
+#ifdef DARWIN
+void
+darwin_decode_vector_fp_exception(siginfo_t *info, ExceptionInformation *xp)
+{
+  if (info->si_code == EXC_I386_SSEEXTERR) {
+    uint32_t mxcsr = UC_MCONTEXT(xp)->fs.fpu_mxcsr;
+
+    decode_vector_fp_exception(info, mxcsr);
+  }
+}
+
+#endif
+
 #endif
 
 Boolean
@@ -690,6 +713,11 @@ handle_exception(int signum, siginfo_t *info, ExceptionInformation  *context, TC
     */
     freebsd_decode_vector_fp_exception(info,context);
 #endif
+#ifdef DARWIN
+    /* Same general problem with Darwin as of 8.7.2 */
+    darwin_decode_vector_fp_exception(info,context);
+#endif
+
     return handle_floating_point_exception(tcr, context, info);
 
   case SIGBUS:
@@ -829,10 +857,26 @@ copy_fpregs(ExceptionInformation *xp, LispObj *current, fpregset_t *destptr)
 }
 #endif
 
+#ifdef DARWIN
+LispObj *
+copy_darwin_mcontext(struct mcontext64 *context, 
+                     LispObj *current, 
+                     struct mcontext64 **out)
+{
+  struct mcontext64 *dest = ((struct mcontext64 *)current)-1;
+  dest = (struct mcontext64 *) (((LispObj)dest) & ~15);
+
+  *dest = *context;
+  *out = dest;
+  return (LispObj *)dest;
+}
+#endif
+
 LispObj *
 copy_siginfo(siginfo_t *info, LispObj *current)
 {
   siginfo_t *dest = ((siginfo_t *)current) - 1;
+  dest = (siginfo_t *) (((LispObj)dest)&~15);
   *dest = *info;
   return (LispObj *)dest;
 }
@@ -953,12 +997,18 @@ interrupt_handler (int signum, siginfo_t *info, ExceptionInformation *context)
 void
 altstack_interrupt_handler (int signum, siginfo_t *info, ExceptionInformation *context)
 {
+#ifdef DARWIN_GS_HACK
+  Boolean gs_was_tcr = ensure_gs_pthread();
+#endif
   TCR *tcr = get_interrupt_tcr(false);
   LispObj *foreign_rsp = find_foreign_rsp(xpGPR(context,Isp), tcr->cs_area, tcr);
 #ifdef LINUX
   fpregset_t fpregs = NULL;
 #else
   void *fpregs = NULL;
+#endif
+#ifdef DARWIN
+  struct mcontext64 *mcontextp = NULL;
 #endif
   siginfo_t *info_copy = NULL;
   ExceptionInformation *xp = NULL;
@@ -967,11 +1017,22 @@ altstack_interrupt_handler (int signum, siginfo_t *info, ExceptionInformation *c
 #ifdef LINUX
     foreign_rsp = copy_fpregs(context, foreign_rsp, &fpregs);
 #endif
+#ifdef DARWIN
+    foreign_rsp = copy_darwin_mcontext(UC_MCONTEXT(context), foreign_rsp, &mcontextp);
+#endif
     foreign_rsp = copy_siginfo(info, foreign_rsp);
     info_copy = (siginfo_t *)foreign_rsp;
     foreign_rsp = copy_ucontext(context, foreign_rsp, fpregs);
     xp = (ExceptionInformation *)foreign_rsp;
+#ifdef DARWIN
+    UC_MCONTEXT(xp) = mcontextp;
+#endif
     *--foreign_rsp = (LispObj)__builtin_return_address(0);
+#ifdef DARWIN_GS_HACK
+    if (gs_was_tcr) {
+      set_gs_address(tcr);
+    }
+#endif
     switch_to_foreign_stack(foreign_rsp,interrupt_handler,signum,info_copy,xp);
   }
 }
@@ -996,13 +1057,13 @@ install_signal_handler(int signo, void * handler)
 void
 install_pmcl_exception_handlers()
 {
-  
+#ifndef DARWIN  
   install_signal_handler(SIGILL, altstack_signal_handler);
   
   install_signal_handler(SIGBUS, altstack_signal_handler);
   install_signal_handler(SIGSEGV,altstack_signal_handler);
   install_signal_handler(SIGFPE, altstack_signal_handler);
-
+#endif
   
   install_signal_handler(SIGNAL_FOR_PROCESS_INTERRUPT,
 			 altstack_interrupt_handler);
@@ -1013,6 +1074,9 @@ install_pmcl_exception_handlers()
 void
 altstack_suspend_resume_handler(int signum, siginfo_t *info, ExceptionInformation  *context)
 {
+#ifdef DARWIN_GS_HACK
+  Boolean gs_was_tcr = ensure_gs_pthread();
+#endif
   TCR* tcr = get_tcr(true);
   LispObj *foreign_rsp = find_foreign_rsp(xpGPR(context,Isp), tcr->cs_area, tcr);
 #ifdef LINUX
@@ -1020,6 +1084,10 @@ altstack_suspend_resume_handler(int signum, siginfo_t *info, ExceptionInformatio
 #else
   void *fpregs = NULL;
 #endif
+#ifdef DARWIN
+  struct mcontext64 *mcontextp = NULL;
+#endif
+
   siginfo_t *info_copy = NULL;
   ExceptionInformation *xp = NULL;
 
@@ -1027,11 +1095,22 @@ altstack_suspend_resume_handler(int signum, siginfo_t *info, ExceptionInformatio
 #ifdef LINUX
     foreign_rsp = copy_fpregs(context, foreign_rsp, &fpregs);
 #endif
+#ifdef DARWIN
+    foreign_rsp = copy_darwin_mcontext(UC_MCONTEXT(context), foreign_rsp, &mcontextp);
+#endif
     foreign_rsp = copy_siginfo(info, foreign_rsp);
     info_copy = (siginfo_t *)foreign_rsp;
     foreign_rsp = copy_ucontext(context, foreign_rsp, fpregs);
     xp = (ExceptionInformation *)foreign_rsp;
+#ifdef DARWIN
+    UC_MCONTEXT(xp) = mcontextp;
+#endif
     *--foreign_rsp = (LispObj)__builtin_return_address(0);
+#ifdef DARWIN_GS_HACK
+    if (gs_was_tcr) {
+      set_gs_address(tcr);
+    }
+#endif
     switch_to_foreign_stack(foreign_rsp,suspend_resume_handler,signum,info_copy,xp);
   }
 }
@@ -1572,9 +1651,9 @@ restore_mach_thread_state(mach_port_t thread, ExceptionInformation *pseudosigcon
 
   /* Set the thread's FP state from the pseudosigcontext */
   kret = thread_set_state(thread,
-                          x86_FLOAT_STATE,
+                          x86_FLOAT_STATE64,
                           (thread_state_t)&(mc->fs),
-                          x86_FLOAT_STATE_COUNT);
+                          x86_FLOAT_STATE64_COUNT);
 
   MACH_CHECK_ERROR("setting thread FP state", kret);
 
@@ -1672,9 +1751,9 @@ create_thread_context_frame(mach_port_t thread,
   
   bcopy(ts,&(mc->ss),sizeof(*ts));
 
-  thread_state_count = x86_FLOAT_STATE_COUNT;
+  thread_state_count = x86_FLOAT_STATE64_COUNT;
   thread_get_state(thread,
-		   x86_FLOAT_STATE,
+		   x86_FLOAT_STATE64,
 		   (thread_state_t)&(mc->fs),
 		   &thread_state_count);
 
