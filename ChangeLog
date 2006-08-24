@@ -1,3 +1,31 @@
+2006-08-23 22:59  gb
+
+	* lisp-kernel/x86-exceptions.c: Darwin needs to decode the mxcsr on
+	SIGFPE.
+	
+	DARWIN_GS_HACK changes in altstack handlers for interrupt/suspend.
+
+2006-08-23 22:58  gb
+
+	* lisp-kernel/x86-spentry64.s: x86-64 Darwin's math library is
+	pretty casual about causing spurious exceptions, so ignore them.
+
+2006-08-23 22:57  gb
+
+	* lisp-kernel/darwinx8664/.gdbinit: New file; like the linuxx8664
+	version, with different signals to be ignored by gdb.
+
+2006-08-23 22:56  gb
+
+	* lisp-kernel/x86-asmutils64.s: Using ud2b to force an exception in
+	pseudo_sigreturn() seems to cause/be related to spurious SIGTRAPs. 
+	Use int $0 instead.
+
+2006-08-23 22:55  gb
+
+	* level-1/x86-trap-support.lisp: First attempt at Darwinx8664
+	support; may need more work.
+
 2006-08-22 02:08  gb
 
 	* lisp-kernel/x86_print.c: Try not to use sprintf() (at least not
