@@ -84,10 +84,7 @@
 				  input-stream output-stream)))
 			    (unwind-protect
 				 (progn
-				   (with-lock-grabbed
-				       (*auto-flush-streams-lock*)
-				     (pushnew output-stream
-					      *auto-flush-streams*))
+                                   (add-autoflush-stream output-stream)
 				   (let* ((shared-input
 					   (input-stream-shared-resource
 					    input-stream)))
@@ -99,11 +96,7 @@
                                     *application*
                                     :note-current-package *package*)
 				   (funcall initial-function))
-			      (with-lock-grabbed
-				  (*auto-flush-streams-lock*)
-				(setq *auto-flush-streams*
-				      (delete output-stream
-					      *auto-flush-streams*)))
+                              (remove-autoflush-stream output-stream)
 			      (funcall cleanup-function)
 			      (when close-streams
 				(close input-stream)
