@@ -155,6 +155,11 @@
 	  (maybe-finish-process-kill p :kill))))
     (shutdown-lisp-threads)
     (while *open-file-streams*
+      (let* ((ioblock (stream-ioblock (car *open-file-streams*) nil)))
+        (when ioblock
+          (setf (ioblock-inbuf-lock ioblock) nil
+                (ioblock-outbuf-lock ioblock) nil
+                (ioblock-owner ioblock) nil)))
       (close (car *open-file-streams*)))
     (setf (interrupt-level) -1)       ; can't abort after this
     ))
