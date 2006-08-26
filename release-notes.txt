@@ -1,3 +1,177 @@
+OpenMCL 1.1-pre-069826
+- There's an (alpha-quality, maybe) port to x86-64 Darwin (e.g., the
+  Mac Pro.)  Some known problems include:
+  
+  * infrequently (but not infrequently enough) the lisp dies on
+    startup with a spurious "Trace/BKPT trap" error message.  This
+    seems to be timing-dependent and (very generally) seems to
+    involve the Mach exception thread not recognizing an exception
+    used to effect exception return.  Sometimes, this shows up
+    a (:SIGNALED 5) error when REBUILD-CCL runs the lisp to
+    create a new image.
+
+  * some math library primitives (#_asin, for one) generate
+    spurious incidental FP exceptions that have nothing to
+    do with the validity of the arguments or result.  To work around
+    this, the lisp ignores FP exceptions which might have occurred
+    during a call into the math library; that means that it doesn't
+    detect -real- FP exceptions when they're signaled.  (This bug
+    only affects things that call into the system math library;
+    lisp arithmetic operations that're done inline are not affected.)
+
+  * The version of OSX/Darwin that shipped with the Mac Pro is missing
+    some functionality that from OpenMCL's point of view is highly
+    desirable (namely, the ability to keep application-level thread-
+    specific data in a per-thread block of memory addressed by an
+    otherwise unused segment register.)  To get things working (as
+    well as they are), the lisp "shares" the segment register that
+    the pthreads library uses to access thread data.  This scheme
+    isn't intended to be long-lived (and negatively affects
+    performance of things like foreign-function calls, callbacks,
+    and exception handling).
+ 
+  * The .cdb files (libc only for Tiger) in ccl:darwin-x86-headers64;
+    were cross-developed on a Linux x86-64 system, since Apple
+    has not yet released the sources to their x86-64 enabled gcc.
+
+- On all platforms, stream code has been rewritten and often offers
+  better (sometimes substantially better) performance.  OPEN and
+  MAKE-SOCKET have each been extended to take additional keyword
+  arguments.
+
+  :SHARING, which can have the values :PRIVATE (the default), :LOCK,
+  or :EXTERNAL (NIL is also accepted as synonym for :EXTERNAL)
+
+   :PRIVATE specifies that the stream can only be accessed by
+   the thread that created it.  (There was some discussion on openmcl-devel
+   about the idea of "transferring ownership" of a stream; this has
+   not yet been implemented.)  Attempts to do I/O on a stream with
+   :PRIVATE sharing from a thread other than the stream's owner yield
+   an error.
+
+   :LOCK specifies that all access to the stream require the calling
+   thread to obtain a lock; there are separate "read" and "write"
+   locks for IO streams (so it's possible for one thread to read
+   from such a stream while another thread writes to it, for instance.)
+   :LOCK was the implicit default for all streams prior to this change.
+   (See below - under the discussion of the AUTO-FLUSH mechanism -
+   for a discussion of one of the implications of this change that
+   affects SLIME users.)
+
+   :EXTERNAL (or NIL) specifies that I/O primitives enforce no
+   access protocol.  This may be appropriate for some types of application
+   which can control stream access via application-level protocols.  Note
+   that since even the act of reading from a stream changes its internal
+   state (and simultaneous access from multiple threads can therefore
+   lead to corruption of that state), some care must be taken in the
+   design of such protocols.
+
+  The :BASIC keyword argument influences whether or not the stream
+  will be an instance of the class FUNDAMENTAL-STREAM (the superclass
+  from which all Gray stream classes inherit) or a subclass of the
+  built-in class CCL::BASIC-STREAM.  The default value of :BASIC
+  is T and this has effect for FILE-STREAMs created via OPEN;
+  SOCKETs are still always implemented as FUNDAMENTAL (Gray) streams,
+  though this should change soon.
+
+   The tradeoff between FUNDAMENTAL and BASIC streams is entirely
+   between flexibility and (potential or actual) performance.  I/O
+   primitives can recognize BASIC-STREAMs and exploit knowledge of
+   implementation details; FUNDAMENTAL stream classes can be
+   subclassed in a semi-standard way (the Gray streams protocol.)
+
+   For existing stream classes (FILE-STREAMs, SOCKETs, and the
+   internal CCL::FD-STREAM classes used to implement file streams
+   and sockets), a lot of code can be shared between the
+   FUNDAMENTAL and BASIC implementations.  The biggest difference
+   should be that that code can be reached from I/O primitives
+   like READ-CHAR without going through some steps that're there
+   to support generality and extensibility, and skipping those
+   steps when that support isn't needed can improve I/O performance.
+
+   Gray stream methods (STREAM-READ-CHAR) should work on
+   appropriate BASIC-STREAMs.  (There may still be cases where
+   such methods are undefined; such cases should be considered
+   bugs.)  It is not guaranteed that Gray stream methods would
+   ever be called by I/O primitives to read a character from
+   a BASIC-STREAM (though there are still cases where this happens.)
+
+   A simple loop reading 2M characters from a text file runs about
+   10X faster when the file is opened the new defaults (:SHARING :PRIVATE
+   :BASIC T) than it had before these changes were made.  That sounds
+   good, until one realizes that the "equivalent" C loop can be about
+   10X faster still ...
+
+ - Forcing output to interactive streams.
+
+   OpenMCL has long had a (mostly undocumented) mechanism whereby
+   a mostly idle thread wakes up a few (~3) times per second and
+   calls FORCE-OUTPUT on specified OUTPUT-STREAMS; this helps to
+   ensure that streams with which a user would be expected to
+   interact (the output side of *TERMINAL-IO*, listener windows
+   in a GUI, etc.) have all buffered output flushed without
+   requiring application or I/O library code to be concerned about
+   that.
+
+   The SLIME lisp interaction mode for Emacs uses this mechanism,
+   but the changes described above interfere with SLIMEs use of
+   it:  in order to be safely accessed from multiple threads (the
+   SLIME REPL thread and the thread which does the background
+   periodic flushing of buffered output), a stream must have
+   been created with :SHARING :LOCK in effect.  This is no longer
+   the effective default; the code which does the periodic
+   output flushing ignores streams which do not use locks as an
+   access/sharing mechanism.  THIS MEANS THAT BUFFERRED OUTPUT
+   TO SLIME REPLs WILL NOT BE AUTOMATICALLY FLUSHED TO THE SCREEN.
+   A small change to SLIME's "swank-openmcl.lisp" is required
+   to restore this functionality.  First,  a brief description of
+   a couple of new primitives:
+
+   (CCL:ADD-AUTO-FLUSH-STREAM s)
+
+    Adds "s", which should be a "simple" OUTPUT-STREAM as returned
+    by OPEN or MAKE-SOCKET, to a list of streams whose buffered
+    output should be periodically flushed.  If S was not created
+    with :SHARING :LOCK in effect, the stream will have its
+    :SHARING mode changed to put :SHARING :LOCK into effect.
+
+   (CCL:REMOVE-AUTO-FLUSH-STREAM s)
+    
+    Removes S from the internal list of automatically flushed
+    streams.  Does not restore the stream's :SHARING mode, which
+    may have been changed by a previous call to ADD-AUTO-FLUSH-STREAM.
+
+ - SLIME changes
+   In slime:swank-openmcl.lisp, around line 182, the method
+
+(defmethod make-stream-interactive ((stream ccl:fundamental-output-stream))
+  (push stream ccl::*auto-flush-streams*))
+
+   should be changed to use CCL:ADD-AUTOFLUSH-STREAM if it's defined:
+
+(defmethod make-stream-interactive ((stream ccl:fundamental-output-stream))
+  (if (fboundp 'ccl::add-auto-flush-stream)
+    (ccl::add-auto-flush-stream stream)
+    (push stream ccl::*auto-flush-streams*)))
+
+   That's adequate for the moment, since sockets are still 
+   FUNDAMENTAL-STREAMs.  When that changes, some more extensive changes
+   to swank-openmcl.lisp may become necessary.
+
+- on x86-64, floating-point-underflow exceptions are now enabled
+  by default.  (They really should be on ppc as well.)  Again,
+  this affects FP operations that are done in lisp code and
+  the results of FP operations that are reported in response
+  to calls to reasonable (non-Darwin) math libraries.  This
+  can affect whether or not some "potential number"  reader 
+  tokens are representable as numbers, e.g., whether or not
+  attempts to read something like "1.0f-50" signal underflow
+  or are quietly mapped to 0.0f0.
+
+- Bug fixes: see ChangeLog
+
+
+
 OpenMCL 1.1-pre-060705
 - Bug fixes again.  Some internal changes to support a FreeBSD/AMD64
   port that's not quite ready.
