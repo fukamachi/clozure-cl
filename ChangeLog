@@ -1,3 +1,40 @@
+2006-08-26 03:17  gb
+
+	* level-1/version.lisp: Bump.  New snapshots soon, I hope.
+
+2006-08-26 03:12  gb
+
+	* lisp-kernel/darwinx8664/Makefile: Pass -g in ASFLAGS; same
+	problems as always, but avoids problems with Darwin x86-64 ld64
+	segfaulting for unknown reasons.
+
+2006-08-26 03:11  gb
+
+	* lisp-kernel/x86-exceptions.h: Need to do an explicit sigreturn on
+	Darwin (because of the sigaltstack hacks; Darwin uses sigtramp glue
+	that we can't just return to after switching off of the alt stack.)
+
+2006-08-26 03:08  gb
+
+	* lib/numbers.lisp: Check fpu overflow bit (not underflow) when
+	deciding whether or not to signal overflow.
+
+2006-08-26 03:08  gb
+
+	* level-1/x86-trap-support.lisp: Need an indirection to access
+	mcontext from ucontext on Darwin; invent xp-gp-regs to get at
+	mcontext64.ss.
+
+2006-08-26 03:06  gb
+
+	* level-1/x86-error-signal.lisp: Add a declaration, to make this
+	easier to step through.
+
+2006-08-26 03:05  gb
+
+	* level-0/l0-float.lisp: SINGLE-FLOAT-HALF-PI: use f0 not e0, just
+	in case.
+
 2006-08-25 20:35  gb
 
 	* level-1/l1-boot-lds.lisp, level-1/l1-events.lisp,
