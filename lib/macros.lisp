@@ -373,7 +373,7 @@
       form)))
       
 
-(defmacro handler-case (form &rest clauses &aux last)
+(defmacro handler-case (form &rest clauses)
   "(HANDLER-CASE form
    { (type ([var]) body) }* )
    Execute FORM in a context with handlers established for the condition
@@ -381,28 +381,21 @@
    occurs, and form returns normally, all its values are passed to this clause
    as if by MULTIPLE-VALUE-CALL.  The :NO-ERROR clause accepts more than one
    var specification."
-  (flet ((handler-case (type var &rest body)
-           (when (eq type :no-error)
-             (signal-program-error "The :no-error clause must be last."))
+  (let* ((no-error-clause (assoc :no-error clauses)))
+    (if no-error-clause
+      (let* ((normal-return (gensym))
+             (error-return (gensym)))
+        `(block ,error-return
+          (multiple-value-call #'(lambda ,@(cdr no-error-clause))
+            (block ,normal-return
+              (return-from ,error-return
+                (handler-case (return-from ,normal-return ,form)
+                  ,@(remove no-error-clause clauses)))))))
+      (flet ((handler-case (type var &rest body)
+               (when (eq type :no-error)
+                 (signal-program-error "Duplicate :no-error clause. "))
            (values type var body)))
-    (cond ((null clauses) form)
-          ((eq (car (setq last (car (last clauses)))) :no-error)
-           (let ((error (gensym))
-                 (block (gensym))
-                 (var   (cadr last)))
-             (if var
-               `(block ,error
-                  (multiple-value-call #'(lambda ,@(cdr last))
-                                       (block ,block
-                                         (return-from ,error
-                                           (handler-case (return-from ,block ,form)
-                                             ,@(butlast clauses))))))
-               `(block ,error
-                  (block ,block
-                    (return-from ,error
-                      (handler-case (return-from ,block ,form)
-                        ,@(butlast clauses))))
-                  (locally ,@(cddr last))))))
+        (cond ((null clauses) form)
           ((null (cdr clauses))
            (let ((block   (gensym))
                  (cluster (gensym)))
@@ -439,7 +432,7 @@
                                 (declare (dynamic-extent ,cluster %handlers%))
                                 (catch ,cluster (return-from ,block ,form)))))
                     (case (pop ,val)
-                      ,@(nreverse cases)))))))))
+                      ,@(nreverse cases)))))))))))
 
 (defmacro with-simple-restart ((restart-name format-string &rest format-args)
                                &body body
