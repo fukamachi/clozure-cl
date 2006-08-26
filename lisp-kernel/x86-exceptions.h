@@ -27,8 +27,8 @@ typedef u8_t opcode, *pc;
 #endif
 
 #ifdef DARWIN
-/* DarwinSigReturn works around an old G5 bug */
-#define DarwinSigReturn(context)
+#include <sys/syscall.h>
+#define DarwinSigReturn(context) syscall(SYS_sigreturn,context)
 #ifdef X8664
 #define xpGPRvector(x) ((natural *)(&(UC_MCONTEXT(x)->ss.rax)))
 #define xpGPR(x,gprno) (xpGPRvector(x)[gprno])
