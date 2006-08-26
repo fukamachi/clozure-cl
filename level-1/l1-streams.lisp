@@ -1298,7 +1298,7 @@
 (defmethod stream-clear-input ((s fundamental-character-input-stream))
   )
 
-(defmethod stream-read-line ((s fundamental-character-input-stream))
+(defmethod stream-read-line ((s character-input-stream))
   (generic-read-line s))
 
 (defclass character-output-stream (output-stream character-stream)
@@ -1446,7 +1446,7 @@
 (make-built-in-class 'basic-binary-stream 'basic-stream 'binary-stream)
 
 (make-built-in-class 'basic-input-stream 'basic-stream 'input-stream)
-(make-built-in-class 'basic-output-stream 'basic-stream 'input-stream)
+(make-built-in-class 'basic-output-stream 'basic-stream 'output-stream)
 (make-built-in-class 'basic-io-stream 'basic-input-stream 'basic-output-stream)
 (make-built-in-class 'basic-character-input-stream 'basic-input-stream 'basic-character-stream 'character-input-stream)
 (make-built-in-class 'basic-character-output-stream 'basic-output-stream 'basic-character-stream 'character-output-stream)
@@ -1573,6 +1573,12 @@
       (with-ioblock-input-locked (ioblock)
         (%ioblock-character-read-vector ioblock vector start end)))))
 
+(defmethod stream-read-line ((stream basic-character-input-stream))
+  (let* ((ioblock (basic-stream-ioblock stream)))
+    (with-ioblock-input-locked (ioblock)
+      (%ioblock-read-line ioblock))))
+
+                             
 ;;; Synonym streams.
 
 (defclass synonym-stream (fundamental-stream)
