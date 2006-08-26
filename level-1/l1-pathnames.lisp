@@ -667,39 +667,22 @@
 
 (setup-initial-translations)
 
-;;;This function should be changed to standardize the name more than
-;;;it does.  It should eliminate non-leading instances of "::" etc at
-;;;least.  We might also want it to always return an absolute pathname
-;;;(i.e. fill in the default mac directory), so as to make it a sort
-;;;of harmless truename (which is how I think it's mainly used).
-;;;Unfortunately that would make it go to the file system, but it
-;;;might be worth it.  This function used to also remove quoting so as
-;;;to make the name suitable for passing to rom.  It doesn't
-;;;anymore. Use mac-namestring for that.  does anybody use this??  DO
-;;;- merge in default if relative, and do the :: stuff perhaps call it
-;;;expand-pathname or expanded-pathname
 
+;;; Translate the pathname; if the directory component of the result
+;;; is relative, make it absolute (relative to the current directory.)
 (defun full-pathname (path &key (no-error t))
-  (let ((orig-path path))
-    (cond (no-error
-           ; note that ignore-errors wont work until var %handlers% is defined (in l1-init)
-           (setq path (ignore-errors
-                       (translate-logical-pathname (merge-pathnames path))))
-           (when (null path) (return-from full-pathname nil)))
-          (t (setq path (translate-logical-pathname (merge-pathnames path)))))
-    (let* ((ihost (pathname-host orig-path))
-           (dir (%pathname-directory path)))
-      (when (and no-error (not dir) (%pathname-directory path)) ; WHAT is  that noop - since 3.0??
-        (return-from full-pathname nil))
-      (when (and ihost (neq ihost :unspecific))  ; << this is new. is it right?
-        (if (eq (car dir) :relative)  ; don't make relative to mac-default-dir if had a host???
-          (setq dir (cons :absolute (cdr dir)))))
-      (setq dir (absolute-directory-list dir))      
-      (unless (eq dir (%pathname-directory path))
-        (setq path (cons-pathname dir (%pathname-name path) (%pathname-type path)
-                                  (pathname-host path) (pathname-version path))))
-      path)))
-
+  (let* ((path (handler-case (translate-logical-pathname (merge-pathnames path))
+                 (error (condition) (if no-error
+                                      (return-from full-pathname nil)
+                                      (error condition)))))
+         (dir (%pathname-directory path)))
+    (if (eq (car dir) :absolute)
+      path
+      (cons-pathname (absolute-directory-list dir)
+                       (%pathname-name path)
+                       (%pathname-type path)
+                       (pathname-host path)
+                       (pathname-version path)))))
 
 
 
