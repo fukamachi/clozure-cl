@@ -120,7 +120,6 @@
 	      (ccl:set-fpu-mode :invalid invalid)))))
 	 (expt (setq expt (%i+ expt (* esign eexp))))
 	 (t (return-from parse-float nil)))))
-    ; if ppc read s as double vs error
     (fide sign integer expt (subtypep type 'short-float))))
 
 
@@ -242,11 +241,11 @@
              (if (get-fpu-mode :underflow)
                (error 'floating-point-underflow
                       :operation 'scale
-                      :operand (list sign integer power-of-10)))
-             (if (get-fpu-mode :underflow)
+                      :operands (list sign integer power-of-10)))
+             (if (get-fpu-mode :overflow)
                (error 'floating-point-overflow
                       :operation 'scale
-                      :operand (list sign integer power-of-10))))
+                      :operands (list sign integer power-of-10))))
            (return-from try-harder
              (if under
                (if short
@@ -264,7 +263,7 @@
             ;; overestimate digits in integer
             (when (< poo -335) (ovf t))
             ;; this case occurs if 600+ digits 
-            (when (> poo 335)(ovf))))
+            (when (> poo 335) (ovf))))
         (let* ((divisor (5-to-e (- power-of-10)))
                ;; make sure we will have enough bits in the quotient
                ;; (and a couple extra for rounding)
