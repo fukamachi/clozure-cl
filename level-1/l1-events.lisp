@@ -185,7 +185,7 @@
                  (ioblock-outbuf-lock (stream-ioblock s t)))
 	(maybe-stream-force-output s)))))
 
-(defun add-autoflush-stream (s)
+(defun add-auto-flush-stream (s)
   (with-lock-grabbed (*auto-flush-streams-lock*)
     (unless (member s *auto-flush-streams*)
       (let* ((ioblock (stream-ioblock s t)))
@@ -194,7 +194,7 @@
                 (ioblock-owner ioblock) nil)))
       (push s *auto-flush-streams*))))
       
-(defun remove-autoflush-stream (s)
+(defun remove-auto-flush-stream (s)
   (with-lock-grabbed (*auto-flush-streams-lock*)
     (setq *auto-flush-streams* (delete s *auto-flush-streams*))))
 

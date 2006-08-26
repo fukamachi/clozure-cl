@@ -280,6 +280,8 @@
      get-string-from-user
      with-terminal-input
      *request-terminal-input-via-break*
+     add-auto-flush-stream
+     remove-auto-flush-stream
      select-item-from-list
 
 
