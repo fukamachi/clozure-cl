@@ -1,3 +1,28 @@
+2006-08-25 20:35  gb
+
+	* level-1/l1-boot-lds.lisp, level-1/l1-events.lisp,
+	lib/ccl-export-syms.lisp: Hyphenate ADD-AUTO-FLUSH-STREAM and
+	REMOVE-AUTO-FLUSH-STREAM.
+	
+	Export them, too.
+
+2006-08-25 20:22  gb
+
+	* lib/streams.lisp: READ-LINE on BASIC-INPUT-STREAM w/o
+	STREAM-READ-LINE.
+
+2006-08-25 20:22  gb
+
+	* lib/macros.lisp: HANDLER-CASE: the :NO-ERROR clause can appear at
+	most once but doesn't have to be the last clause.
+
+2006-08-25 20:21  gb
+
+	* level-1/l1-streams.lisp: BASIC-OUTPUT-STREAM isn't an
+	INPUT-STREAM.
+	
+	Some STREAM-READ-LINE support for BASIC-CHARACTER-INPUT-STREAM.
+
 2006-08-25 20:19  gb
 
 	* level-1/l1-readloop.lisp: PREPARE-TO-QUIT: other threads should
