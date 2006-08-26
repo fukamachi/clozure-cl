@@ -908,7 +908,7 @@
 
 (eval-when (:execute :compile-toplevel)
   (defconstant double-float-half-pi (asin 1.0d0))
-  (defconstant single-float-half-pi (asin 1.0e0))
+  (defconstant single-float-half-pi (asin 1.0f0))
 )
 
 
