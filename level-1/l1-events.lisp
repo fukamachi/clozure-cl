@@ -178,18 +178,31 @@
       task)))
 
 
-(defun event-poll ()
-  (with-lock-grabbed-maybe (*auto-flush-streams-lock*)
+(defun auto-flush-interactive-streams ()
+  (with-lock-grabbed (*auto-flush-streams-lock*)
     (dolist (s *auto-flush-streams*)
-      (when (open-stream-p s)
-	(stream-maybe-force-output s)))))
+      (when (and (open-stream-p s)
+                 (ioblock-outbuf-lock (stream-ioblock s t)))
+	(maybe-stream-force-output s)))))
 
+(defun add-autoflush-stream (s)
+  (with-lock-grabbed (*auto-flush-streams-lock*)
+    (unless (member s *auto-flush-streams*)
+      (let* ((ioblock (stream-ioblock s t)))
+        (unless (ioblock-outbuf-lock ioblock)
+          (setf (ioblock-outbuf-lock ioblock) (make-lock)
+                (ioblock-owner ioblock) nil)))
+      (push s *auto-flush-streams*))))
+      
+(defun remove-autoflush-stream (s)
+  (with-lock-grabbed (*auto-flush-streams-lock*)
+    (setq *auto-flush-streams* (delete s *auto-flush-streams*))))
 
 ; Is it really necessary to keep this guy in a special variable ?
 (defloadvar *event-dispatch-task* 
   (%install-periodic-task 
-   'event-poll
-   'event-poll
+   'auto-flush-interactive-streams
+   'auto-flush-interactive-streams
    33
    (+ $ptask_draw-flag $ptask_event-dispatch-flag)))
 
