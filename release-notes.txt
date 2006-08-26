@@ -168,6 +168,9 @@ OpenMCL 1.1-pre-069826
   attempts to read something like "1.0f-50" signal underflow
   or are quietly mapped to 0.0f0.
 
+- examples: Phil (from the mailing list) has added code which 
+  supports some of the ffi examples from the documentation.
+
 - Bug fixes: see ChangeLog
 
 
