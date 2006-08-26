@@ -32,9 +32,15 @@
 
 
 (defun read-line (&optional input-stream (eof-error-p t) eof-value recursive-p)
+  
   (declare (ignore recursive-p))
   (let* ((input-stream (designated-input-stream input-stream)))
-    (multiple-value-bind (string eof) (stream-read-line input-stream)
+    (multiple-value-bind (string eof)
+        (if (typep input-stream 'basic-stream)
+          (let* ((ioblock (basic-stream-ioblock input-stream)))
+            (with-ioblock-input-locked (ioblock)
+              (%ioblock-read-line ioblock)))
+          (stream-read-line input-stream))
       (if eof
 	(if (= (length string) 0)
 	  (if eof-error-p
