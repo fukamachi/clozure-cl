@@ -65,6 +65,7 @@
          (op0 (%get-xcf-byte xcf 0))
          (op1 (%get-xcf-byte xcf 1))
          (op2 (%get-xcf-byte xcf 2)))
+    (declare (type (unsigned-byte 8) op0 op1 op2))
     (let* ((skip 2))
       (if (and (= op0 #xcd)
                (>= op1 #x80))
