@@ -1,3 +1,33 @@
+2006-08-25 20:19  gb
+
+	* level-1/l1-readloop.lisp: PREPARE-TO-QUIT: other threads should
+	be dead by the time that streams on *OPEN-FILE-STREAMS* are closed,
+	so unlock those streams with extreme prejudice before closing them.
+
+2006-08-25 20:18  gb
+
+	* level-1/l1-pathnames.lisp: FULL-PATHNAME: remove some weird old
+	code that assumed that interfered with handling of relative logical
+	pathnames.
+
+2006-08-25 20:17  gb
+
+	* level-1/l1-events.lisp: Rename EVENT-POLL to
+	AUTO-FLUSH-INTERACTIVE-STREAMS.
+	
+	Make AUTO-FLUSH-INTERACTIVE-STREAMS do conditional locking on each
+	stream (doing nothing if it's not :SHARING :LOCK; unconditional
+	locking on the *AUTO-FLUSH-STREAMS-LOCK*.
+	
+	ADD-AUTOFLUSH-STREAM ensures that the stream is :SHARING :LOCK.
+	
+	REMOVE-AUTOFLUSH-STREAM.
+
+2006-08-25 20:13  gb
+
+	* level-1/l1-boot-lds.lisp: MAKE-MCL-LISTENER-STREAM uses
+	ADD-AUTOFLUSH-STREAM, REMOVE-AUTOFLUSH-STREAM.
+
 2006-08-23 22:59  gb
 
 	* lisp-kernel/x86-exceptions.c: Darwin needs to decode the mxcsr on
