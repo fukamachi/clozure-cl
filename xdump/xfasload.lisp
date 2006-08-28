@@ -1105,6 +1105,14 @@
       (%fasl-read-n-bytes s v (+ o *xload-target-misc-data-offset*) n)
       str)))
 
+(defxloadfaslop $fasl-nvstr (s)
+  (let* ((n (%fasl-read-count s)))
+    (multiple-value-bind (str v o) (xload-make-ivector *xload-readonly-space* :simple-string n)
+      (%epushval s str)
+      (dotimes (i n)
+        (setf (u8-ref v (+ o i *xload-target-misc-data-offset*))
+              (%fasl-read-count s)))
+      str)))
 
 ;;; Allegedly deprecated.
 (defxloadfaslop $fasl-fixnum (s)
@@ -1164,8 +1172,14 @@
 (defxloadfaslop $fasl-vmksym (s)
   (%xload-fasl-vmake-symbol s))
 
+(defxloadfaslop $fasl-nvmksym (s)
+  (%xload-fasl-nvmake-symbol s))
+
 (defxloadfaslop $fasl-vmksym-special (s)
   (%xload-fasl-vmake-symbol s t))
+
+(defxloadfaslop $fasl-nvmksym-special (s)
+  (%xload-fasl-nvmake-symbol s t))
 
 (defun %xload-fasl-vintern (s package &optional idx)
   (multiple-value-bind (str len new-p) (%fasl-vreadstr s)
