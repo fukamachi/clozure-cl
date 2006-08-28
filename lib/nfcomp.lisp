@@ -891,7 +891,7 @@ Will differ from *compiling-file* during an INCLUDE")
 ;;;;
 ;These should be constants, but it's too much trouble when need to change 'em.
 (defparameter FASL-FILE-ID #xFF00)  ;Overall file format, shouldn't change much
-(defparameter FASL-VERSION #xFF48)  ;Fasl block format.
+(defparameter FASL-VERSION #xFF49)  ;Fasl block format.
 
 (defvar *fasdump-hash*)
 (defvar *fasdump-read-package*)
@@ -1224,9 +1224,9 @@ Will differ from *compiling-file* during an INCLUDE")
     (double-float (fasl-dump-dfloat exp))
     (single-float (fasl-dump-sfloat exp))
     (simple-string (let* ((n (length exp)))
-                     (fasl-out-opcode $fasl-vstr exp)
+                     (fasl-out-opcode $fasl-nvstr exp)
                      (fasl-out-count n)
-                     (fasl-out-ivect exp 0 n)))
+                     (fasl-out-simple-string exp 0 n)))
     (simple-bit-vector (fasl-dump-bit-vector exp))
     ((simple-array (unsigned-byte 8) (*))
      (fasl-dump-8-bit-ivector exp $fasl-u8-vector))
@@ -1488,8 +1488,8 @@ Will differ from *compiling-file* during an INCLUDE")
 
 (defun fasl-dump-package (pkg)
   (let ((name (package-name pkg)))
-    (fasl-out-opcode $fasl-vpkg pkg)
-    (fasl-out-vstring name)))
+    (fasl-out-opcode $fasl-nvpkg pkg)
+    (fasl-out-nvstring name)))
 
 
 
@@ -1537,31 +1537,38 @@ Will differ from *compiling-file* during an INCLUDE")
                 (unless (zerop i) i))))
     (cond ((null pkg) 
            (progn 
-             (fasl-out-opcode (if idx $fasl-vmksym-special $fasl-vmksym) sym)
-             (fasl-out-vstring name)))
+             (fasl-out-opcode (if idx $fasl-nvmksym-special $fasl-nvmksym) sym)
+             (fasl-out-nvstring name)))
           (*fasdump-epush*
            (progn
              (fasl-out-byte (fasl-epush-op (if idx
-                                             $fasl-vpkg-intern-special
-                                             $fasl-vpkg-intern)))
+                                             $fasl-nvpkg-intern-special
+                                             $fasl-nvpkg-intern)))
              (fasl-dump-form pkg)
              (fasl-dump-epush sym)
-             (fasl-out-vstring name)))
+             (fasl-out-nvstring name)))
           (t
            (progn
              (fasl-out-byte (if idx
-                              $fasl-vpkg-intern-special
-                              $fasl-vpkg-intern))
+                              $fasl-nvpkg-intern-special
+                              $fasl-nvpkg-intern))
              (fasl-dump-form pkg)
-             (fasl-out-vstring name))))))
+             (fasl-out-nvstring name))))))
 
 
 (defun fasl-unknown (exp)
-  (error "Can't dump ~S - unknown type" exp)) 
+  (error "Can't dump ~S - unknown type" exp))
 
-(defun fasl-out-vstring (str)
+(defun fasl-out-simple-string (str start end)
+  (declare (simple-string str) (fixnum start end))
+  (do* ((k start (1+ k)))
+       ((= k end))
+    (declare (fixnum k))
+    (fasl-out-count (char-code (schar str k)))))
+
+(defun fasl-out-nvstring (str)
   (fasl-out-count (length str))
-  (fasl-out-ivect str))
+  (fasl-out-simple-string str 0 (length str)))
 
 (defun fasl-out-ivect (iv &optional 
                           (start 0) 
