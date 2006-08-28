@@ -1243,7 +1243,7 @@ are no Forms, OR returns NIL."
 
 
 (defmacro %char-code (c) `(char-code (the character ,c)))
-(defmacro %code-char (i) `(code-char (the (unsigned-byte 16) ,i)))
+(defmacro %code-char (i) `(code-char (the (mod ,char-code-limit) ,i)))
 
 (defmacro %izerop (x) `(eq ,x 0))
 (defmacro %iminusp (x) `(< (the fixnum ,x) 0))
