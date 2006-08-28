@@ -584,7 +584,7 @@
           (setq idx (io-buffer-idx buf)
                 limit (io-buffer-count buf)))
         (setf (io-buffer-idx buf) (the fixnum (1+ idx)))
-        (schar (io-buffer-buffer buf) idx)))))
+        (%code-char (aref (the (simple-array (unsigned-byte 8) (*)) (io-buffer-buffer buf)) idx))))))
 
 (defun %private-ioblock-tyi (ioblock)
   (declare (optimize (speed 3) (safety 0)))
@@ -602,7 +602,7 @@
 	(setq idx (io-buffer-idx buf)
 	      limit (io-buffer-count buf)))
       (setf (io-buffer-idx buf) (the fixnum (1+ idx)))
-      (schar (io-buffer-buffer buf) idx))))
+      (%code-char (aref (the (simple-array (unsigned-byte 8) (*)) (io-buffer-buffer buf)) idx)))))
 
 (defun %locked-ioblock-tyi (ioblock)
   (declare (optimize (speed 3) (safety 0)))
@@ -621,7 +621,7 @@
           (setq idx (io-buffer-idx buf)
                 limit (io-buffer-count buf)))
         (setf (io-buffer-idx buf) (the fixnum (1+ idx)))
-        (schar (io-buffer-buffer buf) idx)))))
+        (%code-char (aref (the (simple-array (unsigned-byte 8) (*)) (io-buffer-buffer buf)) idx))))))
 
 (declaim (inline %ioblock-tyy-no-hang))
 
@@ -640,7 +640,7 @@
 	(setq idx (io-buffer-idx buf)
 	      limit (io-buffer-count buf)))
       (setf (io-buffer-idx buf) (the fixnum (1+ idx)))
-      (schar (io-buffer-buffer buf) idx))))
+      (%code-char (aref (the (simple-array (unsigned-byte 8) (*)) (io-buffer-buffer buf)) idx)))))
 
 
 (defun %ioblock-peek-char (ioblock)
@@ -654,8 +654,7 @@
             (return-from %ioblock-peek-char :eof))
           (setq idx (io-buffer-idx buf)
                 limit (io-buffer-count buf)))
-	(let ((byte (uvref (io-buffer-buffer buf) idx)))
-	  (if (characterp byte) byte (%code-char byte))))))
+        (%code-char (aref (the (simple-array (unsigned-byte 8) (*)) (io-buffer-buffer buf)) idx)))))
 
 (defun %ioblock-clear-input (ioblock)    
     (let* ((buf (ioblock-inbuf ioblock)))
@@ -734,7 +733,7 @@
 	 (bufsize (io-buffer-size out))
 	 (buffer (io-buffer-buffer out)))
     (declare (fixnum written bufsize col)
-	     (simple-string buffer)
+	     (type (simple-array (unsigned-byte 8) (*)) buffer)
 	     (optimize (speed 3) (safety 0)))
     (do* ((pos start-octet (+ pos written))
 	  (left num-octets (- left written)))
@@ -2358,9 +2357,19 @@
   (with-stream-ioblock-input (ioblock stream :speedy t)
     (%ioblock-eofp ioblock)))
 
+(defmethod stream-eofp ((stream basic-input-stream))
+  (let* ((ioblock (basic-stream-ioblock stream)))
+    (with-ioblock-input-locked (ioblock)
+      (%ioblock-eofp ioblock))))
+
 (defmethod stream-listen ((stream buffered-input-stream-mixin))
   (with-stream-ioblock-input (ioblock stream :speedy t)
     (%ioblock-listen ioblock)))
+
+(defmethod stream-listen ((stream basic-input-stream))
+  (let* ((ioblock (basic-stream-ioblock stream)))
+    (with-ioblock-input-locked (ioblock)
+      (%ioblock-listen ioblock))))
 
 (defun flush-ioblock (ioblock finish-p)
   (with-ioblock-output-locked (ioblock)
@@ -2400,6 +2409,12 @@
 (defmethod stream-line-column ((stream buffered-character-output-stream-mixin))
   (let* ((ioblock (stream-ioblock stream nil)))
     (and ioblock (ioblock-charpos ioblock))))
+
+(defmethod stream-line-column ((stream basic-character-output-stream))
+  (let* ((ioblock (basic-stream.state stream)))
+    (and ioblock (ioblock-charpos ioblock))))
+
+
 
 (defmethod stream-set-column ((stream buffered-character-output-stream-mixin)
                               new)
