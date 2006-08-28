@@ -1,3 +1,55 @@
+2006-08-28 04:57  gb
+
+	* level-1/l1-streams.lisp: More missing BASIC-STREAM methods
+	(STREAM-LINE-COLUMN, STREAM-LISTEN, STREAM-EOFP.)
+
+2006-08-28 04:57  gb
+
+	* level-1/l1-reader.lisp: Use READ-CHAR instead of
+	STREAM-READ-CHAR, since it may be faster in some cases.
+
+2006-08-28 04:56  gb
+
+	* level-1/l1-events.lisp: Unscramble auto-flush-streams stuff
+	(don't assume ioblock-based stream.)
+
+2006-08-28 04:55  gb
+
+	* level-1/l1-boot-2.lisp: Initial FD-STREAMs are BASIC-STREAMs.
+
+2006-08-28 04:55  gb
+
+	* level-0/PPC/ppc-symbol.lisp: Change some REQUIRE forms; cosmetic.
+	 (Maybe not even cosmetic.)
+
+2006-08-28 04:54  gb
+
+	* compiler/PPC/: ppc2.lisp, PPC32/ppc32-vinsns.lisp,
+	PPC64/ppc64-vinsns.lisp: %unbox-u8, u8-vref stuff.
+
+2006-08-28 04:53  gb
+
+	* xdump/faslenv.lisp: New fasl ops for new string encodings.
+
+2006-08-28 04:52  gb
+
+	* lib/macros.lisp: %CHAR-CODE: for how long has limit not been 2^16
+	?  For how long will limit be 2^8 ?
+
+2006-08-28 04:51  gb
+
+	* level-0/nfasload.lisp: More fasl ops.
+
+2006-08-28 04:51  gb
+
+	* compiler/X86/: x862.lisp, X8664/x8664-vinsns.lisp: %UNBOX-U8,
+	u8-vref stuff.
+
+2006-08-28 04:50  gb
+
+	* compiler/arch.lisp: Add CHAR-CODE-LIMIT slot to TARGET-ARCH; may
+	not be the best way to do this.
+
 2006-08-26 13:58  gb
 
 	* release-notes.txt: Updated.
