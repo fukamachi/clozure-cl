@@ -1,3 +1,19 @@
+2006-08-28 17:01  gb
+
+	* xdump/faslenv.lisp: Bump max fasl version.
+
+2006-08-28 16:48  gb
+
+	* lib/nfcomp.lisp: Use new string ops.	Bump current fasl version.
+
+2006-08-28 16:33  gb
+
+	* xdump/faslenv.lisp: Bump (max) fasl version.
+
+2006-08-28 16:30  gb
+
+	* xdump/xfasload.lisp: xloader was missing a few new ops.
+
 2006-08-28 05:34  gb
 
 	* xdump/xfasload.lisp: New string stuff here, too.
