@@ -17,7 +17,10 @@
 (in-package "CCL")
 
 (eval-when (:compile-toplevel :execute)
+  #+ppc32-target
   (require "PPC32-ARCH")
+  #+ppc64-target
+  (require "PPC64-ARCH")
   (require "PPC-LAPMACROS"))
 
 ;;; This assumes that macros & special-operators
