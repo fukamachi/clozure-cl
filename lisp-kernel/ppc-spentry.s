@@ -4333,7 +4333,7 @@ local_label(misc_set_s32):
 	 __(blr)
 local_label(misc_set_single_float_vector):
          __(extract_lisptag(imm2,arg_z))
-         __(cmpwi cr7,imm0,tag_misc)
+         __(cmpwi cr7,imm2,tag_misc)
          __(la imm0,misc_data_offset(arg_y))
 	 __(bne- cr7,local_label(set_bad))
 	 __(extract_header(imm2,arg_z))
