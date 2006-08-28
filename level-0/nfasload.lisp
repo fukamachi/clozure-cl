@@ -39,9 +39,9 @@
 )
 
 (eval-when (:execute :compile-toplevel)
-  (assert (= 64 numfaslops)))
+  (assert (= 80 numfaslops)))
 
-(defvar *fasl-dispatch-table* #64(%bad-fasl))
+(defvar *fasl-dispatch-table* #80(%bad-fasl))
 
 (defun %bad-fasl (s)
   (error "bad opcode near position ~d in FASL file ~s"
