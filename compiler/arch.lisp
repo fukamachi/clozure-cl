@@ -195,7 +195,8 @@
   (subtag-char 0)
   (charcode-shift 0)
   (fulltagmask 0)
-  (fulltag-misc 0))
+  (fulltag-misc 0)
+  (char-code-limit nil))
   
 
   
