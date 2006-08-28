@@ -1,3 +1,11 @@
+2006-08-28 05:34  gb
+
+	* xdump/xfasload.lisp: New string stuff here, too.
+
+2006-08-28 05:28  gb
+
+	* level-0/nfasload.lisp: New string stuff.
+
 2006-08-28 04:57  gb
 
 	* level-1/l1-streams.lisp: More missing BASIC-STREAM methods
