@@ -662,12 +662,12 @@
   (pushq (:@ x8664::cons.car (:%q src))))
 
 
-(define-x8664-vinsn u8->char (((dest :lisp))
+(define-x8664-vinsn u8->char (((dest :lisp)
+                               (src :u8))
 			      ((src :u8))
 			      ())
-  (imulq (:$b x8664::fixnumone) (:%q src)(:%q dest))
-  (shlq (:$ub (- x8664::charcode-shift x8664::fixnum-shift)) (:%q dest))
-  (movb (:$b x8664::subtag-character) (:%b dest)))
+  (shll (:$ub x8664::charcode-shift) (:%l src))
+  (leaq  (:@ x8664::subtag-character (:%q src)) (:%q dest)))
 
 
 (define-x8664-vinsn (load-nil :constant-ref) (((dest t))
@@ -792,6 +792,12 @@
   :ok
   (movq (:%q src) (:%q dest))
   (shrq (:$ub x8664::fixnumshift) (:%q dest)))
+
+(define-x8664-vinsn %unbox-u8 (((dest :u8))
+			      ((src :lisp)))
+  (movl (:%l src) (:%l dest))
+  (shrl (:$ub x8664::fixnumshift) (:%l dest))
+  (movzbl (:%b dest) (:%l dest)))
 
 (define-x8664-vinsn unbox-s8 (((dest :s8))
 			      ((src :lisp)))
