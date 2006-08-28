@@ -1090,6 +1090,12 @@
   (uuo_interr arch::error-object-not-unsigned-byte-8 src)
   :got-it)
 
+(define-ppc64-vinsn %unbox-u8 (((dest :u8))
+			      ((src :lisp)))
+  ;; The bottom ppc64::fixnumshift bits and the top (- 63 (+
+  ;; ppc64::fixnumshift 8)) must all be zero.
+  (rldicl dest src (- 64 ppc64::fixnumshift) 56))
+
 (define-ppc64-vinsn unbox-s8 (((dest :s8))
 			      ((src :lisp))
 			      ((crf :crf)))

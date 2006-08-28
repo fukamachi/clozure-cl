@@ -992,12 +992,18 @@
 (define-ppc32-vinsn unbox-u8 (((dest :u8))
                               ((src :lisp))
                               ((crf0 (:crf 0))))
-                                        ; The bottom ppc32::fixnumshift bits and the top (- 31 (+ ppc32::fixnumshift 8)) must all be zero.
+  ;; The bottom ppc32::fixnumshift bits and the top (- 31 (+
+  ;; ppc32::fixnumshift 8)) must all be zero.
   (rlwinm. dest src 0 (- ppc32::nbits-in-word ppc32::fixnumshift) (- ppc32::least-significant-bit (+ ppc32::fixnumshift 8)))
   (rlwinm dest src (- 32 ppc32::fixnumshift) 24 31)
   (beq+ crf0 :got-it)
   (uuo_interr arch::error-object-not-unsigned-byte-8 src)
   :got-it)
+
+(define-ppc32-vinsn %unbox-u8 (((dest :u8))
+                              ((src :lisp))
+)
+  (rlwinm dest src (- 32 ppc32::fixnumshift) 24 31))
 
 (define-ppc32-vinsn unbox-s8 (((dest :s8))
                               ((src :lisp))
@@ -2308,6 +2314,7 @@
                                   ())
   (slwi dest src (- ppc32::charcode-shift ppc32::fixnumshift))
   (addi dest dest ppc32::subtag-character))
+
 
 (define-ppc32-vinsn u8->char (((dest :lisp))
                               ((src :u8))
