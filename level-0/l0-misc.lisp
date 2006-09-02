@@ -24,7 +24,31 @@
     (if (eq item (car tail))
       (return tail))))
 
+(defun %copy-u8-to-string (u8-vector source-idx string dest-idx n)
+  (declare (optimize (speed 3) (safety 0))
+           (fixnum source-idx dest-idx n)
+           (type (simple-array (unsigned-byte 8) (*)) u8-vector)
+           (simple-base-string string))
+  (do* ((i 0 (1+ i)))
+       ((= i n) string)
+    (declare (fixnum i))
+    (setf (%scharcode string dest-idx) (aref u8-vector source-idx))
+    (incf source-idx)
+    (incf dest-idx)))
 
+(defun %copy-string-to-u8 (string source-idx u8-vector dest-idx n)
+  (declare (optimize (speed 3) (safety 0))
+           (fixnum source-idx dest-idx n)
+           (type (simple-array (unsigned-byte 8) (*)) u8-vector)
+           (simple-base-string string))
+  (do* ((i 0 (1+ i)))
+       ((= i n) u8-vector)
+    (declare (fixnum i))
+    (setf (aref u8-vector dest-idx) (%scharcode string source-idx))
+    (incf source-idx)
+    (incf dest-idx)))
+    
+        
 
 
 (defun append-2 (y z)
@@ -347,12 +371,15 @@
      (%svref seq target::vectorH.logsize-cell)
      (uvsize seq))))
 
-(defun %str-from-ptr (pointer len)
-  (%copy-ptr-to-ivector pointer 0 (make-string len :element-type 'base-char) 0 len))
+(defun %str-from-ptr (pointer len &optional (dest (make-string len)))
+  (declare (fixnum len)
+           (optimize (speed 3) (safety 0)))
+  (dotimes (i len dest)
+    (setf (%scharcode dest i) (%get-unsigned-byte pointer i))))
 
 (defun %get-cstring (pointer)
   (do* ((end 0 (1+ end)))
-       ((zerop (the fixnum (%get-byte pointer end)))
+       ((zerop (the (unsigned-byte 8) (%get-unsigned-byte pointer end)))
         (%str-from-ptr pointer end))
     (declare (fixnum end))))
 
