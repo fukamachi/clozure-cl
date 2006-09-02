@@ -118,7 +118,7 @@ _endfn
 
         __ifdef([DARWIN])
 _exportfn(C(pseudo_sigreturn))
-        __(int $0)
+        __(hlt)
         __(jmp C(pseudo_sigreturn))
 _endfn
         __endif                        
