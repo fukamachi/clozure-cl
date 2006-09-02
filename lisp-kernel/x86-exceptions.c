@@ -916,6 +916,25 @@ find_foreign_rsp(LispObj rsp, area *foreign_area, TCR *tcr)
   return (LispObj *) ((rsp-128 & ~15));
 }
 
+
+#ifdef DARWIN
+/* 
+   There seems to be a problem with thread-level exception handling;
+   Mach seems (under some cirumstances) to conclude that there's
+   no thread-level handler and exceptions get passed up to a
+   handler that raises Un*x signals.  Ignore those signals so that
+   the exception will repropagate and eventually get caught by
+   catch_exception_raise() at the thread level.
+
+   Mach sucks, but no one understands how.
+*/
+void
+bogus_signal_handler()
+{
+  /* This does nothing, but does it with signals masked */
+}
+#endif
+
 void
 altstack_signal_handler(int signum, siginfo_t *info, ExceptionInformation  *context)
 {
@@ -1063,6 +1082,13 @@ install_pmcl_exception_handlers()
   install_signal_handler(SIGBUS, altstack_signal_handler);
   install_signal_handler(SIGSEGV,altstack_signal_handler);
   install_signal_handler(SIGFPE, altstack_signal_handler);
+#else
+  install_signal_handler(SIGTRAP,bogus_signal_handler);
+  install_signal_handler(SIGILL, bogus_signal_handler);
+  
+  install_signal_handler(SIGBUS, bogus_signal_handler);
+  install_signal_handler(SIGSEGV,bogus_signal_handler);
+  install_signal_handler(SIGFPE, bogus_signal_handler);
 #endif
   
   install_signal_handler(SIGNAL_FOR_PROCESS_INTERRUPT,
@@ -1540,7 +1566,8 @@ gc_from_xp(ExceptionInformation *xp, signed_natural param)
 #define TCR_TO_EXCEPTION_PORT(tcr) ((mach_port_t)((natural)(tcr)))
 
 pthread_mutex_t _mach_exception_lock, *mach_exception_lock;
-extern void pseudo_sigreturn(ExceptionInformation *);
+extern void pseudo_sigreturn(void);
+
 
 
 #define LISP_EXCEPTIONS_HANDLED_MASK \
@@ -1729,10 +1756,6 @@ create_thread_context_frame(mach_port_t thread,
   natural stackp, backlink;
 
   
-  if (result != KERN_SUCCESS) {
-    get_tcr(true);
-    Bug(NULL, "Exception thread can't obtain thread state, Mach result = %d", result);
-  }
   stackp = (LispObj) find_foreign_rsp(ts->rsp,tcr->cs_area,tcr);
   stackp = TRUNC_DOWN(stackp, C_REDZONE_LEN, C_STK_ALIGN);
   stackp = TRUNC_DOWN(stackp, sizeof(siginfo_t), C_STK_ALIGN);
@@ -1915,7 +1938,7 @@ catch_exception_raise(mach_port_t exception_port,
 {
   int signum = 0, code = *code_vector, code1;
   TCR *tcr = TCR_FROM_EXCEPTION_PORT(exception_port);
-  kern_return_t kret;
+  kern_return_t kret, call_kret;
 #ifdef X8664
   x86_thread_state64_t ts;
 #else
@@ -1932,10 +1955,11 @@ catch_exception_raise(mach_port_t exception_port,
   if (pthread_mutex_trylock(mach_exception_lock) == 0) {
 #ifdef X8664
     thread_state_count = x86_THREAD_STATE64_COUNT;
-    thread_get_state(thread,
-                     x86_THREAD_STATE64,
-                     (thread_state_t)&ts,
+    call_kret = thread_get_state(thread,
+                                 x86_THREAD_STATE64,
+                                 (thread_state_t)&ts,
                      &thread_state_count);
+  MACH_CHECK_ERROR("getting thread state",call_kret);
 #else
     thread_state_count = x86_THREAD_STATE_COUNT;
     thread_get_state(thread,
@@ -2011,53 +2035,7 @@ catch_exception_raise(mach_port_t exception_port,
 
 
 
-typedef struct {
-  mach_msg_header_t Head;
-  /* start of the kernel processed data */
-  mach_msg_body_t msgh_body;
-  mach_msg_port_descriptor_t thread;
-  mach_msg_port_descriptor_t task;
-  /* end of the kernel processed data */
-  NDR_record_t NDR;
-  exception_type_t exception;
-  mach_msg_type_number_t codeCnt;
-  integer_t code[2];
-  mach_msg_trailer_t trailer;
-} exceptionRequest;
 
-
-boolean_t
-openmcl_exc_server(mach_msg_header_t *in, mach_msg_header_t *out)
-{
-  static NDR_record_t _NDR = {0};
-  kern_return_t handled;
-  mig_reply_error_t *reply = (mig_reply_error_t *) out;
-  exceptionRequest *req = (exceptionRequest *) in;
-
-  reply->NDR = _NDR;
-
-  out->msgh_bits = in->msgh_bits & MACH_MSGH_BITS_REMOTE_MASK;
-  out->msgh_remote_port = in->msgh_remote_port;
-  out->msgh_size = sizeof(mach_msg_header_t)+(3 * sizeof(unsigned));
-  out->msgh_local_port = MACH_PORT_NULL;
-  out->msgh_id = in->msgh_id+100;
-
-  /* Could handle other exception flavors in the range 2401-2403 */
-
-
-  if (in->msgh_id != 2401) {
-    reply->RetCode = MIG_BAD_ID;
-    return FALSE;
-  }
-  handled = catch_exception_raise(req->Head.msgh_local_port,
-                                  req->thread.name,
-                                  req->task.name,
-                                  req->exception,
-                                  req->code,
-                                  req->codeCnt);
-  reply->RetCode = handled;
-  return TRUE;
-}
 
 /*
   The initial function for an exception-handling thread.
@@ -2069,7 +2047,7 @@ exception_handler_proc(void *arg)
   extern boolean_t exc_server();
   mach_port_t p = TCR_TO_EXCEPTION_PORT(arg);
 
-  mach_msg_server(openmcl_exc_server, 2048, p, 0);
+  mach_msg_server(exc_server, 256, p, 0);
   /* Should never return. */
   abort();
 }
