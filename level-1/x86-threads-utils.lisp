@@ -164,6 +164,7 @@
                       (and (eql tag x8664::tag-tra)
                            (eql 0 (%return-address-offset x)))
                       (and (typep x 'ivector)
-                           (on-any-csp-stack x)))
+                           (on-any-csp-stack x))
+                      (%heap-ivector-p x))
             t)))))
 
