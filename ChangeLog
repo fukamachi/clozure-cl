@@ -1,3 +1,78 @@
+2006-09-02 11:15  gb
+
+	* lisp-kernel/x86_print.c: hex/decimal integer printers: 3 is also
+	a hex digit.
+
+2006-09-02 11:11  gb
+
+	* lisp-kernel/x86-exceptions.c: Install a "bogus signal handler" on
+	Darwin, to deal with apparent race conditions/Mach kernel lossage.
+	
+	Don't do the whole msg_server here; just do the exc_server thing.
+	
+	Fix a couple of Mach exception-handling bugs; at least one more may
+	remain.
+
+2006-09-02 11:07  gb
+
+	* lisp-kernel/x86-asmutils64.s: Use a hlt instruction to trap in
+	pseudo_sigreturn.
+	
+	Still get spurious SIGTRAPs.
+
+2006-09-02 11:06  gb
+
+	* lisp-kernel/thread_manager.c: Define some things in terms of
+	USE_MACH_SEMAPHORES or USE_POSIX_SEMAPHORES.
+	
+	sem_wait_forever() does repeated timed waits, since I thought that
+	Darwin was having trouble interrpting things that waited
+	indefinitely.  (That might just be a GDB bug.  Who can tell ?)
+
+2006-09-02 11:03  gb
+
+	* lisp-kernel/Threads.h: Define some things in terms of
+	USE_MACH_SEMAPHORES or USE_POSIX_SEMAPHORES.  Note that as of Q3
+	2006, Darwin still doesn't implement enough POSIX semaphore
+	functionality to make it possible to avoid the use of Mach
+	semaphores.
+
+2006-09-02 11:01  gb
+
+	* lib/db-io.lisp: 
+	Try to avoid things like %COPY-IVECTOR-TO-IVECTOR when strings are
+	involved.
+
+2006-09-02 11:01  gb
+
+	* level-1/x86-threads-utils.lisp: Things that're %HEAP-IVECTOR-P
+	aren't bogus objects.
+
+2006-09-02 11:00  gb
+
+	* level-1/l1-streams.lisp: Try to avoid things like
+	%COPY-IVECTOR-TO-IVECTOR when strings are involved.
+
+2006-09-02 10:59  gb
+
+	* level-1/l1-events.lisp: AUTO-FLUSH-INTERACTIVE-STREAMS: use
+	FORCE-OUTPUT.
+
+2006-09-02 10:57  gb
+
+	* level-0/l0-misc.lisp: %COPY-U8-TO-STRING, %COPY-STRING-TO-U8:
+	new, to avoid %COPY-IVECTOR-TO-IVECTOR when strings are involved.
+	
+	%STR-FROM-PTR: take dest string as optional arg, don't assume 8-bit
+	chars.
+	
+	%GET-CSTRING: change type decl, use %GET-UNSIGNED-BYTE.
+
+2006-09-02 10:55  gb
+
+	* level-0/l0-aprims.lisp: %CSTR-POINTER and %CSTR-SEGMENT-POINTER:
+	don't assume 8-bit chars.
+
 2006-08-28 17:35  gb
 
 	* lisp-kernel/ppc-spentry.s: Fix tag check in 32-bit
