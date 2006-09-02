@@ -63,7 +63,7 @@ add_c_string(char *s)
   add_string(s, strlen(s));
 }
 
-char numbuf[64], *digits = "012456789ABCDEF";
+char numbuf[64], *digits = "0123456789ABCDEF";
 
 
 void
