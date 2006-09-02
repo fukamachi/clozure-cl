@@ -179,7 +179,16 @@ sem_wait_forever(SEMAPHORE s)
   int status;
 
   do {
-    status = SEM_WAIT(s);
+#ifdef USE_MACH_SEMAPHORES
+    mach_timespec_t q = {1,0};
+    status = SEM_TIMEDWAIT(s,q);
+#endif
+#ifdef USE_POSIX_SEMAPHORES
+    struct timespec q;
+    gettimeofday((struct timeval *)&q, NULL);
+    q.tv_sec += 1;
+    status = SEM_TIMEDWAIT(s,&q);
+#endif
   } while (status != 0);
 }
 
@@ -206,7 +215,7 @@ wait_on_semaphore(SEMAPHORE s, int seconds, int millis)
   }
   return status;
 #endif
-#ifdef DARWIN  
+#ifdef USE_MACH_SEMAPHORES
   mach_timespec_t q = {seconds, nanos};
   int status = SEM_TIMEDWAIT(s, q);
 
@@ -341,12 +350,12 @@ os_get_stack_bounds(LispObj q,void **base, natural *size)
 void *
 new_semaphore(int count)
 {
-#if defined(LINUX) || defined(FREEBSD)
+#ifdef USE_POSIX_SEMAPHORES
   sem_t *s = malloc(sizeof(sem_t));
   sem_init(s, 0, count);
   return s;
 #endif
-#ifdef DARWIN
+#ifdef USE_MACH_SEMAPHORES
   semaphore_t s = (semaphore_t)0;
   semaphore_create(mach_task_self(),&s, SYNC_POLICY_FIFO, count);
   return (void *)(natural)s;
@@ -383,10 +392,10 @@ void
 destroy_semaphore(void **s)
 {
   if (*s) {
-#if defined(LINUX) || defined(FREEBSD)
+#ifdef USE_POSIX_SEMAPHORES
     sem_destroy((sem_t *)*s);
 #endif
-#ifdef DARWIN
+#ifdef USE_MACH_SEMAPHORES
     semaphore_destroy(mach_task_self(),((semaphore_t)(natural) *s));
 #endif
     *s=NULL;
@@ -947,12 +956,6 @@ suspend_tcr(TCR *tcr)
 	 do that and return true; otherwise, flag the tcr as belonging
 	 to a dead thread by setting tcr->osid to 0.
       */
-#ifdef DARWIN
-      if (mach_suspend_tcr(tcr)) {
-        SET_TCR_FLAG(tcr,TCR_FLAG_BIT_ALT_SUSPEND);
-	return true;
-      }
-#endif
       tcr->osid = 0;
       return false;
     }
