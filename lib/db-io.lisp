@@ -393,7 +393,7 @@
         (fid-read fid buf 512)
         (let* ((string (make-string 512)))
           (dotimes (i 512)
-            (setf (schar string i) (%get-unsigned-byte buf i)))
+            (setf (%scharcode string i) (%get-unsigned-byte buf i)))
           (with-input-from-string (s string)
             (let* ((sig (ignore-errors (read s)))
                    (target (ignore-errors (read s)))

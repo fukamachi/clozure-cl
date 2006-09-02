@@ -172,7 +172,7 @@
                  (let* ((typename
                          (cond ((= op2 x8664::tag-fixnum) 'fixnum)
                                ((= op2 x8664::tag-single-float) 'single-float)
-                               ((= op2 x8664::subtag-character 'character))
+                               ((= op2 x8664::subtag-character) 'character)
                                ((= op2 x8664::fulltag-cons) 'cons)
                                ((= op2 x8664::tag-misc) 'uvector)
                                ((= op2 x8664::fulltag-symbol) 'symbol)
