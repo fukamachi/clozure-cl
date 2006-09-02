@@ -21,10 +21,16 @@
 #include <pthread.h>
 #include <errno.h>
 #include <limits.h>
-#if defined(LINUX) || defined(FREEBSD) || defined(SOLARIS)
+#undef USE_MACH_SEMAPHORES
+#undef USE_POSIX_SEMAPHORES
+#ifdef DARWIN
+#define USE_MACH_SEMAPHORES 1
+#endif
+#ifndef USE_MACH_SEMAPHORES
+#define USE_POSIX_SEMAPHORES
 #include <semaphore.h>
 #endif
-#ifdef DARWIN
+#ifdef USE_MACH_SEMAPHORES
 /* We have to use Mach semaphores, even if we're otherwise 
    using POSIX signals, etc. */
 #include <mach/task.h>
@@ -44,14 +50,14 @@ Boolean threads_initialized;
 #define TCR_TO_TSD(tcr) ((void *)((natural)(tcr)+TCR_BIAS))
 #define TCR_FROM_TSD(tsd) ((TCR *)((natural)(tsd)-TCR_BIAS))
 
-#if defined(LINUX) || defined(FREEBSD) || defined(SOLARIS)
+#ifdef USE_POSIX_SEMAPHORES
 typedef sem_t * SEMAPHORE;
 #define SEM_WAIT(s) sem_wait((SEMAPHORE)s)
 #define SEM_RAISE(s) sem_post((SEMAPHORE)s)
 #define SEM_TIMEDWAIT(s,t) sem_timedwait((SEMAPHORE)s,(struct timespec *)t)
 #endif
 
-#ifdef DARWIN
+#ifdef USE_MACH_SEMAPHORES
 typedef semaphore_t SEMAPHORE;
 #define SEM_WAIT(s) semaphore_wait((SEMAPHORE)(natural)s)
 #define SEM_RAISE(s) semaphore_signal((SEMAPHORE)(natural)s)
@@ -60,11 +66,11 @@ typedef semaphore_t SEMAPHORE;
 
 void sem_wait_forever(SEMAPHORE s);
 
-#if defined(LINUX) || defined(FREEBSD) || defined(SOLARIS)
+#ifdef USE_POSIX_SEMAPHORES
 #define SEM_WAIT_FOREVER(s) sem_wait_forever((SEMAPHORE)s)
 #endif
 
-#ifdef DARWIN
+#ifdef USE_MACH_SEMAPHORES
 #define SEM_WAIT_FOREVER(s) sem_wait_forever((SEMAPHORE)(natural)s)
 #endif
 
