@@ -759,7 +759,7 @@
 	       (if (eql ch #\newline)
 		 (setq col 0)
 		 (incf col))
-	       (setf (schar buffer i) ch)))
+	       (setf (aref buffer i) (%char-code ch))))
 	   (setf (ioblock-dirty ioblock) t)
 	   (incf index written)
 	   (if (> index count)
@@ -871,7 +871,7 @@
 		      (setq string
 			    (%extend-vector
 			     0 string (the fixnum (+ len more)))))
-		    (%copy-ivector-to-ivector
+		    (%copy-u8-to-string
 		     buf idx string len more)
 		    (return (values string nil))))
 		;; No #\newline in the buffer.  Read everything that's
@@ -880,7 +880,7 @@
 		(setq more (- count idx)
 		      string (%extend-vector
 			      0 string (the fixnum (+ len more))))
-		(%copy-ivector-to-ivector
+		(%copy-u8-to-string
 		 buf idx string len more)
 		(incf len more))))))))
 	 
@@ -904,7 +904,7 @@
 	(unless (zerop avail)
 	  (if (> avail need)
 	    (setq avail need))
-	  (%copy-ivector-to-ivector inbuf idx vector i avail)
+	  (%copy-u8-to-string inbuf idx vector i avail)
 	  (setf (io-buffer-idx in) (+ idx avail))
 	  (incf i avail)
 	  (decf need avail))))))
@@ -1494,8 +1494,8 @@
     (gvector :basic-stream class 0 nil nil nil nil nil)
     (gvector :basic-stream class 0 nil nil)))
 
-(defmethod initialize-basic-stream ((s basic-stream) &key &allow-other-keys)
-  )
+(defmethod initialize-basic-stream ((s basic-stream) &key element-type &allow-other-keys)
+  (setf (getf (basic-stream.info s) :element-type) element-type))
 
 (defmethod initialize-basic-stream :after  ((s basic-input-stream) &key &allow-other-keys)
   (setf (basic-stream.flags s)
@@ -2202,9 +2202,18 @@
   (declare (ignore direction))
   (let* ((ioblock (stream-ioblock s nil)))
     (and ioblock (ioblock-device ioblock))))
+
+(defmethod stream-device ((s basic-stream) direction)
+  (declare (ignore direction))
+  (let* ((ioblock (basic-stream.state s)))
+    (and ioblock (ioblock-device ioblock))))
   
 (defmethod stream-element-type ((s buffered-stream-mixin))
   (%buffered-stream-element-type s))
+
+(defmethod stream-element-type ((s basic-stream))
+  (getf (basic-stream.info s) :element-type))
+
 
 (defmethod stream-create-ioblock ((stream buffered-stream-mixin) &rest args &key)
   (declare (dynamic-extent args))
@@ -2215,6 +2224,10 @@
 
 (defmethod stream-owner ((stream buffered-stream-mixin))
   (let* ((ioblock (stream-ioblock stream nil)))
+    (and ioblock (ioblock-owner ioblock))))
+
+(defmethod stream-owner ((stream basic-stream))
+  (let* ((ioblock (basic-stream.state stream)))
     (and ioblock (ioblock-owner ioblock))))
 
 
