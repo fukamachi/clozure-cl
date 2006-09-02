@@ -185,7 +185,7 @@
         (if (or (typep s 'basic-stream)
                 (typep s 'buffered-io-stream-mixin))
           (if (ioblock-outbuf-lock (stream-ioblock s t))
-            (maybe-stream-force-output s)))
+            (force-output s)))
         (force-output s)))))
 
 (defun add-auto-flush-stream (s)
