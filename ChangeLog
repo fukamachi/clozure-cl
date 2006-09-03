@@ -1,3 +1,17 @@
+2006-09-03 14:20  gb
+
+	* level-1/l1-streams.lisp: More missing BASIC-STREAM methods.
+
+2006-09-03 13:22  gb
+
+	* compiler/: X86/X8664/x8664-backend.lisp,
+	PPC/PPC32/ppc32-backend.lisp, PPC/PPC64/ppc64-backend.lisp:
+	:target-8-bit-chars on target features.
+
+2006-09-03 13:21  gb
+
+	* level-0/l0-int.lisp: Some comments/indentation.
+
 2006-09-03 13:01  gb
 
 	* compiler/PPC/: PPC32/ppc32-arch.lisp, PPC64/ppc64-arch.lisp: Make
