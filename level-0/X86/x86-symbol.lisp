@@ -132,7 +132,10 @@
     (jz.pn @done)
     @loop8
     (roll ($ 5) (%l accum))
+    #+target-8-bit-chars
     (xorb (@ x8664::misc-data-offset (% str) (% offset))  (%b accum))
+    #-target-8-bit-chars
+    (xorl (@ x8664::misc-data-offset (% str) (% offset) 4) (%l accum))
     (addq ($ 1) (% offset))    
     (subq ($ '1) (% len))
     (jnz @loop8)
