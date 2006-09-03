@@ -1411,6 +1411,7 @@
 			       vector start end)
   (generic-character-read-vector stream vector start end))
 
+
 (defmethod stream-read-vector ((stream fundamental-binary-input-stream)
 			       vector start end)
   (declare (fixnum start end))
@@ -1421,6 +1422,8 @@
       (if (eq b :eof)
 	(return i)
 	(setf (uvref vector i) b)))))
+
+
 
 
 ;;; File streams, in the abstract.
@@ -1528,6 +1531,20 @@
   (declare (dynamic-extent args))
   (apply #'make-ioblock :stream stream args))
 
+(defmethod stream-read-vector ((stream basic-character-input-stream)
+			       vector start end)
+  (generic-character-read-vector stream vector start end))
+
+(defmethod stream-read-vector ((stream basic-binary-input-stream)
+			       vector start end)
+  (declare (fixnum start end))
+  (do* ((i start (1+ i)))
+       ((= i end) end)
+    (declare (fixnum i))
+    (let* ((b (stream-read-byte stream)))
+      (if (eq b :eof)
+	(return i)
+	(setf (uvref vector i) b)))))
 
 (defun stream-is-closed (s)
   (error "~s is closed" s))
@@ -2366,6 +2383,11 @@
   (with-stream-ioblock-input (ioblock stream :speedy t)
     (funcall (ioblock-read-byte-function ioblock) ioblock)))
 
+(defmethod stream-read-byte ((stream basic-binary-input-stream))
+  (let* ((ioblock (basic-stream-ioblock stream)))
+    (with-ioblock-input-locked (ioblock)
+      (funcall (ioblock-read-byte-function ioblock) ioblock))))
+
 (defmethod stream-eofp ((stream buffered-input-stream-mixin))
   (with-stream-ioblock-input (ioblock stream :speedy t)
     (%ioblock-eofp ioblock)))
@@ -2591,6 +2613,72 @@
 	       (if (= index  limit)
 		 (%ioblock-force-output ioblock nil))))))))))
 
+(defmethod stream-write-vector ((stream basic-binary-output-stream)
+				vector start end)
+  (declare (fixnum start end))
+  (let* ((ioblock (basic-stream-ioblock stream)))
+    (with-ioblock-output-locked (ioblock)
+    (let* ((out (ioblock-outbuf ioblock))
+	   (buf (io-buffer-buffer out))
+	   (written 0)
+	   (limit (io-buffer-limit out))
+	   (total (- end start))
+	   (buftype (typecode buf)))
+      (declare (fixnum buftype written total limit))
+      (if (not (= (the fixnum (typecode vector)) buftype))
+	(do* ((i start (1+ i)))
+	     ((= i end))
+	  (let ((byte (uvref vector i)))
+	    (when (characterp byte)
+	      (setq byte (char-code byte)))
+	    (%ioblock-write-byte ioblock byte)))
+	(do* ((pos start (+ pos written))
+	      (left total (- left written)))
+	     ((= left 0))
+	  (declare (fixnum pos left))
+	  (setf (ioblock-dirty ioblock) t)
+	  (let* ((index (io-buffer-idx out))
+		 (count (io-buffer-count out))
+		 (avail (- limit index)))
+	    (declare (fixnum index avail count))
+	    (cond
+	      ((= (setq written avail) 0)
+	       (%ioblock-force-output ioblock nil))
+	      (t
+	       (if (> written left)
+		 (setq written left))
+	       (%copy-ivector-to-ivector
+		vector
+		(ioblock-elements-to-octets ioblock pos)
+		buf
+		(ioblock-elements-to-octets ioblock index)
+		(ioblock-elements-to-octets ioblock written))
+	       (setf (ioblock-dirty ioblock) t)
+	       (incf index written)
+	       (if (> index count)
+		 (setf (io-buffer-count out) index))
+	       (setf (io-buffer-idx out) index)
+	       (if (= index  limit)
+		 (%ioblock-force-output ioblock nil)))))))))))
+
+(defmethod stream-read-vector ((stream basic-character-input-stream)
+			       vector start end)
+  (declare (fixnum start end))
+  (if (not (typep vector 'simple-base-string))
+    (call-next-method)
+    (let* ((ioblock (basic-stream-ioblock stream)))
+      (with-ioblock-input-locked (ioblock)
+        (%ioblock-character-read-vector ioblock vector start end)))))
+
+(defmethod stream-read-vector ((stream basic-binary-input-stream)
+			       vector start end)
+  (declare (fixnum start end))
+  (if (typep vector 'simple-base-string)
+    (call-next-method)
+    (let* ((ioblock (basic-stream-ioblock stream)))
+      (with-ioblock-input-locked (ioblock)
+        (%ioblock-binary-read-vector ioblock vector start end)))))
+
 (defmethod stream-read-vector ((stream buffered-character-input-stream-mixin)
 			       vector start end)
   (declare (fixnum start end))
@@ -2599,6 +2687,8 @@
     (with-stream-ioblock-input (ioblock stream :speedy t)
       (%ioblock-character-read-vector ioblock vector start end))))
 
+
+
 (defmethod stream-read-vector ((stream buffered-binary-input-stream-mixin)
 			       vector start end)
   (declare (fixnum start end))
@@ -2606,6 +2696,8 @@
     (call-next-method)
     (with-stream-ioblock-input (ioblock stream :speedy t)
       (%ioblock-binary-read-vector ioblock vector start end))))
+
+
 
 (defloadvar *fd-set-size*
     (ff-call (%kernel-import target::kernel-import-fd-setsize-bytes)
