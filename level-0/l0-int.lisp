@@ -87,7 +87,6 @@
     (setq stream *standard-output*))
   (let ((digit-string "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"))    
     (cond ((fixnump int)  ; ugh                      
-           ; 29 bits max magnitude (base 2) + 1 for sign
            (let ((temstring (make-string (- target::nbits-in-word target::fixnumshift) :element-type 'base-char))
                  (i (- target::nbits-in-word  target::fixnumshift 1))
                  (neg (< int 0))
@@ -114,14 +113,15 @@
                                  11   10 10  9  9  9  9  8  8
                                  8     8  8  8  8  8  7  7  7
                                  7     7  7  7  7  7  7  7  7 7))
-                    ; overestimate # digits by a little for weird radix
+                    ;; overestimate # digits by a little for weird
+                    ;; radix
                     (bigwords (uvsize int))
                     (strlen (1+ (* bigwords (svref size-vect radix))))
                     (temstring (make-string strlen :element-type 'base-char))
                     (i (1- strlen))
                     (neg (< int 0))
-                    ;(rem 0)
-                    ;better-bignum-print?
+                    ; ;(rem 0)
+                    ;; ;better-bignum-print?
                     )  ; warn
                (declare (dynamic-extent temstring)
                         (fixnum i strlen rem))
