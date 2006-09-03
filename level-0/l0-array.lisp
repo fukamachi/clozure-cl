@@ -90,7 +90,7 @@
      unused
      unused
      double-float
-     character
+     #+target-8-bit-chars character #-target-8-bit-chars unused
      unused
      unused
      unused
@@ -119,7 +119,7 @@
     unused
     (signed-byte 16)
     (unsigned-byte 16)
-    character
+    #+target-8-bit-chars character #-target-8-bit-chars unused
     (signed-byte 8)
     (unsigned-byte 8)
     bit
@@ -140,7 +140,7 @@
     unused
     unused
     unused
-    unused
+    #-target-8-bit-chars character #+target-8-bit-chars unused
     (signed-byte 32)
     (unsigned-byte 32)
     single-float))

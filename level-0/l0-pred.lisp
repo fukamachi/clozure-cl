@@ -560,7 +560,7 @@
     bogus
     bogus
     simple-double-float-vector
-    simple-base-string
+    #+target-8-bit-chars simple-base-string #-target-8-bit-chars bogus
     bogus
     bogus
     bogus
@@ -738,7 +738,7 @@
     bogus
     simple-signed-word-vector
     simple-unsigned-word-vector
-    simple-base-string
+    #+target-8-bit-chars simple-base-string #-target-8-bit-chars bogus
     simple-signed-byte-vector
     simple-unsigned-byte-vector
     bit-vector))
@@ -756,7 +756,7 @@
     bogus
     bogus
     bogus
-    bogus
+    #-target-8-bit-chars simple-base-string #+target-8-bit-chars bogus
     simple-signed-long-vector
     simple-unsigned-long-vector
     single-float-vector))

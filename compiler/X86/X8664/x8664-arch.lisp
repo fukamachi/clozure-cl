@@ -353,13 +353,16 @@
 (define-subtag s64-vector ivector-class-64-bit 13)
 (define-subtag u64-vector ivector-class-64-bit 14)
 (define-subtag double-float-vector ivector-class-64-bit 15)
-	
+
+#-target-8-bit-chars
+(define-subtag simple-base-string ivector-class-32-bit 12)
 (define-subtag s32-vector ivector-class-32-bit 13)
 (define-subtag u32-vector ivector-class-32-bit 14)
 (define-subtag single-float-vector ivector-class-32-bit 15)
 	
 (define-subtag s16-vector ivector-class-other-bit 10)
 (define-subtag u16-vector ivector-class-other-bit 11)
+#+target-8-bit-chars
 (define-subtag simple-base-string ivector-class-other-bit 12)
 (defconstant min-8-bit-ivector-subtag subtag-simple-base-string)
 (define-subtag s8-vector ivector-class-other-bit 13)
