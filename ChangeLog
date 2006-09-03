@@ -1,3 +1,8 @@
+2006-09-03 15:02  gb
+
+	* level-0/l0-init.lisp: Put :target-8-bit-chars on *features*, for
+	bootstrapping.
+
 2006-09-03 14:20  gb
 
 	* level-1/l1-streams.lisp: More missing BASIC-STREAM methods.
