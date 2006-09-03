@@ -152,7 +152,8 @@
 		'(:x8664 :x86-target :linux-target :linuxx86-target :x8664-target
                   :linuxx8664-target
                   :little-endian-target
-                  :64-bit-target)
+                  :64-bit-target
+                  :target-8-bit-chars)
 		:target-fasl-pathname (make-pathname :type "lx64fsl")
 		:target-platform (logior platform-cpu-x86
                                          platform-os-linux
@@ -161,6 +162,8 @@
 		:name :linuxx8664
 		:target-arch-name :x8664
 		:target-foreign-type-data nil
+
+
                 :target-arch x8664::*x8664-target-arch*
                 :define-callback 'define-x8664-callback
                 :defcallback-body 'defcallback-body-x8664
@@ -183,7 +186,8 @@
 		'(:x8664 :x86-target :darwin-target :darwinx86-target :x8664-target
                   :darwinx8664-target
                   :little-endian-target
-                  :64-bit-target)
+                  :64-bit-target
+                  :target-8-bit-chars)
 		:target-fasl-pathname (make-pathname :type "dx64fsl")
 		:target-platform (logior platform-cpu-x86
                                          platform-os-darwin
@@ -213,7 +217,8 @@
 		'(:x8664 :x86-target :freebsd-target :freebsdx86-target :x8664-target
                   :freebsdx8664-target                  
                   :little-endian-target
-                  :64-bit-target)
+                  :64-bit-target
+                  :target-8-bit-chars)
 		:target-fasl-pathname (make-pathname :type "fx64fsl")
 		:target-platform (logior platform-cpu-x86
                                          platform-os-freebsd
