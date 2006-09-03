@@ -149,13 +149,18 @@
 #define subtag_u64_vector SUBTAG(ivector_class_64_bit,14L)
 #define subtag_double_float_vector SUBTAG(ivector_class_64_bit,15L)
 
+#ifdef CHAR_SIZE_32
+#define subtag_simple_base_string SUBTAG(ivector_class_32_bit,12L)
+#endif
 #define subtag_s32_vector SUBTAG(ivector_class_32_bit,13L)
 #define subtag_u32_vector SUBTAG(ivector_class_32_bit,14L)
 #define subtag_single_float_vector SUBTAG(ivector_class_32_bit,15L)
 
 #define subtag_s16_vector SUBTAG(ivector_class_other_bit,10L)
 #define subtag_u16_vector SUBTAG(ivector_class_other_bit,11L)
+#ifndef CHAR_SIZE_32
 #define subtag_simple_base_string SUBTAG(ivector_class_other_bit,12L)
+#endif
 #define subtag_s8_vector SUBTAG(ivector_class_other_bit,13L)
 #define subtag_u8_vector SUBTAG(ivector_class_other_bit,14L)
 #define subtag_bit_vector SUBTAG(ivector_class_other_bit,15L)
