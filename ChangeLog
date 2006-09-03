@@ -1,3 +1,19 @@
+2006-09-03 16:03  gb
+
+	* lisp-kernel/: x86-constants64.h, x86-constants64.s:
+	conditionalize new string types.
+
+2006-09-03 16:03  gb
+
+	* level-0/X86/x86-symbol.lisp: %pname-hash: conditionalize for
+	string element size.
+
+2006-09-03 16:02  gb
+
+	* compiler/X86/X8664/x8664-arch.lisp, level-0/l0-array.lisp,
+	level-0/l0-pred.lisp: Sketch out new string types (read-time
+	conditionalized.)
+
 2006-09-03 15:02  gb
 
 	* level-0/l0-init.lisp: Put :target-8-bit-chars on *features*, for
