@@ -54,7 +54,12 @@ add_string(char *s, int len)
 void
 add_lisp_base_string(LispObj str)
 {
-  add_string((char *) (ptr_from_lispobj(str + misc_data_offset)), header_element_count(header_of(str)));
+  lisp_char_code *src = (lisp_char_code *)  (ptr_from_lispobj(str + misc_data_offset));
+  natural i, n = header_element_count(header_of(str));
+
+  for (i=0; i < n; i++) {
+    add_char((char)(*src++));
+  }
 }
 
 void

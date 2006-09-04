@@ -28,6 +28,7 @@
 #define WORD_SIZE 64
 #endif
 
+
 #ifdef SOLARIS
 /* Solaris doesn't laugh and play like the other children */
 typedef int64_t s64_t;
@@ -94,7 +95,11 @@ typedef struct ucontext ExceptionInformation;
 #define UC_MCONTEXT(UC) UC->uc_mcontext
 #endif /* #ifdef DARWIN */
 
-
+#ifdef CHAR_SIZE_32
+typedef uint32_t lisp_char_code;
+#else
+typedef uint8_t lisp_char_code;
+#endif
 
 typedef int OSStatus, OSErr;
 #define noErr ((OSErr) 0)
