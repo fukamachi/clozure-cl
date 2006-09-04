@@ -178,17 +178,21 @@ max_numeric_subtag = subtag_complex
 	define_imm_subtag(u16_vector,28)
 min_16_bit_ivector_subtag = subtag_u16_vector
 max_16_bit_ivector_subtag = subtag_s16_vector
+        ifdef([CHAR_SIZE_32],[],[
 	define_imm_subtag(simple_base_string,27)
+        ])
 	define_imm_subtag(s8_vector,26)
 	define_imm_subtag(u8_vector,25)
 min_8_bit_ivector_subtag = subtag_u8_vector
-max_8_bit_ivector_subtag = subtag_simple_base_string
-        define_imm_subtag(new_string,24)
+max_8_bit_ivector_subtag = fulltag_immheader|(27<<ntagbits)
+        ifdef([CHAR_SIZE_32],[
+        define_imm_subtag(simple_base_string,24)
+        ])
         define_imm_subtag(fixnum_vector,23)
 	define_imm_subtag(s32_vector,22)
 	define_imm_subtag(u32_vector,21)
 	define_imm_subtag(single_float_vector,20)
-max_32_bit_ivector_subtag = subtag_new_string
+max_32_bit_ivector_subtag = fulltag_immheader|(24<<ntagbits)
 min_cl_ivector_subtag = subtag_single_float_vector
 
 

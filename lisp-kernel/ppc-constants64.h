@@ -86,14 +86,17 @@
 #define subtag_s32_vector CL_ARRAY_SUBTAG(ivector_class_32_bit,1)
 #define subtag_u32_vector CL_ARRAY_SUBTAG(ivector_class_32_bit,2)
 #define subtag_single_float_vector CL_ARRAY_SUBTAG(ivector_class_32_bit,3)
-#define subtag_new_string CL_ARRAY_SUBTAG(ivector_class_32_bit,5)
+#ifdef CHAR_SIZE_32
+#define subtag_simple_base_string CL_ARRAY_SUBTAG(ivector_class_32_bit,5)
+#endif
 #define subtag_s16_vector CL_ARRAY_SUBTAG(ivector_class_other_bit,1)
 #define subtag_u16_vector CL_ARRAY_SUBTAG(ivector_class_other_bit,2)
 #define subtag_bit_vector CL_ARRAY_SUBTAG(ivector_class_other_bit,7)
 #define subtag_s8_vector CL_ARRAY_SUBTAG(ivector_class_8_bit,1)
 #define subtag_u8_vector CL_ARRAY_SUBTAG(ivector_class_8_bit,2)
+#ifndef CHAR_SIZE_32
 #define subtag_simple_base_string CL_ARRAY_SUBTAG(ivector_class_8_bit,5)
-
+#endif
 
 /* There's some room for expansion in non-array ivector space. */
 #define subtag_macptr SUBTAG(ivector_class_64_bit,1)

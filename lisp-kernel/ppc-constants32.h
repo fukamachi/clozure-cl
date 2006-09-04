@@ -142,18 +142,22 @@ typedef struct cons {
 #define min_16_bit_ivector_subtag subtag_u16_vector
 #define max_16_bit_ivector_subtag subtag_s16_vector
 
+#ifndef CHAR_SIZE_32
 #define subtag_simple_base_string IMM_SUBTAG(27)
+#endif
 #define subtag_s8_vector IMM_SUBTAG(26)
 #define subtag_u8_vector IMM_SUBTAG(25)
 #define min_8_bit_ivector_subtag subtag_u8_vector
-#define max_8_bit_ivector_subtag subtag_simple_base_string
+#define max_8_bit_ivector_subtag IMM_SUBTAG(27)
 
-#define subtag_new_string IMM_SUBTAG(24)
+#ifdef CHAR_SIZE_32
+#define subtag_simple_base_string IMM_SUBTAG(24)
+#endif
 #define subtag_fixnum_vector IMM_SUBTAG(23)
 #define subtag_s32_vector IMM_SUBTAG(22)
 #define subtag_u32_vector IMM_SUBTAG(21)
 #define subtag_single_float_vector IMM_SUBTAG(20)
-#define max_32_bit_ivector_subtag subtag_new_string
+#define max_32_bit_ivector_subtag IMM_SUBTAG(24)
 #define min_cl_ivector_subtag subtag_single_float_vector
 
 
