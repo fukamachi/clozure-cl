@@ -98,8 +98,8 @@
   (cmpwi cr0 imm2 ppc32::subtag-single-float-vector)
   (cmpwi cr2 imm0 ppc32::subtag-bignum)
   (cmpwi cr3 imm2 ppc32::subtag-fixnum-vector)
-  (beq cr1 @new-string)
-  (beq cr4 @s32)                     ; ppc32::max-32-bit-ivector-subtag
+  (beq cr1 @char32)                      ; ppc32::max-32-bit-ivector-subtag
+  (beq cr4 @s32)
   (beq cr3 @fixnum)
   (bne cr0 @u32)
   ;@sfloat
@@ -111,12 +111,9 @@
   (unbox-fixnum imm0 val)
   (beq+ cr7 @set-32)
   (b @bad)
-  @new-string
-  (clrlwi imm0 val 24)
-  (cmpwi imm0 ppc32::subtag-character)
-  (srwi imm0 val ppc32::charcode-shift)
-  (beq @set-32)
-  (b @bad)
+  @char32
+  (unbox-base-char imm0 val cr0)
+  (b @set-32)
   @s32
   (unbox-fixnum imm0 val)
   (beq+ cr7 @set-32)
@@ -296,9 +293,12 @@
   (ld imm0 ppc64::double-float.value val)
   (b @set-64)
   @32
-  (cmpdi cr3 imm2 ppc64::subtag-new-string)
+  #-target-8-bit-chars
+  (cmpdi cr3 imm2 ppc64::subtag-simple-base-string)
   (cmpdi cr2 imm2 ppc64::subtag-s32-vector)
   (cmpdi cr0 imm2 ppc64::subtag-single-float-vector)
+  #-target-8-bit-chars
+  (beq c33 @char32)
   (beq cr2 @s32)
   (bne cr0 @u32)
   ;@sfloat
@@ -314,6 +314,9 @@
   (sradi imm1 imm1 32)
   (cmpd imm1 imm0)
   (bne @bad)
+  (b @set-32)
+  @char32
+  (unbox-base-char imm0 val cr0)   ; this type checks val
   (b @set-32)
   @u32
   ;; Also has to be a fixnum (and an (UNSIGNED-BYTE 32)).
@@ -337,9 +340,11 @@
   (beq+ cr0 @set-16)
   (b @bad)
   @8
+  #-target-8-bit-chars
   (cmpdi cr2 imm2 ppc64::subtag-simple-base-string)
   (cmpdi cr0 imm2 ppc64::subtag-s8-vector)
-  (beq cr2 @char8)                      ; ppc32::max-8-bit-ivector-subtag
+  #-target-8-bit-chars
+  (beq cr2 @char8)
   (beq cr0 @s8)
   (extract-unsigned-byte-bits. imm0 val 8)
   (unbox-fixnum imm0 val)
