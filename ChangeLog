@@ -1,3 +1,24 @@
+2006-09-04 17:18  gb
+
+	* level-0/PPC/ppc-array.lisp: Sigh.  Test for 8-bit-char case was
+	conditionalized backwards in PPC64 %INIT-MISC.
+
+2006-09-04 17:05  gb
+
+	* level-1/l1-init.lisp: Initial value of CHAR-CODE-LIMIT derived
+	from the target arch (for bootstrapping.)
+
+2006-09-04 17:04  gb
+
+	* level-1/l1-reader.lisp: Use (UNSIGNED-BYTE 8) for array element
+	type of rdtab.ttab.
+	
+	Don't treat (code-char #xca) as whitespace; do treat (code-char
+	#xa0) as whitespace.  (The former happens to be how the latter was
+	encoded in MacRoman.)
+	
+	Handle U+<hex> syntax in NAME-CHAR.
+
 2006-09-04 16:16  gb
 
 	* compiler/PPC/PPC64/ppc64-vinsns.lisp: LOAD-CHARACTER-CONSTANT:
