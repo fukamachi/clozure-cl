@@ -19,7 +19,7 @@
 (defparameter *openmcl-major-version* 1)
 (defparameter *openmcl-minor-version* 1)
 (defparameter *openmcl-revision* 0)
-(defparameter *openmcl-suffix* "pre-060826")
+(defparameter *openmcl-suffix* "pre-060904a")
 (defparameter *openmcl-dev-level*
   #+ppc-target nil
   #+(or freebsdx8664-target darwinx8664-target) "Alpha"
