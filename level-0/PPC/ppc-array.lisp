@@ -343,10 +343,10 @@
   (beq+ cr0 @set-16)
   (b @bad)
   @8
-  #-target-8-bit-chars
+  #+target-8-bit-chars
   (cmpdi cr2 imm2 ppc64::subtag-simple-base-string)
   (cmpdi cr0 imm2 ppc64::subtag-s8-vector)
-  #-target-8-bit-chars
+  #+target-8-bit-chars
   (beq cr2 @char8)
   (beq cr0 @s8)
   (extract-unsigned-byte-bits. imm0 val 8)
