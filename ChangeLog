@@ -1,3 +1,36 @@
+2006-09-04 02:30  gb
+
+	* level-1/l1-error-system.lisp: Object-not- (mod #x110000) type
+	error.
+
+2006-09-04 02:29  gb
+
+	* level-0/PPC/ppc-symbol.lisp: conditionalize %pname-hash for char
+	size.
+
+2006-09-04 02:26  gb
+
+	* lisp-kernel/: ppc-constants32.h, ppc-constants32.s,
+	ppc-constants64.h, ppc-constants64.s: Conditionalize for
+	CHAR_SIZE_32.
+
+2006-09-04 02:24  gb
+
+	* compiler/PPC/PPC32/ppc32-arch.lisp,
+	compiler/PPC/PPC32/ppc32-vinsns.lisp,
+	compiler/PPC/PPC64/ppc64-arch.lisp,
+	compiler/PPC/PPC64/ppc64-vinsns.lisp, level-0/l0-array.lisp,
+	level-0/l0-pred.lisp: Conditionalize for #-target-8-bit-chars.
+
+2006-09-04 02:23  gb
+
+	* compiler/PPC/ppc2.lisp: Deal - sometimes conditionally - with
+	32-bit characters.
+
+2006-09-04 02:22  gb
+
+	* compiler/arch.lisp: ERROR-OBJECT-NOT-MOD-CHAR-CODE-LIMIT.
+
 2006-09-03 16:03  gb
 
 	* lisp-kernel/: x86-constants64.h, x86-constants64.s:
