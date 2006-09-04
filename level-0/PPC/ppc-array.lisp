@@ -33,9 +33,12 @@
   (assert (and (< ppc32::max-32-bit-ivector-subtag
                   ppc32::max-8-bit-ivector-subtag
                   ppc32::max-16-bit-ivector-subtag)
-               (eql ppc32::max-32-bit-ivector-subtag ppc32::subtag-new-string)
+               (eql ppc32::max-32-bit-ivector-subtag #+target-8-bit-chars 199
+                    #-target-8-bit-chars ppc32::subtag-simple-base-string)
                (eql ppc32::max-16-bit-ivector-subtag ppc32::subtag-s16-vector)
-               (eql ppc32::max-8-bit-ivector-subtag ppc32::subtag-simple-base-string))))
+               (eql ppc32::max-8-bit-ivector-subtag
+                    #-target-8-bit-chars 223
+                    #+target-8-bit-chars ppc32::subtag-simple-base-string))))
 
 #+ppc32-target
 (defppclapfunction %init-misc ((val arg_y)
