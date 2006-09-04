@@ -1,3 +1,12 @@
+2006-09-04 03:44  gb
+
+	* level-0/PPC/ppc-array.lisp: ppc32/ppc64 %init-misc tweaks.
+
+2006-09-04 03:43  gb
+
+	* compiler/PPC/ppc-lapmacros.lisp: Typo in the (unused) 64-bit/no
+	crf case of UNBOX-BASE-CHAR.
+
 2006-09-04 02:30  gb
 
 	* level-1/l1-error-system.lisp: Object-not- (mod #x110000) type
