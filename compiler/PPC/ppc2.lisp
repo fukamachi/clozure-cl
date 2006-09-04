@@ -5736,7 +5736,7 @@
     (progn
       (ensuring-node-target (target vreg)
         (with-imm-target () (dest :u8)
-          (! u8->char target (let* ((*ppc2-reckless* t))
+          (! u32->char target (let* ((*ppc2-reckless* t))
                                (ppc2-one-untargeted-reg-form seg c dest)))))
       (^))))
 
