@@ -135,21 +135,25 @@
 (defppclapfunction %pname-hash ((str arg_y) (len arg_z))
   (let ((nextw imm1)
         (accum imm0)
-        (offset imm2)
-        (tag imm3))
-    (extract-subtag tag str)
+        (offset imm2))
     (cmpwi cr0 len 0)
     (li offset target::misc-data-offset)
     (li accum 0)
     (beqlr- cr0)    
-    @loop8
+    @loop
     (cmpri cr1 len '1)
     (subi len len '1)
-    (lbzx nextw str offset)
-    (addi offset offset 1)
+    #+target-8-bit-chars
+    (progn
+      (lbzx nextw str offset)
+      (addi offset offset 1))
+    #-target-8-bit-chars
+    (progn
+      (lwzx nextw str offset)
+      (addi offset offset 4))
     (rotlwi accum accum 5)
     (xor accum accum nextw)
-    (bne cr1 @loop8)
+    (bne cr1 @loop)
     (slri accum accum 5)
     (srri arg_z accum (- 5 target::fixnumshift))
     (blr)))
