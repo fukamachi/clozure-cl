@@ -105,6 +105,7 @@
   unsigned-byte-56
   simple-array-double-float-2d
   simple-array-single-float-2d
+  mod-char-code-limit
   )
 
 
