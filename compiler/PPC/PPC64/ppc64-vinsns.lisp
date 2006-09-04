@@ -3433,7 +3433,7 @@
                                              ((code :u8const))
                                              ())
   (ori dest ppc::rzero (:apply logior (:apply ash code 8) ppc64::subtag-character))
-  ((:pred (:not = 0 (:apply ldb (byte 16 8) code)))
+  ((:not (:pred = 0 (:apply ldb (byte 16 8) code)))
    (oris dest dest (:apply ldb (byte 16 8) code))))
 
 

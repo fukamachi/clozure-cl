@@ -3406,7 +3406,7 @@
 (define-ppc32-vinsn load-character-constant (((dest :lisp))
                                              ((code :u8const)))
   (ori dest ppc::rzero (:apply logior (:apply ash (:apply logand #x255 code) ppc32::charcode-shift) ppc32::subtag-character))
-  ((:pred (:not = 0 (:apply ldb (byte 16 8) code)))
+  ((:not (:pred = 0 (:apply ldb (byte 16 8) code)))
    (oris dest dest (:apply ldb (byte 16 8) code))))
 
 
