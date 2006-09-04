@@ -25,6 +25,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+
 (defparameter *name-char-alist*
   '(;; Standard character names
     ("Newline" .  #\012) ("Space" . #\040)
@@ -59,8 +60,12 @@
 ;;;Otherwise, if it consists of one char, return it.
 ;;;Otherwise, if it consists of two chars, the first of which  is ^,
 ;;; return %code-char(c xor 64), where c is the uppercased second char.
-;;;Otherwise, if it consists of octal digits, the digits are
-;;; interpreted as the (mod 256) ascii code of a character.
+;;;Otherwise, if it starts with the prefix "u+" or "U+" followed by
+;;; hex digits, the number denoted by those hex digits is interpreted as the
+;;; unicode code of the character; if this value is less than
+;;; CHAR-CODE-LIMIT, CODE-CHAR of that value is returned.
+;;;Otherwise, if it consists of octal digits, the number denoted by
+;;;  those octal digits is interpreted as per the U+ case above.
 ;;;Otherwise return NIL.
 
 (defun name-char (name)
@@ -72,19 +77,35 @@
       (let* ((namelen (length name)))
         (declare (fixnum namelen))
         (or (cdr (assoc name *name-char-alist* :test #'string-equal))
-         (if (= namelen 1)
-           (char name 0)
-           (if (and (= namelen 2) (eq (char name 0) #\^))
-             (code-char (the fixnum (logxor (the fixnum (char-code (char-upcase (char name 1)))) #x40)))
-             (let* ((n 0))
-               (dotimes (i namelen (code-char (logand n (1- char-code-limit))))
-                 (let* ((code (the fixnum (- (the fixnum (char-code (char name i)))
-                                             (char-code #\0)))))
-                   (declare (fixnum code))
-                   (if (and (>= code 0)
-                            (<= code 7))
-                     (setq n (logior code (the fixnum (ash n 3))))
-                     (return))))))))))))
+            (if (= namelen 1)
+              (char name 0)
+              (if (and (= namelen 2) (eq (char name 0) #\^))
+                (code-char (the fixnum (logxor (the fixnum (char-code (char-upcase (char name 1)))) #x40)))
+                (let* ((n 0))
+                  (or
+                   (if (and (> namelen 2)
+                            (or (eql (char name 0) #\U)
+                                (eql (char name 0) #\u))
+                            (eql (char name 1) #\+))
+                     (do* ((i 2 (1+ i)))
+                          ((= i namelen) (if (< n char-code-limit)
+                                           (code-char n)))
+                       (declare (fixnum i))
+                       (let* ((pos (position (char-upcase (char name i))
+                                             "0123456789ABCDEF")))
+                         (if pos
+                           (setq n (logior (ash n 4) pos))
+                           (progn
+                             (setq n 0)
+                             (return))))))
+                   (dotimes (i namelen (code-char (mod n char-code-limit)))
+                     (let* ((code (the fixnum (- (the fixnum (char-code (char name i)))
+                                                 (char-code #\0)))))
+                       (declare (fixnum code))
+                       (if (and (>= code 0)
+                                (<= code 7))
+                         (setq n (logior code (the fixnum (ash n 3))))
+                         (return)))))))))))))
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
 (defconstant wsp #.(let ((str (make-string 6  :element-type 'base-char)))
@@ -93,7 +114,7 @@
                       (set-schar str 2 #\^L)
                       (set-schar str 3 #\^@)
                       (set-schar str 4 #\^J)
-                      (set-schar str 5 (%code-char #xCA))
+                      (set-schar str 5 (code-char #xa0))
                       str))
 
 (defconstant wsp&cr #.(let ((str (make-string 7 :element-type 'base-char)))
@@ -103,7 +124,7 @@
                         (set-schar str 3 #\^L)
                         (set-schar str 4 #\^@)
                         (set-schar str 5 #\^J)
-                        (set-schar str 6 (%code-char #xCA))
+                        (set-schar str 6 (code-char #xa0))
                         str))
 )
 
@@ -164,7 +185,7 @@
 
 ;;; This -really- gets initialized later in the file
 (defvar %initial-readtable%
-  (let* ((ttab (make-array 256 :element-type '(signed-byte 8)))
+  (let* ((ttab (make-array 256 :element-type '(unsigned-byte 8)))
          (macs `((#\# . (,#'read-dispatch))))
          (case :upcase))
     (dotimes (i 256) (declare (fixnum i))(uvset ttab i $cht_cnst))
@@ -186,24 +207,27 @@
   (setq to (if to 
              (readtable-arg to)
              (%istruct 'readtable
-                        (make-array 256 :element-type '(signed-byte 8))
+                        (make-array 256 :element-type '(unsigned-byte 8))
                          nil (rdtab.case from))))
   (setf (rdtab.alist to) (copy-tree (rdtab.alist from)))
   (setf (rdtab.case to) (rdtab.case from))
   (let* ((fttab (rdtab.ttab from))
          (tttab (rdtab.ttab to)))
-    (dotimes (i 256 to)
-      (setf (uvref tttab i) (uvref fttab i)))))
+    (%copy-ivector-to-ivector fttab 0 tttab 0 257)))
 
 (declaim (inline %character-attribute))
 
 (defun %character-attribute (char attrtab)
   (declare (character char)
-           (type (simple-array (signed-byte 8) (*)) attrtab)
+           (type (simple-array (unsigned-byte 8) (256)) attrtab)
            (optimize (speed 3) (safety 0)))
   (let* ((code (char-code char)))
     (declare (fixnum code))
-    (aref attrtab code)))
+    (if (< code 256)
+      (aref attrtab code)
+      ;; Should probably have an extension mechanism for things
+      ;; like NBS.
+      $cht_cnst)))
 
 ;;; returns: (values attrib <aux-info>), where
 ;;;           <aux-info> = (char . fn), if terminating macro
