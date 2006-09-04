@@ -1407,6 +1407,8 @@
                                         (ppc2-box-s32 seg target temp))
                                        (:fixnum-vector
                                         (! box-fixnum target temp))
+                                       (:simple-string
+                                        (! u32->char target temp))
                                        (t
                                         (ppc2-box-u32 seg target temp)))))))))
                       (if is-8-bit
@@ -1428,7 +1430,7 @@
                             (ensuring-node-target (target vreg)
                               (if (eq type-keyword :signed-8-bit-vector)
                                 (! s8->fixnum target temp)
-                                (! u8->char target temp)))))
+                                (! u32->char target temp)))))
                         (if is-16-bit
                           (ensuring-node-target (target vreg)
                           
@@ -1445,9 +1447,7 @@
                                   (! misc-ref-u16 temp src idx-reg)))
                               (if (eq type-keyword :unsigned-16-bit-vector)
                                 (! u16->fixnum target temp)
-                                (if (eq type-keyword :signed-16-bit-vector)
-                                  (! s16->fixnum target temp)
-                                  (! u8->char target temp)))))
+                                (! s16->fixnum target temp))))
                           ;; Down to the dregs.
                           (if is-64-bit
                             (ensuring-node-target (target vreg)
@@ -1856,11 +1856,13 @@
                     (! check-misc-bound unscaled-idx src))
                   (with-imm-temps  () (temp)
                     (cond (is-32-bit
-                           (if constval
+                           (if constval                             
                              (ppc2-lri seg temp
                                        (if (typep constval 'single-float)
                                          (ppc2-single-float-bits constval)
-                                         constval))
+                                         (if (characterp constval)
+                                           (char-code constval)
+                                           constval)))
                              (cond ((eq type-keyword :single-float-vector)
                                     (when safe
                                       (! trap-unless-single-float val-reg))
@@ -1871,6 +1873,8 @@
                                     (when safe
                                       (! trap-unless-fixnum val-reg))
                                     (! fixnum->signed-natural temp val-reg))
+                                   ((eq type-keyword :simple-string)
+                                      (! unbox-base-char temp val-reg))
                                    (t
                                     (! unbox-u32 temp val-reg))))
                            (if (and index-known-fixnum 
@@ -5741,7 +5745,9 @@
                        (ppc2-two-untargeted-reg-forms seg str ppc::arg_y idx ppc::arg_z)
     (if vreg
       (ensuring-node-target (target vreg)
-        (! %schar target src unscaled-idx)))
+        (case (arch::target-char-code-limit (backend-target-arch *target-backend*))
+          (256 (! %schar8 target src unscaled-idx))
+          (t (! %schar32 target src unscaled-idx)))))
     (^)))
 
 (defppc2 ppc2-%set-schar %set-schar (seg vreg xfer str idx char)
@@ -5750,7 +5756,9 @@
                                                         str ppc::arg_x
                                                         idx ppc::arg_y
                                                         char ppc::arg_z)
-    (! %set-schar  src unscaled-idx char)
+    (case (arch::target-char-code-limit (backend-target-arch *target-backend*))
+      (256 (! %set-schar8 src unscaled-idx char))
+      (t (! %set-schar32 src unscaled-idx char)))
     (when vreg (<- char)) 
     (^)))
 
@@ -5758,23 +5766,30 @@
   (multiple-value-bind (src unscaled-idx char)
                        (ppc2-three-untargeted-reg-forms seg str ppc::arg_x idx ppc::arg_y
                                                         char ppc::arg_z)
-    (! %set-scharcode  src unscaled-idx char)
+    (case (arch::target-char-code-limit (backend-target-arch *target-backend*))
+      (256 (! %set-scharcode8 src unscaled-idx char))
+      (t (! %set-scharcode32 src unscaled-idx char)))
     (when vreg (<- char)) 
     (^)))
 
 (defppc2 ppc2-%scharcode %scharcode (seg vreg xfer str idx)
   (multiple-value-bind (src unscaled-idx)
-                       (ppc2-two-untargeted-reg-forms seg str ppc::arg_y idx ppc::arg_z)
+      (ppc2-two-untargeted-reg-forms seg str ppc::arg_y idx ppc::arg_z)
     (if vreg
       (ensuring-node-target (target vreg)
-        (! %scharcode target src unscaled-idx)))
+        (case (arch::target-char-code-limit (backend-target-arch *target-backend*))
+          (256 (! %scharcode8 target src unscaled-idx))
+          (t (! %scharcode32 target src unscaled-idx)))))
     (^)))
 
       
 
 (defppc2 ppc2-code-char code-char (seg vreg xfer c)
   (let* ((reg (ppc2-one-untargeted-reg-form seg c ppc::arg_z)))
-    (! require-u8 reg)                 ; Typecheck even if result unused.
+    ;; Typecheck even if result unused.
+    (case (arch::target-char-code-limit (backend-target-arch *target-backend*))
+      (256 (! require-u8 reg))
+      (t (! require-char-code reg)))
     (if vreg
       (ensuring-node-target (target vreg)
         (! fixnum->char target reg)))
