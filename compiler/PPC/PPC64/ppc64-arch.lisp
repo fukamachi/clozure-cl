@@ -216,12 +216,14 @@
 (define-cl-array-subtag s32-vector ivector-class-32-bit 1)
 (define-cl-array-subtag u32-vector ivector-class-32-bit 2)
 (define-cl-array-subtag single-float-vector ivector-class-32-bit 3)
-(define-cl-array-subtag new-string ivector-class-32-bit 5)
+#-target-8-bit-chars
+(define-cl-array-subtag xsimple-base-string ivector-class-32-bit 5)
 (define-cl-array-subtag s16-vector ivector-class-other-bit 1)
 (define-cl-array-subtag u16-vector ivector-class-other-bit 2)
 (define-cl-array-subtag bit-vector ivector-class-other-bit 7)
 (define-cl-array-subtag s8-vector ivector-class-8-bit 1)
 (define-cl-array-subtag u8-vector ivector-class-8-bit 2)
+#+target-8-bit-chars
 (define-cl-array-subtag simple-base-string ivector-class-8-bit 5)
 
 ;;; There's some room for expansion in non-array ivector space.

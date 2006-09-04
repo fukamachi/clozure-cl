@@ -861,12 +861,30 @@
                                 ((crf0 (:crf 0))
                                  (tag :u32)))
   :again
-                                        ; The bottom ppc32::fixnumshift bits and the top (- 32 (+ ppc32::fixnumshift 8)) must all be zero.
+  ;; The bottom ppc32::fixnumshift bits and the top (- 32 (+
+  ;; ppc32::fixnumshift 8)) must all be zero.
   (rlwinm. tag object 0 (- ppc32::nbits-in-word ppc32::fixnumshift) (- ppc32::least-significant-bit (+ ppc32::fixnumshift 8)))
   (beq+ crf0 :got-it)
   (uuo_intcerr arch::error-object-not-unsigned-byte-8 object)
   (b :again)
   :got-it)
+
+(define-ppc32-vinsn require-char-code (()
+                                       ((object :lisp))
+                                       ((crf0 (:crf 0))
+                                        (crf1 :crf)
+                                        (tag :u32)))
+  :again
+  (clrlwi. tag object (- ppc32::nbits-in-word ppc32::nlisptagbits))
+  (lis tag (ash #x110000 -16))
+  (cmplwi crf1 object tag)
+  (bne crf0 :bad)
+  (blt+ crf1 :got-it)
+  :bad
+  (uuo_intcerr arch::error-object-not-mod-char-code-limit object)
+  (b :again)
+  :got-it)
+
 
 (define-ppc32-vinsn box-fixnum (((dest :imm))
                                 ((src :s32)))
@@ -2316,8 +2334,8 @@
   (addi dest dest ppc32::subtag-character))
 
 
-(define-ppc32-vinsn u8->char (((dest :lisp))
-                              ((src :u8))
+(define-ppc32-vinsn u32->char (((dest :lisp))
+                              ((src :u32))
                               ())
   (slwi dest src ppc32::charcode-shift)
   (addi dest dest ppc32::subtag-character))
@@ -3217,18 +3235,27 @@
   (mtctr ppc::temp0)
   (bctr))
 
-(define-ppc32-vinsn %schar (((char :imm))
+(define-ppc32-vinsn %schar8 (((char :imm))
                             ((str :lisp)
                              (idx :imm))
-                            ((imm :u32)
-                             (cr0 (:crf 0))))
+                            ((imm :u32)))
   (srwi imm idx ppc32::fixnumshift)
   (addi imm imm ppc32::misc-data-offset)
   (lbzx imm str imm)
   (slwi imm imm ppc32::charcode-shift)
   (addi char imm ppc32::subtag-character))
 
-(define-ppc32-vinsn %set-schar (()
+(define-ppc32-vinsn %schar32 (((char :imm))
+                              ((str :lisp)
+                               (idx :imm))
+                              ((imm :u32)))
+  (addi imm idx ppc32::misc-data-offset)
+  (lwzx imm str imm)
+  (slwi imm imm ppc32::charcode-shift)
+  (addi char imm ppc32::subtag-character))
+
+
+(define-ppc32-vinsn %set-schar8 (()
                                 ((str :lisp)
                                  (idx :imm)
                                  (char :imm))
@@ -3241,7 +3268,19 @@
   (stbx imm1 str imm)
   )
 
-(define-ppc32-vinsn %set-scharcode (()
+(define-ppc32-vinsn %set-schar32 (()
+                                  ((str :lisp)
+                                   (idx :imm)
+                                   (char :imm))
+                                  ((imm :u32)
+                                   (imm1 :u32)
+                                   (cr0 (:crf 0))))
+  (addi imm idx ppc32::misc-data-offset)
+  (srwi imm1 char ppc32::charcode-shift)
+  (stwx imm1 str imm)
+  )
+
+(define-ppc32-vinsn %set-scharcode8 (()
                                     ((str :lisp)
                                      (idx :imm)
                                      (code :imm))
@@ -3255,14 +3294,34 @@
   )
 
 
-(define-ppc32-vinsn %scharcode (((code :imm))
-                                ((str :lisp)
-                                 (idx :imm))
-                                ((imm :u32)
-                                 (cr0 (:crf 0))))
+(define-ppc32-vinsn %set-scharcode32 (()
+                                    ((str :lisp)
+                                     (idx :imm)
+                                     (code :imm))
+                                    ((imm :u32)
+                                     (imm1 :u32)))
+  (addi imm idx ppc32::misc-data-offset)
+  (srwi imm1 code ppc32::fixnumshift)
+  (stwx imm1 str imm)
+  )
+
+(define-ppc32-vinsn %scharcode8 (((code :imm))
+                                 ((str :lisp)
+                                  (idx :imm))
+                                 ((imm :u32)
+                                  (cr0 (:crf 0))))
   (srwi imm idx ppc32::fixnumshift)
   (addi imm imm ppc32::misc-data-offset)
   (lbzx imm str imm)
+  (slwi code imm ppc32::fixnumshift))
+
+(define-ppc32-vinsn %scharcode32 (((code :imm))
+                                 ((str :lisp)
+                                  (idx :imm))
+                                 ((imm :u32)
+                                  (cr0 (:crf 0))))
+  (addi imm idx ppc32::misc-data-offset)
+  (lwzx imm str imm)
   (slwi code imm ppc32::fixnumshift))
 
 ;;; Clobbers LR
@@ -3346,7 +3405,10 @@
 
 (define-ppc32-vinsn load-character-constant (((dest :lisp))
                                              ((code :u8const)))
-  (ori dest ppc::rzero (:apply logior (:apply ash code ppc32::charcode-shift) ppc32::subtag-character)))
+  (ori dest ppc::rzero (:apply logior (:apply ash (:apply logand #x255 code) ppc32::charcode-shift) ppc32::subtag-character))
+  ((:pred (:not = 0 (:apply ldb (byte 16 8) code)))
+   (oris dest dest (:apply ldb (byte 16 8) code))))
+
 
 (define-ppc32-vinsn %symbol->symptr (((dest :lisp))
                                      ((src :lisp))

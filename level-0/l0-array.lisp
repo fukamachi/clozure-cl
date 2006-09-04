@@ -59,10 +59,10 @@
      (unsigned-byte 32)
      (signed-byte 32)
      fixnum
-     character
+     #-target-8-bit-chars character #+target-8-bit-chars unused
      (unsigned-byte 8)
      (signed-byte 8)
-     character
+     #+target-8-bit-chars character #-target-8-bit-chars unused
      (unsigned-byte 16)
      (signed-byte 16)
      double-float
@@ -92,7 +92,7 @@
      double-float
      #+target-8-bit-chars character #-target-8-bit-chars unused
      unused
-     unused
+     #-target-8-bit-chars character #+target-8-bit-chars unused
      unused
      unused
      unused

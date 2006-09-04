@@ -176,18 +176,20 @@
 (defconstant min-16-bit-ivector-subtag subtag-u16-vector)
 (defconstant max-16-bit-ivector-subtag subtag-s16-vector)
 
+#+target-8-bit-chars
 (define-imm-subtag simple-base-string 27)
 (define-imm-subtag s8-vector 26)
 (define-imm-subtag u8-vector 25)
 (defconstant min-8-bit-ivector-subtag subtag-u8-vector)
-(defconstant max-8-bit-ivector-subtag subtag-simple-base-string)
+(defconstant max-8-bit-ivector-subtag (logior fulltag-immheader (ash 27 ntagbits)))
 
-(define-imm-subtag new-string 24)
+#-target-8-bit-chars
+(define-imm-subtag simple-base-string 24)
 (define-imm-subtag fixnum-vector 23)
 (define-imm-subtag s32-vector 22)
 (define-imm-subtag u32-vector 21)
 (define-imm-subtag single-float-vector 20)
-(defconstant max-32-bit-ivector-subtag subtag-new-string)
+(defconstant max-32-bit-ivector-subtag (logior fulltag-immheader (ash 24 ntagbits)))
 (defconstant min-cl-ivector-subtag subtag-single-float-vector)
 
 (define-node-subtag vectorH 20)
