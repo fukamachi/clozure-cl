@@ -98,7 +98,7 @@ typedef struct ucontext ExceptionInformation;
 #ifdef CHAR_SIZE_32
 typedef uint32_t lisp_char_code;
 #else
-typedef uint8_t lisp_char_code;
+typedef unsigned char lisp_char_code;
 #endif
 
 typedef int OSStatus, OSErr;
