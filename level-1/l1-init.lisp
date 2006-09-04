@@ -125,7 +125,8 @@
   "The number of internal time units that fit into a second. See
   GET-INTERNAL-REAL-TIME and GET-INTERNAL-RUN-TIME.")
 
-(defconstant char-code-limit #x100
+(defconstant char-code-limit #.(arch::target-char-code-limit
+                                (backend-target-arch *target-backend*))
   "the upper exclusive bound on values produced by CHAR-CODE")
 
 (defconstant array-rank-limit (floor #x8000 target::node-size)
