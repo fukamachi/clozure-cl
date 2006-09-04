@@ -531,7 +531,7 @@
   (if (null crf)
     (target-arch-case
      (:ppc32 `(srwi ,dest ,src ppc32::charcode-shift))
-     (:ppc64 `(srdu ,dest ,src ppc64::charcode-shift)))
+     (:ppc64 `(srdi ,dest ,src ppc64::charcode-shift)))
     (let ((label (gensym)))
       (target-arch-case
        (:ppc32 `(progn
