@@ -1,3 +1,19 @@
+2006-09-04 16:16  gb
+
+	* compiler/PPC/PPC64/ppc64-vinsns.lisp: LOAD-CHARACTER-CONSTANT:
+	and the char code with #xff to get the low byte.
+
+2006-09-04 16:15  gb
+
+	* compiler/PPC/PPC32/ppc32-vinsns.lisp: LOAD-CHARACTER-CONSTANT:
+	and the char code with #xff or 255., not with #x255.  (Cause lots
+	of wackiness, mostly in readtable initialization.)
+
+2006-09-04 16:12  gb
+
+	* compiler/PPC/ppc2.lisp: Use u32->char (which is defined) vice
+	u8->char (which is no more) in %CHAR-CODE.
+
 2006-09-04 06:04  gb
 
 	* compiler/PPC/: PPC32/ppc32-vinsns.lisp, PPC64/ppc64-vinsns.lisp:
