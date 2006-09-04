@@ -980,6 +980,7 @@
     (unsigned-byte 56)
     (simple-array double-float (* *))
     (simple-array single-float (* *))
+    (mod #x110000)
 ))
 
 
