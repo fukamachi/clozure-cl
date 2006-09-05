@@ -99,6 +99,10 @@ define xpGPR
  end
 end
 
+define lisp
+ call print_lisp_object($arg0)
+end
+
 set $ppc64=0
 
 
