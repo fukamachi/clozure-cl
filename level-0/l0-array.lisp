@@ -409,7 +409,7 @@
     ;; which knows how to handle overlap
     ((#.target::subtag-s8-vector
       #.target::subtag-u8-vector
-      #.target::subtag-simple-base-string)
+      #+target-8-bit-chars #.target::subtag-simple-base-string)
      (%copy-ivector-to-ivector source
                                source-start
                                target
@@ -425,6 +425,7 @@
     ((#.target::subtag-s32-vector
       #.target::subtag-u32-vector
       #.target::subtag-single-float-vector
+      #-target-8-bit-chars #.target::subtag-simple-base-string
       #+32-bit-target #.target::subtag-fixnum-vector)
      (%copy-ivector-to-ivector source
                                (the fixnum (* source-start 4))
