@@ -137,7 +137,7 @@
     (if (= typecode target::subtag-simple-vector)
       (%copy-gvector-to-gvector src start dest 0 n)
       (ecase typecode
-	((#.target::subtag-simple-base-string
+	((#+target-8-bit-chars #.target::subtag-simple-base-string
 	  #.target::subtag-s8-vector
 	  #.target::subtag-u8-vector)
 	 (%copy-ivector-to-ivector src start dest 0 n))
@@ -151,7 +151,8 @@
 	((#.target::subtag-s32-vector
 	  #.target::subtag-u32-vector
 	  #.target::subtag-single-float-vector
-          #+32-bit-target #.target::subtag-fixnum-vector)
+          #+32-bit-target #.target::subtag-fixnum-vector
+          #-target-8-bit-chars #.target::subtag-simple-base-string)
 	 (%copy-ivector-to-ivector src
 				   (the fixnum (ash start 2))
 				   dest
