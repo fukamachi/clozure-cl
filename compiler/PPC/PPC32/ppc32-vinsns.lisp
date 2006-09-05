@@ -877,7 +877,7 @@
   :again
   (clrlwi. tag object (- ppc32::nbits-in-word ppc32::nlisptagbits))
   (lis tag (ash #x110000 -16))
-  (cmplwi crf1 object tag)
+  (cmplw crf1 object tag)
   (bne crf0 :bad)
   (blt+ crf1 :got-it)
   :bad
