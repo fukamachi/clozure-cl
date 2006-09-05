@@ -1344,6 +1344,7 @@
                            is-32-bit
                            (not (or (eq type-keyword :signed-32-bit-vector)
                                     (eq type-keyword :fixnum-vector)
+                                    (eq type-keyword :simple-string)
                                     (eq type-keyword :single-float-vector)))))
                      (:ppc64
                       (and (= vreg-mode hard-reg-class-gpr-mode-u64)
@@ -1384,6 +1385,8 @@
                                       (ppc2-box-s32 seg target temp))
                                      (:fixnum-vector
                                       (! box-fixnum target temp))
+                                     (:simple-string
+                                      (! u32->char target temp))
                                      (t
                                       (ppc2-box-u32 seg target temp)))))))
                         (with-imm-temps
