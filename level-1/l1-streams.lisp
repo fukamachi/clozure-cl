@@ -1105,7 +1105,7 @@
     (when insize
       (unless (ioblock-inbuf ioblock)
         (multiple-value-bind (buffer ptr in-size-in-octets)
-            (make-heap-ivector insize element-type)
+            (make-heap-ivector insize (if character-p '(unsigned-byte 8) element-type))
           (setf (ioblock-inbuf ioblock)
                 (make-io-buffer :buffer buffer
                                 :bufptr ptr
@@ -1126,7 +1126,7 @@
       (when outsize
         (unless (ioblock-outbuf ioblock)
           (multiple-value-bind (buffer ptr out-size-in-octets)
-              (make-heap-ivector outsize element-type)
+              (make-heap-ivector outsize (if character-p '(unsigned-byte 8) element-type))
             (setf (ioblock-outbuf ioblock)
                   (make-io-buffer :buffer buffer
                                   :bufptr ptr
