@@ -31,7 +31,19 @@ describe_symbol(LispObj sym)
   }
 }
   
-  
+int
+compare_lisp_string_to_c_string(lisp_char_code *lisp_string,
+                                char *c_string,
+                                natural n)
+{
+  natural i;
+  for (i = 0; i < n; i++) {
+    if (lisp_string[i] != (lisp_char_code)(c_string[i])) {
+      return 1;
+    }
+  }
+  return 0;
+}
 
 /*
   Walk the heap until we find a symbol
@@ -44,7 +56,8 @@ find_symbol_in_range(LispObj *start, LispObj *end, char *name)
 {
   LispObj header, tag;
   int n = strlen(name);
-  char *s = name, *p;
+  char *s = name;
+  lisp_char_code *p;
   while (start < end) {
     header = *start;
     tag = fulltag_of(header);
@@ -54,8 +67,8 @@ find_symbol_in_range(LispObj *start, LispObj *end, char *name)
         pname_header = header_of(pname);
       if ((header_subtag(pname_header) == subtag_simple_base_string) &&
           (header_element_count(pname_header) == n)) {
-        p = (char *) ptr_from_lispobj(pname + misc_data_offset);
-        if (strncmp(p, s, n) == 0) {
+        p = (lisp_char_code *) ptr_from_lispobj(pname + misc_data_offset);
+        if (compare_lisp_string_to_c_string(p, s, n) == 0) {
           return (ptr_to_lispobj(start))+fulltag_misc;
         }
       }
