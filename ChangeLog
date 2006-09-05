@@ -1,3 +1,66 @@
+2006-09-05 05:18  gb
+
+	* xdump/xfasload.lisp: Deal with 32-bit lisp strings.
+
+2006-09-05 05:18  gb
+
+	* lisp-kernel/linuxppc/.gdbinit: Start to depend on calling
+	print_lisp_object, since x/s doesn't deal with 32-bit lisp strings.
+
+2006-09-05 05:17  gb
+
+	* lisp-kernel/ppc-gc.c: conditionalize purify_displaced_object()
+	for char size.
+
+2006-09-05 05:16  gb
+
+	* lisp-kernel/plsym.c: find_symbol(): don't assume 8-bir lisp
+	strings.
+
+2006-09-05 05:15  gb
+
+	* lisp-kernel/lisptypes.h: Try using "u8_t" and "u32_t" for
+	lisp_char_code; this may be more portable.
+
+2006-09-05 05:14  gb
+
+	* lib/sequences.lisp: SIMPLE-1D-ARRAY-SUBSEQ: handle new strings.
+
+2006-09-05 05:13  gb
+
+	* level-1/linux-files.lisp: CALL-WITH-STRING-VECTOR: don't assume
+	8-bit char/strings.
+
+2006-09-05 05:13  gb
+
+	* level-1/l1-streams.lisp: Use heap-ivectors of element-type
+	(UNSIGNED-BYTE 8) for character streams.  (Should really depend on
+	the coding system in use.)
+
+2006-09-05 05:09  gb
+
+	* level-1/l1-aprims.lisp: Various archaic string functions: don't
+	assume 8-bit strings.
+
+2006-09-05 05:08  gb
+
+	* level-0/l0-array.lisp: Handle 32-bit strings in %UVECTOR-REPLACE.
+
+2006-09-05 05:07  gb
+
+	* compiler/PPC/PPC64/ppc64-arch.lisp: No "x" in simple-base-string,
+	when #-target-8-bit-chars.
+
+2006-09-05 05:06  gb
+
+	* compiler/PPC/: PPC32/ppc32-vinsns.lisp, PPC64/ppc64-vinsns.lisp:
+	REQUIRE-CHAR-CODE: comparison of OBJECT with TAG is not a CMPI.
+
+2006-09-05 05:05  gb
+
+	* compiler/PPC/ppc2.lisp: PPC2-VREF: handle the 32-bit
+	:SIMPLE-STRING case with constant index.
+
 2006-09-04 17:44  gb
 
 	* lisp-kernel/lisptypes.h: Linux doesn't define uint8_t.  Try
