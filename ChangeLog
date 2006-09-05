@@ -1,3 +1,13 @@
+2006-09-05 09:13  gb
+
+	* compiler/PPC/PPC32/ppc32-backend.lisp: darwinppc32 backend uses
+	32-bit chars, too.
+
+2006-09-05 09:01  gb
+
+	* compiler/PPC/PPC32/: ppc32-arch.lisp, ppc32-backend.lisp: ppc32
+	defaults to 32-bit chars.
+
 2006-09-05 05:18  gb
 
 	* xdump/xfasload.lisp: Deal with 32-bit lisp strings.
