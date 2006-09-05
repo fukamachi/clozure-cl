@@ -418,7 +418,8 @@ terminate the list"
     (let* ((s (malloc (the fixnum (1+ len)))))
       (setf (%get-byte s len) 0)
       (multiple-value-bind (data offset) (array-data-and-offset string)
-	(%copy-ivector-to-ptr data offset s 0 len)
+        (dotimes (i len s)
+          (setf (%get-unsigned-byte s i) (%scharcode data (+ offset i))))
 	s))))
 
 
@@ -431,7 +432,13 @@ terminate the list"
 
 
 (defun move-string-bytes (source dest off1 off2 n)
-  (%copy-ivector-to-ivector source off1 dest off2 n))
+  (declare (fixnum off1 off2 n)
+           (simple-base-string source dest)
+           (optimize (speed 3) (safety 0)))
+  (dotimes (i n dest)
+    (setf (schar dest off2) (schar source off1))
+    (incf off1)
+    (incf off2)))
 
 
 (defun %str-cat (s1 s2 &rest more)
@@ -464,8 +471,11 @@ terminate the list"
         (when (%i> end len)(error "End ~S exceeds length ~S." end len))
         (when (%i< start 0)(error "Negative start"))
         (let ((new (make-string newlen)))
-          (%copy-ivector-to-ivector str (%i+ start strb) new 0 newlen)
-          new)))))
+          (do* ((i 0 (1+ i))
+                (pos (%i+ start strb) (1+ pos)))
+               ((= i newlen) new)
+            (declare (fixnum i pos))
+            (setf (schar new i) (schar str pos))))))))
 
 
 
@@ -509,7 +519,7 @@ terminate the list"
       double-float
       bit))
   
-  ; given uvector subtype - what is the corresponding element-type
+  ;; given uvector subtype - what is the corresponding element-type
   (defun element-subtype-type (subtype)
     (declare (fixnum subtype))
     (if  (= subtype ppc32::subtag-simple-vector) t
