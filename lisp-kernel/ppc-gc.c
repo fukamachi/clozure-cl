@@ -812,7 +812,6 @@ skip_over_ivector(natural start, LispObj header)
     subtag = header_subtag(header),
     nbytes;
 
-#ifdef PPC
 #ifdef PPC64
   switch (fulltag_of(header)) {
   case ivector_class_64_bit:
@@ -847,7 +846,7 @@ skip_over_ivector(natural start, LispObj header)
   }
   return ptr_from_lispobj(start+(~7 & (nbytes + 4 + 7)));
 #endif
-#endif
+
 
 
 }
@@ -2908,7 +2907,11 @@ purify_displaced_object(LispObj obj, area *dest, natural disp)
 
   switch(subtag) {
   case subtag_simple_base_string:
+#ifdef CHAR_SIZE_32
+    physbytes = node_size + (element_count << 2);
+#else
     physbytes = node_size + element_count;
+#endif
     break;
 
   case subtag_code_vector:
