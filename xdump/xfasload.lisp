@@ -62,6 +62,7 @@
   "When true, assume that the target represents functions as a node vector with an immediate vector (a CODE-VECTOR) in its 0th element.  When false, assume that the target mixes code and constants in a single object.")
 (defparameter *xload-target-fulltag-for-symbols* nil)
 (defparameter *xload-target-fulltag-for-functions* nil)
+(defparameter *xload-target-char-code-limit* nil)
 
 
 (defvar *xload-backends* nil)
@@ -147,7 +148,9 @@
     (setq *xload-target-fulltag-for-functions*
           (if (arch::target-function-tag-is-subtag arch)
             (arch::target-fulltag-misc arch)
-            (arch::target-function-tag arch)))))
+            (arch::target-function-tag arch)))
+    (setq *xload-target-char-code-limit*
+          (arch::target-char-code-limit arch))))
 
 
 
@@ -784,12 +787,20 @@
   (declare (fixnum n))
   (let* ((subtag (type-keyword-code :simple-string)))
     (multiple-value-bind (addr v offset) (xload-make-ivector *xload-readonly-space* subtag n)
-      (do* ((p (+ offset *xload-target-misc-data-offset*)
-               (1+ p))
-              (i 0 (1+ i)))
-             ((= i n) str)
-          (declare (fixnum i p))
-          (setf (u8-ref v p) (char-code (schar str i))))
+      (case *xload-target-char-code-limit*
+        (256 (do* ((p (+ offset *xload-target-misc-data-offset*)
+                      (1+ p))
+                   (i 0 (1+ i)))
+                  ((= i n) str)
+               (declare (fixnum i p))
+               (setf (u8-ref v p) (char-code (schar str i)))))
+        (t
+         (do* ((p (+ offset *xload-target-misc-data-offset*)
+                      (+ p 4))
+                   (i 0 (1+ i)))
+                  ((= i n) str)
+               (declare (fixnum i p))
+               (setf (u32-ref v p) (char-code (schar str i))))))
         addr)))
 
 ;;; Read a string from fasl file, save it to readonly-space.
@@ -910,13 +921,18 @@
       (setf (xload-%svref q pkg.itab) (xload-save-htab (pkg.itab p))))))
 
 (defun xload-get-string (address)
-    (multiple-value-bind (v o) (xload-lookup-address address)
-      (let* ((header (natural-ref v (+ o *xload-target-misc-header-offset*)))
-             (len (ash header (- target::num-subtag-bits)))
-             (str (make-string len))
-             (p (+ o *xload-target-misc-data-offset*)))
-        (dotimes (i len str)
-          (setf (schar str i) (code-char (u8-ref v (+ p i))))))))
+  (multiple-value-bind (v o) (xload-lookup-address address)
+    (let* ((header (natural-ref v (+ o *xload-target-misc-header-offset*)))
+           (len (ash header (- target::num-subtag-bits)))
+           (str (make-string len))
+           (p (+ o *xload-target-misc-data-offset*)))
+      (case *xload-target-char-code-limit*
+        (256
+         (dotimes (i len str)
+           (setf (schar str i) (code-char (u8-ref v (+ p i))))))
+        (t
+         (dotimes (i len str)
+           (setf (schar str i) (code-char (u32-ref v (+ p (* i 4)))))))))))
 
                
 (defun xload-save-code-vector (code)
@@ -1109,9 +1125,15 @@
   (let* ((n (%fasl-read-count s)))
     (multiple-value-bind (str v o) (xload-make-ivector *xload-readonly-space* :simple-string n)
       (%epushval s str)
-      (dotimes (i n)
-        (setf (u8-ref v (+ o i *xload-target-misc-data-offset*))
-              (%fasl-read-count s)))
+      (case *xload-target-char-code-limit*
+        (256
+         (dotimes (i n)
+           (setf (u8-ref v (+ o i *xload-target-misc-data-offset*))
+                 (%fasl-read-count s))))
+        (t
+         (dotimes (i n)
+           (setf (u32-ref v (+ o (* i 4) *xload-target-misc-data-offset*))
+                 (%fasl-read-count s)))))
       str)))
 
 ;;; Allegedly deprecated.
@@ -1718,7 +1740,8 @@
             (*xload-host-big-endian* *xload-host-big-endian*)
             (*xload-target-use-code-vectors* *xload-target-use-code-vectors*)
             (*xload-target-fulltag-for-symbols* *xload-target-fulltag-for-symbols*)
-            (*xload-target-fulltag-for-functions* *xload-target-fulltag-for-functions*))
+            (*xload-target-fulltag-for-functions* *xload-target-fulltag-for-functions*)
+            (*xload-target-char-code-limit* *xload-target-char-code-limit*))
        (setup-xload-target-parameters)
        (let* ((*load-verbose* t)
               (compiler-backend (find-backend
