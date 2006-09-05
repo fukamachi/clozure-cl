@@ -1,3 +1,18 @@
+2006-09-04 17:44  gb
+
+	* lisp-kernel/lisptypes.h: Linux doesn't define uint8_t.  Try
+	"unsigned char", and cross fingers.
+
+2006-09-04 17:38  gb
+
+	* lisp-kernel/: lisptypes.h, ppc_print.c, x86_print.c: Define
+	lisp_char_code type, use it when printing lisp string in the kernel
+	debugger.
+
+2006-09-04 17:28  gb
+
+	* level-1/version.lisp: Bump.
+
 2006-09-04 17:18  gb
 
 	* level-0/PPC/ppc-array.lisp: Sigh.  Test for 8-bit-char case was
