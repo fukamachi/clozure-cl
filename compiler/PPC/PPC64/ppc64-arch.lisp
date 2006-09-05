@@ -217,7 +217,7 @@
 (define-cl-array-subtag u32-vector ivector-class-32-bit 2)
 (define-cl-array-subtag single-float-vector ivector-class-32-bit 3)
 #-target-8-bit-chars
-(define-cl-array-subtag xsimple-base-string ivector-class-32-bit 5)
+(define-cl-array-subtag simple-base-string ivector-class-32-bit 5)
 (define-cl-array-subtag s16-vector ivector-class-other-bit 1)
 (define-cl-array-subtag u16-vector ivector-class-other-bit 2)
 (define-cl-array-subtag bit-vector ivector-class-other-bit 7)
