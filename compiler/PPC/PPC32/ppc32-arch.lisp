@@ -176,14 +176,13 @@
 (defconstant min-16-bit-ivector-subtag subtag-u16-vector)
 (defconstant max-16-bit-ivector-subtag subtag-s16-vector)
 
-#+target-8-bit-chars
-(define-imm-subtag simple-base-string 27)
+
+;;(define-imm-subtag simple-base-string 27)
 (define-imm-subtag s8-vector 26)
 (define-imm-subtag u8-vector 25)
 (defconstant min-8-bit-ivector-subtag subtag-u8-vector)
 (defconstant max-8-bit-ivector-subtag (logior fulltag-immheader (ash 27 ntagbits)))
 
-#-target-8-bit-chars
 (define-imm-subtag simple-base-string 24)
 (define-imm-subtag fixnum-vector 23)
 (define-imm-subtag s32-vector 22)
@@ -750,8 +749,7 @@
                                            :simple-vector)
                           :1-bit-ivector-types '(:bit-vector)
                           :8-bit-ivector-types '(:signed-8-bit-vector
-                                                 :unsigned-8-bit-vector
-                                                 :simple-string)
+                                                 :unsigned-8-bit-vector)
                           :16-bit-ivector-types '(:signed-16-bit-vector
                                                   :unsigned-16-bit-vector)
                           :32-bit-ivector-types '(:signed-32-bit-vector
@@ -760,7 +758,8 @@
                                                   :fixnum-vector
                                                   :single-float
                                                   :double-float
-                                                  :bignum)
+                                                  :bignum
+                                                  :simple-string)
                           :64-bit-ivector-types '(:double-float-vector)
                           :array-type-name-from-ctype-function
                           #'ppc32-array-type-name-from-ctype
@@ -800,7 +799,7 @@
                           :charcode-shift charcode-shift
                           :fulltagmask fulltagmask
                           :fulltag-misc fulltag-misc
-                          :char-code-limit 256
+                          :char-code-limit #x110000
                           ))
 
 ;;; arch macros
