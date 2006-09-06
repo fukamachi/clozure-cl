@@ -662,7 +662,7 @@
   (pushq (:@ x8664::cons.car (:%q src))))
 
 
-(define-x8664-vinsn u8->char (((dest :lisp)
+(define-x8664-vinsn u32->char (((dest :lisp)
                                (src :u8))
 			      ((src :u8))
 			      ())
@@ -2564,6 +2564,21 @@
   (jmp :again)
   :ok)
 
+(define-x8664-vinsn require-char-code (()
+                                       ((object :lisp))
+                                       ((tag :u32)))
+  :again
+  (testb (:$b x8664::fixnummask) (:%b object))
+  (jne.pn :bad)
+  (cmpq (:$l #x110000) (:%q object))
+  (jb.pt :ok)
+  :bad
+  (uuo-error-reg-not-type (:%q object) (:$ub arch::error-object-not-mod-char-code-limit))
+  (jmp :again)
+  :ok)
+
+
+
 
 
 (define-x8664-vinsn mask-base-char (((dest :u8))
@@ -2932,14 +2947,23 @@
   (movl (:$l (:apply logior (:apply ash code 8) x8664::subtag-character))
         (:%l dest)))
 
-(define-x8664-vinsn %scharcode (((code :imm))
+(define-x8664-vinsn %scharcode8 (((code :imm))
 				((str :lisp)
 				 (idx :imm))
 				((imm :u64)))
   (movq (:%q idx) (:%q imm))
   (sarq (:$ub x8664::fixnumshift) (:%q imm))
   (movzbl (:@ x8664::misc-data-offset (:%q str) (:%q imm)) (:%l imm))
-  (leaq (:@ (:%q imm) 8) (:%q code)))
+  (imulq (:$b x8664::fixnumone) (:%q imm)(:%q code)))
+
+(define-x8664-vinsn %scharcode32 (((code :imm))
+				((str :lisp)
+				 (idx :imm))
+				((imm :u64)))
+  (movq (:%q idx) (:%q imm))
+  (sarq (:$ub 1) (:%q imm))
+  (movl (:@ x8664::misc-data-offset (:%q str) (:%q imm)) (:%l imm))
+  (imulq (:$b x8664::fixnumone) (:%q imm)(:%q code)))
 
 (define-x8664-subprim-jump-vinsn (tail-call-sym-slide) .SPtcallsymslide)
 
@@ -3285,7 +3309,7 @@
   (movq (:@ (:%seg :rcontext) x8664::tcr.foreign-sp) (:%q dest)))
 
 
-(define-x8664-vinsn %set-scharcode (()
+(define-x8664-vinsn %set-scharcode8 (()
 				    ((str :lisp)
 				     (idx :imm)
 				     (code :imm))
@@ -3296,6 +3320,19 @@
   (shrq (:$ub x8664::fixnumshift) (:%q imm1))
   (shrq (:$ub x8664::word-shift) (:%q imm))
   (movb (:%b imm1) (:@ x8664::misc-data-offset (:%q str) (:%q imm))))
+
+
+(define-x8664-vinsn %set-scharcode32 (()
+				    ((str :lisp)
+				     (idx :imm)
+				     (code :imm))
+				    ((imm :u64)
+				     (imm1 :u64)))
+  (movq (:%q code) (:%q imm1))
+  (movq (:%q idx) (:%q imm))
+  (shrq (:$ub x8664::fixnumshift) (:%q imm1))
+  (shrq (:$ub 1) (:%q imm))
+  (movl (:%l imm1) (:@ x8664::misc-data-offset (:%q str) (:%q imm))))
 
 
 
@@ -3638,7 +3675,7 @@
                                 ())
   (testb (:%b x8664::arg_z) (:%b x8664::arg_z)))
 
-(define-x8664-vinsn %schar (((char :imm))
+(define-x8664-vinsn %schar8 (((char :imm))
 			    ((str :lisp)
 			     (idx :imm))
 			    ((imm :u32)))
@@ -3648,19 +3685,40 @@
   (shll (:$ub x8664::charcode-shift) (:%l imm))
   (leaq (:@ x8664::subtag-character (:%q imm)) (:%q char)))
 
+(define-x8664-vinsn %schar32 (((char :imm))
+                              ((str :lisp)
+                               (idx :imm))
+                              ((imm :u32)))
+  (movq (:%q idx) (:%q imm))
+  (shrq (:$ub 1) (:%q imm))
+  (movl (:@ x8664::misc-data-offset (:%q str) (:%q imm)) (:%l imm))
+  (shll (:$ub x8664::charcode-shift) (:%l imm))
+  (leaq (:@ x8664::subtag-character (:%q imm)) (:%q char)))
 
-(define-x8664-vinsn %set-schar (()
-				((str :lisp)
-				 (idx :imm)
-				 (char :imm))
-				((imm0 :u64)
-				 (imm1 :u64)))
+
+(define-x8664-vinsn %set-schar8 (()
+                                 ((str :lisp)
+                                  (idx :imm)
+                                  (char :imm))
+                                 ((imm0 :u64)
+                                  (imm1 :u64)))
   (movq (:%q idx) (:%q imm0))
   (movl (:%l char) (:%l imm1))
   (shrq (:$ub x8664::fixnumshift) (:%q imm0))
   (shrl (:$ub x8664::charcode-shift) (:%l imm1))
   (movb (:%b imm1) (:@ x8664::misc-data-offset (:%q str) (:%q imm0))))
 
+(define-x8664-vinsn %set-schar32 (()
+                                 ((str :lisp)
+                                  (idx :imm)
+                                  (char :imm))
+                                 ((imm0 :u64)
+                                  (imm1 :u64)))
+  (movq (:%q idx) (:%q imm0))
+  (movl (:%l char) (:%l imm1))
+  (shrq (:$ub 1) (:%q imm0))
+  (shrl (:$ub x8664::charcode-shift) (:%l imm1))
+  (movl (:%l imm1) (:@ x8664::misc-data-offset (:%q str) (:%q imm0))))
 
 (define-x8664-vinsn misc-set-c-single-float (((val :single-float))
 					     ((v :lisp)

@@ -1502,7 +1502,9 @@
                                    (! misc-ref-c-s32 temp src index-known-fixnum)
                                    (! misc-ref-c-u32 temp src index-known-fixnum))
                                  (ensuring-node-target (target vreg)
-                                   (! box-fixnum target temp)))))
+                                   (if (eq type-keyword :simple-string)
+                                     (! u32->char target temp)
+                                     (! box-fixnum target temp))))))
                         (with-imm-temps
                             () (idx-reg)
                           (if index-known-fixnum
@@ -1519,7 +1521,9 @@
                                        (! misc-ref-s32 temp src idx-reg)
                                        (! misc-ref-u32 temp src idx-reg))
                                      (ensuring-node-target (target vreg)
-                                       (! box-fixnum target temp)))))))
+                                       (if (eq type-keyword :simple-string)
+                                         (! u32->char target temp)
+                                         (! box-fixnum target temp))))))))
                       (if is-8-bit
                         (with-imm-temps
                             () (temp)
@@ -1537,7 +1541,7 @@
                                 (! misc-ref-u8 temp src idx-reg))))
                           (if (eq type-keyword :simple-string)
                             (ensuring-node-target (target vreg)
-                              (! u8->char target temp))
+                              (! u32->char target temp))
                             (if (and (= vreg-mode hard-reg-class-gpr-mode-u8)
                                      (eq type-keyword :unsigned-8-bit-vector))
                               (x862-copy-register seg vreg temp)
@@ -1975,13 +1979,17 @@
                                (x862-lri seg temp
                                          (if (typep constval 'single-float)
                                            (x862-single-float-bits constval)
-                                           constval))
+                                           (if (typep constval 'character)
+                                             (char-code constval)
+                                             constval)))
                                (cond ((eq type-keyword :single-float-vector)
                                       (when safe
                                         (! trap-unless-single-float val-reg))
                                       (! single-float-bits temp val-reg))
                                      ((eq type-keyword :signed-32-bit-vector)
                                       (! unbox-s32 temp val-reg))
+                                     ((eq type-keyword :simple-string)
+                                      (! unbox-base-char temp val-reg))
                                      (t
                                       (! unbox-u32 temp val-reg))))
                              (if (and index-known-fixnum 
@@ -5827,49 +5835,60 @@
     (progn
       (ensuring-node-target (target vreg)
         (with-imm-target () (dest :u8)
-          (! u8->char target (let* ((*x862-reckless* t))
+          (! u32->char target (let* ((*x862-reckless* t))
                                (x862-one-untargeted-reg-form seg c dest)))))
       (^))))
 
 (defx862 x862-%schar %schar (seg vreg xfer str idx)
   (multiple-value-bind (src unscaled-idx)
-                       (x862-two-untargeted-reg-forms seg str x8664::arg_y idx x8664::arg_z)
+      (x862-two-untargeted-reg-forms seg str x8664::arg_y idx x8664::arg_z)
     (if vreg
       (ensuring-node-target (target vreg)
-        (! %schar target src unscaled-idx)))
+        (case (arch::target-char-code-limit (backend-target-arch *target-backend*))
+          (256 (! %schar8 target src unscaled-idx))
+          (t (! %schar32 target src unscaled-idx)))))
     (^)))
 
 (defx862 x862-%set-schar %set-schar (seg vreg xfer str idx char)
   (multiple-value-bind (src unscaled-idx char)
-                       (x862-three-untargeted-reg-forms seg
-                                                        str x8664::arg_x
-                                                        idx x8664::arg_y
-                                                        char x8664::arg_z)
-    (! %set-schar  src unscaled-idx char)
+      (x862-three-untargeted-reg-forms seg
+                                       str x8664::arg_x
+                                       idx x8664::arg_y
+                                       char x8664::arg_z)
+    (case (arch::target-char-code-limit (backend-target-arch *target-backend*))
+      (256 (! %set-schar8 src unscaled-idx char))
+      (t (! %set-schar32 src unscaled-idx char)))
     (when vreg (<- char)) 
     (^)))
 
 (defx862 x862-%set-scharcode %set-scharcode (seg vreg xfer str idx char)
   (multiple-value-bind (src unscaled-idx char)
-                       (x862-three-untargeted-reg-forms seg str x8664::arg_x idx x8664::arg_y
-                                                        char x8664::arg_z)
-    (! %set-scharcode  src unscaled-idx char)
+      (x862-three-untargeted-reg-forms seg str x8664::arg_x idx x8664::arg_y
+                                       char x8664::arg_z)
+    (case (arch::target-char-code-limit (backend-target-arch *target-backend*))
+      (256 (! %set-scharcode8 src unscaled-idx char))
+      (t (! %set-scharcode32 src unscaled-idx char)))
     (when vreg (<- char)) 
     (^)))
 
 (defx862 x862-%scharcode %scharcode (seg vreg xfer str idx)
   (multiple-value-bind (src unscaled-idx)
-                       (x862-two-untargeted-reg-forms seg str x8664::arg_y idx x8664::arg_z)
+      (x862-two-untargeted-reg-forms seg str x8664::arg_y idx x8664::arg_z)
     (if vreg
       (ensuring-node-target (target vreg)
-        (! %scharcode target src unscaled-idx)))
+        (case (arch::target-char-code-limit (backend-target-arch *target-backend*))
+          (256 (! %scharcode8 target src unscaled-idx))
+          (t (! %scharcode32 target src unscaled-idx)))))
     (^)))
 
       
 
 (defx862 x862-code-char code-char (seg vreg xfer c)
   (let* ((reg (x862-one-untargeted-reg-form seg c x8664::arg_z)))
-    (! require-u8 reg)                 ; Typecheck even if result unused.
+    ;; Typecheck even if result unused.
+    (case (arch::target-char-code-limit (backend-target-arch *target-backend*))
+      (256 (! require-u8 reg))
+      (t (! require-char-code reg)))
     (if vreg
       (ensuring-node-target (target vreg)
         (! fixnum->char target reg)))
