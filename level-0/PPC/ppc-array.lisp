@@ -301,7 +301,7 @@
   (cmpdi cr2 imm2 ppc64::subtag-s32-vector)
   (cmpdi cr0 imm2 ppc64::subtag-single-float-vector)
   #-target-8-bit-chars
-  (beq c33 @char32)
+  (beq cr3 @char32)
   (beq cr2 @s32)
   (bne cr0 @u32)
   ;@sfloat
