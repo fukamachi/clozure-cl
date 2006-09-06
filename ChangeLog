@@ -1,3 +1,13 @@
+2006-09-06 00:08  gb
+
+	* compiler/PPC/PPC64/: ppc64-arch.lisp, ppc64-backend.lisp: remove
+	8-bit char stuff.
+
+2006-09-06 00:08  gb
+
+	* compiler/X86/X8664/x8664-arch.lisp: Forgot to set char-code-limit
+	here.
+
 2006-09-05 22:49  gb
 
 	* lib/macros.lisp: In DO-GC-AREAS, don't use comma before call to
