@@ -461,7 +461,7 @@
     (:freebsdx8664 "freebsdx8664")
     (:darwinx8664 "darwinx8664")))
 
-(defun rebuild-ccl (&key full clean kernel force (reload t) exit reload-arguments)
+(defun rebuild-ccl (&key full clean kernel force (reload t) exit reload-arguments verbose)
   (when full
     (setq clean t kernel t reload t))
   (let* ((cd (current-directory)))
@@ -486,19 +486,24 @@
                                   "clean")))
              (format t "~&;Building lisp-kernel ...")
              (with-output-to-string (s)
-               (multiple-value-bind
-                   (status exit-code)
-                   (external-process-status 
-                    (run-program "make"
-                                 (list "-k" "-C"
-                                       (format nil "lisp-kernel/~a"
-                                               (kernel-build-directory)))
-                                 :output s
-                                 :error s))
-                 (if (and (eq :exited status) (zerop exit-code))
-                   (progn  (format t "~&;Kernel built successfully.") (sleep 1))
-                   (error "Error(s) during kernel compilation.~%~a"
-                          (get-output-stream-string s))))))
+                                    (multiple-value-bind
+                                        (status exit-code)
+                                        (external-process-status 
+                                         (run-program "make"
+                                                      (list "-k" "-C"
+                                                            (format nil "lisp-kernel/~a"
+                                                                    (kernel-build-directory)))
+                                                      :output s
+                                                      :error s))
+                                      (if (and (eq :exited status) (zerop exit-code))
+                                        (progn
+                                          (format t "~&;Kernel built successfully.")
+                                          (when verbose
+                                            (format t "~&;kernel build output:~%~a"
+                                                    (get-output-stream-string s)))
+                                          (sleep 1))
+                                        (error "Error(s) during kernel compilation.~%~a"
+                                               (get-output-stream-string s))))))
            (compile-ccl (not (null force)))
            (if force (xload-level-0 :force) (xload-level-0))
            (when reload
@@ -506,23 +511,27 @@
                                                   "(save-application ~s)"
                                                   (standard-image-name)))
                (with-output-to-string (output)
-                 (multiple-value-bind (status exit-code)
-                     (external-process-status
-                      (run-program
-                       (format nil "./~a" (standard-kernel-name))
-                       (list* "--image-name" (standard-boot-image-name)
-                              reload-arguments)
-                       :input cmd
-                       :output output
-                       :error output))
-                   (if (and (eq status :exited)
-                            (eql exit-code 0))
-                     (format t "~&;Wrote heap image: ~s"
-                             (truename (format nil "ccl:~a"
-                                               (standard-image-name))))
-                     (error "Errors (~s ~s) reloading boot image:~&~a"
-                            status exit-code
-                            (get-output-stream-string output)))))))
+                                      (multiple-value-bind (status exit-code)
+                                          (external-process-status
+                                           (run-program
+                                            (format nil "./~a" (standard-kernel-name))
+                                            (list* "--image-name" (standard-boot-image-name)
+                                                   reload-arguments)
+                                            :input cmd
+                                            :output output
+                                            :error output))
+                                        (if (and (eq status :exited)
+                                                 (eql exit-code 0))
+                                          (progn
+                                            (format t "~&;Wrote heap image: ~s"
+                                                    (truename (format nil "ccl:~a"
+                                                                      (standard-image-name))))
+                                            (when verbose
+                                              (format t "~&;Reload heap image output:~%~a"
+                                                      (get-output-stream-string output))))
+                                          (error "Errors (~s ~s) reloading boot image:~&~a"
+                                                 status exit-code
+                                                 (get-output-stream-string output)))))))
            (when exit
              (quit)))
       (setf (current-directory) cd))))
