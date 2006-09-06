@@ -1,3 +1,10 @@
+2006-09-06 14:42  gb
+
+	* compiler/PPC/PPC64/ppc64-backend.lisp: PPC64 callbacks are always
+	#+poweropen-target; don't conditionalize the fp-arg-ptr argument
+	(since that creates confustion when cross-compiling from a
+	non-poweropen host.)
+
 2006-09-06 00:08  gb
 
 	* compiler/PPC/PPC64/: ppc64-arch.lisp, ppc64-backend.lisp: remove
