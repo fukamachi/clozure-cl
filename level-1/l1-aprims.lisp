@@ -551,9 +551,9 @@ terminate the list"
     bogus
     bogus
     double-float
-    base-char
+    #+target-8-bit-chars base-char #-target-8-bit-chars bogus
     bogus
-    bogus
+    #-target-8-bit-chars base-char #+target-8-bit-chars bogus
     bogus
     bogus
     bogus
