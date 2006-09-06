@@ -1,3 +1,22 @@
+2006-09-06 16:39  gb
+
+	* compiler/X86/: x862.lisp, X8664/x8664-vinsns.lisp: 32-bit chars
+	stuff for x8664.
+
+2006-09-06 16:39  gb
+
+	* level-1/l1-reader.lisp: kids: bourbon and editing COPY-READTABLE
+	don't mix!
+
+2006-09-06 16:38  gb
+
+	* lib/compile-ccl.lisp: :verbose argument to rebuild-ccl.
+
+2006-09-06 16:38  gb
+
+	* level-1/linux-files.lisp: process input/output: don't assume
+	8-bit strings.
+
 2006-09-06 14:42  gb
 
 	* compiler/PPC/PPC64/ppc64-backend.lisp: PPC64 callbacks are always
