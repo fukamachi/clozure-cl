@@ -1,3 +1,30 @@
+2006-09-05 22:49  gb
+
+	* lib/macros.lisp: In DO-GC-AREAS, don't use comma before call to
+	AREA-SUCC.  (Cross-compilation/ word-size issue.)
+
+2006-09-05 22:42  gb
+
+	* level-0/l0-utils.lisp: If ENSURE-SIMPLE-STRING has to make a copy
+	of a non-simple string, understand char width issues.
+
+2006-09-05 22:41  gb
+
+	* level-0/nfasload.lisp: Some fixnum decls in %FIND-PKG.
+
+2006-09-05 22:40  gb
+
+	* level-1/l1-aprims.lisp: ppc64 ARRAY-ELEMENT-SUBTYPES includes new
+	string type.
+
+2006-09-05 22:39  gb
+
+	* level-0/PPC/ppc-array.lisp: cr3, nor c33, in ppc64 %init-misc.
+
+2006-09-05 22:38  gb
+
+	* compiler/nx0.lisp: NX-FORM-TYPEP uses NX-TARGET-TYPE.
+
 2006-09-05 09:13  gb
 
 	* compiler/PPC/PPC32/ppc32-backend.lisp: darwinppc32 backend uses
