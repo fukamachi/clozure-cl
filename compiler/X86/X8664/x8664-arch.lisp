@@ -1171,6 +1171,7 @@
                           :charcode-shift charcode-shift
                           :fulltagmask fulltagmask
                           :fulltag-misc fulltag-misc
+                          :char-code-limit 256
                           ))
 
 ;;; arch macros
