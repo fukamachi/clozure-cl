@@ -3169,7 +3169,7 @@ to be at least partially steppable."
             (,area ,initial-area))
        (declare (fixnum ,initial-area ,area))
        (loop
-         (setq ,area (%fixnum-ref ,area ,(area-succ)))
+         (setq ,area (%fixnum-ref ,area (area-succ)))
          (when (eql ,area ,initial-area)
            (return))
          ,@body))))
