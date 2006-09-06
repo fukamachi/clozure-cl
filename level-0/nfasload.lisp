@@ -251,10 +251,11 @@
 
   
 (defun %find-pkg (name &optional (len (length name)))
+  (declare (fixnum len))
   (with-package-list-read-lock
       (dolist (p %all-packages%)
         (if (dolist (pkgname (pkg.names p))
-              (when (and (= (length pkgname) len)
+              (when (and (= (the fixnum (length pkgname)) len)
                          (dotimes (i len t)
                            ;; Aref: allow non-simple strings
                            (unless (eq (aref name i) (schar pkgname i))
