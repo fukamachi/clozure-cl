@@ -710,7 +710,7 @@ any EXTERNAL-ENTRY-POINTs known to be defined by it to become unresolved."
                   (return))
                 (let* ((len (length line)))
                   (%stack-block ((buf (1+ len)))
-                    (%copy-ivector-to-ptr line 0 buf 0 len)
+                    (%cstr-pointer line buf)
                     (fd-write fd buf len)
                     (if no-newline
                       (return))
@@ -766,7 +766,7 @@ any EXTERNAL-ENTRY-POINTs known to be defined by it to become unresolved."
                    (setq in-fd nil)))
                 (let* ((string (make-string 1024)))
                   (declare (dynamic-extent string))
-                  (%copy-ptr-to-ivector buf 0 string 0 n)
+                  (%str-from-ptr buf n string)
                   (write-sequence string out-stream :end n)))))))
       (let* ((statusflags (check-pid (external-process-pid p)
                                      (logior
