@@ -60,7 +60,10 @@
                 (new (make-string len :element-type 'base-char)))
            (declare (fixnum len)(optimize (speed 3)(safety 0)))
            (multiple-value-bind (ss offset) (array-data-and-offset s)
-	     (%copy-ivector-to-ivector ss offset new 0 len))
+             #+target-8-bit-chars
+	     (%copy-ivector-to-ivector ss offset new 0 len)
+             #-target-8-bit-chars
+             (%copy-ivector-to-ivector ss (ash offset 2) new 0 (ash len 2)))
            new))
         (t (report-bad-arg s 'string))))
 
