@@ -135,7 +135,7 @@
              ,woi
 	     ,monitor))))))
 
-(defun defcallback-body-ppc64-poweropen (stack-ptr lets dynamic-extent-names decls body return-type error-return error-delta #+poweropen-target fp-arg-ptr)
+(defun defcallback-body-ppc64-poweropen (stack-ptr lets dynamic-extent-names decls body return-type error-return error-delta  fp-arg-ptr)
   (let* ((result (gensym))
          (offset (case return-type
                    ((:single-float :double-float) 16)
