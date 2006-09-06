@@ -213,7 +213,8 @@
   (setf (rdtab.case to) (rdtab.case from))
   (let* ((fttab (rdtab.ttab from))
          (tttab (rdtab.ttab to)))
-    (%copy-ivector-to-ivector fttab 0 tttab 0 257)))
+    (%copy-ivector-to-ivector fttab 0 tttab 0 256))
+  to)
 
 (declaim (inline %character-attribute))
 
