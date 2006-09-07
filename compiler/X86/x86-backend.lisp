@@ -197,7 +197,7 @@
                          (if (typep op 'fixnum)
                            op
                            (if (eq op :rcontext)
-                             (backend-lisp-context-register *target-backend*)
+                             op
                              (if (constantp op)
                                (progn
                                  (if (keywordp op)

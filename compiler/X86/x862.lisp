@@ -5048,9 +5048,11 @@
         (make-x86-lap-label unique)))
     (labels ((parse-operand-form (valform &optional for-pred)
                (cond ((typep valform 'keyword)
-                      (or (assq valform unique-labels)
-                          (error
-                           "unknown vinsn label ~s" valform)))
+                      (if (eq valform :rcontext)
+                        (backend-lisp-context-register *target-backend*)
+                        (or (assq valform unique-labels)
+                            (error
+                             "unknown vinsn label ~s" valform))))
                      ((atom valform) valform)
                      ((atom (cdr valform)) (svref vp (car valform)))
                      ((eq (car valform) :@)
