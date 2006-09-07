@@ -169,7 +169,12 @@ typedef struct area_list {
 #endif
 #endif
 
+#ifdef X8664
+#define PURESPACE_RESERVE 0x40000000 /* 1GB */
+#else
 #define PURESPACE_RESERVE 0x04000000 /* 64MB */
+#endif
+
 #define STATIC_RESERVE heap_segment_size
 #define STATIC_BASE_ADDRESS 0x00001000
 
