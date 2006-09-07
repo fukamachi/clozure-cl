@@ -43,6 +43,12 @@ define([box_fixnum],[
         imulq [$]fixnumone,$1,$2
 ])	
 
+
+/* box_fixnum, with no effect on flags */
+define([box_fixnum_no_flags],[
+        leaq (,$1,8),$2
+])
+                                
 define([save_node_regs],[
 	push %arg_z
 	push %arg_y
