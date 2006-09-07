@@ -1,3 +1,21 @@
+2006-09-07 03:50  gb
+
+	* lisp-kernel/area.h: Larger PURESPACE_RESERVE for x8664.
+
+2006-09-07 03:44  gb
+
+	* xdump/: heap-image.lisp, xfasload.lisp, xppcfasload.lisp,
+	xx8664-fasload.lisp: Bump abi version.	Make purespace-reserve an
+	attribute of the backend (may need more pure space on x86-64.)
+
+2006-09-07 03:43  gb
+
+	* lisp-kernel/image.h: Bump abi version.
+
+2006-09-07 03:43  gb
+
+	* level-1/version.lisp: Bump.
+
 2006-09-07 02:58  gb
 
 	* lisp-kernel/x86-exceptions.c: FreeBSD (at least with libthr)
