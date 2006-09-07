@@ -1,3 +1,20 @@
+2006-09-07 02:58  gb
+
+	* lisp-kernel/x86-exceptions.c: FreeBSD (at least with libthr)
+	seems to mask synchronous signals.  Unmask them in signal handlers.
+
+2006-09-07 02:57  gb
+
+	* lisp-kernel/thread_manager.c: suspend_resume_handler() : ignore
+	signal mask.
+
+2006-09-07 02:56  gb
+
+	* lisp-kernel/: lisptypes.h, ppc-constants32.h, ppc-constants32.s,
+	ppc-constants64.h, ppc-constants64.s, ppc-gc.c, x86-constants64.h,
+	x86-constants64.s: Lose the CHAR_SIZE_32 bootstrapping conditional
+	(char are 32 bits wide on all platforms now.)
+
 2006-09-07 00:40  gb
 
 	* lisp-kernel/x86-exceptions.c: SIGBUS might be
