@@ -1066,6 +1066,14 @@ install_signal_handler(int signo, void * handler)
   
   sa.sa_sigaction = (void *)handler;
   sigfillset(&sa.sa_mask);
+#ifdef FREEBSD
+  /* Strange FreeBSD behavior wrt synchronous signals */
+  sigdelset(&sa.sa_mask,SIGNUM_FOR_INTN_TRAP);
+  sigdelset(&sa.sa_mask,SIGTRAP);  /* let GDB work */
+  sigdelset(&sa.sa_mask,SIGILL);
+  sigdelset(&sa.sa_mask,SIGFPE);
+  sigdelset(&sa.sa_mask,SIGSEGV);
+#endif
   sa.sa_flags = 
     SA_RESTART
     | SA_ONSTACK
