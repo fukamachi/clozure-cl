@@ -271,12 +271,18 @@ suspend_resume_handler(int signo, siginfo_t *info, ExceptionInformation *context
   TCR *tcr = get_interrupt_tcr(false);
 
   if (signo == thread_suspend_signal) {
+#if 0
     sigset_t wait_for;
+#endif
 
     tcr->suspend_context = context;
+#if 0
     sigfillset(&wait_for);
+#endif
     SEM_RAISE(tcr->suspend);
+#if 0
     sigdelset(&wait_for, thread_resume_signal);
+#endif
 #if 1
 #if RESUME_VIA_RESUME_SEMAPHORE
     SEM_WAIT_FOREVER(tcr->resume);
