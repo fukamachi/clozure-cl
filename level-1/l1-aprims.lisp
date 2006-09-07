@@ -610,7 +610,7 @@ terminate the list"
       bogus
       bogus
       bogus
-      bogus
+      base-char
       (signed-byte 32)
       (unsigned-byte 32)
       single-float))
