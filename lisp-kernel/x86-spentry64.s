@@ -403,7 +403,7 @@ local_label(misc_ref_jmp):
 	.quad local_label(misc_ref_invalid) /* c6 nodeheader_1   */
 	.quad local_label(misc_ref_string) /* c7 simple_base_string   */
 	.quad local_label(misc_ref_invalid) /* c8 odd_fixnum   */
-	.quad local_label(misc_ref_invalid) /* c9 immheader_1   */
+	.quad local_label(misc_ref_new_string) /* c9 new_string_1   */
 	.quad local_label(misc_ref_fixnum_vector) /* ca fixnum_vector   */
 	.quad local_label(misc_ref_invalid) /* cb nil   */
 	.quad local_label(misc_ref_invalid) /* cc tra_1   */
@@ -530,6 +530,13 @@ local_label(misc_ref_string):
 	__(shlq $charcode_shift,%imm0)
 	__(leaq subtag_character(%imm0),%arg_z)
 	__(jmp *%ra0)
+local_label(misc_ref_new_string):
+	__(movq %arg_z,%imm0)
+	__(shr $1,%imm0)
+	__(movl misc_data_offset(%arg_y,%imm0),%imm0_l)
+	__(shlq $charcode_shift,%imm0)
+	__(leaq subtag_character(%imm0),%arg_z)
+	__(jmp *%ra0)        
 local_label(misc_ref_u16):	
 	__(movq %arg_z,%imm0)
 	__(shrq $2,%imm0)
@@ -838,7 +845,7 @@ local_label(misc_set_jmp):
 	.quad local_label(misc_set_invalid) /* c6 nodeheader_1   */
 	.quad local_label(misc_set_string) /* c7 simple_base_string   */
 	.quad local_label(misc_set_invalid)	/* c8 odd_fixnum   */
-	.quad local_label(misc_set_invalid)	/* c9 immheader_1   */
+	.quad local_label(misc_set_new_string)	/* c9 new_strin   */
 	.quad local_label(misc_set_fixnum_vector)  /* ca fixnum_vector   */
 	.quad local_label(misc_set_invalid) /* cb nil   */
 	.quad local_label(misc_set_invalid)	/* cc tra_1   */
@@ -1049,6 +1056,15 @@ local_label(misc_set_string):
 	__(shrq $3,%imm1)
 	__(movb %imm0_b,misc_data_offset(%arg_x,%imm1))
 	__(jmp *%ra0)
+local_label(misc_set_new_string):
+	__(cmpb $subtag_character,%arg_z_b)
+	__(movq %arg_z,%imm0)
+	__(jne local_label(misc_set_bad))
+	__(movq %arg_y,%imm1)
+	__(shrq $charcode_shift,%imm0)
+	__(shrq $1,%imm1)
+	__(movl %imm0_l,misc_data_offset(%arg_x,%imm1))
+	__(jmp *%ra0)        
 local_label(misc_set_s16):	
 	__(movq %arg_z,%imm0)
 	__(movq %arg_y,%imm1)
