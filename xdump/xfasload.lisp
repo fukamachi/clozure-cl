@@ -71,7 +71,7 @@
 
 (defparameter *xload-image-base-address* nil)
 
-(defparameter *xload-purespace-reserve* #x04000000)
+(defparameter *xload-purespace-reserve* nil)
 (defparameter *xload-static-space-address* (ash 1 12))
 (defparameter *xload-static-space-size* (ash 8 10))
 (defparameter *xload-readonly-space-address* nil)
@@ -93,12 +93,16 @@
   image-base-address
   nil-relative-symbols
   static-space-init-function
+  purespace-reserve
 )
 
 (defun setup-xload-target-parameters ()
   (let* ((arch (backend-target-arch *target-backend*)))
     (setq *xload-image-base-address*
           (backend-xload-info-image-base-address
+           *xload-target-backend*))
+    (setq *xload-purespace-reserve*
+          (backend-xload-info-purespace-reserve
            *xload-target-backend*))
     (setq *xload-readonly-space-address* *xload-image-base-address*)
     (setq *xload-dynamic-space-address*
@@ -1741,7 +1745,8 @@
             (*xload-target-use-code-vectors* *xload-target-use-code-vectors*)
             (*xload-target-fulltag-for-symbols* *xload-target-fulltag-for-symbols*)
             (*xload-target-fulltag-for-functions* *xload-target-fulltag-for-functions*)
-            (*xload-target-char-code-limit* *xload-target-char-code-limit*))
+            (*xload-target-char-code-limit* *xload-target-char-code-limit*)
+            (*xload-purespace-reserve* *xload-purespace-reserve*))
        (setup-xload-target-parameters)
        (let* ((*load-verbose* t)
               (compiler-backend (find-backend

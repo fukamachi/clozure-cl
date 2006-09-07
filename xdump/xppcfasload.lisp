@@ -110,6 +110,7 @@
    #+linuxppc-target #x31000000
    :nil-relative-symbols ppc::*ppc-nil-relative-symbols*
    :static-space-init-function 'ppc32-initialize-static-space
+   :purespace-reserve (ash 64 20)
 ))
 
 (add-xload-backend *ppc32-xload-backend*)
@@ -133,6 +134,7 @@
    :image-base-address #x100000000
    :nil-relative-symbols ppc::*ppc-nil-relative-symbols*
    :static-space-init-function 'ppc64-initialize-static-space
+   :purespace-reserve (ash 64 20)   
    ))
 
 (add-xload-backend *ppc64-xload-backend*)
