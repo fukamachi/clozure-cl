@@ -1,3 +1,8 @@
+2006-09-07 00:40  gb
+
+	* lisp-kernel/x86-exceptions.c: SIGBUS might be
+	SIGNUM_FOR_PROCESS_INTERRUPT.
+
 2006-09-07 00:12  gb
 
 	* lisp-kernel/x86-spentry64.s: _SPbuiltin_aref1: use
