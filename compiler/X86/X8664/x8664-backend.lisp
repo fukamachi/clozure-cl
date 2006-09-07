@@ -152,8 +152,7 @@
 		'(:x8664 :x86-target :linux-target :linuxx86-target :x8664-target
                   :linuxx8664-target
                   :little-endian-target
-                  :64-bit-target
-                  :target-8-bit-chars)
+                  :64-bit-target)
 		:target-fasl-pathname (make-pathname :type "lx64fsl")
 		:target-platform (logior platform-cpu-x86
                                          platform-os-linux
@@ -186,8 +185,7 @@
 		'(:x8664 :x86-target :darwin-target :darwinx86-target :x8664-target
                   :darwinx8664-target
                   :little-endian-target
-                  :64-bit-target
-                  :target-8-bit-chars)
+                  :64-bit-target)
 		:target-fasl-pathname (make-pathname :type "dx64fsl")
 		:target-platform (logior platform-cpu-x86
                                          platform-os-darwin
@@ -217,8 +215,7 @@
 		'(:x8664 :x86-target :freebsd-target :freebsdx86-target :x8664-target
                   :freebsdx8664-target                  
                   :little-endian-target
-                  :64-bit-target
-                  :target-8-bit-chars)
+                  :64-bit-target)
 		:target-fasl-pathname (make-pathname :type "fx64fsl")
 		:target-platform (logior platform-cpu-x86
                                          platform-os-freebsd

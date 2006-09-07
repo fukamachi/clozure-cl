@@ -354,7 +354,6 @@
 (define-subtag u64-vector ivector-class-64-bit 14)
 (define-subtag double-float-vector ivector-class-64-bit 15)
 
-#-target-8-bit-chars
 (define-subtag simple-base-string ivector-class-32-bit 12)
 (define-subtag s32-vector ivector-class-32-bit 13)
 (define-subtag u32-vector ivector-class-32-bit 14)
@@ -362,12 +361,9 @@
 	
 (define-subtag s16-vector ivector-class-other-bit 10)
 (define-subtag u16-vector ivector-class-other-bit 11)
-#+target-8-bit-chars
-(define-subtag simple-base-string ivector-class-other-bit 12)
-(defconstant min-8-bit-ivector-subtag subtag-simple-base-string)
+
 (define-subtag s8-vector ivector-class-other-bit 13)
 (define-subtag u8-vector ivector-class-other-bit 14)
-(defconstant max-8-bit-ivector-subtag subtag-u8-vector)
 (define-subtag bit-vector ivector-class-other-bit 15)
 
 
@@ -1120,15 +1116,15 @@
                                            :simple-vector)
                           :1-bit-ivector-types '(:bit-vector)
                           :8-bit-ivector-types '(:signed-8-bit-vector
-                                                 :unsigned-8-bit-vector
-                                                 :simple-string)
+                                                 :unsigned-8-bit-vector)
                           :16-bit-ivector-types '(:signed-16-bit-vector
                                                   :unsigned-16-bit-vector)
                           :32-bit-ivector-types '(:signed-32-bit-vector
                                                   :unsigned-32-bit-vector
                                                   :single-float-vector
                                                   :double-float
-                                                  :bignum)
+                                                  :bignum
+                                                  :simple-string)
                           :64-bit-ivector-types '(:double-float-vector
                                                   :unsigned-64-bit-vector
                                                   :signed-64-bit-vector
@@ -1171,7 +1167,7 @@
                           :charcode-shift charcode-shift
                           :fulltagmask fulltagmask
                           :fulltag-misc fulltag-misc
-                          :char-code-limit 256
+                          :char-code-limit #x110000
                           ))
 
 ;;; arch macros
