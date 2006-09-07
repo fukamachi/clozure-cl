@@ -367,13 +367,13 @@ define([compare_reg_to_nil],[
 ])		
 	
 define([extract_lisptag],[
-	movb $1_b,$2_b
+	movzbl $1_b,$2_l
 	andb [$]tagmask,$2_b
 ])
 
 								
 define([extract_fulltag],[
-	movb $1_b,$2_b
+	movzbl $1_b,$2_l
 	andb [$]fulltagmask,$2_b
 ])
 
@@ -383,7 +383,7 @@ define([extract_subtag],[
 
 define([extract_typecode],[
 	new_macro_labels()
-	movb $1_b,$2_b
+	movzbl $1_b,$2_l
 	andb $tagmask,$2_b
 	cmpb $tag_misc,$2_b
 	jne macro_label(done)
