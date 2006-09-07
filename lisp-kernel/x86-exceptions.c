@@ -720,8 +720,10 @@ handle_exception(int signum, siginfo_t *info, ExceptionInformation  *context, TC
 
     return handle_floating_point_exception(tcr, context, info);
 
+#if SIGBUS != SIGNUM_FOR_INTN_TRAP
   case SIGBUS:
     return handle_fault(tcr, context, info);
+#endif
     
     
   default:
