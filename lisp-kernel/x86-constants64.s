@@ -263,18 +263,13 @@ define_subtag(s64_vector,ivector_class_64_bit,13)
 define_subtag(u64_vector,ivector_class_64_bit,14)
 define_subtag(double_float_vector,ivector_class_64_bit,15)
 
-        ifdef([CHAR_SIZE_32],[
 define_subtag(simple_base_string,ivector_class_32_bit,12)
-])
 define_subtag(s32_vector,ivector_class_32_bit,13)
 define_subtag(u32_vector,ivector_class_32_bit,14)
 define_subtag(single_float_vector,ivector_class_32_bit,15)
 	
 define_subtag(s16_vector,ivector_class_other_bit,10)
 define_subtag(u16_vector,ivector_class_other_bit,11)
-       ifdef([CHAR_SIZE_32],[],[
-define_subtag(simple_base_string,ivector_class_other_bit,12)
-])
 define_subtag(s8_vector,ivector_class_other_bit,13)
 define_subtag(u8_vector,ivector_class_other_bit,14)
 define_subtag(bit_vector,ivector_class_other_bit,15)

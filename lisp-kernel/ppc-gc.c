@@ -2907,11 +2907,7 @@ purify_displaced_object(LispObj obj, area *dest, natural disp)
 
   switch(subtag) {
   case subtag_simple_base_string:
-#ifdef CHAR_SIZE_32
     physbytes = node_size + (element_count << 2);
-#else
-    physbytes = node_size + element_count;
-#endif
     break;
 
   case subtag_code_vector:

@@ -97,17 +97,12 @@ define_cl_array_subtag(double_float_vector,ivector_class_64_bit,4)
 define_cl_array_subtag(s32_vector,ivector_class_32_bit,1)
 define_cl_array_subtag(u32_vector,ivector_class_32_bit,2)
 define_cl_array_subtag(single_float_vector,ivector_class_32_bit,3)
-        ifdef([CHAR_SIZE_32],[
 define_cl_array_subtag(simple_base_string,ivector_class_32_bit,5)
-        ])
 define_cl_array_subtag(s16_vector,ivector_class_other_bit,1)
 define_cl_array_subtag(u16_vector,ivector_class_other_bit,2)
 define_cl_array_subtag(bit_vector,ivector_class_other_bit,7)
 define_cl_array_subtag(s8_vector,ivector_class_8_bit,1)
 define_cl_array_subtag(u8_vector,ivector_class_8_bit,2)
-        ifdef([CHAR_SIZE_32],[],[
-define_cl_array_subtag(simple_base_string,ivector_class_8_bit,5)
-        ])
 /* There's some room for expansion in non-array ivector space. */
 define_subtag(macptr,ivector_class_64_bit,1)
 define_subtag(dead_macptr,ivector_class_64_bit,2)

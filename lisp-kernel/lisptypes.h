@@ -95,11 +95,7 @@ typedef struct ucontext ExceptionInformation;
 #define UC_MCONTEXT(UC) UC->uc_mcontext
 #endif /* #ifdef DARWIN */
 
-#ifdef CHAR_SIZE_32
 typedef u32_t lisp_char_code;
-#else
-typedef u8_t lisp_char_code;
-#endif
 
 typedef int OSStatus, OSErr;
 #define noErr ((OSErr) 0)
