@@ -1,3 +1,13 @@
+2006-09-07 00:12  gb
+
+	* lisp-kernel/x86-spentry64.s: _SPbuiltin_aref1: use
+	box_fixnum_no_flags.
+
+2006-09-07 00:12  gb
+
+	* lisp-kernel/x86-macros.s: Define box_fixnum_no_flags (uses lea
+	vice imul).
+
 2006-09-06 21:18  gb
 
 	* compiler/X86/X8664/x8664-arch.lisp: Need
