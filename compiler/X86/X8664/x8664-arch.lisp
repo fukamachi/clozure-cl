@@ -364,6 +364,8 @@
 
 (define-subtag s8-vector ivector-class-other-bit 13)
 (define-subtag u8-vector ivector-class-other-bit 14)
+(defconstant min-8-bit-ivector-subtag subtag-s8-vector)
+(defconstant max-8-bit-ivector-subtag subtag-u8-vector)
 (define-subtag bit-vector ivector-class-other-bit 15)
 
 
