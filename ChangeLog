@@ -1,3 +1,8 @@
+2006-09-06 21:18  gb
+
+	* compiler/X86/X8664/x8664-arch.lisp: Need
+	MIN/MAX-8-BIT-IVECTOR-SUBTAG.
+
 2006-09-06 18:37  gb
 
 	* lisp-kernel/x86-spentry64.s: misc_ref/misc_set: handle 32-bit
