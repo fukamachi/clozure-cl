@@ -2115,7 +2115,7 @@
   (unless (typep s 'string-output-stream)
     (report-bad-arg s 'string-output-stream))
   (let* ((string (string-stream-string s)))
-    (prog1 (coerce string 'simple-string)
+    (prog1 (ensure-simple-string string)
       (setf (fill-pointer string) 0))))
 
 ;;; String input streams.
