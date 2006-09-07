@@ -682,7 +682,7 @@
 
 (define-x8664-vinsn extract-tag (((tag :u8))
                                  ((object :lisp)))
-  (movb (:%b object) (:%b tag))
+  (movzbl (:%b object) (:%l tag))
   (andb (:$b x8664::tagmask) (:%b tag)))
 
 (define-x8664-vinsn extract-tag-fixnum (((tag :imm))
@@ -692,7 +692,7 @@
 
 (define-x8664-vinsn extract-fulltag (((tag :u8))
                                  ((object :lisp)))
-  (movb (:%b object) (:%b tag))
+  (movzbl (:%b object) (:%l tag))
   (andb (:$b x8664::fulltagmask) (:%b tag)))
 
 (define-x8664-vinsn extract-fulltag-fixnum (((tag :imm))
@@ -700,9 +700,9 @@
   (leal (:@ (:%q object) 8) (:%l tag))
   (andl (:$b (ash x8664::fulltagmask x8664::fixnumshift)) (:%l tag)))
 
-(define-x8664-vinsn extract-typecode (((tag :u8))
+(define-x8664-vinsn extract-typecode (((tag :u32))
                                       ((object :lisp)))
-  (movb (:%b object) (:%b tag))
+  (movzbl (:%b object) (:%l tag))
   (andb (:$b x8664::tagmask) (:%b tag))
   (cmpb (:$b x8664::tag-misc) (:%b tag))
   (jne :have-tag)
@@ -711,14 +711,13 @@
 
 (define-x8664-vinsn extract-typecode-fixnum (((tag :imm))
                                              ((object :lisp))
-                                             ((temp :u8)))
-  (movb (:%b object) (:%b temp))
+                                             ((temp :u32)))
+  (movzbl (:%b object) (:%l temp))
   (andb (:$b x8664::tagmask) (:%b temp))
   (cmpb (:$b x8664::tag-misc) (:%b temp))
   (jne :have-tag)
   (movb (:@ x8664::misc-subtag-offset (:%q object)) (:%b temp))
   :have-tag
-  (movzbl (:%b temp) (:%l temp))
   (leal (:@ (:%q temp) 8) (:%l tag)))
 
 
