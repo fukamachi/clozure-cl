@@ -1,3 +1,37 @@
+2006-09-08 18:55  gb
+
+	* compiler/X86/x862.lisp: Don't be so reckless in %CODE-CHAR (don't
+	necessarily want arbitrary expressions to be compiled unsafely; do
+	want to avoid a little type-checking sometimes.)
+
+2006-09-08 18:52  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: FIXNUM->CHAR returns NIL
+	for values in the surrogate-pairs range.  (There are other things
+	that it could plausibly return NIL for.)
+
+2006-09-08 18:51  gb
+
+	* lisp-kernel/x86-gc.c: Start to get purify working on x86-64; for
+	now, just purify strings.
+
+2006-09-08 18:48  gb
+
+	* lib/macros.lisp: %CODE-CHAR asserts that code is (UNSIGNED-BYTE
+	8), which is still useful (and exactly what it used to do.)
+
+2006-09-08 18:47  gb
+
+	* lib/: compile-ccl.lisp, systems.lisp: Add l1-unicode.
+
+2006-09-08 18:44  gb
+
+	* level-1/level-1.lisp: Load l1-unicode.
+
+2006-09-08 18:44  gb
+
+	* level-1/l1-unicode.lisp: New file.
+
 2006-09-07 03:50  gb
 
 	* lisp-kernel/area.h: Larger PURESPACE_RESERVE for x8664.
