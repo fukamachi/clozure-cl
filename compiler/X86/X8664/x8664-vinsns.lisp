@@ -2569,7 +2569,7 @@
   :again
   (testb (:$b x8664::fixnummask) (:%b object))
   (jne.pn :bad)
-  (cmpq (:$l #x110000) (:%q object))
+  (cmpq (:$l (ash #x110000 x8664::fixnumshift)) (:%q object))
   (jb.pt :ok)
   :bad
   (uuo-error-reg-not-type (:%q object) (:$ub arch::error-object-not-mod-char-code-limit))
