@@ -1,3 +1,9 @@
+2006-09-09 03:56  gb
+
+	* lisp-kernel/x86-gc.c: purify_range(), impurify_range(): handle
+	x8664 functions, hash tables.  (PPC versions should handle hash
+	table key movement.)
+
 2006-09-08 22:47  gb
 
 	* lib/chars.lisp: CHAR-NAME: use U+xxxx for chars with codes >=
