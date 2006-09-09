@@ -5837,8 +5837,7 @@
     (progn
       (ensuring-node-target (target vreg)
         (with-imm-target () (dest :u8)
-          (! u32->char target (let* ((*x862-reckless* t))
-                               (x862-one-untargeted-reg-form seg c dest)))))
+          (! u32->char target (x862-one-untargeted-reg-form seg c dest))))
       (^))))
 
 (defx862 x862-%schar %schar (seg vreg xfer str idx)
@@ -5888,9 +5887,7 @@
 (defx862 x862-code-char code-char (seg vreg xfer c)
   (let* ((reg (x862-one-untargeted-reg-form seg c x8664::arg_z)))
     ;; Typecheck even if result unused.
-    (case (arch::target-char-code-limit (backend-target-arch *target-backend*))
-      (256 (! require-u8 reg))
-      (t (! require-char-code reg)))
+    (! require-char-code reg)
     (if vreg
       (ensuring-node-target (target vreg)
         (! fixnum->char target reg)))
