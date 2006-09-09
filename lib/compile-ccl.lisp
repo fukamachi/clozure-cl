@@ -26,7 +26,7 @@
     l1-boot-1 l1-boot-2 l1-boot-3
     l1-utils l1-init l1-symhash l1-numbers l1-aprims 
     l1-sort l1-dcode l1-clos-boot l1-clos
-    l1-streams l1-files l1-io 
+    l1-unicode l1-streams l1-files l1-io 
     l1-format l1-readloop l1-reader
     l1-sysio l1-pathnames l1-events
     l1-boot-lds  l1-readloop-lds 

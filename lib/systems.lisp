@@ -38,7 +38,8 @@
     (l1-clos-boot     "ccl:l1f;l1-clos-boot"    ("ccl:l1;l1-clos-boot.lisp"))
     (l1-clos          "ccl:l1f;l1-clos"          ("ccl:l1;l1-clos.lisp"))
     (l1-io            "ccl:l1f;l1-io"            ("ccl:l1;l1-io.lisp"))
-    (l1-menus         "ccl:l1f;l1-menus"         ("ccl:l1;l1-menus.lisp"))
+    (l1-unicode       "ccl:l1f;l1-unicode"       ("ccl:l1;l1-unicode.lisp"))
+    
     (l1-streams       "ccl:l1f;l1-streams"       ("ccl:l1;l1-streams.lisp"))
     (l1-windows       "ccl:l1f;l1-windows"       ("ccl:l1;l1-windows.lisp"))
     (fredenv          "ccl:bin;fredenv"          ("ccl:lib;fredenv.lisp"))
