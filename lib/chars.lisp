@@ -292,7 +292,7 @@
                (setf (schar str 1)(code-char (%ilogxor code #x40)))
                str)))
           ((and (< code #x100)(graphic-char-p c)) nil)
-          (t nil))))
+          (t (format nil "U+~x" code)))))
 
 
 (defun string-downcase (string &key start end)
