@@ -2382,11 +2382,12 @@ gc(TCR *tcr, signed_natural param)
   get_time(start);
   lisp_global(IN_GC) = (1<<fixnumshift);
 
-  GCDebug = ((nrs_GC_EVENT_STATUS_BITS.vcell & gc_integrity_check_bit) != 0);
 
   if (just_purified_p) {
     just_purified_p = false;
+    GCDebug = false;
   } else {
+    GCDebug = ((nrs_GC_EVENT_STATUS_BITS.vcell & gc_integrity_check_bit) != 0);
     if (GCDebug) {
       check_all_areas();
     }
@@ -2850,11 +2851,12 @@ interned_pname_bytes_in_range(LispObj *start, LispObj *end)
   return nbytes;
 }
 
-void
+Boolean
 copy_ivector_reference(LispObj *ref, BytePtr low, BytePtr high, area *dest, int what_to_copy)
 {
-  LispObj obj = *ref, header;
+  LispObj obj = *ref, header, new;
   natural tag = fulltag_of(obj), header_tag, header_subtag;
+  Boolean changed = false;
 
   if ((tag == fulltag_misc) &&
       (((BytePtr)ptr_from_lispobj(obj)) > low) &&
@@ -2862,17 +2864,21 @@ copy_ivector_reference(LispObj *ref, BytePtr low, BytePtr high, area *dest, int 
     header = deref(obj, 0);
     if (header == forward_marker) { /* already copied */
       *ref = (untag(deref(obj,1)) + tag);
+      changed = true;
     } else {
       header_tag = fulltag_of(header);
       if (immheader_tag_p(header_tag)) {
         header_subtag = header_subtag(header);
         if ((what_to_copy & COPY_STRINGS) && 
             ((header_subtag == subtag_simple_base_string))) {
-          *ref = purify_object(obj, dest);
+          new = purify_object(obj, dest);
+          *ref = new;
+          changed = (new != obj);
         }
       }
     }
   }
+  return changed;
 }
 
 
@@ -2881,6 +2887,8 @@ purify_range(LispObj *start, LispObj *end, BytePtr low, BytePtr high, area *to, 
 {
   LispObj header;
   unsigned tag;
+  natural nwords;
+  hash_table_vector_header *hashp;
 
   while (start < end) {
     header = *start;
@@ -2890,10 +2898,51 @@ purify_range(LispObj *start, LispObj *end, BytePtr low, BytePtr high, area *to, 
       tag = fulltag_of(header);
       if (immheader_tag_p(tag)) {
         start = (LispObj *)skip_over_ivector((natural)start, header);
-      } else {
-        if (!nodeheader_tag_p(tag)) {
-          copy_ivector_reference(start, low, high, to, what);
+      } else if (nodeheader_tag_p(tag)) {
+        nwords = header_element_count(header);
+        nwords += (1 - (nwords&1));
+        if ((header_subtag(header) == subtag_hash_vector) &&
+          ((((hash_table_vector_header *)start)->flags) & 
+           nhash_track_keys_mask)) {
+          natural skip = (sizeof(hash_table_vector_header)/sizeof(LispObj))-1;
+
+          hashp = (hash_table_vector_header *) start;
+          start++;
+          nwords -= skip;
+          while(skip--) {
+            copy_ivector_reference(start, low, high, to, what);
+            start++;
+          }
+          /* "nwords" is odd at this point: there are (floor nwords 2)
+             key/value pairs to look at, and then an extra word for
+             alignment.  Process them two at a time, then bump "start"
+             past the alignment word. */
+          nwords >>= 1;
+          while(nwords--) {
+            if (copy_ivector_reference(start, low, high, to, what) && hashp) {
+              hashp->flags |= nhash_key_moved_mask;
+              hashp = NULL;
+            }
+            start++;
+            copy_ivector_reference(start, low, high, to, what);
+            start++;
+          }
+          *start++ = 0;
+        } else {
+          if (header_subtag(header) == subtag_function) {
+            int skip = (int)(start[1]);
+            start += skip;
+            nwords -= skip;
+          }
+          start++;
+          while(nwords--) {
+            copy_ivector_reference(start, low, high, to, what);
+            start++;
+          }
         }
+      } else {
+        /* Not a header, just a cons cell */
+        copy_ivector_reference(start, low, high, to, what);
         start++;
         copy_ivector_reference(start, low, high, to, what);
         start++;
@@ -3047,6 +3096,7 @@ purify(TCR *tcr, signed_natural param)
   BytePtr new_pure_start;
 
 
+
   max_pure_size = interned_pname_bytes_in_range((LispObj *)(a->low + (static_dnodes_for_area(a) << dnode_shift)), 
                                          (LispObj *) a->active);
   new_pure_area = extend_readonly_area(max_pure_size);
@@ -3130,16 +3180,18 @@ purify(TCR *tcr, signed_natural param)
 
 
   
-void
+Boolean
 impurify_noderef(LispObj *p, LispObj low, LispObj high, int delta)
 {
   LispObj q = *p;
   
-  if ((fulltag_of(q) == fulltag_misc) &&
+  if (is_node_fulltag(fulltag_of(q)) &&
       (q >= low) && 
       (q < high)) {
     *p = (q+delta);
+    return true;
   }
+  return false;
 }
   
 
@@ -3176,19 +3228,66 @@ impurify_range(LispObj *start, LispObj *end, LispObj low, LispObj high, int delt
 {
   LispObj header;
   unsigned tag;
+  natural nwords;
+  hash_table_vector_header *hashp;
 
   while (start < end) {
     header = *start;
-    tag = fulltag_of(header);
-    if (immheader_tag_p(tag)) {
-      start = (LispObj *)skip_over_ivector((natural)start, header);
+    if (header == forward_marker) {
+      start += 2;
     } else {
-      if (!nodeheader_tag_p(tag)) {
-        impurify_noderef(start, low, high, delta);
+      tag = fulltag_of(header);
+      if (immheader_tag_p(tag)) {
+        start = (LispObj *)skip_over_ivector((natural)start, header);
+      } else if (nodeheader_tag_p(tag)) {
+        nwords = header_element_count(header);
+        nwords += (1 - (nwords&1));
+        if ((header_subtag(header) == subtag_hash_vector) &&
+          ((((hash_table_vector_header *)start)->flags) & 
+           nhash_track_keys_mask)) {
+          natural skip = (sizeof(hash_table_vector_header)/sizeof(LispObj))-1;
+
+          hashp = (hash_table_vector_header *) start;
+          start++;
+          nwords -= skip;
+          while(skip--) {
+            impurify_noderef(start, low, high, delta);
+            start++;
+          }
+          /* "nwords" is odd at this point: there are (floor nwords 2)
+             key/value pairs to look at, and then an extra word for
+             alignment.  Process them two at a time, then bump "start"
+             past the alignment word. */
+          nwords >>= 1;
+          while(nwords--) {
+            if (impurify_noderef(start, low, high, delta) && hashp) {
+              hashp->flags |= nhash_key_moved_mask;
+              hashp = NULL;
+            }
+            start++;
+            impurify_noderef(start, low, high, delta);
+            start++;
+          }
+          *start++ = 0;
+        } else {
+          if (header_subtag(header) == subtag_function) {
+            int skip = (int)(start[1]);
+            start += skip;
+            nwords -= skip;
+          }
+          start++;
+          while(nwords--) {
+            impurify_noderef(start, low, high, delta);
+            start++;
+          }
         }
-      start++;
-      impurify_noderef(start, low, high, delta);
-      start++;
+      } else {
+        /* Not a header, just a cons cell */
+        impurify_noderef(start, low, high, delta);
+        start++;
+        impurify_noderef(start, low, high, delta);
+        start++;
+      }
     }
   }
 }
