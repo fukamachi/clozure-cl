@@ -55,6 +55,7 @@
   (l1-load "l1-clos")
   (bin-load "defstruct")
   (bin-load "dll-node")
+  (l1-load "l1-unicode")
   (l1-load "l1-streams")
   (l1-load "linux-files")
   (bin-load "chars")
