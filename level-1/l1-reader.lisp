@@ -80,7 +80,9 @@
             (if (= namelen 1)
               (char name 0)
               (if (and (= namelen 2) (eq (char name 0) #\^))
-                (code-char (the fixnum (logxor (the fixnum (char-code (char-upcase (char name 1)))) #x40)))
+                (let* ((c1 (char-code (char-upcase (char name 1)))))
+                  (if (and (>= c1 64) (< c1 96))
+                    (code-char (the fixnum (logxor (the fixnum (char-code (char-upcase (char name 1)))) #x40)))))
                 (let* ((n 0))
                   (or
                    (if (and (> namelen 2)
@@ -98,7 +100,8 @@
                            (progn
                              (setq n 0)
                              (return))))))
-                   (dotimes (i namelen (code-char (mod n char-code-limit)))
+                   (dotimes (i namelen (if (< n char-code-limit)
+                                         (code-char n)))
                      (let* ((code (the fixnum (- (the fixnum (char-code (char name i)))
                                                  (char-code #\0)))))
                        (declare (fixnum code))
