@@ -5739,8 +5739,7 @@
     (progn
       (ensuring-node-target (target vreg)
         (with-imm-target () (dest :u8)
-          (! u32->char target (let* ((*ppc2-reckless* t))
-                               (ppc2-one-untargeted-reg-form seg c dest)))))
+          (! u32->char target (ppc2-one-untargeted-reg-form seg c dest))))
       (^))))
 
 (defppc2 ppc2-%schar %schar (seg vreg xfer str idx)
