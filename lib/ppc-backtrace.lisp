@@ -38,8 +38,12 @@
 
 (defun cfp-lfun (p)
   (if (fake-stack-frame-p p)
-    (values (%fake-stack-frame.fn p)
-            (%fake-stack-frame.lr p))
+    (let* ((fn (%fake-stack-frame.fn p))
+           (lr (%fake-stack-frame.lr p)))
+      (if (and (typep fn 'function)
+               (typep lr 'fixnum))
+        (values fn lr)
+        (values nil nil)))
     (%cfp-lfun p)))
 
 
