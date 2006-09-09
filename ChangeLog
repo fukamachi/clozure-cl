@@ -1,3 +1,22 @@
+2006-09-08 22:47  gb
+
+	* lib/chars.lisp: CHAR-NAME: use U+xxxx for chars with codes >=
+	#x100.
+
+2006-09-08 22:38  gb
+
+	* compiler/PPC/: PPC32/ppc32-vinsns.lisp, PPC64/ppc64-vinsns.lisp:
+	FIXNUM->CHAR: return NIL for surrogate pairs.
+
+2006-09-08 22:33  gb
+
+	* compiler/PPC/ppc2.lisp: Don't be overly unsafe in %CHAR-CODE.
+
+2006-09-08 22:31  gb
+
+	* lib/ppc-backtrace.lisp: Fix CFP-LFUN (fake stack frame case,
+	sanity-check fn/lr).
+
 2006-09-08 18:55  gb
 
 	* compiler/X86/x862.lisp: Don't be so reckless in %CODE-CHAR (don't
