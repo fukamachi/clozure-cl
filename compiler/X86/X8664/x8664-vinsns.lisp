@@ -3090,10 +3090,20 @@
 
 (define-x8664-vinsn fixnum->char (((dest :lisp))
 				  ((src :imm))
-				  ())
-  (movq (:%q src) (:%q dest))
-  (shlq (:$ub (- x8664::charcode-shift x8664::fixnumshift)) (:%q dest))
-  (movb (:$b x8664::subtag-character) (:%b dest)))
+				  ((temp :u32)))
+  (movl (:%l src) (:%l temp))
+  (sarl (:$ub (+ x8664::fixnumshift 11)) (:%l temp))
+  (cmpl (:$b (ash #xd800 -11))(:%l temp))
+  (movl (:$l x8664::nil-value) (:%l temp))
+  (cmovel (:%l temp) (:%l dest))
+  (je :done)
+  ((:not (:pred =
+                (:apply %hard-regspec-value dest)
+                (:apply %hard-regspec-value src)))
+   (movl (:%l src) (:%l dest)))
+  (shll (:$ub (- x8664::charcode-shift x8664::fixnumshift)) (:%l dest))
+  (addb (:$b x8664::subtag-character) (:%b dest))
+  :done)
 
 
 (define-x8664-vinsn sign-extend-halfword (((dest :imm))
