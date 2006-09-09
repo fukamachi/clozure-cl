@@ -1,3 +1,18 @@
+2006-09-09 04:39  gb
+
+	* compiler/PPC/: PPC32/ppc32-vinsns.lisp, PPC64/ppc64-vinsns.lisp:
+	REQUIRE-CHAR-CODE: compare against boxed char-code-limit.
+
+2006-09-09 04:21  gb
+
+	* level-1/l1-reader.lisp: NAME-CHAR: insist on something more
+	reasonable for ^c syntax; don't do MOD for octal.
+
+2006-09-09 04:21  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: require-char-code checks
+	agains boxed Unicode limit
+
 2006-09-09 03:56  gb
 
 	* lisp-kernel/x86-gc.c: purify_range(), impurify_range(): handle
