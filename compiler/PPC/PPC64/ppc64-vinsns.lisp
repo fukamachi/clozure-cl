@@ -967,7 +967,7 @@
                                         (tag :u32)))
   :again
   (clrldi. tag object (- ppc64::nbits-in-word ppc64::nlisptagbits))
-  (lis tag (ash #x110000 -16))
+  (lis tag (ash (ash #x110000 ppc64::fixnumshift) -16))
   (cmpld crf1 object tag)
   (bne crf0 :bad)
   (blt+ crf1 :got-it)
