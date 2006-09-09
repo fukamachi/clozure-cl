@@ -2329,9 +2329,17 @@
 
 (define-ppc32-vinsn fixnum->char (((dest :lisp))
                                   ((src :imm))
-                                  ())
+                                  ((temp :u32)
+                                   (crf0 (:crf 0))))
+  (srwi temp src (+ ppc32::fixnumshift 11))
+  (cmpwi temp 27)
   (slwi dest src (- ppc32::charcode-shift ppc32::fixnumshift))
-  (addi dest dest ppc32::subtag-character))
+  (bne+ :ok)
+  (li dest ppc32::nil-value)
+  (b :done)
+  :ok
+  (addi dest dest ppc32::subtag-character)
+  :done)
 
 
 (define-ppc32-vinsn u32->char (((dest :lisp))

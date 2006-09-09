@@ -2318,9 +2318,17 @@
 
 (define-ppc64-vinsn fixnum->char (((dest :lisp))
 				  ((src :imm))
-				  ())
+				  ((temp :u64)
+                                   (crf0 (:crf 0))))
+  (srdi temp src (+ ppc64::fixnumshift 11))
+  (cmpdi temp 27)
   (sldi dest src (- ppc64::charcode-shift ppc64::fixnumshift))
-  (addi dest dest ppc64::subtag-character))
+  (bne+ :ok)
+  (li dest ppc64::nil-value)
+  (b :done)
+  :ok
+  (addi dest dest ppc64::subtag-character)
+  :done)
 
 (define-ppc64-vinsn u32->char (((dest :lisp))
 			      ((src :u32))
