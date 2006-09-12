@@ -1,3 +1,17 @@
+2006-09-11 20:10  gb
+
+	* level-1/l1-unicode.lisp: Character encodings contain a
+	LITERAL-CHAR-CODE-LIMIT field.
+
+2006-09-11 20:09  gb
+
+	* level-1/l1-streams.lisp: extend IOBLOCK a bit.  Start to provide
+	functionality for encoded streams.
+
+2006-09-11 20:08  gb
+
+	* compiler/PPC/ppc2.lisp: Partialy inline 2-arg logior/logand.
+
 2006-09-09 04:39  gb
 
 	* compiler/PPC/: PPC32/ppc32-vinsns.lisp, PPC64/ppc64-vinsns.lisp:
