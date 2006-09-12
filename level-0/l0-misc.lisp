@@ -81,8 +81,7 @@
   (if (typep arg 'simple-base-string)
     (let* ((len (length arg)))
       (%stack-block ((buf (1+ len)))
-        (%copy-ivector-to-ptr arg 0 buf 0 len)
-        (setf (%get-byte buf len) 0)
+        (%cstr-pointer arg buf)
         (ff-call 
          (%kernel-import target::kernel-import-lisp-bug)
          :address buf
