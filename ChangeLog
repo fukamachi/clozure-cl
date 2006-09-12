@@ -1,3 +1,22 @@
+2006-09-12 05:34  gb
+
+	* level-0/l0-misc.lisp: Use %CSTR-POINTER (not
+	%copy-ivector-to-pointer) in BUG.
+
+2006-09-12 05:31  gb
+
+	* lisp-kernel/x86-exceptions.c: Enter the debugger if
+	altstack_signal_handler is entered in foreign code.  (Maybe want to
+	signal a lisp error in some cases, but this is currently fatal and
+	we might as well die earlier than with a stack overflow.)
+
+2006-09-12 05:29  gb
+
+	* lisp-kernel/thread_manager.c: os_get_stack_bounds(): get stack
+	direction right on FreeBSD.  (Much better than randomly scribbling
+	on memory in the GC, as the FreeBSD port has been doing for months
+	now ...)
+
 2006-09-11 21:31  gb
 
 	* compiler/X86/x862.lisp: x862-explicit-non-fixnum-type-p looks for
