@@ -5542,34 +5542,34 @@
   (let* ((fix1 (acode-fixnum-form-p form1))
          (fix2 (acode-fixnum-form-p form2)))
     (if (and fix1 fix2)
-      (ppc2-use-operator (%nx1-operator fixnum) seg vreg xfer (logand fix1 fix2)))
-    (let* ((fixval (or fix1 fix2))
-           (fixlen (if fixval (integer-length fixval)))
-           (unboxed-fixval (if fixval (ash fixval *ppc2-target-fixnum-shift*)))
-           (high (if fixval (if (= unboxed-fixval (logand #xffff0000 unboxed-fixval)) (ash unboxed-fixval -16))))
-           (low (if fixval (unless high (if (= unboxed-fixval (logand #x0000ffff unboxed-fixval)) unboxed-fixval))))
-           (otherform (if (or high low) (if fix1 form2 form1))))
-      (if otherform
-        (let* ((other-reg (ppc2-one-untargeted-reg-form seg otherform ppc::arg_z)))
-          (when vreg
-            (ensuring-node-target (target vreg) 
-              (if high
-                (! logand-high target other-reg high)
-                (! logand-low target other-reg low)))))
-        (if (and fixval (= fixlen (logcount fixval)))
-          (let* ((nbits (- *ppc2-target-bits-in-word*
-                           (1+ (+ *ppc2-target-fixnum-shift* fixlen))))
-                 (otherreg (ppc2-one-untargeted-reg-form seg (if fix1 form2 form1) ppc::arg_z)))
+      (ppc2-use-operator (%nx1-operator fixnum) seg vreg xfer (logand fix1 fix2))
+      (let* ((fixval (or fix1 fix2))
+             (fixlen (if fixval (integer-length fixval)))
+             (unboxed-fixval (if fixval (ash fixval *ppc2-target-fixnum-shift*)))
+             (high (if fixval (if (= unboxed-fixval (logand #xffff0000 unboxed-fixval)) (ash unboxed-fixval -16))))
+             (low (if fixval (unless high (if (= unboxed-fixval (logand #x0000ffff unboxed-fixval)) unboxed-fixval))))
+             (otherform (if (or high low) (if fix1 form2 form1))))
+        (if otherform
+          (let* ((other-reg (ppc2-one-untargeted-reg-form seg otherform ppc::arg_z)))
+            (when vreg
+              (ensuring-node-target (target vreg) 
+                (if high
+                  (! logand-high target other-reg high)
+                  (! logand-low target other-reg low)))))
+          (if (and fixval (= fixlen (logcount fixval)))
+            (let* ((nbits (- *ppc2-target-bits-in-word*
+                             (1+ (+ *ppc2-target-fixnum-shift* fixlen))))
+                   (otherreg (ppc2-one-untargeted-reg-form seg (if fix1 form2 form1) ppc::arg_z)))
             
-            (if vreg (ensuring-node-target (target vreg)
-                       (if (> fixval 0)
-                         (! clear-left target otherreg nbits)
-                         (! clear-right target otherreg (+ fixlen
-                                                           *ppc2-target-fixnum-shift*))))))
+              (if vreg (ensuring-node-target (target vreg)
+                         (if (> fixval 0)
+                           (! clear-left target otherreg nbits)
+                           (! clear-right target otherreg (+ fixlen
+                                                             *ppc2-target-fixnum-shift*))))))
           
-          (multiple-value-bind (r1 r2) (ppc2-two-untargeted-reg-forms seg form1 ppc::arg_y form2 ppc::arg_z)
-            (if vreg (ensuring-node-target (target vreg) (! %logand2 target r1 r2))))))
-      (^))))
+            (multiple-value-bind (r1 r2) (ppc2-two-untargeted-reg-forms seg form1 ppc::arg_y form2 ppc::arg_z)
+              (if vreg (ensuring-node-target (target vreg) (! %logand2 target r1 r2))))))
+        (^)))))
 
 (defppc2 ppc2-%ilogxor2 %ilogxor2 (seg vreg xfer form1 form2)
   (let* ((fix1 (acode-fixnum-form-p form1))
@@ -6161,12 +6161,12 @@
         (ppc2-copy-register seg target ($ ppc::arg_z))
         (^)))))
 
-;;; Return T if form is declare to be something that couldn't be a fixnum.
+;;; Return T if form is declared to be something that couldn't be a fixnum.
 (defun ppc2-explicit-non-fixnum-type-p (form)
-  (or (ppc2-form-typep form 'float)
-      (ppc2-form-typep form 'complex)
-      (ppc2-form-typep form 'ratio)
-      (ppc2-form-typep form 'bignum)))
+  (let* ((type (ppc2-form-type form))
+         (target-fixnum-type (nx-target-type 'fixnum)))
+    (and (not (subtypep type target-fixnum-type))
+         (not (subtypep target-fixnum-type type)))))
 
 
     
@@ -6280,14 +6280,109 @@
 (defppc2 ppc2-logbitp logbitp (seg vreg xfer bitnum int)
   (ppc2-binary-builtin seg vreg xfer 'logbitp bitnum int))
 
+
+(defun ppc2-inline-logior2 (seg vreg xfer form1 form2)
+  (with-ppc-local-vinsn-macros (seg vreg xfer)
+    (let* ((fix1 (acode-fixnum-form-p form1))
+           (fix2 (acode-fixnum-form-p form2)))
+      (if (and fix1 fix2)
+        (ppc2-use-operator (%nx1-operator fixnum) seg vreg xfer (logior fix1 fix2))
+        (let* ((fixval (or fix1 fix2))
+               (unboxed-fixval (if fixval (ash fixval *ppc2-target-fixnum-shift*)))
+               (high (if fixval (if (= unboxed-fixval (logand #xffff0000 unboxed-fixval)) (ash unboxed-fixval -16))))
+               (low (if fixval (unless high (if (= unboxed-fixval (logand #x0000ffff unboxed-fixval)) unboxed-fixval))))
+               (otherform (if (or high low) (if fix1 form2 form1)))
+               (out-of-line (backend-get-next-label))
+               (done (backend-get-next-label)))
+
+          (if otherform
+            (ppc2-one-targeted-reg-form seg otherform ($ ppc::arg_z))
+            (ppc2-two-targeted-reg-forms seg form1 ($ ppc::arg_y) form2 ($ ppc::arg_z)))
+          (ensuring-node-target (target vreg)
+            (if otherform
+              (unless (acode-fixnum-form-p otherform)
+                (! branch-unless-arg-fixnum ($ ppc::arg_z) (aref *backend-labels* out-of-line)))
+              (if (acode-fixnum-form-p form1)
+                (! branch-unless-arg-fixnum ($ ppc::arg_z) (aref *backend-labels* out-of-line))
+                (if (acode-fixnum-form-p form2)
+                  (! branch-unless-arg-fixnum ($ ppc::arg_y) (aref *backend-labels* out-of-line))  
+                  (! branch-unless-both-args-fixnums ($ ppc::arg_y) ($ ppc::arg_z) (aref *backend-labels* out-of-line)))))
+            (if otherform
+              (if high
+                (! logior-high ($ ppc::arg_z) ($ ppc::arg_z) high)
+                (! logior-low ($ ppc::arg_z) ($ ppc::arg_z) low))
+              (! %logior2 ($ ppc::arg_z) ($ ppc::arg_z) ($ ppc::arg_y)))
+            (-> done)
+            (@ out-of-line)
+            (if otherform
+              (ppc2-lri seg ($ ppc::arg_y) (ash fixval *ppc2-target-fixnum-shift*)))
+            (! call-subprim-2 ($ ppc::arg_z) (subprim-name->offset '.SPbuiltin-logior) ($ ppc::arg_y) ($ ppc::arg_z))
+            (@ done)
+            (ppc2-copy-register seg target ($ ppc::arg_z))
+            (^)))))))
+
 (defppc2 ppc2-logior2 logior2 (seg vreg xfer form1 form2)
-  (ppc2-binary-builtin seg vreg xfer 'logior-2 form1 form2))
+  (if (or (ppc2-explicit-non-fixnum-type-p form1)
+          (ppc2-explicit-non-fixnum-type-p form2))
+    (ppc2-binary-builtin seg vreg xfer 'logior-2 form1 form2)
+    (ppc2-inline-logior2 seg vreg xfer form1 form2)))
 
 (defppc2 ppc2-logxor2 logxor2 (seg vreg xfer form1 form2)
   (ppc2-binary-builtin seg vreg xfer 'logxor-2 form1 form2))
 
+(defun ppc2-inline-logand2 (seg vreg xfer form1 form2)
+  (with-ppc-local-vinsn-macros (seg vreg xfer)
+  (let* ((fix1 (acode-fixnum-form-p form1))
+         (fix2 (acode-fixnum-form-p form2)))
+    (if (and fix1 fix2)
+      (ppc2-use-operator (%nx1-operator fixnum) seg vreg xfer (logand fix1 fix2))
+      (let* ((fixval (or fix1 fix2))
+             (fixlen (if fixval (integer-length fixval)))
+             (unboxed-fixval (if fixval (ash fixval *ppc2-target-fixnum-shift*)))
+             (high (if fixval (if (= unboxed-fixval (logand #xffff0000 unboxed-fixval)) (ash unboxed-fixval -16))))
+             (low (if fixval (unless high (if (= unboxed-fixval (logand #x0000ffff unboxed-fixval)) unboxed-fixval))))
+             (maskable (and fixval (= fixlen (logcount fixval))))
+             (otherform (if (or high low maskable) (if fix1 form2 form1)))
+             (out-of-line (backend-get-next-label))
+             (done (backend-get-next-label)))
+        (if otherform
+          (ppc2-one-targeted-reg-form seg otherform ($ ppc::arg_z))
+          (ppc2-two-targeted-reg-forms  seg form1 ($ ppc::arg_y) form2 ($ ppc::arg_z)))
+        (ensuring-node-target (target vreg)
+          (if otherform
+            (unless (acode-fixnum-form-p otherform)
+              (! branch-unless-arg-fixnum ($ ppc::arg_z) (aref *backend-labels* out-of-line)))
+            (if (acode-fixnum-form-p form1)
+              (! branch-unless-arg-fixnum ($ ppc::arg_z) (aref *backend-labels* out-of-line))
+              (if (acode-fixnum-form-p form2)
+                (! branch-unless-arg-fixnum ($ ppc::arg_y) (aref *backend-labels* out-of-line))  
+                (! branch-unless-both-args-fixnums ($ ppc::arg_y) ($ ppc::arg_z) (aref *backend-labels* out-of-line)))))
+          (if otherform
+            (if (or high low)
+              (if high
+                (! logand-high ($ ppc::arg_z) ($ ppc::arg_z) high)
+                (! logand-low ($ ppc::arg_z) ($ ppc::arg_z) low))
+              (let* ((nbits (- *ppc2-target-bits-in-word*
+                             (1+ (+ *ppc2-target-fixnum-shift* fixlen)))))
+                (if (> fixval 0)
+                  (! clear-left ($ ppc::arg_z) ($ ppc::arg_z)  nbits)
+                  (! clear-right ($ ppc::arg_z) ($ ppc::arg_z) (+ fixlen
+                                                                  *ppc2-target-fixnum-shift*)))))
+            (! %logand2 ($ ppc::arg_z) ($ ppc::arg_z) ($ ppc::arg_y)))
+          (-> done)
+          (@ out-of-line)
+          (if otherform
+            (ppc2-lri seg ($ ppc::arg_y) (ash fixval *ppc2-target-fixnum-shift*)))
+            (! call-subprim-2 ($ ppc::arg_z) (subprim-name->offset '.SPbuiltin-logand) ($ ppc::arg_y) ($ ppc::arg_z))          
+            (@ done)
+            (ppc2-copy-register seg target ($ ppc::arg_z))
+            (^)))))))
+
 (defppc2 ppc2-logand2 logand2 (seg vreg xfer form1 form2)
-  (ppc2-binary-builtin seg vreg xfer 'logand-2 form1 form2))
+  (if (or (ppc2-explicit-non-fixnum-type-p form1)
+          (ppc2-explicit-non-fixnum-type-p form2))
+    (ppc2-binary-builtin seg vreg xfer 'logand-2 form1 form2)
+    (ppc2-inline-logand2 seg vreg xfer form1 form2)))
 
 (defppc2 ppc2-div2 div2 (seg vreg xfer form1 form2)
   (ppc2-binary-builtin seg vreg xfer '/-2 form1 form2))
