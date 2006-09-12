@@ -73,6 +73,9 @@
   length-of-vector-encoding-function    ;(VECTOR &optional (START 0) (END (LENGTH VECTOR))) 
   ;; Might return NIL if the encoding's bogus
   length-of-memory-encoding-function    ;(POINTER NUNITS &optional (START 0))
+
+  ;; Code units and character codes less than this value map to themselves
+  (literal-char-code-limit 0)
   )
 
 
@@ -85,6 +88,9 @@
   `(progn
     (setf (get-character-encoding ,name)
      (make-character-encoding :name ,name  ,@args))))
+
+(defun encoding-name (encoding)
+  (character-encoding-name (or encoding (get-character-encoding nil))))
 
 ;;; ISO-8859-1 is trivial, though of course it can't really encode characters
 ;;; whose CHAR-CODE is >= 256
@@ -163,11 +169,14 @@
    (lambda (pointer nunits &optional start)
      (declare (ignore pointer start))
      nunits))
+  :literal-char-code-limit 256
   )
 
 ;;; Make :ISO-8859-1 the "null" encoding (not necessarily the default).
 (setf (get-character-encoding nil)
       (get-character-encoding :iso-8859-1))
+
+
 
 
 ;;; Other 1-byte, fixed-width encodings.  Typically, codes in the range
@@ -571,4 +580,7 @@
                  (cond ((< code #x80) 1)
                        ((< code #xe0) 2)
                        ((< code #xf0) 3)
-                       (t 4))))))))
+                       (t 4)))))))
+    :literal-char-code-limit #x80
+    )
+
