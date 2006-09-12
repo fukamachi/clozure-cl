@@ -365,7 +365,16 @@
   (write-byte-function 'ioblock-no-binary-output)
   (write-char-function 'ioblock-no-char-output)
   (encoding nil)
-  (alternate-line-termination nil))
+  (alternate-line-termination nil)
+  (literal-char-code-limit 256)
+  (encode-output-function nil)
+  (decode-input-function nil)
+  (read-char-no-hang-function nil)
+  (write-simple-string-function nil)
+  (reserved0 nil)
+  (reserved1 nil)
+  (reserved2 nil)
+  (reserved3 nil))
 
 
 ;;; Functions on ioblocks.  So far, we aren't saying anything
@@ -415,7 +424,7 @@
 
 
 
-
+(declaim (inline %ioblock-advance))
 (defun %ioblock-advance (ioblock read-p)
   (funcall (ioblock-advance-function ioblock)
            (ioblock-stream ioblock)
@@ -445,6 +454,8 @@
       (setf (io-buffer-idx buf) (the fixnum (1+ idx)))
       (uvref (io-buffer-buffer buf) idx))))
 
+
+
 (defun %bivalent-ioblock-read-u8-byte (ioblock)
   (declare (optimize (speed 3) (safety 0)))
   (if (ioblock-untyi-char ioblock)
@@ -462,6 +473,9 @@
       (setf (io-buffer-idx buf) (the fixnum (1+ idx)))
       (aref (the (simple-array (unsigned-byte 8) (*))
               (io-buffer-buffer buf)) idx))))
+
+
+(declaim (inline %ioblock-read-u8-byte))
 
 (defun %ioblock-read-u8-byte (ioblock)
   (declare (optimize (speed 3) (safety 0)))
@@ -567,63 +581,60 @@
       (uvref (io-buffer-buffer buf) idx))))
 
 
-
+(declaim (inline %ioblock-tyi))
 (defun %ioblock-tyi (ioblock)
   (declare (optimize (speed 3) (safety 0)))
   (let* ((ch (ioblock-untyi-char ioblock)))
     (if ch
       (prog1 ch
         (setf (ioblock-untyi-char ioblock) nil))
-      (let* ((buf (ioblock-inbuf ioblock))
-             (idx (io-buffer-idx buf))
-             (limit (io-buffer-count buf)))
-        (declare (fixnum idx limit))
-        (when (= idx limit)
-          (unless (%ioblock-advance ioblock t)
-            (return-from %ioblock-tyi (if (ioblock-eof ioblock) :eof)))
-          (setq idx (io-buffer-idx buf)
-                limit (io-buffer-count buf)))
-        (setf (io-buffer-idx buf) (the fixnum (1+ idx)))
-        (%code-char (aref (the (simple-array (unsigned-byte 8) (*)) (io-buffer-buffer buf)) idx))))))
+        (let* ((buf (ioblock-inbuf ioblock))
+         (idx (io-buffer-idx buf))
+         (limit (io-buffer-count buf)))
+    (declare (fixnum idx limit))
+    (when (= idx limit)
+      (unless (%ioblock-advance ioblock t)
+        (return-from %ioblock-tyi :eof))
+      (setq idx (io-buffer-idx buf)
+            limit (io-buffer-count buf)))
+    (setf (io-buffer-idx buf) (the fixnum (1+ idx)))
+    (%code-char (aref (the (simple-array (unsigned-byte 8) (*))
+                        (io-buffer-buffer buf)) idx))))))
 
 (defun %private-ioblock-tyi (ioblock)
   (declare (optimize (speed 3) (safety 0)))
   (check-ioblock-owner ioblock)
-  (if (ioblock-untyi-char ioblock)
-    (prog1 (ioblock-untyi-char ioblock)
-      (setf (ioblock-untyi-char ioblock) nil))
-    (let* ((buf (ioblock-inbuf ioblock))
-	   (idx (io-buffer-idx buf))
-	   (limit (io-buffer-count buf)))
-      (declare (fixnum idx limit))
-      (when (= idx limit)
-	(unless (%ioblock-advance ioblock t)
-	  (return-from %private-ioblock-tyi (if (ioblock-eof ioblock) :eof)))
-	(setq idx (io-buffer-idx buf)
-	      limit (io-buffer-count buf)))
-      (setf (io-buffer-idx buf) (the fixnum (1+ idx)))
-      (%code-char (aref (the (simple-array (unsigned-byte 8) (*)) (io-buffer-buffer buf)) idx)))))
+  (%ioblock-tyi ioblock))
 
 (defun %locked-ioblock-tyi (ioblock)
   (declare (optimize (speed 3) (safety 0)))
   (with-ioblock-lock-grabbed ((locally (declare (optimize (speed 3) (safety 0)))
                                 (ioblock-inbuf-lock ioblock)))
-    (if (ioblock-untyi-char ioblock)
-      (prog1 (ioblock-untyi-char ioblock)
-        (setf (ioblock-untyi-char ioblock) nil))
-      (let* ((buf (ioblock-inbuf ioblock))
-             (idx (io-buffer-idx buf))
-             (limit (io-buffer-count buf)))
-        (declare (fixnum idx limit))
-        (when (= idx limit)
-          (unless (%ioblock-advance ioblock t)
-            (return-from %locked-ioblock-tyi (if (ioblock-eof ioblock) :eof)))
-          (setq idx (io-buffer-idx buf)
-                limit (io-buffer-count buf)))
-        (setf (io-buffer-idx buf) (the fixnum (1+ idx)))
-        (%code-char (aref (the (simple-array (unsigned-byte 8) (*)) (io-buffer-buffer buf)) idx))))))
+    (%ioblock-tyi ioblock)))
 
-(declaim (inline %ioblock-tyy-no-hang))
+;;; Read a character composed of one or more 8-bit code-units.
+(declaim (inline %ioblock-read-u8-encoded-char))
+(defun %ioblock-read-u8-encoded-char (ioblock)
+  (declare (optimize (speed 3) (safety 0)))
+  (let* ((ch (ioblock-untyi-char ioblock)))
+    (if ch
+      (prog1 ch
+        (setf (ioblock-untyi-char ioblock) nil))
+      (let* ((1st-unit (%ioblock-read-u8-byte ioblock)))
+        (if (eq 1st-unit :eof)
+          1st-unit
+          (locally
+              (declare (type (unsigned-byte 8) 1st-unit))
+            (if (< 1st-unit
+                   (the (mod #x110000) (ioblock-literal-char-code-limit ioblock)))
+              (%code-char 1st-unit)
+              (funcall (ioblock-decode-input-function ioblock)
+                       1st-unit
+                       #'%ioblock-read-u8-byte
+                       ioblock))))))))
+  
+
+(declaim (inline %ioblock-tyi-no-hang))
 
 (defun %ioblock-tyi-no-hang (ioblock)
   (declare (optimize (speed 3) (safety 0)))
@@ -807,21 +818,41 @@
     (setf (ioblock-dirty ioblock) t)
     element))
 
+(declaim (inline %ioblock-write-u8-element))
+(defun %ioblock-write-u8-element (ioblock element)
+  (declare (optimize (speed 3) (safety 0)))
+  (unless (eql element (logand #xff element))
+    (report-bad-arg element '(unsigned-byte 8)))
+  (let* ((buf (ioblock-outbuf ioblock))
+         (idx (io-buffer-idx buf))
+	 (count (io-buffer-count buf))
+         (limit (io-buffer-limit buf)))
+    (declare (fixnum idx limit count))
+    (when (= idx limit)
+      (%ioblock-force-output ioblock nil)
+      (setq idx 0 count 0))
+    (setf (aref (the (simple-array (unsigned-byte 8) (*)) (io-buffer-buffer buf)) idx) element)
+    (incf idx)
+    (setf (io-buffer-idx buf) idx)
+    (when (> idx count)
+      (setf (io-buffer-count buf) idx))
+    (setf (ioblock-dirty ioblock) t)
+    element))
+
+
 (defun %ioblock-write-char (ioblock char)
   (declare (optimize (speed 3) (safety 0)))
   (if (eq char #\linefeed)
     (setf (ioblock-charpos ioblock) 0)
     (incf (ioblock-charpos ioblock)))
-  (unless (eq (typecode (io-buffer-buffer (ioblock-outbuf ioblock)))
-	      target::subtag-simple-base-string)
-    (setq char (char-code char)))
-  (%ioblock-write-element ioblock char))
+  (let* ((code (char-code char)))
+    (declare (type (mod #x110000) code))
+    (if (< code 256)
+      (%ioblock-write-u8-element ioblock code)
+      (error "Character ~s can't be encoded on ~s" char (ioblock-stream ioblock)))))
 
 (defun %ioblock-write-byte (ioblock byte)
   (declare (optimize (speed 3) (safety 0)))
-  (when (eq (typecode (io-buffer-buffer (ioblock-outbuf ioblock)))
-	    target::subtag-simple-base-string)
-    (setq byte (code-char byte)))
   (%ioblock-write-element ioblock byte))
 
   
@@ -1467,9 +1498,10 @@
 (defmethod print-object ((s basic-stream) out)
   (print-unreadable-object (s out :type t :identity t)
     (let* ((ioblock (basic-stream.state s))
-           (fd (and ioblock (ioblock-device ioblock))))
+           (fd (and ioblock (ioblock-device ioblock)))
+           (encoding (and ioblock (encoding-name (ioblock-encoding ioblock)))))
       (if fd
-        (format out "(~a/~d)" (%unix-fd-kind fd) fd)
+        (format out "~a (~a/~d)" encoding (%unix-fd-kind fd) fd)
         (format out "~s" :closed)))))
 
 (defmethod select-stream-class ((s (eql 'basic-stream)) in-p out-p char-p)
@@ -2839,9 +2871,10 @@
 (defmethod print-object ((s fd-stream) out)
   (print-unreadable-object (s out :type t :identity t)
     (let* ((ioblock (stream-ioblock s nil))
-           (fd (and ioblock (ioblock-device ioblock))))
+           (fd (and ioblock (ioblock-device ioblock)))
+           (encoding (and ioblock (encoding-name (ioblock-encoding ioblock)))))
       (if fd
-        (format out "(~a/~d)" (%unix-fd-kind fd) fd)
+        (format out "~s (~a/~d)" encoding (%unix-fd-kind fd) fd)
         (format out "~s" :closed)))))
 
 (defclass fd-input-stream (fd-stream buffered-input-stream-mixin)
