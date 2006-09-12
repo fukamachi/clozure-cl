@@ -942,6 +942,11 @@ altstack_signal_handler(int signum, siginfo_t *info, ExceptionInformation  *cont
 {
   TCR* tcr = get_tcr(true);
   LispObj *foreign_rsp = find_foreign_rsp(xpGPR(context,Isp), tcr->cs_area, tcr);
+#if 1
+  if (tcr->valence != TCR_STATE_LISP) {
+    Bug(context, "exception in foreign context");
+  }
+#endif
 #ifdef LINUX
   fpregset_t fpregs = NULL;
 #else
