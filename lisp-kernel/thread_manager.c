@@ -344,11 +344,16 @@ os_get_stack_bounds(LispObj q,void **base, natural *size)
 #endif
 #ifdef FREEBSD
   pthread_attr_t attr;
+  void * temp_base;
+  size_t temp_size;
+  
 
   pthread_attr_init(&attr);  
   pthread_attr_get_np(p, &attr);
-  pthread_attr_getstackaddr(&attr,base);
-  pthread_attr_getstacksize(&attr,size);
+  pthread_attr_getstackaddr(&attr,&temp_base);
+  pthread_attr_getstacksize(&attr,&temp_size);
+  *base = (void *)((natural)temp_base + temp_size);
+  *size = temp_size;
 #endif
 
 }
