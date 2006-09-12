@@ -6240,10 +6240,10 @@
 
 ;;; Return T if form is declare to be something that couldn't be a fixnum.
 (defun x862-explicit-non-fixnum-type-p (form)
-  (or (x862-form-typep form 'float)
-      (x862-form-typep form 'complex)
-      (x862-form-typep form 'ratio)
-      (x862-form-typep form 'bignum)))
+  (let* ((type (x862-form-type form))
+         (target-fixnum-type (nx-target-type 'fixnum)))
+    (and (not (subtypep type target-fixnum-type))
+         (not (subtypep target-fixnum-type type)))))
 
 (defun x862-inline-add2 (seg vreg xfer form1 form2)
   (with-x86-local-vinsn-macros (seg vreg xfer)
