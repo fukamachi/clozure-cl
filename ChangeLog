@@ -1,3 +1,21 @@
+2006-09-13 06:08  gb
+
+	* lib/streams.lisp: READ-LINE changes for BASIC-STREAMs.
+
+2006-09-13 06:07  gb
+
+	* level-1/l1-unicode.lisp: GET-CHARACTER-ENCODING errors if the
+	named encoding isn't defined.
+	
+	Terse PRINT-OBJECT method for CHARACTER-ENCODING.
+
+2006-09-13 06:06  gb
+
+	* level-1/l1-streams.lisp: More functions in the ioblock, some
+	support for 8-bit encodings (like utf-8).  Not finished, but
+	getting hard to bootstrap; need to check in and build on all
+	platforms before it gets even harder.
+
 2006-09-12 05:34  gb
 
 	* level-0/l0-misc.lisp: Use %CSTR-POINTER (not
