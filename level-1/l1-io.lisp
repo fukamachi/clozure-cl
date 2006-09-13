@@ -54,17 +54,41 @@ start of a line.  Return T if #\Newline needed."
 
 (defun write-char (char &optional (output-stream nil))
   "Output CHAR to OUTPUT-STREAM."
-  (stream-write-char (real-print-stream output-stream) char)
-  char)
+  (let* ((stream (real-print-stream output-stream)))
+    (if (typep stream 'basic-stream)
+      (let* ((ioblock (basic-stream-ioblock stream)))
+        (funcall (ioblock-write-char-function ioblock) ioblock char))
+      (stream-write-char (real-print-stream output-stream) char))
+    char))
 
 (defun write-string (string &optional output-stream &key (start 0 start-p)
 			    (end nil end-p))
   "Write the characters of the subsequence of STRING bounded by START
 and END to OUTPUT-STREAM."
-  (if (and (not start-p) (not end-p))
-    (stream-write-string (real-print-stream output-stream) string)
-    (stream-write-string (real-print-stream output-stream) string start end))
-  string)
+  (let* ((stream (real-print-stream output-stream)))
+    (if (typep stream 'basic-stream)
+      (let* ((ioblock (basic-stream-ioblock stream)))
+        (with-ioblock-output-locked (ioblock) 
+          (if (and (typep string 'simple-string)
+                   (not start-p) (not end-p))
+            (funcall (ioblock-write-simple-string-function ioblock)
+                     ioblock string 0 (length string))
+            (progn
+              (setq end (check-sequence-bounds string start end))
+              (locally (declare (fixnum start end))
+                (multiple-value-bind (arr offset)
+                    (if (typep string 'simple-string)
+                      (values string 0)
+                      (array-data-and-offset (require-type string 'string)))
+                  (unless (eql 0 offset)
+                    (incf start offset)
+                    (incf end offset))
+                  (funcall (ioblock-write-simple-string-function ioblock)
+                           ioblock arr start (the fixnum (- end start)))))))))
+      (if (and (not start-p) (not end-p))
+        (stream-write-string stream string)
+        (stream-write-string stream string start end)))
+  string))
 
 (defun write-line (string &optional output-stream
                           &key (start 0) (end (length string)))
@@ -76,8 +100,12 @@ and END to OUTPUT-STREAM then output a #\Newline at end."
     string))
 
 (defun terpri (&optional (stream *standard-output*))
-  (stream-write-char  (real-print-stream stream) #\newline)
-  nil)
+  (let* ((stream (real-print-stream stream)))
+    (if (typep stream 'basic-stream)
+      (let* ((ioblock (basic-stream-ioblock stream)))
+        (funcall (ioblock-write-char-function ioblock) ioblock #\newline))
+      (stream-write-char  (real-print-stream stream) #\newline))
+    nil))
 
 ;;;; ----------------------------------------------------------------------
 
