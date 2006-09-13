@@ -23,7 +23,8 @@
 (defvar *character-encodings* (make-hash-table :test #'eq))
 
 (defun get-character-encoding (name)
-  (gethash name *character-encodings*))
+  (or (gethash name *character-encodings*)
+      (error "Unknown character encoding: ~s." name)))
 
 (defun (setf get-character-encoding) (new name)
   (setf (gethash name *character-encodings*) new))
@@ -78,6 +79,10 @@
   (literal-char-code-limit 0)
   )
 
+
+(defmethod print-object ((ce character-encoding) stream)
+  (print-unreadable-object (ce stream :type t :identity t)
+    (format stream "~a" (character-encoding-name ce))))
 
 ;;; N.B.  (ccl:nfunction <name> (lambda (...) ...)) is just  like
 ;;;       (cl:function (lambda (...) ...)), except that the resulting
