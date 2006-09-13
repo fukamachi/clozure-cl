@@ -1,3 +1,8 @@
+2006-09-13 06:52  gb
+
+	* level-1/l1-io.lisp: Direct BASIC-STREAM stuff for WRITE-CHAR,
+	WRITE-STRING, TERPRI.
+
 2006-09-13 06:08  gb
 
 	* lib/streams.lisp: READ-LINE changes for BASIC-STREAMs.
