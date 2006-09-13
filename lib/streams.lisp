@@ -39,7 +39,7 @@
         (if (typep input-stream 'basic-stream)
           (let* ((ioblock (basic-stream-ioblock input-stream)))
             (with-ioblock-input-locked (ioblock)
-              (%ioblock-read-line ioblock)))
+              (funcall (ioblock-read-line-function ioblock) ioblock)))
           (stream-read-line input-stream))
       (if eof
 	(if (= (length string) 0)
