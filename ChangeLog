@@ -1,3 +1,12 @@
+2006-09-19 01:15  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: x8664 vinsns for
+	typechecking signed/unsigned bytes of sizes 8,16,32,64.
+
+2006-09-19 00:36  gb
+
+	* level-1/l1-streams.lisp: More changes; hard to bootstrap.
+
 2006-09-18 21:42  gb
 
 	* lib/macros.lisp: Macros for locking the input/output locks of an
