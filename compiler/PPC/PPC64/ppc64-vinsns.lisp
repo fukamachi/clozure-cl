@@ -934,16 +934,20 @@
   :got-it)
 
 
-(define-ppc64-vinsn require-u8 (()
+(define-ppc64-vinsn require-s8 (()
 				((object :lisp))
 				((crf0 (:crf 0))
-				 (tag :u32)))
+                                 (crf1 :crf)
+				 (tag :s64)))
   :again
-  ;; The bottom ppc64::fixnumshift bits and the top (- 64 (+
-  ;; ppc64::fixnumshift 8)) must all be zero.
-  (rldicr. tag object (- 64 ppc64::fixnumshift) 55)
+  (clrldi. tag object (- ppc64::nbits-in-word ppc64::nlisptagbits))
+  (sldi tag object (- ppc64::nbits-in-word (+ 8 ppc64::fixnumshift)))
+  (sradi tag tag (- ppc64::nbits-in-word (+ 8 ppc64::fixnumshift)))
+  (cmpd crf1 tag object)
+  (bne- crf1 :bad)
   (beq+ crf0 :got-it)
-  (uuo_intcerr arch::error-object-not-unsigned-byte-8 object)
+  :bad
+  (uuo_intcerr arch::error-object-not-signed-byte-8 object)
   (b :again)
   :got-it)
 
@@ -959,6 +963,118 @@
   (uuo_intcerr arch::error-object-not-unsigned-byte-8 object)
   (b :again)
   :got-it)
+
+(define-ppc64-vinsn require-s16 (()
+                                 ((object :lisp))
+                                 ((crf0 (:crf 0))
+                                  (crf1 :crf)
+                                  (tag :s64)))
+  :again
+  (sldi tag object (- ppc64::nbits-in-word (+ 16 ppc64::fixnumshift)))
+  (sradi tag tag (- ppc64::nbits-in-word (+ 16 ppc64::fixnumshift)))
+  (cmpd crf1 tag object)
+  (clrldi. tag object (- ppc64::nbits-in-word ppc64::nlisptagbits))
+  (bne- crf1 :bad)
+  (beq+ crf0 :got-it)
+  :bad
+  (uuo_intcerr arch::error-object-not-signed-byte-16 object)
+  (b :again)
+  :got-it)
+
+(define-ppc64-vinsn require-u16 (()
+				((object :lisp))
+				((crf0 (:crf 0))
+				 (tag :s64)))
+  :again
+  ;; The bottom ppc64::fixnumshift bits and the top (- 64 (+
+  ;; ppc64::fixnumshift 8)) must all be zero.
+  (rldicr. tag object (- 64 ppc64::fixnumshift) 47)
+  (beq+ crf0 :got-it)
+  (uuo_intcerr arch::error-object-not-unsigned-byte-16 object)
+  (b :again)
+  :got-it)
+
+(define-ppc64-vinsn require-s32 (()
+                                 ((object :lisp))
+                                 ((crf0 (:crf 0))
+                                  (crf1 :crf)
+                                  (tag :s64)))
+  :again
+  (sldi tag object (- ppc64::nbits-in-word (+ 32 ppc64::fixnumshift)))
+  (sradi tag tag (- ppc64::nbits-in-word (+ 32 ppc64::fixnumshift)))
+  (cmpd crf1 tag object)
+  (clrldi. tag object (- ppc64::nbits-in-word ppc64::nlisptagbits))
+  (bne- crf1 :bad)
+  (beq+ crf0 :got-it)
+  :bad
+  (uuo_intcerr arch::error-object-not-signed-byte-32 object)
+  (b :again)
+  :got-it)
+
+(define-ppc64-vinsn require-u32 (()
+				((object :lisp))
+				((crf0 (:crf 0))
+				 (tag :s64)))
+  :again
+  ;; The bottom ppc64::fixnumshift bits and the top (- 64 (+
+  ;; ppc64::fixnumshift 32)) must all be zero.
+  (rldicr. tag object (- 64 ppc64::fixnumshift) 31)
+  (beq+ crf0 :got-it)
+  (uuo_intcerr arch::error-object-not-unsigned-byte-32 object)
+  (b :again)
+  :got-it)
+
+(define-ppc64-vinsn require-s64 (()
+                                 ((object :lisp))
+                                 ((crf0 (:crf 0))
+                                  (crf1 :crf)
+                                  (tag :s64)))
+  :again
+  (clrldi. tag object (- ppc64::nbits-in-word ppc64::nlisptagbits))
+  (clrldi tag object (- ppc64::nbits-in-word ppc64::ntagbits))
+  (beq+ crf0 :got-it)
+  (cmpdi crf1 tag ppc64::fulltag-misc)
+  (bne- crf1 :bad)
+  (ld tag ppc64::misc-header-offset object)
+  (cmpdi crf0 tag ppc64::two-digit-bignum-header)
+  (beq+ crf0 :got-it)
+  :bad
+  (uuo_intcerr arch::error-object-not-signed-byte-64 object)
+  (b :again)
+  :got-it)
+
+(define-ppc64-vinsn require-u64 (()
+                                 ((object :lisp))
+                                 ((crf0 (:crf 0))
+                                  (crf1 :crf)
+                                  (crf2 :crf)
+                                  (temp :u64)))
+  (clrldi. temp object (- ppc64::nbits-in-word ppc64::fixnumshift))
+  (clrldi temp object (- ppc64::nbits-in-word ppc64::ntagbits))
+  (cmpdi crf1 temp ppc64::fulltag-misc)
+  (sradi temp object ppc64::fixnumshift)
+  (beq crf0 :good-if-positive)
+  (bne crf1 :bad)
+  (ld temp ppc64::misc-header-offset object)
+  (cmpdi crf0 temp  ppc64::three-digit-bignum-header)
+  (cmpdi crf2 temp ppc64::two-digit-bignum-header)
+  (beq crf0 :three-digit)
+  (bne crf2 :bad)
+  ;; two-digit case.  Must be positive.
+  (ld temp ppc64::misc-data-offset object)
+  (rotldi temp temp 32)
+  :good-if-positive
+  (cmpdi crf1 temp 0)
+  (bge crf1 :good)
+  :bad
+  (uuo_interr arch::error-object-not-unsigned-byte-64 object)
+  :three-digit
+  (lwz temp (+ ppc64::misc-data-offset 8) object)
+  (cmpwi crf1 temp 0)
+  (bne crf1 :bad)
+  :good
+  )
+
 
 (define-ppc64-vinsn require-char-code (()
                                        ((object :lisp))

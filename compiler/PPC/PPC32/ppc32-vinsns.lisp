@@ -856,6 +856,23 @@
   :got-it)
 
 
+(define-ppc32-vinsn require-s8 (()
+                                ((object :lisp))
+                                ((crf0 (:crf 0 ))
+                                 (crf1 :crf)
+                                 (tag :u32)))
+  :again
+  (clrlwi. tag object (- ppc32::nbits-in-word ppc32::nlisptagbits))
+  (slwi tag object (- ppc32::nbits-in-word (+ 8 ppc32::fixnumshift)))
+  (srawi tag tag (- ppc32::nbits-in-word (+ 8 ppc32::fixnumshift)))
+  (cmpw crf1 tag object)
+  (bne- crf1 :bad)
+  (beq+ crf0 :got-it)
+  :bad
+  (uuo_intcerr arch::error-object-not-signed-byte-8 object)
+  (b :again)
+  :got-it)
+
 (define-ppc32-vinsn require-u8 (()
                                 ((object :lisp))
                                 ((crf0 (:crf 0))
@@ -868,6 +885,144 @@
   (uuo_intcerr arch::error-object-not-unsigned-byte-8 object)
   (b :again)
   :got-it)
+
+(define-ppc32-vinsn require-s16 (()
+                                ((object :lisp))
+                                ((crf0 (:crf 0 ))
+                                 (crf1 :crf)
+                                 (tag :u32)))
+  :again
+  (clrlwi. tag object (- ppc32::nbits-in-word ppc32::nlisptagbits))
+  (slwi tag object (- ppc32::nbits-in-word (+ 16 ppc32::fixnumshift)))
+  (srawi tag tag (- ppc32::nbits-in-word (+ 16 ppc32::fixnumshift)))
+  (cmpw crf1 tag object)
+  (bne- crf1 :bad)
+  (beq+ crf0 :got-it)
+  :bad
+  (uuo_intcerr arch::error-object-not-signed-byte-16 object)
+  (b :again)
+  :got-it)
+
+(define-ppc32-vinsn require-u16 (()
+                                ((object :lisp))
+                                ((crf0 (:crf 0))
+                                 (tag :u32)))
+  :again
+  ;; The bottom ppc32::fixnumshift bits and the top (- 32 (+
+  ;; ppc32::fixnumshift 16)) must all be zero.
+  (rlwinm. tag object 0 (- ppc32::nbits-in-word ppc32::fixnumshift) (- ppc32::least-significant-bit (+ ppc32::fixnumshift 16)))
+  (beq+ crf0 :got-it)
+  (uuo_intcerr arch::error-object-not-unsigned-byte-16 object)
+  (b :again)
+  :got-it)
+
+(define-ppc32-vinsn require-s32 (()
+                                 ((src :lisp))
+                                 ((crfx :crf)
+                                  (crfy :crf)
+                                  (tag :u32)))
+  :again
+  (clrlwi tag src (- ppc32::nbits-in-word ppc32::nlisptagbits))
+  (cmpwi crfx tag ppc32::tag-fixnum)
+  (cmpwi crfy tag ppc32::tag-misc)
+  (beq+ crfx :got-it)
+  (bne- crfy :bad)
+  (lwz tag ppc32::misc-header-offset src)
+  (cmpwi crfx tag ppc32::one-digit-bignum-header)
+  (beq+ crfx :got-it)
+  :bad
+  (uuo_intcerr arch::error-object-not-signed-byte-32 src)
+  (b :again)
+  :got-it)
+
+
+(define-ppc32-vinsn require-u32 (()
+                                 ((src :lisp))
+                                 ((crf0 (:crf 0))
+                                  (crf1 :crf)
+                                  (temp :u32)))
+  :again
+  (rlwinm. temp src 0 (- ppc32::nbits-in-word ppc32::fixnumshift) 0)
+  (beq+ crf0 :got-it)
+  (clrlwi temp src (- ppc32::nbits-in-word ppc32::nlisptagbits))
+  (cmpwi crf0 temp ppc32::tag-misc)
+  (bne- crf0 :bad)
+  (lwz temp ppc32::misc-header-offset src)
+  (cmpwi crf1 temp ppc32::two-digit-bignum-header)
+  (cmpwi crf0 temp ppc32::one-digit-bignum-header)
+  (lwz temp ppc32::misc-data-offset src)
+  (beq crf1 :two)
+  (bne crf0 :bad)
+  (cmpwi crf0 temp 0)
+  (bgt+ crf0 :got-it)
+  :bad
+  (uuo_intcerr arch::error-object-not-unsigned-byte-32 src)
+  (b :again)
+  :two
+  (lwz temp (+ ppc32::misc-data-offset 4) src)
+  (cmpwi crf0 temp 0)
+  (bne- crf0 :bad)
+  :got-it)
+
+(define-ppc32-vinsn require-s64 (()
+                                 ((src :lisp))
+                                 ((crfx :crf)
+                                  (crfy :crf)
+                                  (tag :u32)))
+  :again
+  (clrlwi tag src (- ppc32::nbits-in-word ppc32::nlisptagbits))
+  (cmpwi crfx tag ppc32::tag-fixnum)
+  (cmpwi crfy tag ppc32::tag-misc)
+  (beq+ crfx :got-it)
+  (bne- crfy :bad)
+  (lwz tag ppc32::misc-header-offset src)
+  (cmpwi crfx tag ppc32::one-digit-bignum-header)
+  (cmpwi crfy tag ppc32::two-digit-bignum-header)
+  (lwz tag ppc32::misc-data-offset src)
+  (beq+ crfx :got-it)
+  (beq+ crfy :got-it)
+  :bad
+  (uuo_intcerr arch::error-object-not-signed-byte-64 src)
+  (b :again)
+  :got-it)
+
+(define-ppc32-vinsn require-u64 (()
+                                 ((src :lisp))
+                                 ((crf0 (:crf 0))
+                                  (crf1 :crf)
+                                  (crf2 :crf)
+                                  (temp :u32)))
+  :again
+  (rlwinm. temp src 0 (- ppc32::nbits-in-word ppc32::fixnumshift) 0)
+  (beq+ crf0 :got-it)
+  (clrlwi temp src (- ppc32::nbits-in-word ppc32::nlisptagbits))
+  (cmpwi crf0 temp ppc32::tag-misc)
+  (bne- crf0 :bad)
+  (lwz temp ppc32::misc-header-offset src)
+  (cmpwi crf2 temp ppc32::three-digit-bignum-header)
+  (cmpwi crf1 temp ppc32::two-digit-bignum-header)
+  (cmpwi crf0 temp ppc32::one-digit-bignum-header)
+  (lwz temp ppc32::misc-data-offset src)
+  (beq crf2 :three)
+  (beq crf1 :two)
+  (bne crf0 :bad)
+  (cmpwi crf0 temp 0)
+  (bgt+ crf0 :got-it)
+  :bad
+  (uuo_intcerr arch::error-object-not-unsigned-byte-64 src)
+  (b :again)
+  :three
+  (lwz temp (+ ppc32::misc-data-offset 8) src)
+  (cmpwi crf0 temp 0)
+  (beq+ crf0 :got-it)
+  (b :bad)
+  :two
+  (lwz temp (+ ppc32::misc-data-offset 4) src)
+  (cmpwi crf0 temp 0)
+  (blt- crf0 :bad)
+  :got-it)
+
+
 
 (define-ppc32-vinsn require-char-code (()
                                        ((object :lisp))
