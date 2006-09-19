@@ -211,7 +211,7 @@
                                           (dolist (ref referenced-labels)
                                             (unless (memq ref local-labels)
                                               (error 
-                                               "local-label ~S was referenced butnever defined in VINSN-TEMPLATE definition for ~s" ref vinsn-name))))
+                                               "local label ~S was referenced but never defined in VINSN-TEMPLATE definition for ~s" ref vinsn-name))))
                                   :local-labels local-labels :attributes attrs :opcode-alist
                                   opcode-alist)))
                   `(progn (set-vinsn-template ',vinsn-name ,template
