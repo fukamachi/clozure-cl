@@ -1,3 +1,8 @@
+2006-09-18 21:42  gb
+
+	* lib/macros.lisp: Macros for locking the input/output locks of an
+	ioblock, assuming that it exists.
+
 2006-09-17 00:45  gb
 
 	* level-1/l1-streams.lisp: more changes
