@@ -520,6 +520,7 @@
 (define-header double-float-header double-float.element-count subtag-double-float)
 (define-header one-digit-bignum-header 1 subtag-bignum)
 (define-header two-digit-bignum-header 2 subtag-bignum)
+(define-header three-digit-bignum-header 3 subtag-bignum)
 (define-header symbol-header symbol.element-count subtag-symbol)
 (define-header value-cell-header value-cell.element-count subtag-value-cell)
 (define-header macptr-header macptr.element-count subtag-macptr)
