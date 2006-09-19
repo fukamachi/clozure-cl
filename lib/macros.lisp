@@ -3174,6 +3174,15 @@ to be at least partially steppable."
            (return))
          ,@body))))
 
+(defmacro with-ioblock-input-lock-grabbed ((ioblock) &body body)
+  `(with-lock-grabbed ((ioblock-inbuf-lock ,ioblock))
+    ,@body))
+
+(defmacro with-ioblock-output-lock-grabbed ((ioblock) &body body)
+  `(with-lock-grabbed ((ioblock-outbuf-lock ,ioblock))
+    ,@body))
+  
+
 (defmacro with-stream-ioblock-input ((ioblock stream &key
                                              speedy)
                                   &body body)
