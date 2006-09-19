@@ -406,7 +406,7 @@
 		      (%nx1-operator %natural-logand)))
 
 (defnx1 nx1-require ((require-simple-vector) (require-simple-string) (require-integer) (require-list)
-                     (require-fixnum) (require-real) (require-character) (require-number) (require-symbol))
+                     (require-fixnum) (require-real) (require-character) (require-number) (require-symbol) (require-s8) (require-u8) (require-s16) (require-u16) (require-s32) (require-u32) (require-s64) (require-u64))
         (arg)
   (make-acode (%nx1-default-operator) (nx1-form arg)))
 
