@@ -1,3 +1,36 @@
+2006-09-19 01:38  gb
+
+	* compiler/PPC/: PPC32/ppc32-vinsns.lisp, PPC64/ppc64-vinsns.lisp:
+	vinsns for REQUIRE-[US][8,16,32,64]
+
+2006-09-19 01:37  gb
+
+	* compiler/PPC/PPC32/ppc32-arch.lisp: Need
+	THREE-DIGIT-BIGNUM-HEADER to recognize some cases of (UNSIGNED-BYTE
+	64).
+
+2006-09-19 01:36  gb
+
+	* compiler/PPC/ppc-backend.lisp: clean up an error message.
+
+2006-09-19 01:36  gb
+
+	* compiler/PPC/ppc2.lisp: handle require-[us][8,16,32,64]
+	operators.
+
+2006-09-19 01:34  gb
+
+	* compiler/optimizers.lisp: REQUIRE-TYPE: transform into
+	require-[us][8,16,32,64] when possible.
+
+2006-09-19 01:34  gb
+
+	* compiler/nx1.lisp: inline require-[us][8,16,32,64].
+
+2006-09-19 01:33  gb
+
+	* compiler/nxenv.lisp: New operators for require-[us][8,16,32,64].
+
 2006-09-19 01:15  gb
 
 	* compiler/X86/X8664/x8664-vinsns.lisp: x8664 vinsns for
