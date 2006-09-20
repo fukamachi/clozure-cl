@@ -369,13 +369,13 @@
   (literal-char-code-limit 256)
   (encode-output-function nil)
   (decode-input-function nil)
-  (read-char-when-locked-function nil)
+  (read-char-when-locked-function 'ioblock-no-char-input)
   (write-simple-string-function 'ioblock-no-char-output)
   (character-read-vector-function 'ioblock-no-char-input)
   (read-line-function 'ioblock-no-char-input)
-  (write-char-when-locked-function nil)
-  (read-byte-when-locked-function nil)
-  (write-byte-when-locked-function nil)
+  (write-char-when-locked-function 'ioblock-no-char-output)
+  (read-byte-when-locked-function 'ioblock-no-binary-input)
+  (write-byte-when-locked-function 'ioblock-no-binary-output)
   (reserved1 nil)
   (reserved2 nil)
   (reserved2 nil)
@@ -439,27 +439,7 @@
            read-p))
 
 
-;;; Should only be called with the ioblock locked, if that's necessary.
 
-(defun %ioblock-read-byte (ioblock)
-  (declare (optimize (speed 3) (safety 0)))
-  ;;; It's so dumb to be dealing with the effect of UNREAD-CHAR
-  ;;; on a binary stream, but since this is kind of a general
-  ;;; method, we kind of have to here.
-  (if (ioblock-untyi-char ioblock)
-    (prog1 (%char-code (ioblock-untyi-char ioblock))
-      (setf (ioblock-untyi-char ioblock) nil))
-    (let* ((buf (ioblock-inbuf ioblock))
-           (idx (io-buffer-idx buf))
-           (limit (io-buffer-count buf)))
-      (declare (fixnum idx limit))
-      (when (= idx limit)
-        (unless (%ioblock-advance ioblock t)
-          (return-from %ioblock-read-byte :eof))
-        (setq idx (io-buffer-idx buf)
-              limit (io-buffer-count buf)))
-      (setf (io-buffer-idx buf) (the fixnum (1+ idx)))
-      (uvref (io-buffer-buffer buf) idx))))
 
 
 
@@ -680,8 +660,8 @@
     (%ioblock-read-s64-byte ioblock)))
 )
 
-(declaim (inline %ioblock-read-swapped-u16-byte))
-(defun %ioblock-read-swapped-u16-byte (ioblock)
+(declaim (inline %ioblock-read-swapped-u16-element))
+(defun %ioblock-read-swapped-u16-element (ioblock)
   (declare (optimize (speed 3) (safety 0)))
   (let* ((buf (ioblock-inbuf ioblock))
          (idx (io-buffer-idx buf))
@@ -689,15 +669,28 @@
     (declare (fixnum idx limit))
     (when (= idx limit)
       (unless (%ioblock-advance ioblock t)
-        (return-from %ioblock-read-swapped-u16-byte :eof))
+        (return-from %ioblock-read-swapped-u16-element :eof))
       (setq idx (io-buffer-idx buf)
             limit (io-buffer-count buf)))
     (setf (io-buffer-idx buf) (the fixnum (1+ idx)))
-    (let* ((u16 (aref (the (simple-array (unsigned-byte 16) (*))
-            (io-buffer-buffer buf)) idx)))
-      (declare (type (unsigned-byte 16) u16))
-      (logand #xffff (the fixnum (logior (the fixnum (ash u16 -8))
-                                         (the fixnum (ash u16 8))))))))
+    (%swap-u16 (aref (the (simple-array (unsigned-byte 16) (*))
+                       (io-buffer-buffer buf)) idx))))
+
+(declaim (inline %ioblock-read-swapped-u32-element))
+(defun %ioblock-read-swapped-u32-element (ioblock)
+  (declare (optimize (speed 3) (safety 0)))
+  (let* ((buf (ioblock-inbuf ioblock))
+         (idx (io-buffer-idx buf))
+         (limit (io-buffer-count buf)))
+    (declare (fixnum idx limit))
+    (when (= idx limit)
+      (unless (%ioblock-advance ioblock t)
+        (return-from %ioblock-read-swapped-u32-element :eof))
+      (setq idx (io-buffer-idx buf)
+            limit (io-buffer-count buf)))
+    (setf (io-buffer-idx buf) (the fixnum (1+ idx)))
+    (%swap-u32 (aref (the (simple-array (unsigned-byte 32) (*))
+                       (io-buffer-buffer buf)) idx))))
 
 
 (defun %bivalent-private-ioblock-read-u8-byte (ioblock)
@@ -726,8 +719,7 @@
 
 (defun %bivalent-locked-ioblock-read-u8-byte (ioblock)
   (declare (optimize (speed 3) (safety 0)))
-  (with-ioblock-lock-grabbed ((locally (declare (optimize (speed 3) (safety 0)))
-                                (ioblock-inbuf-lock ioblock)))
+  (with-ioblock-input-lock-grabbed (ioblock)
     (if (ioblock-untyi-char ioblock)
       (prog1 (%char-code (ioblock-untyi-char ioblock))
         (setf (ioblock-untyi-char ioblock) nil))
@@ -1111,8 +1103,7 @@
       (setq idx 0 count 0))
     (setf (aref (the (simple-array (unsigned-byte 16) (*))
                   (io-buffer-buffer buf)) idx)
-          (logand #xffff (the fixnum (logior (the fixnum (ash element -8))
-                                             (the fixnum (ash element 8))))))
+          (%swap-u16 element))
     (incf idx)
     (setf (io-buffer-idx buf) idx)
     (when (> idx count)
@@ -1151,6 +1142,26 @@
       (%ioblock-force-output ioblock nil)
       (setq idx 0 count 0))
     (setf (aref (the (simple-array (unsigned-byte 32) (*)) (io-buffer-buffer buf)) idx) element)
+    (incf idx)
+    (setf (io-buffer-idx buf) idx)
+    (when (> idx count)
+      (setf (io-buffer-count buf) idx))
+    (setf (ioblock-dirty ioblock) t)
+    element))
+
+(declaim (inline %ioblock-write-swapped-u32-element))
+(defun %ioblock-write-swapped-u32-element (ioblock element)
+  (declare (optimize (speed 3) (safety 0)))
+  (let* ((buf (ioblock-outbuf ioblock))
+         (idx (io-buffer-idx buf))
+	 (count (io-buffer-count buf))
+         (limit (io-buffer-limit buf)))
+    (declare (fixnum idx limit count))
+    (when (= idx limit)
+      (%ioblock-force-output ioblock nil)
+      (setq idx 0 count 0))
+    (setf (aref (the (simple-array (unsigned-byte 32) (*)) (io-buffer-buffer buf)) idx)
+          (%swap-u32 element))
     (incf idx)
     (setf (io-buffer-idx buf) idx)
     (when (> idx count)
@@ -1266,7 +1277,7 @@
     (%ioblock-write-u8-encoded-char ioblock char)))
 
 
-(defun %ioblock-u8-encoded-write-simple-string (ioblock string start-char num-chars)
+(defun %ioblock-write-u8-encoded-simple-string (ioblock string start-char num-chars)
   (declare (fixnum start-char num-chars)
            (simple-base-strng string)
            (optimize (speed 3) (safety 0)))
@@ -1287,12 +1298,84 @@
         (%ioblock-write-u8-element ioblock code)
         (funcall encode-function char #'%ioblock-write-u8-element ioblock)))))
 
+(declaim (inline %ioblock-write-u16-encoded-char))
+(defun %ioblock-write-u16-encoded-char (ioblock char)
+  (declare (optimize (speed 3) (safety 0)))
+  (if (eq char #\linefeed)
+    (setf (ioblock-charpos ioblock) 0)
+    (incf (ioblock-charpos ioblock)))
+  (let* ((code (char-code char)))
+    (declare (type (mod #x110000) code))
+    (if (< code (the fixnum (ioblock-literal-char-code-limit ioblock)))
+      (%ioblock-write-u16-element ioblock code)
+      (funcall (ioblock-encode-output-function ioblock)
+               char
+               #'%ioblock-write-u16-element
+               ioblock))))
+
+(defun %private-ioblock-write-u16-encoded-char (ioblock char)
+  (declare (optimize (speed 3) (safety 0)))
+  (check-ioblock-owner ioblock)
+  (%ioblock-write-u16-encoded-char ioblock char))
+
+(defun %locked-ioblock-write-u16-encoded-char (ioblock char)
+  (declare (optimize (speed 3) (safety 0)))
+  (with-ioblock-output-lock-grabbed (ioblock)
+    (%ioblock-write-u16-encoded-char ioblock char)))
+
+(defun %ioblock-write-u16-encoded-simple-string (ioblock string start-char num-chars)
+  (declare (fixnum start-char num-chars)
+           (simple-base-strng string)
+           (optimize (speed 3) (safety 0)))
+  (do* ((i 0 (1+ i))
+        (col (ioblock-charpos ioblock))
+        (limit (ioblock-literal-char-code-limit ioblock))
+        (encode-function (ioblock-encode-output-function ioblock))
+        (start-char start-char (1+ start-char)))
+       ((= i num-chars) (setf (ioblock-charpos ioblock) col) num-chars)
+    (declare (fixnum i start-char limit))
+    (let* ((char (schar string start-char))
+           (code (char-code char)))
+      (declare (type (mod #x110000) code))
+      (if (eq char #\newline)
+        (setq col 0)
+        (incf col))
+      (if (< code limit)
+        (%ioblock-write-u16-element ioblock code)
+        (funcall encode-function char #'%ioblock-write-u16-element ioblock)))))
+
+(declaim (inline %ioblock-write-swapped-u16-encoded-char))
+(defun %ioblock-write-swapped-u16-encoded-char (ioblock char)
+  (declare (optimize (speed 3) (safety 0)))
+  (if (eq char #\linefeed)
+    (setf (ioblock-charpos ioblock) 0)
+    (incf (ioblock-charpos ioblock)))
+  (let* ((code (char-code char)))
+    (declare (type (mod #x110000) code))
+    (if (< code (the fixnum (ioblock-literal-char-code-limit ioblock)))
+      (%ioblock-write-swapped-u16-element ioblock code)
+      (funcall (ioblock-encode-output-function ioblock)
+               char
+               #'%ioblock-write-swapped-u16-element
+               ioblock))))
+
+(defun %private-ioblock-write-swapped-u16-encoded-char (ioblock char)
+  (declare (optimize (speed 3) (safety 0)))
+  (check-ioblock-owner ioblock)
+  (%ioblock-write-swapped-u16-encoded-char ioblock char))
+
+(defun %locked-ioblock-write-swapped-u16-encoded-char (ioblock char)
+  (declare (optimize (speed 3) (safety 0)))
+  (with-ioblock-output-lock-grabbed (ioblock)
+    (%ioblock-write-swapped-u16-encoded-char ioblock char)))
+
+
+
+
 (declaim (inline %ioblock-write-u8-byte))
 (defun %ioblock-write-u8-byte (ioblock byte)
   (declare (optimize (speed 3) (safety 0)))
-  (if (= byte (logand #xff byte))
-    (%ioblock-write-u8-element ioblock byte)
-    (error "~s doesn't match stream element-type of ~s". (byte (ioblock-stream ioblock)))))
+  (%ioblock-write-u8-element ioblock (require-type byte '(unsigned-byte 8))))
 
 (defun %private-ioblock-write-u8-byte (ioblock byte)
   (declare (optimize (speed 3) (safety 0)))
@@ -1307,11 +1390,7 @@
 (declaim (inline %ioblock-write-s8-byte))
 (defun %ioblock-write-s8-byte (ioblock byte)
   (declare (optimize (speed 3) (safety 0)))
-  (if (and (typep byte 'fixnum)
-           (>= (the fixnum byte) -128)
-           (< (the fixnum byte) 128))
-    (%ioblock-write-s8-element ioblock byte)
-    (error "~s doesn't match stream element-type of ~s". (byte (ioblock-stream ioblock)))))
+  (%ioblock-write-s8-element ioblock (require-type byte '(signed-byte 8))))
 
 (defun %private-ioblock-write-s8-byte (ioblock byte)
   (declare (optimize (speed 3) (safety 0)))
@@ -1326,9 +1405,7 @@
 (declaim (inline %ioblock-write-u16-byte))
 (defun %ioblock-write-u16-byte (ioblock byte)
   (declare (optimize (speed 3) (safety 0)))
-  (if (= byte (logand #xffff byte))
-    (%ioblock-write-u16-element ioblock byte)
-    (error "~s doesn't match stream element-type of ~s". (byte (ioblock-stream ioblock)))))
+  (%ioblock-write-u16-element ioblock (require-type byte '(unsigned-byte 16))))
 
 (defun %private-ioblock-write-u16-byte (ioblock byte)
   (declare (optimize (speed 3) (safety 0)))
@@ -1343,11 +1420,7 @@
 (declaim (inline %ioblock-write-s16-byte))
 (defun %ioblock-write-s16-byte (ioblock byte)
   (declare (optimize (speed 3) (safety 0)))
-  (if (and (typep byte 'fixnum)
-           (>= (the fixnum byte) -32768)
-           (< (the fixnum byte) 32768))
-    (%ioblock-write-s16-element ioblock byte)
-    (error "~s doesn't match stream element-type of ~s". (byte (ioblock-stream ioblock)))))
+  (%ioblock-write-s16-element ioblock (require-type byte '(signed-byte 16))))
 
 (defun %private-ioblock-write-s16-byte (ioblock byte)
   (declare (optimize (speed 3) (safety 0)))
@@ -1359,7 +1432,68 @@
   (with-ioblock-output-lock-grabbed (ioblock)
     (%ioblock-write-s16-byte ioblock byte)))
 
+(declaim (inline %ioblock-write-u32-byte))
+(defun %ioblock-write-u32-byte (ioblock byte)
+  (declare (optimize (speed 3) (safety 0)))
+  (%ioblock-write-u32-element ioblock (require-type byte '(unsigned-byte 32))))
 
+(defun %private-ioblock-write-u32-byte (ioblock byte)
+  (declare (optimize (speed 3) (safety 0)))
+  (check-ioblock-owner ioblock)
+  (%ioblock-write-u32-byte ioblock byte))
+
+(defun %locked-ioblock-write-u32-byte (ioblock byte)
+  (declare (optimize (speed 3) (safety 0)))
+  (with-ioblock-output-lock-grabbed (ioblock)
+    (%ioblock-write-u32-byte ioblock byte)))
+
+(declaim (inline %ioblock-write-s32-byte))
+(defun %ioblock-write-s32-byte (ioblock byte)
+  (declare (optimize (speed 3) (safety 0)))
+  (%ioblock-write-s32-element ioblock (require-type byte '(signed-byte 32))))
+
+(defun %private-ioblock-write-s32-byte (ioblock byte)
+  (declare (optimize (speed 3) (safety 0)))
+  (check-ioblock-owner ioblock)
+  (%ioblock-write-s32-byte ioblock byte))
+
+(defun %locked-ioblock-write-s32-byte (ioblock byte)
+  (declare (optimize (speed 3) (safety 0)))
+  (with-ioblock-output-lock-grabbed (ioblock)
+    (%ioblock-write-s32-byte ioblock byte)))
+
+#+64-bit-target
+(progn
+(declaim (inline %ioblock-write-u64-byte))
+(defun %ioblock-write-u64-byte (ioblock byte)
+  (declare (optimize (speed 3) (safety 0)))
+  (%ioblock-write-u64-element ioblock (require-type byte '(unsigned-byte 64))))
+
+(defun %private-ioblock-write-u64-byte (ioblock byte)
+  (declare (optimize (speed 3) (safety 0)))
+  (check-ioblock-owner ioblock)
+  (%ioblock-write-u64-byte ioblock byte))
+
+(defun %locked-ioblock-write-u64-byte (ioblock byte)
+  (declare (optimize (speed 3) (safety 0)))
+  (with-ioblock-output-lock-grabbed (ioblock)
+    (%ioblock-write-u64-byte ioblock byte)))
+
+(declaim (inline %ioblock-write-s64-byte))
+(defun %ioblock-write-s64-byte (ioblock byte)
+  (declare (optimize (speed 3) (safety 0)))
+  (%ioblock-write-s64-element ioblock (require-type byte '(signed-byte 64))))
+
+(defun %private-ioblock-write-s64-byte (ioblock byte)
+  (declare (optimize (speed 3) (safety 0)))
+  (check-ioblock-owner ioblock)
+  (%ioblock-write-s64-byte ioblock byte))
+
+(defun %locked-ioblock-write-s64-byte (ioblock byte)
+  (declare (optimize (speed 3) (safety 0)))
+  (with-ioblock-output-lock-grabbed (ioblock)
+    (%ioblock-write-s64-byte ioblock byte)))
+)                                       ;#+64-bit-target
 
 (defun %ioblock-clear-output (ioblock)
   (let* ((buf (ioblock-outbuf ioblock)))                      
@@ -1446,13 +1580,14 @@
 (defun %ioblock-binary-read-vector (ioblock vector start end)
   (declare (fixnum start end))
   (let* ((in (ioblock-inbuf ioblock))
-	 (inbuf (io-buffer-buffer in)))
+	 (inbuf (io-buffer-buffer in))
+         (rbf (ioblock-read-byte-when-locked-function ioblock)))
     (if (not (= (the fixnum (typecode inbuf))
 		(the fixnum (typecode vector))))
       (do* ((i start (1+ i)))
 	   ((= i end) i)
 	(declare (fixnum i))
-	(let* ((b (%ioblock-read-byte ioblock)))
+	(let* ((b (funcall rbf ioblock)))
 	  (if (eq b :eof)
 	    (return i)
 	    (setf (uvref vector i) b))))
@@ -1460,10 +1595,10 @@
 	    (need (- end start)))
 	   ((= i end) end)
 	(declare (fixnum i need))
-	(let* ((ch (%ioblock-read-byte ioblock)))
-	  (if (eq ch :eof)
+	(let* ((b (funcall rbf ioblock)))
+	  (if (eq b :eof)
 	    (return i))
-	  (setf (uvref vector i) ch)
+	  (setf (uvref vector i) b)
 	  (incf i)
 	  (decf need)
 	  (let* ((idx (io-buffer-idx in))
@@ -1524,13 +1659,14 @@
   (unless (= 0 (the fixnum (ioblock-element-shift ioblock)))
     (error "Can't read vector from stream ~s" (ioblock-stream ioblock)))
   (do* ((i start)
+        (rbf (ioblock-read-byte-when-locked-function ioblock))
 	(in (ioblock-inbuf ioblock))
 	(inbuf (io-buffer-buffer in))
 	(need nb)
 	(end (+ start nb)))
        ((= i end) nb)
     (declare (fixnum i end need))
-    (let* ((b (%ioblock-read-byte ioblock)))
+    (let* ((b (funcall rbf ioblock)))
       (if (eq b :eof)
 	(return (- i start)))
       (setf (uvref vector i) b)
@@ -1586,6 +1722,8 @@
         (setf (ioblock-read-char-function ioblock)
               (ecase unit-size
                 (8
+                 (setf (ioblock-read-char-when-locked-function ioblock)
+                       '%ioblock-read-u8-encoded-char)
                  (case sharing
                    (:private '%private-ioblock-read-u8-encoded-char)
                    (:lock '%locked-ioblock-read-u8-encoded-char)
@@ -1596,6 +1734,8 @@
                 (:private '%private-ioblock-tyi)
                 (:lock '%locked-ioblock-tyi)
                 (t '%ioblock-tyi)))
+        (setf (ioblock-read-char-when-locked-function ioblock)
+              '%ioblock-tyi)
         (setf (ioblock-character-read-vector-function ioblock)
               '%ioblock-unencoded-character-read-vector)
         (setf (ioblock-read-line-function ioblock)
@@ -1608,52 +1748,76 @@
             (cond ((= subtag target::subtag-u8-vector)
                    (if character-p
                      ;; The bivalent case, at least for now
-                     (case sharing
-                       (:private '%bivalent-private-ioblock-read-u8-byte)
-                       (:lock '%bivalent-locked-ioblock-read-u8-byte)
-                       (t '%bivalent-ioblock-read-u8-byte))
-                     (case sharing
-                       (:private '%private-ioblock-read-u8-byte)
-                       (:lock '%locked-ioblock-read-u8-byte)
-                       (t '%ioblock-read-u8-byte))))
+                     (progn
+                       (setf (ioblock-read-byte-when-locked-function ioblock)
+                             '%bivalent-ioblock-read-u8-byte)
+                       (case sharing
+                         (:private '%bivalent-private-ioblock-read-u8-byte)
+                         (:lock '%bivalent-locked-ioblock-read-u8-byte)
+                         (t '%bivalent-ioblock-read-u8-byte)))
+                     (progn
+                       (setf (ioblock-read-byte-when-locked-function ioblock)
+                             '%ioblock-read-u8-byte)
+                       (case sharing
+                         (:private '%private-ioblock-read-u8-byte)
+                         (:lock '%locked-ioblock-read-u8-byte)
+                         (t '%ioblock-read-u8-byte)))))
                   ((= subtag target::subtag-s8-vector)
-                     (case sharing
-                       (:private '%private-ioblock-read-s8-byte)
-                       (:lock '%locked-ioblock-read-s8-byte)
-                       (t '%ioblock-read-s8-byte)))
+                   (setf (ioblock-read-byte-when-locked-function ioblock)
+                         '%ioblock-read-s8-byte) 
+                   (case sharing
+                     (:private '%private-ioblock-read-s8-byte)
+                     (:lock '%locked-ioblock-read-s8-byte)
+                     (t '%ioblock-read-s8-byte)))
                   ((= subtag target::subtag-u16-vector)
-                     (case sharing
-                       (:private '%private-ioblock-read-u16-byte)
-                       (:lock '%locked-ioblock-read-u16-byte)
-                       (t '%ioblock-read-u16-byte)))
+                   (setf (ioblock-read-byte-when-locked-function ioblock)
+                         '%ioblock-read-u16-byte)
+                   (case sharing
+                     (:private '%private-ioblock-read-u16-byte)
+                     (:lock '%locked-ioblock-read-u16-byte)
+                     (t '%ioblock-read-u16-byte)))
                   ((= subtag target::subtag-s16-vector)
-                     (case sharing
-                       (:private '%private-ioblock-read-s16-byte)
-                       (:lock '%locked-ioblock-read-s16-byte)
-                       (t '%ioblock-read-s16-byte)))
+                   (setf (ioblock-read-byte-when-locked-function ioblock)
+                         '%ioblock-read-s16-byte)
+                   (case sharing
+                     (:private '%private-ioblock-read-s16-byte)
+                     (:lock '%locked-ioblock-read-s16-byte)
+                     (t '%ioblock-read-s16-byte)))
                   ((= subtag target::subtag-u32-vector)
-                     (case sharing
-                       (:private '%private-ioblock-read-u32-byte)
-                       (:lock '%locked-ioblock-read-u32-byte)
-                       (t '%ioblock-read-u32-byte)))
+                   (setf (ioblock-read-byte-when-locked-function ioblock)
+                         '%ioblock-read-u32-byte)
+                   (case sharing
+                     (:private '%private-ioblock-read-u32-byte)
+                     (:lock '%locked-ioblock-read-u32-byte)
+                     (t '%ioblock-read-u32-byte)))
                   ((= subtag target::subtag-s32-vector)
-                     (case sharing
-                       (:private '%private-ioblock-read-s32-byte)
-                       (:lock '%locked-ioblock-read-s32-byte)
-                       (t '%ioblock-read-s32-byte)))
+                   (setf (ioblock-read-byte-when-locked-function ioblock)
+                         '%ioblock-read-s32-byte)                   
+                   (case sharing
+                     (:private '%private-ioblock-read-s32-byte)
+                     (:lock '%locked-ioblock-read-s32-byte)
+                     (t '%ioblock-read-s32-byte)))
                   #+64-bit-target
                   ((= subtag target::subtag-u64-vector)
-                     (case sharing
-                       (:private '%private-ioblock-read-u64-byte)
-                       (:lock '%locked-ioblock-read-u64-byte)
-                       (t '%ioblock-read-u64-byte)))
+                   (setf (ioblock-read-byte-when-locked-function ioblock)
+                         '%ioblock-read-u64-byte)                   
+                   (case sharing
+                     (:private '%private-ioblock-read-u64-byte)
+                     (:lock '%locked-ioblock-read-u64-byte)
+                     (t '%ioblock-read-u64-byte)))
                   #+64-bit-target
                   ((= subtag target::subtag-s64-vector)
-                     (case sharing
-                       (:private '%private-ioblock-read-s64-byte)
-                       (:lock '%locked-ioblock-read-s64-byte)
-                       (t '%ioblock-read-s64-byte)))
-                  (t '%general-ioblock-read-byte))))))
+                   (setf (ioblock-read-byte-when-locked-function ioblock)
+                         '%ioblock-read-s64-byte)
+                   (case sharing
+                     (:private '%private-ioblock-read-s64-byte)
+                     (:lock '%locked-ioblock-read-s64-byte)
+                     (t '%ioblock-read-s64-byte)))
+                  ;; Not sure what this means, currently.
+                  (t
+                   (setf (ioblock-read-byte-when-locked-function ioblock)
+                         '%general-ioblock-read-byte)
+                   '%general-ioblock-read-byte))))))
 
 (defun setup-ioblock-output (ioblock character-p element-type sharing encoding)
   (when character-p
@@ -1664,16 +1828,20 @@
         (setf (ioblock-write-char-function ioblock)
               (ecase unit-size
                 (8
+                 (setf (ioblock-write-char-when-locked-function ioblock)
+                      '%ioblock-write-u8-encoded-char) 
                  (case sharing
                    (:private '%private-ioblock-write-u8-encoded-char)
                    (:lock '%locked-ioblock-write-u8-encoded-charchar)
                    (t '%ioblock-write-u8-encoded-char)))))
         (setf (ioblock-write-simple-string-function ioblock)
               (ecase unit-size
-                (8 '%ioblock-u8-encoded-write-simple-string))))
+                (8 '%ioblock-write-u8-encoded-simple-string))))
       (progn
         (setf (ioblock-write-simple-string-function ioblock)
               '%ioblock-unencoded-write-simple-string)
+        (setf (ioblock-write-char-when-locked-function ioblock)
+              '%ioblock-write-char)
         (setf (ioblock-write-char-function ioblock)
               (case sharing
                 (:private '%private-ioblock-write-char)
@@ -1687,52 +1855,75 @@
             (cond ((= subtag target::subtag-u8-vector)
                    (if character-p
                      ;; The bivalent case, at least for now
-                     (case sharing
-                       (:private '%bivalent-private-ioblock-write-u8-byte)
-                       (:lock '%bivalent-locked-ioblock-write-u8-byte)
-                       (t '%bivalent-ioblock-write-u8-byte))
-                     (case sharing
-                       (:private '%private-ioblock-write-u8-byte)
-                       (:lock '%locked-ioblock-write-u8-byte)
-                       (t '%ioblock-write-u8-byte))))
+                     (progn
+                       (setf (ioblock-write-byte-when-locked-function ioblock)
+                             '%bivalent-ioblock-write-u8-byte)
+                       (case sharing
+                         (:private '%bivalent-private-ioblock-write-u8-byte)
+                         (:lock '%bivalent-locked-ioblock-write-u8-byte)
+                         (t '%bivalent-ioblock-write-u8-byte)))
+                     (progn
+                       (setf (ioblock-write-byte-when-locked-function ioblock)
+                             '%ioblock-write-u8-byte)
+                       (case sharing
+                         (:private '%private-ioblock-write-u8-byte)
+                         (:lock '%locked-ioblock-write-u8-byte)
+                         (t '%ioblock-write-u8-byte)))))
                   ((= subtag target::subtag-s8-vector)
+                   (setf (ioblock-write-byte-when-locked-function ioblock)
+                         '%ioblock-write-s8-byte)                   
                      (case sharing
                        (:private '%private-ioblock-write-s8-byte)
                        (:lock '%locked-ioblock-write-s8-byte)
                        (t '%ioblock-write-s8-byte)))
                   ((= subtag target::subtag-u16-vector)
+                   (setf (ioblock-write-byte-when-locked-function ioblock)
+                         '%ioblock-write-u16-byte)                   
                      (case sharing
                        (:private '%private-ioblock-write-u16-byte)
                        (:lock '%locked-ioblock-write-u16-byte)
                        (t '%ioblock-write-u16-byte)))
                   ((= subtag target::subtag-s16-vector)
+                   (setf (ioblock-write-byte-when-locked-function ioblock)
+                         '%ioblock-write-s16-byte)                                      
                      (case sharing
                        (:private '%private-ioblock-write-s16-byte)
                        (:lock '%locked-ioblock-write-s16-byte)
                        (t '%ioblock-write-s16-byte)))
                   ((= subtag target::subtag-u32-vector)
+                   (setf (ioblock-write-byte-when-locked-function ioblock)
+                         '%ioblock-write-u32-byte)                                      
                      (case sharing
                        (:private '%private-ioblock-write-u32-byte)
                        (:lock '%locked-ioblock-write-u32-byte)
                        (t '%ioblock-write-u32-byte)))
                   ((= subtag target::subtag-s32-vector)
-                     (case sharing
+                   (setf (ioblock-write-byte-when-locked-function ioblock)
+                         '%ioblock-write-s32-byte)
+                   (case sharing
                        (:private '%private-ioblock-write-s32-byte)
                        (:lock '%locked-ioblock-write-s32-byte)
                        (t '%ioblock-write-s32-byte)))
                   #+64-bit-target
                   ((= subtag target::subtag-u64-vector)
-                     (case sharing
+                   (setf (ioblock-write-byte-when-locked-function ioblock)
+                         '%ioblock-write-u64-byte)
+                   (case sharing
                        (:private '%private-ioblock-write-u64-byte)
                        (:lock '%locked-ioblock-write-u64-byte)
                        (t '%ioblock-write-u64-byte)))
                   #+64-bit-target
                   ((= subtag target::subtag-s64-vector)
-                     (case sharing
+                   (setf (ioblock-write-byte-when-locked-function ioblock)
+                         '%ioblock-write-u64-byte)
+                   (case sharing
                        (:private '%private-ioblock-write-s64-byte)
                        (:lock '%locked-ioblock-write-s64-byte)
                        (t '%ioblock-write-s64-byte)))
-                  (t '%general-ioblock-write-byte))))))
+                  (t
+                   (setf (ioblock-write-byte-when-locked-function ioblock)
+                         '%general-ioblock-write-byte)                   
+                   '%general-ioblock-write-byte))))))
 
 (defun buffer-element-type-for-character-encoding (encoding)
   (if encoding
