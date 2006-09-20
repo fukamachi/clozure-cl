@@ -76,7 +76,7 @@
                    (byte 8 8)
                    (ldb (byte 8 24) x)))))
   (defun %bswap16 (x)
-    (declare (type (unsigned-byte 32) x))
+    (declare (type (unsigned-byte 16) x))
     (dpb (ldb (byte 8 0) x)
          (byte 8 8)
          (ldb (byte 8 8) x)))
