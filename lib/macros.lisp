@@ -3268,3 +3268,24 @@ to be at least partially steppable."
 
 (defsetf interrupt-level set-interrupt-level)
 
+(defmacro %swap-u16 (val)
+  (let* ((arg (gensym)))
+    `(let* ((,arg ,val))
+      (declare (type (unsigned-byte 16) ,arg))
+      (logand #xffff (the fixnum (logior (the fixnum (ash ,arg -8))
+                                         (the fixnum (ash ,arg 8))))))))
+
+(defmacro %swap-u32 (val)
+  (let* ((arg (gensym)))
+    `(let ((,arg ,val))
+      (declare (type (unsigned-byte 32) ,arg))
+      (the (unsigned-byte 32) (logior (the (unsigned-byte 32)
+                                        (ash (logand #xff ,arg) 24))
+                                      (the (unsigned-byte 24)
+                                        (logior
+                                         (the (unsigned-byte 24) (ash (logand #xff00 ,arg) 8))
+                                         (the (unsigned-byte 16)
+                                           (logior
+                                            (the (unsigned-byte 16) (ash (logand #xff0000 ,arg) -8))
+                                            (the (unsigned-byte 8) (ash ,arg -24)))))))))))
+    
