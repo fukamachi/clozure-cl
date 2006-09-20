@@ -129,7 +129,10 @@
 
 (defun write-byte (byte stream)
   "Write one byte, BYTE, to STREAM."
-  (stream-write-byte stream byte)
+  (if (typep stream 'basic-stream)
+    (let* ((ioblock (basic-stream-ioblock stream)))
+      (funcall (ioblock-write-byte-function ioblock) ioblock byte))
+    (stream-write-byte stream byte))
   byte)
 
 
