@@ -1,3 +1,27 @@
+2006-09-20 04:24  gb
+
+	* compiler/PPC/: PPC32/ppc32-vinsns.lisp, PPC64/ppc64-vinsns.lisp:
+	slight improvements in signed-byte boxing, typechecking.
+
+2006-09-20 04:22  gb
+
+	* lib/streams.lisp: WRITE-BYTE for BASIC-STREAMs.
+
+2006-09-20 04:21  gb
+
+	* lib/macros.lisp: %SWAP-U16, %SWAP-U32.
+
+2006-09-20 04:21  gb
+
+	* lib/level-2.lisp: %EVAL-REDEFs for new require-xx functions.
+
+2006-09-20 04:20  gb
+
+	* level-1/l1-unicode.lisp: UTF-16, in native and byte-swapped
+	versions.  Need a "logical" UTF-16, which deals with byte-order
+	marks and a means of installing a concrete encoding.  Needs
+	testing.
+
 2006-09-20 04:15  gb
 
 	* level-1/l1-streams.lisp: Numerous changes.
