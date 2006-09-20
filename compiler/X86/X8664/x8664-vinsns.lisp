@@ -2558,11 +2558,10 @@
   :again
   (movq (:%q object) (:%q tag))
   (shlq (:$ub (- x8664::nbits-in-word (+ 8 x8664::fixnumshift))) (:%q tag))
-  (sarq (:$ub (- x8664::nbits-in-word (+ 8 x8664::fixnumshift))) (:%q tag))
+  (sarq (:$ub (- x8664::nbits-in-word 8)) (:%q tag))
+  (shlq (:$ub x8664::fixnumshift) (:%q tag))
   (cmpq (:%q object) (:%q tag))
-  (jne.pn :bad)
-  (testb (:$b x8664::fixnummask) (:%b object))
-  (je.pt :bad)
+  (je.pt :ok)
   :bad
   (uuo-error-reg-not-type (:%q object) (:$ub arch::error-object-not-signed-byte-8))
   (jmp :again)
@@ -2572,7 +2571,7 @@
 				((object :lisp))
 				((tag :u32)))
   :again
-  (movl (:$l (lognot (ash #xff x8664::fixnumshift))) (:%l tag))
+  (movq (:$l (lognot (ash #xff x8664::fixnumshift))) (:%q tag))
   (andq (:% object) (:% tag))
   (je.pt :ok)
   (uuo-error-reg-not-type (:%q object) (:$ub arch::error-object-not-unsigned-byte-8))
@@ -2585,11 +2584,10 @@
   :again
   (movq (:%q object) (:%q tag))
   (shlq (:$ub (- x8664::nbits-in-word (+ 16 x8664::fixnumshift))) (:%q tag))
-  (sarq (:$ub (- x8664::nbits-in-word (+ 16 x8664::fixnumshift))) (:%q tag))
+  (sarq (:$ub (- x8664::nbits-in-word 16)) (:%q tag))
+  (shlq (:$ub x8664::fixnumshift) (:%q tag))
   (cmpq (:%q object) (:%q tag))
-  (jne.pn :bad)
-  (testb (:$b x8664::fixnummask) (:%b object))
-  (je.pt :bad)
+  (je.pt :ok)
   :bad
   (uuo-error-reg-not-type (:%q object) (:$ub arch::error-object-not-signed-byte-16))
   (jmp :again)
@@ -2599,7 +2597,7 @@
 				((object :lisp))
 				((tag :u32)))
   :again
-  (movl (:$l (lognot (ash #xffff x8664::fixnumshift))) (:%l tag))
+  (movq (:$l (lognot (ash #xffff x8664::fixnumshift))) (:%q tag))
   (andq (:% object) (:% tag))
   (je.pt :ok)
   (uuo-error-reg-not-type (:%q object) (:$ub arch::error-object-not-unsigned-byte-16))
@@ -2612,7 +2610,8 @@
   :again
   (movq (:%q object) (:%q tag))
   (shlq (:$ub (- x8664::nbits-in-word (+ 32 x8664::fixnumshift))) (:%q tag))
-  (sarq (:$ub (- x8664::nbits-in-word (+ 32 x8664::fixnumshift))) (:%q tag))
+  (sarq (:$ub (- x8664::nbits-in-word 32)) (:%q tag))
+  (shlq (:$ub x8664::fixnumshift) (:%q tag))
   (cmpq (:%q object) (:%q tag))
   (jne.pn :bad)
   (testb (:$b x8664::fixnummask) (:%b object))
@@ -2650,7 +2649,7 @@
   (jmp :again)
   :ok)
 
-(define-x8664-vinsn require-s64 (()
+(define-x8664-vinsn require-u64 (()
 				((object :lisp))
 				((tag :s64)))
   :again
@@ -2663,7 +2662,7 @@
   (cmpq (:$l x8664::two-digit-bignum-header) (:@ x8664::misc-header-offset (:%q object)))
   (je :two)
   (cmpq (:$l x8664::three-digit-bignum-header) (:@ x8664::misc-header-offset (:%q object)))
-  (je.pn :bad)
+  (jne.pn :bad)
   (cmpl (:$b 0) (:@ (+ x8664::misc-data-offset 8) (:%q object)))
   (je :ok)
   :bad
@@ -2673,7 +2672,7 @@
   (movq (:@ x8664::misc-data-offset (:%q object)) (:%q tag))
   :ok-if-non-negative
   (testq (:%q tag) (:%q tag))
-  (jl :bad)
+  (js :bad)
   :ok)
 
 (define-x8664-vinsn require-char-code (()
