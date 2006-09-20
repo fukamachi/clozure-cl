@@ -294,9 +294,9 @@
 
 
 
-;Eval definitions for things open-coded by the compiler.
-;Don't use DEFUN since it should be illegal to DEFUN compiler special forms...
-;Of course, these aren't special forms.
+;;;Eval definitions for things open-coded by the compiler.
+;;;Don't use DEFUN since it should be illegal to DEFUN compiler special forms...
+;;;Of course, these aren't special forms.
 (macrolet ((%eval-redef (name vars &rest body)
              (when (null body) (setq body `((,name ,@vars))))
              `(setf (symbol-function ',name)
@@ -392,6 +392,14 @@
     (%eval-redef require-character (x))
     (%eval-redef require-number (x))
     (%eval-redef require-integer (x))
+    (%eval-redef require-s8 (x))
+    (%eval-redef require-u8 (x))
+    (%eval-redef require-s16 (x))
+    (%eval-redef require-u16 (x))
+    (%eval-redef require-s32 (x))
+    (%eval-redef require-u32 (x))
+    (%eval-redef require-s64 (x))
+    (%eval-redef require-u64 (x))
     (%eval-redef %reference-external-entry-point (x))
     )
   
