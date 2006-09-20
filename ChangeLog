@@ -1,3 +1,7 @@
+2006-09-20 06:34  gb
+
+	* level-1/version.lisp: Bump.
+
 2006-09-20 04:24  gb
 
 	* compiler/PPC/: PPC32/ppc32-vinsns.lisp, PPC64/ppc64-vinsns.lisp:
