@@ -7934,6 +7934,13 @@
                  (! makes64)
                  (<- ($ x8664::arg_z))))
               (t
+               (case resultspec
+                 (:signed-byte (! sign-extend-s8 x8664::imm0 x8664::imm0))
+                 (:signed-halfword (! sign-extend-s16 x8664::imm0 x8664::imm0))
+                 (:signed-fullword (! sign-extend-s32 x8664::imm0 x8664::imm0))
+                 (:unsigned-byte (! zero-extend-u8 x8664::imm0 x8664::imm0))
+                 (:unsigned-halfword (! zero-extend-u16 x8664::imm0 x8664::imm0))
+                 (:unsigned-fullword (! zero-extend-u32 x8664::imm0 x8664::imm0)))               
                (<- (make-wired-lreg x8664::imm0
                                     :mode
                                     (gpr-mode-name-value
@@ -8082,6 +8089,13 @@
                    (<- ($ x8664::arg_z)))
                  (<- ($  x8664::rax :class :gpr :mode :s64))))
               (t
+               (case resultspec
+                 (:signed-byte (! sign-extend-s8 x8664::imm0 x8664::imm0))
+                 (:signed-halfword (! sign-extend-s16 x8664::imm0 x8664::imm0))
+                 (:signed-fullword (! sign-extend-s32 x8664::imm0 x8664::imm0))
+                 (:unsigned-byte (! zero-extend-u8 x8664::imm0 x8664::imm0))
+                 (:unsigned-halfword (! zero-extend-u16 x8664::imm0 x8664::imm0))
+                 (:unsigned-fullword (! zero-extend-u32 x8664::imm0 x8664::imm0)))
                (<- (make-wired-lreg x8664::imm0
                                     :mode
                                     (gpr-mode-name-value
