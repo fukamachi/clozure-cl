@@ -912,6 +912,31 @@
   (uuo-error-reg-not-type (:%q src) (:$ub arch::error-object-not-signed-byte-64))
   :done)
 
+(define-x8664-vinsn sign-extend-s8 (((dest :s64))
+                                    ((src :s8)))
+  (movsbq (:%b src) (:%q dest)))
+
+(define-x8664-vinsn sign-extend-s16 (((dest :s64))
+                                     ((src :s16)))
+  (movswq (:%w src) (:%q dest)))
+
+(define-x8664-vinsn sign-extend-s32 (((dest :s64))
+                                     ((src :s32)))
+  (movslq (:%l src) (:%q dest)))
+
+
+(define-x8664-vinsn zero-extend-s8 (((dest :s64))
+                                    ((src :u8)))
+  (movzbl (:%b src) (:%l dest)))
+
+(define-x8664-vinsn zero-extend-u16 (((dest :s64))
+                                     ((src :u16)))
+  (movzwl (:%w src) (:%l dest)))
+
+(define-x8664-vinsn zero-extend-u32 (((dest :s64))
+                                     ((src :u32)))
+  (movl (:%l src) (:%l dest)))
+
 (define-x8664-vinsn (jump-subprim :jumpLR) (()
 					    ((spno :s32const)))
   (jmp (:@ spno)))
