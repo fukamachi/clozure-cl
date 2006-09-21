@@ -401,10 +401,12 @@ callback_for_interrupt(TCR *tcr, ExceptionInformation *xp)
   LispObj save_rbp = xpGPR(xp,Irbp),
     save_vsp = xpGPR(xp,Isp),
     xcf = create_exception_callback_frame(xp);
+  int save_errno = errno;
   
   callback_to_lisp(tcr, nrs_CMAIN.vcell,xp, xcf, 0, 0, 0, 0);
   xpGPR(xp,Irbp) = save_rbp;
   xpGPR(xp,Isp) = save_vsp;
+  errno = save_errno;
 }
 
 Boolean
