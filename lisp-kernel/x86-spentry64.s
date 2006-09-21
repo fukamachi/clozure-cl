@@ -4259,14 +4259,13 @@ _spentry(callback)
 	__(movq %r11,%r12)
 	__(ref_global(get_tcr,%rax))
 	__(movq $1,%rdi)
-	__(movq %r12,%r11)
 	__(call *%rax)
         __ifdef([DARWIN_GS_HACK])
          /* linear TCR address in now in %rax; callback index was
             saved in %r12 a moment ago. */
          __(set_gs_base(%rax))
-         __(movq %r12,%r11)
         __endif
+	__(movq %r12,%r11)
 1:	/* Align foreign stack for lisp   */
         __(subq $node_size,%rsp)
 	__(pushq %rcontext:tcr.foreign_sp)
