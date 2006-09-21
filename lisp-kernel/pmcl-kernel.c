@@ -74,6 +74,7 @@
 #include <mach/mach_types.h>
 #include <mach/message.h>
 #include <mach/vm_region.h>
+#include <mach/port.h>
 #include <sys/sysctl.h>
 
 Boolean running_under_rosetta = false;
