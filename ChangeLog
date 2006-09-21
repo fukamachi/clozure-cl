@@ -1,3 +1,42 @@
+2006-09-21 04:07  gb
+
+	* lisp-kernel/x86-spentry64.s: don't clobber callback index when
+	doing the DARWIN_GS_HACK stuff in _SPcallback (syscall sometimes
+	clobbered r11, sometimes didn't.)
+
+2006-09-21 04:05  gb
+
+	* lisp-kernel/pmcl-kernel.c: Require mach/port.h.
+
+2006-09-21 04:05  gb
+
+	* lisp-kernel/x86-exceptions.c: Save and restore errno in
+	callback_for_interrupt.
+
+2006-09-21 04:04  gb
+
+	* lisp-kernel/lisptypes.h: Guess again about preprocessor stuff for
+	x86-64 ucontext/mcontext on Darwin.
+
+2006-09-21 04:02  gb
+
+	* level-1/l1-lisp-threads.lisp: Use underscore prefix on all Darwin
+	flavors.
+	
+	Add a type decl in %nanosleep.
+
+2006-09-21 04:01  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: sign-extend/zero-extend
+	vinsns.
+
+2006-09-21 04:01  gb
+
+	* compiler/X86/x862.lisp: sign/zero-extend ffcall, syscall return
+	values.  (Probably only matters in a few cases, like the Darwin
+	x86-64 version of #_nanosleep, which returns a non-sign-extended
+	"int" value if the sleep is interruted.)
+
 2006-09-20 06:34  gb
 
 	* level-1/version.lisp: Bump.
