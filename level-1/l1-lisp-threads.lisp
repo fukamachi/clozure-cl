@@ -43,11 +43,12 @@
            (bptr b))
       (loop
         (let* ((result 
-                (external-call #+darwinppc-target "_nanosleep"
-                               #-darwinppc-target "nanosleep"
+                (external-call #+darwin-target "_nanosleep"
+                               #-darwin-target "nanosleep"
                                :address aptr
                                :address bptr
                                :signed-fullword)))
+          (declare (type (signed-byte 32) result))
           (if (and (< result 0)
                    (eql (%get-errno) (- #$EINTR))
                    (not (and (eql (pref bptr :timespec.tv_sec) 0)
