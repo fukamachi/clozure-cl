@@ -65,12 +65,16 @@ typedef u32_t unsigned_of_pointer_size;
 
 #if defined(DARWIN)
 #if WORD_SIZE == 64
+#ifdef _STRUCT_UCONTEXT64
+typdef _STRUCT_UCONTEXT64 ExceptionInformation;
+#else
 typedef struct ucontext64 ExceptionInformation;
+#endif
 #define UC_MCONTEXT(UC) UC->uc_mcontext64
 #ifdef X8664
 /* Broken <i386/ucontext.h> in xcode 2.4 */
 #include <sys/ucontext.h>
-#ifndef _MCONTEXT64_T /* A guess at what'll be defined when this is fixed */
+#ifndef _STRUCT_MCONTEXT64 /* A guess at what'll be defined when this is fixed */
 struct mcontext64 {
 	x86_exception_state64_t	es;
 	x86_thread_state64_t 	ss;	
