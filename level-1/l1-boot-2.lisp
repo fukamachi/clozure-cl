@@ -85,10 +85,11 @@ present and false otherwise. This variable shouldn't be set by user code.")
                                 :basic t
                                 :sharing :lock
                                 :direction :input
-                                :interactive (not *batch-flag*)))
-  (setq *stdout* (make-fd-stream 1 :basic t :direction :output :sharing :lock))
+                                :interactive (not *batch-flag*)
+                                :encoding :utf-8))
+  (setq *stdout* (make-fd-stream 1 :basic t :direction :output :sharing :lock :encoding :utf-8))
 
-  (setq *stderr* (make-fd-stream 2 :basic t :direction :output :sharing :lock))
+  (setq *stderr* (make-fd-stream 2 :basic t :direction :output :sharing :lock :encoding :utf-8))
   (if *batch-flag*
     (let* ((tty-fd (let* ((fd (fd-open "/dev/tty" #$O_RDWR)))
                      (if (>= fd 0) fd)))
@@ -99,8 +100,9 @@ present and false otherwise. This variable shouldn't be set by user code.")
                                           :basic t
                                           :direction :input
                                           :interactive t
-                                          :sharing :lock)
-         *terminal-output* (make-fd-stream tty-fd :basic t :direction :output :sharing :lock)
+                                          :sharing :lock
+                                          :encoding :utf-8)
+         *terminal-output* (make-fd-stream tty-fd :basic t :direction :output :sharing :lock :encoding :utf-8)
          *terminal-io* (make-echoing-two-way-stream
                         *terminal-input* *terminal-output*))
         (progn
