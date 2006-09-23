@@ -365,7 +365,7 @@
   (write-byte-function 'ioblock-no-binary-output)
   (write-char-function 'ioblock-no-char-output)
   (encoding nil)
-  (alternate-line-termination nil)
+  (line-termination nil)
   (literal-char-code-limit 256)
   (encode-output-function nil)
   (decode-input-function nil)
@@ -376,10 +376,13 @@
   (write-char-when-locked-function 'ioblock-no-char-output)
   (read-byte-when-locked-function 'ioblock-no-binary-input)
   (write-byte-when-locked-function 'ioblock-no-binary-output)
+  (peek-char-function 'ioblock-no-char-input)
+  (input-filter #'false)
+  (output-filter #'false)
   (reserved1 nil)
   (reserved2 nil)
-  (reserved2 nil)
-  (reserved3 nil))
+  (reserved3 nil)
+  (reserved4 nil))
 
 
 ;;; Functions on ioblocks.  So far, we aren't saying anything
@@ -393,7 +396,7 @@
   (declare (ignore others))
   (report-bad-arg (ioblock-stream ioblock) '(and binary-stream output-stream)))
 
-(defun ioblock-no-charr-input (ioblock &rest others)
+(defun ioblock-no-char-input (ioblock &rest others)
   (declare (ignore others))
   (report-bad-arg (ioblock-stream ioblock) '(and character-stream input-stream)))
 
@@ -813,7 +816,7 @@
   (check-ioblock-owner ioblock)
   (%ioblock-read-u8-encoded-char ioblock))
 
-(defun %private-ioblock-read-u8-encoded-char (ioblock)
+(defun %locked-ioblock-read-u8-encoded-char (ioblock)
   (declare (optimize (speed 3) (safety 0)))
   (with-ioblock-input-locked (ioblock)
     (%ioblock-read-u8-encoded-char ioblock)))
@@ -850,7 +853,6 @@
 
 
 (declaim (inline %ioblock-tyi-no-hang))
-
 (defun %ioblock-tyi-no-hang (ioblock)
   (declare (optimize (speed 3) (safety 0)))
   (if (ioblock-untyi-char ioblock)
@@ -862,13 +864,10 @@
       (declare (fixnum idx limit))
       (when (= idx limit)
 	(unless (%ioblock-advance ioblock nil)
-	  (return-from %ioblock-tyi-no-hang (if (ioblock-eof ioblock) :eof)))
-	(setq idx (io-buffer-idx buf)
-	      limit (io-buffer-count buf)))
-      (setf (io-buffer-idx buf) (the fixnum (1+ idx)))
-      (%code-char (aref (the (simple-array (unsigned-byte 8) (*)) (io-buffer-buffer buf)) idx)))))
+	  (return-from %ioblock-tyi-no-hang (if (ioblock-eof ioblock) :eof))))
+      (funcall (ioblock-read-char-when-locked-function ioblock) ioblock))))
 
-
+;;; :iso-8859-1 only.
 (defun %ioblock-peek-char (ioblock)
   (or (ioblock-untyi-char ioblock)
       (let* ((buf (ioblock-inbuf ioblock))
@@ -881,6 +880,16 @@
           (setq idx (io-buffer-idx buf)
                 limit (io-buffer-count buf)))
         (%code-char (aref (the (simple-array (unsigned-byte 8) (*)) (io-buffer-buffer buf)) idx)))))
+
+(defun %encoded-ioblock-peek-char (ioblock)
+  (or (ioblock-untyi-char ioblock)
+      (let* ((ch (funcall (ioblock-read-char-when-locked-function ioblock))))
+        (unless (eq ch :eof)
+          (setf (ioblock-untyi-char ioblock) ch))
+        ch)))
+
+
+
 
 (defun %ioblock-clear-input (ioblock)    
     (let* ((buf (ioblock-inbuf ioblock)))
@@ -903,6 +912,90 @@
 
 (defun ioblock-outpos (ioblock)
   (io-buffer-count (ioblock-outbuf ioblock)))
+
+
+
+(defun u8-translate-cr-to-lf (vector n)
+  (declare (type (simple-array (unsigned-byte 8) (*)) vector)
+           (type index n)
+           (optimize (speed 3) (safety 0)))
+  (dotimes (i n t)
+    (if (= (the (unsigned-byte 8) (aref vector i)) (char-code #\Return))
+      (setf (aref vector i) (char-code #\Linefeed)))))
+
+(defun u8-translate-lf-to-cr (vector n)
+  (declare (type (simple-array (unsigned-byte 8) (*)) vector)
+           (type index n)
+           (optimize (speed 3) (safety 0)))
+  (dotimes (i n t)
+    (if (= (the (unsigned-byte 8) (aref vector i)) (char-code #\Linefeed))
+      (setf (aref vector i) (char-code #\Return)))))
+
+
+(defun u16-translate-cr-to-lf (vector n)
+  (declare (type (simple-array (unsigned-byte 16) (*)) vector)
+           (type index n)
+           (optimize (speed 3) (safety 0)))
+  (dotimes (i n t)
+    (if (= (the (unsigned-byte 16) (aref vector i)) (char-code #\Return))
+      (setf (aref vector i) (char-code #\Linefeed)))))
+
+(defun u16-translate-lf-to-cr (vector n)
+  (declare (type (simple-array (unsigned-byte 16) (*)) vector)
+           (type index n)
+           (optimize (speed 3) (safety 0)))
+  (dotimes (i n t)
+    (if (= (the (unsigned-byte 16) (aref vector i)) (char-code #\Linefeed))
+      (setf (aref vector i) (char-code #\Return)))))
+
+(defun u32-translate-cr-to-lf (vector n)
+  (declare (type (simple-array (unsigned-byte 32) (*)) vector)
+           (type index n)
+           (optimize (speed 3) (safety 0)))
+  (dotimes (i n t)
+    (if (= (the (unsigned-byte 32) (aref vector i)) (char-code #\Return))
+      (setf (aref vector i) (char-code #\Linefeed)))))
+
+(defun u32-translate-lf-to-cr (vector n)
+  (declare (type (simple-array (unsigned-byte 32) (*)) vector)
+           (type index n)
+           (optimize (speed 3) (safety 0)))
+  (dotimes (i n t)
+    (if (= (the (unsigned-byte 32) (aref vector i)) (char-code #\Linefeed))
+      (setf (aref vector i) (char-code #\Return)))))
+
+
+(defun swapped-u16-translate-cr-to-lf (vector n)
+  (declare (type (simple-array (unsigned-byte 16) (*)) vector)
+           (type index n)
+           (optimize (speed 3) (safety 0)))
+  (dotimes (i n t)
+    (if (= (the (unsigned-byte 16) (aref vector i)) #xd00)
+      (setf (aref vector i) #xa00))))
+
+(defun swapped-u16-translate-lf-to-cr (vector n)
+  (declare (type (simple-array (unsigned-byte 16) (*)) vector)
+           (type index n)
+           (optimize (speed 3) (safety 0)))
+  (dotimes (i n t)
+    (if (= (the (unsigned-byte 16) (aref vector i)) #xa00)
+      (setf (aref vector i) #xd00))))
+
+(defun swapped-u32-translate-cr-to-lf (vector n)
+  (declare (type (simple-array (unsigned-byte 32) (*)) vector)
+           (type index n)
+           (optimize (speed 3) (safety 0)))
+  (dotimes (i n t)
+    (if (= (the (unsigned-byte 32) (aref vector i)) #xd000000)
+      (setf (aref vector i) #xa000000))))
+
+(defun swapped-32-translate-lf-to-cr (vector n)
+  (declare (type (simple-array (unsigned-byte 32) (*)) vector)
+           (type index n)
+           (optimize (speed 3) (safety 0)))
+  (dotimes (i n t)
+    (if (= (the (unsigned-byte 32) (aref vector i)) #xa000000)
+      (setf (aref vector i) #xd0000000))))
 
 (declaim (inline %ioblock-force-output))
 
@@ -1551,6 +1644,19 @@
               (%copy-u8-to-string
                buf idx string len more)
               (incf len more))))))))
+
+;;; There are lots of ways of doing better here, but in the most general
+;;; case we can't tell (a) what a newline looks like in the buffer or (b)
+;;; whether there's a 1:1 mapping between code units and characters.
+(defun %ioblock-encoded-read-line (ioblock)
+  (let* ((str (make-array 20 :element-type 'base-char
+			  :adjustable t :fill-pointer 0))
+         (rcf (ioblock-read-char-when-locked-function ioblock))
+	 (eof nil))
+    (do* ((ch (funcall rcf ioblock) (funcall rcf ioblock)))
+	 ((or (eq ch #\newline) (setq eof (eq ch :eof)))
+	  (values (ensure-simple-string str) eof))
+      (vector-push-extend ch str))))
 	 
 (defun %ioblock-unencoded-character-read-vector (ioblock vector start end)
   (do* ((i start)
@@ -1576,6 +1682,18 @@
 	  (setf (io-buffer-idx in) (+ idx avail))
 	  (incf i avail)
 	  (decf need avail))))))
+
+(defun %ioblock-encoded-character-read-vector (ioblock vector start end)
+  (declare (fixnum start end))
+  (do* ((i start (1+ i))
+        (rcf (ioblock-read-char-when-locked-function ioblock)))
+       ((= i end) end)
+    (declare (fixnum i need))
+    (let* ((ch (funcall rcf ioblock)))
+      (if (eq ch :eof)
+	(return i))
+      (setf (schar vector i) ch))))
+
 
 (defun %ioblock-binary-read-vector (ioblock vector start end)
   (declare (fixnum start end))
@@ -1717,6 +1835,11 @@
   (when character-p
     (if encoding
       (let* ((unit-size (character-encoding-code-unit-size encoding)))
+        (setf (ioblock-peek-char-function ioblock) '%encoded-ioblock-peek-char)
+        (setf (ioblock-read-line-function ioblock)
+              '%ioblock-encoded-read-line)
+        (setf (ioblock-character-read-vector-function ioblock)
+              '%ioblock-encoded-character-read-vector)        
         (setf (ioblock-decode-input-function ioblock)
               (character-encoding-stream-decode-function encoding))
         (setf (ioblock-read-char-function ioblock)
@@ -1729,6 +1852,7 @@
                    (:lock '%locked-ioblock-read-u8-encoded-char)
                    (t '%ioblock-read-u8-encoded-char))))))
       (progn
+        (setf (ioblock-peek-char-function ioblock) '%ioblock-peek-char)
         (setf (ioblock-read-char-function ioblock)
               (case sharing
                 (:private '%private-ioblock-tyi)
@@ -1832,7 +1956,7 @@
                       '%ioblock-write-u8-encoded-char) 
                  (case sharing
                    (:private '%private-ioblock-write-u8-encoded-char)
-                   (:lock '%locked-ioblock-write-u8-encoded-charchar)
+                   (:lock '%locked-ioblock-write-u8-encoded-char)
                    (t '%ioblock-write-u8-encoded-char)))))
         (setf (ioblock-write-simple-string-function ioblock)
               (ecase unit-size
@@ -1953,6 +2077,7 @@
                             (sharing :private)
                             character-p
                             encoding
+                            line-termination
                             &allow-other-keys)
   (declare (ignorable element-shift))
   (when encoding
@@ -1974,6 +2099,7 @@
     (when (eq sharing :private)
       (setf (ioblock-owner ioblock) *current-process*))
     (setf (ioblock-encoding ioblock) encoding)
+    (setf (ioblock-line-termination ioblock) line-termination)
     (setf (ioblock-literal-char-code-limit ioblock)
           (if encoding
             (character-encoding-literal-char-code-limit encoding)
@@ -2085,7 +2211,8 @@
                           (character-p (or (eq element-type 'character)
                                            (subtypep element-type 'character)))
                           (basic nil)
-                          encoding)
+                          encoding
+                          line-termination)
   (when basic
     (setq class (map-to-basic-stream-class-name class))
     (setq basic (subtypep (find-class class) 'basic-stream)))
@@ -2111,7 +2238,8 @@
 			 :close-function 'fd-stream-close
                          :sharing sharing
                          :character-p character-p
-                         :encoding encoding)))
+                         :encoding encoding
+                         :line-termination line-termination)))
   
 ;;;  Fundamental streams.
 
@@ -2244,33 +2372,6 @@
 (defmethod stream-write-string ((stream fundamental-character-output-stream) string &optional (start 0) end)
   (generic-stream-write-string stream string start end))
 
-(defmethod stream-write-list ((stream fundamental-character-output-stream)
-			      list count)
-  (declare (fixnum count))
-  (dotimes (i count)
-    (stream-write-char stream (pop list))))
-
-(defmethod stream-read-list ((stream fundamental-character-input-stream)
-			     list count)
-  (generic-character-read-list stream list count))
-
-(defmethod stream-write-list ((stream fundamental-binary-output-stream)
-			      list count)
-  (declare (fixnum count))
-  (dotimes (i count)
-    (stream-write-byte stream (pop list))))
-
-(defmethod stream-read-list ((stream fundamental-binary-input-stream)
-			     list count)
-  (declare (fixnum count))
-  (do* ((tail list (cdr tail))
-	(i 0 (1+ i)))
-       ((= i count) count)
-    (declare (fixnum i))
-    (let* ((b (stream-read-byte stream)))
-      (if (eq b :eof)
-	(return i)
-	(rplaca tail b)))))
 
 ;;; The read-/write-vector methods could be specialized for stream classes
 ;;; that expose the underlying buffering mechanism.
@@ -2417,6 +2518,63 @@
 (defmethod stream-create-ioblock ((stream basic-stream) &rest args &key)
   (declare (dynamic-extent args))
   (apply #'make-ioblock :stream stream args))
+
+
+(defmethod stream-write-list ((stream fundamental-character-output-stream)
+			      list count)
+  (declare (fixnum count))
+  (dotimes (i count)
+    (stream-write-char stream (pop list))))
+
+(defmethod stream-write-list ((stream basic-character-output-stream)
+			      list count)
+  (declare (fixnum count))
+  (dotimes (i count)
+    (stream-write-char stream (pop list))))
+
+(defmethod stream-read-list ((stream fundamental-character-input-stream)
+			     list count)
+  (generic-character-read-list stream list count))
+
+(defmethod stream-read-list ((stream basic-character-input-stream)
+			     list count)
+  (generic-character-read-list stream list count))
+
+(defmethod stream-write-list ((stream fundamental-binary-output-stream)
+			      list count)
+  (declare (fixnum count))
+  (dotimes (i count)
+    (stream-write-byte stream (pop list))))
+
+(defmethod stream-write-list ((stream basic-binary-output-stream)
+			      list count)
+  (declare (fixnum count))
+  (dotimes (i count)
+    (write-byte (pop list) stream)))
+
+(defmethod stream-read-list ((stream fundamental-binary-input-stream)
+			     list count)
+  (declare (fixnum count))
+  (do* ((tail list (cdr tail))
+	(i 0 (1+ i)))
+       ((= i count) count)
+    (declare (fixnum i))
+    (let* ((b (stream-read-byte stream)))
+      (if (eq b :eof)
+	(return i)
+	(rplaca tail b)))))
+
+(defmethod stream-read-list ((stream basic-binary-input-stream)
+			     list count)
+  (declare (fixnum count))
+  (do* ((tail list (cdr tail))
+	(i 0 (1+ i)))
+       ((= i count) count)
+    (declare (fixnum i))
+    (let* ((b (read-byte stream)))
+      (if (eq b :eof)
+	(return i)
+	(rplaca tail b)))))
 
 (defmethod stream-read-vector ((stream basic-character-input-stream)
 			       vector start end)
@@ -3450,6 +3608,7 @@
   (with-stream-ioblock-input (ioblock s :speedy t)
     (%ioblock-binary-in-ivect ioblock iv start nb)))
 
+
 (defmethod stream-write-vector ((stream buffered-character-output-stream-mixin)
 				vector start end)
   (declare (fixnum start end))
@@ -3458,15 +3617,20 @@
     (with-stream-ioblock-output (ioblock stream :speedy t)
       (let* ((total (- end start)))
 	(declare (fixnum total))
-	(%ioblock-out-ivect ioblock vector start total)
-	(let* ((last-newline (position #\newline vector
-				       :start start
-				       :end end
-				       :from-end t)))
-	  (if last-newline
-	    (setf (ioblock-charpos ioblock)
-		  (- end last-newline 1))
-	    (incf (ioblock-charpos ioblock) total)))))))
+        (funcall (ioblock-write-simple-string-function ioblock)
+                 ioblock vector start total)))))
+
+(defmethod stream-write-vector ((stream basic-character-output-stream)
+				vector start end)
+  (declare (fixnum start end))
+  (if (not (typep vector 'simple-base-string))
+    (call-next-method)
+    (let* ((ioblock (basic-stream-ioblock stream))
+           (total (- end start)))
+      (declare (fixnum total))
+      (with-ioblock-output-locked (ioblock)
+                (funcall (ioblock-write-simple-string-function ioblock)
+                 ioblock vector start total)))))
 
 (defmethod stream-write-vector ((stream buffered-binary-output-stream-mixin)
 				vector start end)
@@ -4130,7 +4294,7 @@ are printed.")
   (let* ((stream (real-print-stream stream)))
     (stream-line-column stream)))        
 
-
+  
 
 
 
