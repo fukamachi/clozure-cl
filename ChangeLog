@@ -1,3 +1,22 @@
+2006-09-23 05:31  gb
+
+	* level-1/l1-unicode.lisp: Some other iso8859-n encodings.  (Not
+	sure which are the most important.)
+
+2006-09-23 05:29  gb
+
+	* level-1/l1-sysio.lisp: Start to separate
+	line-termination/external-format stuff.
+
+2006-09-23 05:28  gb
+
+	* level-1/l1-streams.lisp: Lots-o-changes.
+
+2006-09-23 05:28  gb
+
+	* level-1/l1-boot-2.lisp: Make initial interactive streams use
+	UTF-8 (mostly for debugging utf-8 ...)
+
 2006-09-21 04:07  gb
 
 	* lisp-kernel/x86-spentry64.s: don't clobber callback index when
