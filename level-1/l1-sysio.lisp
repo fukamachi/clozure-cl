@@ -58,7 +58,8 @@
 (defun infer-external-format (file-stream)
   (with-stream-ioblock-input (ioblock file-stream :speedy t)
     (setf (file-stream-external-format file-stream)
-	  (if (eq (%ioblock-peek-char ioblock) :eof)
+	  (if (eq (funcall (ioblock-peek-char-function ioblock) ioblock)
+                  :eof)
 	    :unix
 	    (let* ((inbuf (ioblock-inbuf ioblock))
 		   (string (io-buffer-buffer inbuf))
