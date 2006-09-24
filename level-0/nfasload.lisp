@@ -361,7 +361,7 @@
   (setf (faslstate.faslgsymbols s) (%fasl-expr s)))
 
 (deffaslop $fasl-char (s)
-  (%epushval s (code-char (%fasl-read-byte s))))
+  (%epushval s (code-char (%fasl-read-count s))))
 
 ;;; Deprecated
 (deffaslop $fasl-fixnum (s)

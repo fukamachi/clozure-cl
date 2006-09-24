@@ -1105,7 +1105,7 @@
 
 ;;; fasl-char: maybe epush, return target representation of BASE-CHARACTER
 (defxloadfaslop $fasl-char (s)
-  (let* ((code (%fasl-read-byte s))
+  (let* ((code (%fasl-read-count s))
          (target-char (logior *xload-target-subtag-char*
                               (ash code *xload-target-charcode-shift*))))
     (%epushval s target-char)))

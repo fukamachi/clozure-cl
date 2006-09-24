@@ -1452,7 +1452,7 @@ Will differ from *compiling-file* during an INCLUDE")
 (defun fasl-dump-char (char)     ; << maybe not
   (let ((code (%char-code char)))
     (fasl-out-opcode $fasl-char char)
-    (fasl-out-byte code)))
+    (fasl-out-count code)))
 
 ;;; Always write big-endian.
 (defun fasl-dump-s16 (s16)
