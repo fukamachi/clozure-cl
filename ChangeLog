@@ -1,3 +1,18 @@
+2006-09-24 04:29  gb
+
+	* lib/chars.lisp: CHAR-NAME looks in the *CHARACTER-NAMES* array if
+	the code is within its bounds.
+
+2006-09-24 04:27  gb
+
+	* level-1/l1-reader.lisp: Lots more character names.  Maintain
+	mappings in a vector and a hash table, rather than in an alist.
+
+2006-09-24 04:26  gb
+
+	* level-0/nfasload.lisp, xdump/xfasload.lisp, lib/nfcomp.lisp: Doh!
+	character constant fasl encoding ($fasl-char).
+
 2006-09-23 05:31  gb
 
 	* level-1/l1-unicode.lisp: Some other iso8859-n encodings.  (Not
