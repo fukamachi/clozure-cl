@@ -67,7 +67,7 @@
       (>= code (char-code #\space)))))
 
 
-;True for ascii codes 13 and 32-126 inclusive.
+;True for ascii codes 10 and 32-126 inclusive.
 (defun standard-char-p (c)
   "The argument must be a character object. STANDARD-CHAR-P returns T if the
    argument is a standard character -- one of the 95 ASCII printing characters
@@ -81,36 +81,33 @@
 
 
 
-; if no table - then what?
 (defun upper-case-p (c)
   "The argument must be a character object; UPPER-CASE-P returns T if the
    argument is an upper-case character, NIL otherwise."
   (let* ((code (char-code c)))
-    (declare (optimize (speed 3)(safety 0)))
-    (and (%i>= code (char-code #\A))
-         (%i<= code (char-code #\Z)))))
+    (declare (type (mod #x110000) code))
+    (and (>= code (char-code #\A))
+         (<= code (char-code #\Z)))))
 
 
 
 
-; I assume nobody cares that this be blindingly fast
 (defun both-case-p (c)
   "The argument must be a character object. BOTH-CASE-P returns T if the
   argument is an alphabetic character and if the character exists in
   both upper and lower case. For ASCII, this is the same as ALPHA-CHAR-P."
   (let* ((code (char-code c)))
-    (declare (optimize (speed 3)(safety 0)))
-    (if (%i>= code (char-code #\A))
-      (if (%i<= code (char-code #\Z))
-        t
-        (if (%i>= code (char-code #\a))
-          (%i<= code (char-code #\z)))))))
+    (declare (type (mod #x110000) code))
+    (or (and (>= code (char-code #\A))
+             (<= code (char-code #\Z)))
+        (and (>= code (char-code #\a))
+             (<= code (char-code #\z))))))
   
 (defun alphanumericp (c)
   "Given a character-object argument, ALPHANUMERICP returns T if the
    argument is either numeric or alphabetic."
   (let ((code (char-code c)))
-    (declare (fixnum code))
+    (declare (type (mod #x110000) code))
     (or
      (and (>= code (char-code #\0))
           (<= code (char-code #\9)))
@@ -155,8 +152,8 @@
         (unless (eq (char-upcase char) (char-upcase c))
           (return))))))
 
-; Compares each char against all following chars, not just next one. Tries
-; to be fast for one or two args.
+;;; Compares each char against all following chars, not just next one. Tries
+;;; to be fast for one or two args.
 (defun char-not-equal (char &rest others)
   "Return T if no two of the arguments are the same character.
    Font, bits, and case are ignored."
@@ -164,7 +161,7 @@
   (locally (declare (optimize (speed 3) (safety 0)))
     (let* ((rest (cdr others)))
       (cond 
-       (rest                       ; more than 2 args, no table
+       (rest                   
         (setq char (char-code (char-upcase char)))
         (do ((list others (cdr list)))
             ((null list))
