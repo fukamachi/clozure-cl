@@ -941,6 +941,73 @@
   (io-buffer-count (ioblock-outbuf ioblock)))
 
 
+;;; Return #\Return if an encoded #\Return is found first in vector,
+;;; #\Linefeed if and encoded #\Linefeed is found first or if neither
+;;; is found.
+(defun u8-infer-line-termination (vector n)
+  (declare (type (simple-array (unsigned-byte 8) (*)) vector)
+           (type index n)
+           (optimize (speed 3) (safety 0)))
+  (dotimes (i n #\linefeed)
+    (let* ((code (aref vector i)))
+      (declare (type (unsigned-byte 8) code))
+      (if (= code (char-code #\linefeed))
+        (return #\linefeed)
+        (if (= code (char-code #\return))
+          (return #\return))))))
+
+(defun u16-infer-line-termination (vector n)
+  (declare (type (simple-array (unsigned-byte 16) (*)) vector)
+           (type index n)
+           (optimize (speed 3) (safety 0)))
+  (dotimes (i n #\linefeed)
+    (let* ((code (aref vector i)))
+      (declare (type (unsigned-byte 16) code))
+      (if (= code (char-code #\linefeed))
+        (return #\linefeed)
+        (if (= code (char-code #\return))
+          (return #\return))))))
+
+(defun swapped-u16-infer-line-termination (vector n)
+  (declare (type (simple-array (unsigned-byte 16) (*)) vector)
+           (type index n)
+           (optimize (speed 3) (safety 0)))
+  (dotimes (i n #\linefeed)
+    (let* ((code (%swap-u16 (aref vector i))))
+      (declare (type (unsigned-byte 16) code))
+      (if (= code (char-code #\linefeed))
+        (return #\linefeed)
+        (if (= code (char-code #\return))
+          (return #\return))))))
+
+(defun u32-infer-line-termination (vector n)
+  (declare (type (simple-array (unsigned-byte 32) (*)) vector)
+           (type index n)
+           (optimize (speed 3) (safety 0)))
+  (dotimes (i n #\linefeed)
+    (let* ((code (aref vector i)))
+      (declare (type (unsigned-byte 32) code))
+      (if (= code (char-code #\linefeed))
+        (return #\linefeed)
+        (if (= code (char-code #\return))
+          (return #\return))))))
+
+(defun swapped-u32-infer-line-termination (vector n)
+  (declare (type (simple-array (unsigned-byte 32) (*)) vector)
+           (type index n)
+           (optimize (speed 3) (safety 0)))
+  (dotimes (i n #\linefeed)
+    (let* ((code (%swap-u32 (aref vector i))))
+      (declare (type (unsigned-byte 32) code))
+      (if (= code (char-code #\linefeed))
+        (return #\linefeed)
+        (if (= code (char-code #\return))
+          (return #\return))))))
+
+
+
+             
+
 
 (defun u8-translate-cr-to-lf (vector n)
   (declare (type (simple-array (unsigned-byte 8) (*)) vector)
