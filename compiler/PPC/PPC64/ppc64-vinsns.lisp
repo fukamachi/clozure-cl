@@ -3542,7 +3542,7 @@
   (std temp ppc64::interrupt-level-binding-index temp2))
 
 (define-ppc64-vinsn load-character-constant (((dest :lisp))
-                                             ((code :u8const))
+                                             ((code :u32const))
                                              ())
   (ori dest ppc::rzero (:apply logior (:apply ash (:apply logand #xff code) 8) ppc64::subtag-character))
   ((:not (:pred = 0 (:apply ldb (byte 16 8) code)))
