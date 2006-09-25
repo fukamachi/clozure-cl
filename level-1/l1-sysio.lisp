@@ -19,7 +19,8 @@
 (defstruct (file-ioblock (:include ioblock))
   (octet-pos 0 :type fixnum)		; current io position in octets
   (fileeof 0 :type fixnum)		; file length in elements
-)
+  (input-filter #'false)
+  (output-filter #'false))
 
 
 ;;; The file-ioblock-octet-pos field is the (octet) position
@@ -302,7 +303,7 @@ is :UNIX.")
     (let* ((file-ioblock (stream-ioblock s nil)))
       (format out "(~s/" (stream-filename s))
       (if file-ioblock
-	(format out "~d)" (file-ioblock-device file-ioblock))
+	(format out "~d ~a)" (file-ioblock-device file-ioblock) (encoding-name (ioblock-encoding file-ioblock)))
 	(format out ":closed")))))
     
 (defmethod print-object ((s fundamental-file-stream) out)
