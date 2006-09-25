@@ -895,13 +895,7 @@ terminate the list"
       (%code-char (%i- code #.(- (char-code #\a)(char-code #\A))))
       c)))
 
-(defun chkbounds (arr start end)
-  (flet ((are (a i)(error "Array index ~S out of bounds for ~S." a i)))
-    (let ((len (length arr)))
-      (if (and end (> end len))(are arr end))
-      (if (and start (or (< start 0)(> start len)))(are arr start))
-      (if (%i< (%i- (or end len)(or start 0)) 0)
-        (error "Start ~S exceeds end ~S." start end)))))
+
 
 (defun string-start-end (string start end)
   (setq string (string string))
@@ -912,8 +906,10 @@ terminate the list"
       (setq start (or start 0) end (or end len))
       (if (%i> start end)
         (error "Start ~S exceeds end ~S." start end))
-      (multiple-value-bind (str off)(array-data-and-offset string)
-        (values str (%i+ off start)(%i+ off end))))))
+      (if (typep string 'simple-string)
+        (values string start end)
+        (multiple-value-bind (str off)(array-data-and-offset string)
+          (values str (%i+ off start)(%i+ off end)))))))
 
 (defun get-properties (place indicator-list)
   "Like GETF, except that INDICATOR-LIST is a list of indicators which will
