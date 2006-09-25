@@ -81,14 +81,19 @@
   ;; Code units and character codes less than this value map to themselves
   (literal-char-code-limit 0)
 
-  ;; Function to translate all #\Return characters in a vector to #\Linefeed
-  (translate-cr-to-lf-function 'u8-translate-cr-to-lf)
-
-  ;; Function to translate all #\Linefeed characters in a vector to #\Return
-  (translate-lf-to-cr-function 'u8-translate-lf-to-cr)
+  ;; Does a byte-order-mark determine the endianness of input ?
+  ;; Should we prepend a BOM to output ?
+  ;; If non-nil, the value should be a cons:
+  ;; (native-byte-order-encoding . swapped-byte-order-encoding)
+  (use-byte-order-mark nil)
   )
 
-           
+(defconstant byte-order-mark #\u+feff)
+(defconstant byte-order-mark-char-code (char-code byte-order-mark))
+(defconstant swapped-byte-order-mark #\u+fffe)
+(defconstant swapped-byte-order-mark-char-code (char-code swapped-byte-order-mark))
+
+
 
 (defmethod print-object ((ce character-encoding) stream)
   (print-unreadable-object (ce stream :type t :identity t)
@@ -1516,3 +1521,5 @@
                          2)))))))
     :literal-char-code-limit #x10000
     )
+
+;;; UTF-16.
