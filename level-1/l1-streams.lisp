@@ -365,7 +365,7 @@
   (write-byte-function 'ioblock-no-binary-output)
   (write-char-function 'ioblock-no-char-output)
   (encoding nil)
-  (line-termination nil)
+  (pending-byte-order-mark nil)
   (literal-char-code-limit 256)
   (encode-output-function nil)
   (decode-input-function nil)
@@ -377,8 +377,6 @@
   (read-byte-when-locked-function 'ioblock-no-binary-input)
   (write-byte-when-locked-function 'ioblock-no-binary-output)
   (peek-char-function 'ioblock-no-char-input)
-  (input-filter #'false)
-  (output-filter #'false)
   (reserved1 nil)
   (reserved2 nil)
   (reserved3 nil)
@@ -663,8 +661,8 @@
     (%ioblock-read-s64-byte ioblock)))
 )
 
-(declaim (inline %ioblock-read-swapped-u16-element))
-(defun %ioblock-read-swapped-u16-element (ioblock)
+(declaim (inline %ioblock-read-swapped-u16-byte))
+(defun %ioblock-read-swapped-u16-byte (ioblock)
   (declare (optimize (speed 3) (safety 0)))
   (let* ((buf (ioblock-inbuf ioblock))
          (idx (io-buffer-idx buf))
@@ -672,7 +670,7 @@
     (declare (fixnum idx limit))
     (when (= idx limit)
       (unless (%ioblock-advance ioblock t)
-        (return-from %ioblock-read-swapped-u16-element :eof))
+        (return-from %ioblock-read-swapped-u16-byte :eof))
       (setq idx (io-buffer-idx buf)
             limit (io-buffer-count buf)))
     (setf (io-buffer-idx buf) (the fixnum (1+ idx)))
@@ -851,6 +849,35 @@
   (with-ioblock-input-lock-grabbed (ioblock)
     (%ioblock-read-u16-encoded-char ioblock)))
 
+(declaim (inline %ioblock-read-swapped-u16-encoded-char))
+(defun %ioblock-read-swapped-u16-encoded-char (ioblock)
+  (declare (optimize (speed 3) (safety 0)))
+  (let* ((ch (ioblock-untyi-char ioblock)))
+    (if ch
+      (prog1 ch
+        (setf (ioblock-untyi-char ioblock) nil))
+      (let* ((1st-unit (%ioblock-read-swapped-u16-byte ioblock)))
+        (if (eq 1st-unit :eof)
+          1st-unit
+          (locally
+              (declare (type (unsigned-byte 16) 1st-unit))
+            (if (< 1st-unit
+                   (the (mod #x110000) (ioblock-literal-char-code-limit ioblock)))
+              (code-char 1st-unit)
+              (funcall (ioblock-decode-input-function ioblock)
+                       1st-unit
+                       #'%ioblock-read-swapped-u16-byte
+                       ioblock))))))))
+
+(defun %private-ioblock-read-swapped-u16-encoded-char (ioblock)
+  (declare (optimize (speed 3) (safety 0)))
+  (check-ioblock-owner ioblock)
+  (%ioblock-read-swapped-u16-encoded-char ioblock))
+
+(defun %locked-ioblock-read-swapped-u16-encoded-char (ioblock)
+  (declare (optimize (speed 3) (safety 0)))
+  (with-ioblock-input-lock-grabbed (ioblock)
+    (%ioblock-read-swapped-u16-encoded-char ioblock)))
 
 (declaim (inline %ioblock-tyi-no-hang))
 (defun %ioblock-tyi-no-hang (ioblock)
@@ -2077,7 +2104,6 @@
                             (sharing :private)
                             character-p
                             encoding
-                            line-termination
                             &allow-other-keys)
   (declare (ignorable element-shift))
   (when encoding
@@ -2099,7 +2125,6 @@
     (when (eq sharing :private)
       (setf (ioblock-owner ioblock) *current-process*))
     (setf (ioblock-encoding ioblock) encoding)
-    (setf (ioblock-line-termination ioblock) line-termination)
     (setf (ioblock-literal-char-code-limit ioblock)
           (if encoding
             (character-encoding-literal-char-code-limit encoding)
@@ -2211,8 +2236,7 @@
                           (character-p (or (eq element-type 'character)
                                            (subtypep element-type 'character)))
                           (basic nil)
-                          encoding
-                          line-termination)
+                          encoding)
   (when basic
     (setq class (map-to-basic-stream-class-name class))
     (setq basic (subtypep (find-class class) 'basic-stream)))
@@ -2238,8 +2262,7 @@
 			 :close-function 'fd-stream-close
                          :sharing sharing
                          :character-p character-p
-                         :encoding encoding
-                         :line-termination line-termination)))
+                         :encoding encoding)))
   
 ;;;  Fundamental streams.
 
