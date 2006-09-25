@@ -3078,7 +3078,7 @@
 (define-x8664-subprim-call-vinsn (make-stack-gvector)  .SPstkgvector)
 
 (define-x8664-vinsn load-character-constant (((dest :lisp))
-                                             ((code :u8const))
+                                             ((code :u32const))
                                              ())
   (movl (:$l (:apply logior (:apply ash code 8) x8664::subtag-character))
         (:%l dest)))
