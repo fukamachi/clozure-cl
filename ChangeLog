@@ -1,3 +1,46 @@
+2006-09-24 20:14  gb
+
+	* lib/chars.lisp: Check for assumptions about character size. 
+	Remove some %i-isms (fixnum arithmetic), make assertions about type
+	of char-code.
+
+2006-09-24 20:12  gb
+
+	* level-1/l1-aprims.lisp: Remove unused (probably ancient)
+	CHKBOUNDS function.  Simpler STRING-START-END.
+
+2006-09-24 20:11  gb
+
+	* level-1/l1-streams.lisp: Some stuff to infer line-termination. 
+	Probably belongs elsewhere; some encodings may not make it at all
+	possible.
+
+2006-09-24 20:07  gb
+
+	* compiler/PPC/: PPC32/ppc32-vinsns.lisp, PPC64/ppc64-vinsns.lisp:
+	Load-character-constant: accept :u32const on PPC32, PPC64, too.
+
+2006-09-24 20:00  gb
+
+	* level-1/l1-streams.lisp: A little more u16 stuff.  Remove
+	line-termination slot from ioblock and corresponding arg from
+	functions which initialize it.
+
+2006-09-24 19:59  gb
+
+	* level-1/l1-sysio.lisp: Input-filter, output-filter in
+	file-ioblock.
+
+2006-09-24 19:58  gb
+
+	* level-1/l1-unicode.lisp: Buffer translation functions don't
+	belong here; start thinking about BOM.
+
+2006-09-24 19:57  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: LOAD-CHARACTER-CONSTANT:
+	it's been a :u32const for the last few weeks ...
+
 2006-09-24 04:29  gb
 
 	* lib/chars.lisp: CHAR-NAME looks in the *CHARACTER-NAMES* array if
