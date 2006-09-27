@@ -628,6 +628,22 @@ darwin_decode_vector_fp_exception(siginfo_t *info, ExceptionInformation *xp)
 
 #endif
 
+void
+get_lisp_string(LispObj lisp_string, char *c_string, natural max)
+{
+  lisp_char_code *src = (lisp_char_code *)  (ptr_from_lispobj(lisp_string + misc_data_offset));
+  natural i, n = header_element_count(header_of(lisp_string));
+
+  if (n > max) {
+    n = max;
+  }
+
+  for (i = 0; i < n; i++) {
+    c_string[i] = 0xff & (src[i]);
+  }
+  c_string[n] = 0;
+}
+
 Boolean
 handle_exception(int signum, siginfo_t *info, ExceptionInformation  *context, TCR *tcr)
 {
@@ -660,6 +676,16 @@ handle_exception(int signum, siginfo_t *info, ExceptionInformation  *context, TC
 	case UUO_DEBUG_TRAP:
 	  xpPC(context) = (natural) (program_counter+1);
 	  lisp_Debugger(context, info, debug_entry_dbg, "Lisp Breakpoint");
+	  return true;
+
+	case UUO_DEBUG_TRAP_WITH_STRING:
+	  xpPC(context) = (natural) (program_counter+1);
+          {
+            char msg[512];
+
+            get_lisp_string(xpGPR(context,Iarg_z),msg, sizeof(msg)-1);
+            lisp_Debugger(context, info, debug_entry_dbg, msg);
+          }
 	  return true;
           
         default:
