@@ -2390,18 +2390,18 @@
 ;;; default, automatically generated constructor.)
 ;;; (As fascinating as that may be, that has nothing to do with any
 ;;; nearby code, though it may have once been relevant.)
-(defun make-ioblock-stream (class-name
+(defun make-ioblock-stream (class
 			    &rest initargs
 			    &key 
 			    &allow-other-keys)
   (declare (dynamic-extent initargs))
-  (let* ((class (find-class class-name))
-	 (s
+  (let* ((s
           (if (subtypep class (find-class 'basic-stream))
             (apply #'make-basic-stream-instance class :allow-other-keys t initargs)
             (apply #'make-instance class :allow-other-keys t initargs))))
     (apply #'init-stream-ioblock s initargs)
     s))
+
 
 
 
@@ -2434,23 +2434,20 @@
     (setq basic (subtypep (find-class class) 'basic-stream)))
   (let* ((in-p (member direction '(:io :input)))
          (out-p (member direction '(:io :output)))
-         (class-name (select-stream-class class in-p out-p character-p)))
-    (make-ioblock-stream class-name
+         (class-name (select-stream-class class in-p out-p character-p))
+         (class (find-class class-name)))
+    (make-ioblock-stream class
 			 :insize (if in-p elements-per-buffer)
 			 :outsize (if out-p elements-per-buffer)
 			 :device fd
 			 :interactive interactive
 			 :element-type element-type
 			 :advance-function (if in-p
-                                             (if basic
-                                               'fd-stream-advance
-                                               (select-stream-advance-function class)))
+                                             (select-stream-advance-function class direction))
 			 :listen-function (if in-p 'fd-stream-listen)
 			 :eofp-function (if in-p 'fd-stream-eofp)
 			 :force-output-function (if out-p
-                                                  (if basic
-                                                    'fd-stream-force-output
-                                                    (select-stream-force-output-function class)))
+                                                  (select-stream-force-output-function class direction))
 			 :close-function 'fd-stream-close
                          :sharing sharing
                          :character-p character-p
@@ -4094,23 +4091,29 @@
 (defclass fd-stream (buffered-stream-mixin fundamental-stream) ())
 
 
-(defmethod select-stream-advance-function ((s symbol))
-  (select-stream-advance-function (find-class s)))
+(defmethod select-stream-advance-function ((s symbol) direction)
+  (select-stream-advance-function (find-class s) direction))
 
-(defmethod select-stream-advance-function ((c class))
-  (select-stream-advance-function (class-prototype c)))
+(defmethod select-stream-advance-function ((c class) direction)
+  (select-stream-advance-function (class-prototype c) direction))
 
-(defmethod select-stream-advance-function ((s fd-stream))
+(defmethod select-stream-advance-function ((s fd-stream) (direction t))
+  'fd-stream-advance)
+
+(defmethod select-stream-advance-function ((s basic-stream) (direction t))
   'fd-stream-advance)
 
 
-(defmethod select-stream-force-output-function ((s symbol))
-  (select-stream-force-output-function (find-class s)))
+(defmethod select-stream-force-output-function ((s symbol) direction)
+  (select-stream-force-output-function (find-class s) direction))
 
-(defmethod select-stream-force-output-function ((c class))
-  (select-stream-force-output-function (class-prototype c)))
+(defmethod select-stream-force-output-function ((c class) direction)
+  (select-stream-force-output-function (class-prototype c) direction))
 
-(defmethod select-stream-force-output-function ((f fd-stream))
+(defmethod select-stream-force-output-function ((f fd-stream) (direction t))
+  'fd-stream-force-output)
+
+(defmethod select-stream-force-output-function ((f basic-stream) (direction t))
   'fd-stream-force-output)
 
 (defmethod print-object ((s fd-stream) out)
