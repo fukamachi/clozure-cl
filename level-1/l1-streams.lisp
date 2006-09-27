@@ -377,7 +377,7 @@
   (read-byte-when-locked-function 'ioblock-no-binary-input)
   (write-byte-when-locked-function 'ioblock-no-binary-output)
   (peek-char-function 'ioblock-no-char-input)
-  (reserved1 nil)
+  (native-byte-order t)
   (reserved2 nil)
   (reserved3 nil)
   (reserved4 nil))
@@ -765,18 +765,18 @@
     (if ch
       (prog1 ch
         (setf (ioblock-untyi-char ioblock) nil))
-        (let* ((buf (ioblock-inbuf ioblock))
-         (idx (io-buffer-idx buf))
-         (limit (io-buffer-count buf)))
-    (declare (fixnum idx limit))
-    (when (= idx limit)
-      (unless (%ioblock-advance ioblock t)
-        (return-from %ioblock-tyi :eof))
-      (setq idx (io-buffer-idx buf)
-            limit (io-buffer-count buf)))
-    (setf (io-buffer-idx buf) (the fixnum (1+ idx)))
-    (%code-char (aref (the (simple-array (unsigned-byte 8) (*))
-                        (io-buffer-buffer buf)) idx))))))
+      (let* ((buf (ioblock-inbuf ioblock))
+             (idx (io-buffer-idx buf))
+             (limit (io-buffer-count buf)))
+        (declare (fixnum idx limit))
+        (when (= idx limit)
+          (unless (%ioblock-advance ioblock t)
+            (return-from %ioblock-tyi :eof))
+          (setq idx (io-buffer-idx buf)
+                limit (io-buffer-count buf)))
+        (setf (io-buffer-idx buf) (the fixnum (1+ idx)))
+        (%code-char (aref (the (simple-array (unsigned-byte 8) (*))
+                            (io-buffer-buffer buf)) idx))))))
 
 (defun %private-ioblock-tyi (ioblock)
   (declare (optimize (speed 3) (safety 0)))
@@ -1488,6 +1488,12 @@
 (declaim (inline %ioblock-write-u16-encoded-char))
 (defun %ioblock-write-u16-encoded-char (ioblock char)
   (declare (optimize (speed 3) (safety 0)))
+  (when (ioblock-pending-byte-order-mark ioblock)
+    (setf (ioblock-pending-byte-order-mark ioblock) nil)
+    (funcall (ioblock-encode-output-function ioblock)
+             byte-order-mark
+             #'%ioblock-write-u16-element
+             ioblock))
   (if (eq char #\linefeed)
     (setf (ioblock-charpos ioblock) 0)
     (incf (ioblock-charpos ioblock)))
@@ -1510,10 +1516,14 @@
   (with-ioblock-output-lock-grabbed (ioblock)
     (%ioblock-write-u16-encoded-char ioblock char)))
 
+
 (defun %ioblock-write-u16-encoded-simple-string (ioblock string start-char num-chars)
   (declare (fixnum start-char num-chars)
            (simple-base-strng string)
            (optimize (speed 3) (safety 0)))
+  (when (ioblock-pending-byte-order-mark ioblock)
+    (setf (ioblock-pending-byte-order-mark ioblock) nil)
+    (%ioblock-write-u16-element ioblock byte-order-mark-char-code))
   (do* ((i 0 (1+ i))
         (col (ioblock-charpos ioblock))
         (limit (ioblock-literal-char-code-limit ioblock))
@@ -1556,7 +1566,26 @@
   (with-ioblock-output-lock-grabbed (ioblock)
     (%ioblock-write-swapped-u16-encoded-char ioblock char)))
 
-
+(defun %ioblock-write-swapped-u16-encoded-simple-string (ioblock string start-char num-chars)
+  (declare (fixnum start-char num-chars)
+           (simple-base-strng string)
+           (optimize (speed 3) (safety 0)))
+  (do* ((i 0 (1+ i))
+        (col (ioblock-charpos ioblock))
+        (limit (ioblock-literal-char-code-limit ioblock))
+        (encode-function (ioblock-encode-output-function ioblock))
+        (start-char start-char (1+ start-char)))
+       ((= i num-chars) (setf (ioblock-charpos ioblock) col) num-chars)
+    (declare (fixnum i start-char limit))
+    (let* ((char (schar string start-char))
+           (code (char-code char)))
+      (declare (type (mod #x110000) code))
+      (if (eq char #\newline)
+        (setq col 0)
+        (incf col))
+      (if (< code limit)
+        (%ioblock-write-swapped-u16-element ioblock code)
+        (funcall encode-function char #'%ioblock-write-swapped-u16-element ioblock)))))
 
 
 (declaim (inline %ioblock-write-u8-byte))
@@ -1944,7 +1973,23 @@
                  (case sharing
                    (:private '%private-ioblock-read-u8-encoded-char)
                    (:lock '%locked-ioblock-read-u8-encoded-char)
-                   (t '%ioblock-read-u8-encoded-char))))))
+                   (t '%ioblock-read-u8-encoded-char)))
+                (16
+                 (if (character-encoding-native-endianness encoding)
+                   (progn
+                    (setf (ioblock-read-char-when-locked-function ioblock)
+                          '%ioblock-read-u16-encoded-char)
+                    (case sharing
+                      (:private '%private-ioblock-read-u16-encoded-char)
+                      (:lock '%locked-ioblock-read-u16-encoded-char)
+                      (t '%ioblock-read-u16-encoded-char)))
+                   (progn
+                     (setf (ioblock-read-char-when-locked-function ioblock)
+                           '%ioblock-read-swapped-u16-encoded-char)
+                    (case sharing
+                      (:private '%private-ioblock-read-swapped-u16-encoded-char)
+                      (:lock '%locked-ioblock-read-swapped-u16-encoded-char)
+                      (t '%ioblock-read-swapped-u16-encoded-char))))))))
       (progn
         (setf (ioblock-peek-char-function ioblock) '%ioblock-peek-char)
         (setf (ioblock-read-char-function ioblock)
@@ -2051,10 +2096,32 @@
                  (case sharing
                    (:private '%private-ioblock-write-u8-encoded-char)
                    (:lock '%locked-ioblock-write-u8-encoded-char)
-                   (t '%ioblock-write-u8-encoded-char)))))
+                   (t '%ioblock-write-u8-encoded-char)))
+                (16
+                 (if (character-encoding-native-endianness encoding)
+                   (progn
+                     (setf (ioblock-write-char-when-locked-function ioblock)
+                           '%ioblock-write-u16-encoded-char) 
+                     (case sharing
+                       (:private '%private-ioblock-write-u16-encoded-char)
+                       (:lock '%locked-ioblock-write-u16-encoded-char)
+                       (t '%ioblock-write-u16-encoded-char)))
+                   (progn
+                     (setf (ioblock-write-char-when-locked-function ioblock)
+                           '%ioblock-write-swapped-u16-encoded-char)
+                     (case sharing
+                       (:private '%private-ioblock-write-swapped-u16-encoded-char)
+                       (:lock '%locked-ioblock-write-swapped-u16-encoded-char)
+                       (t '%ioblock-write-swapped-u16-encoded-char)))))))
         (setf (ioblock-write-simple-string-function ioblock)
               (ecase unit-size
-                (8 '%ioblock-write-u8-encoded-simple-string))))
+                (8 '%ioblock-write-u8-encoded-simple-string)
+                (16
+                 (if (character-encoding-native-endianness encoding)
+                   '%ioblock-write-u16-encoded-simple-string
+                   '%ioblock-write-swapped-u8-encoded-simple-string))))
+        (when (character-encoding-use-byte-order-mark encoding)
+          (setf (ioblock-pending-byte-order-mark ioblock) t)))
       (progn
         (setf (ioblock-write-simple-string-function ioblock)
               '%ioblock-unencoded-write-simple-string)
@@ -2257,7 +2324,65 @@
       (setf (ioblock-close-function ioblock) close-function))
     (when interactive
       (setf (ioblock-interactive ioblock) interactive))
-    (setf (stream-ioblock stream) ioblock)))
+    (setf (stream-ioblock stream) ioblock)
+    (when encoding
+      (setf (ioblock-native-byte-order ioblock)
+            (character-encoding-native-endianness encoding)))
+    (let* ((bom-info (and insize encoding (character-encoding-use-byte-order-mark encoding))))
+      (when bom-info
+        (ioblock-check-input-bom ioblock bom-info sharing)))
+    ioblock))
+
+;;; If there's a byte-order-mark (or a reversed byte-order-mark) at
+;;; the beginning of the input stream, deal with it.  If there's any
+;;; input present, make sure that we don't write a BOM on output.  If
+;;; this is a little-endian machine, input data was present, and there
+;;; was no BOM in that data, make things big-endian.  If there's a
+;;; leading BOM or swapped BOM, eat it (consume it so that it doesn't
+;;; ordinarily appear as input.)
+;;;
+(defun ioblock-check-input-bom (ioblock swapped-encoding-name sharing)
+  (when (%ioblock-advance ioblock nil)  ; try to read, don't block
+    (setf (ioblock-pending-byte-order-mark ioblock) nil)
+    (let* ((inbuf (ioblock-inbuf ioblock))
+           (buf (io-buffer-buffer inbuf))
+           (swapped-encoding
+            (and
+             (case (aref buf 0)
+               (#.byte-order-mark-char-code
+                (setf (io-buffer-idx inbuf) 1)
+                nil)
+               (#.swapped-byte-order-mark-char-code
+                (setf (io-buffer-idx inbuf) 1)
+                t)
+               (t #+little-endian-target t))
+             (lookup-character-encoding swapped-encoding-name))))
+      (when swapped-encoding
+        (let* ((unit-size (character-encoding-code-unit-size swapped-encoding))
+               (output-p (not (null (ioblock-outbuf ioblock)))))
+          (setf (ioblock-native-byte-order ioblock)
+                (character-encoding-native-endianness swapped-encoding))
+          (ecase unit-size
+            (16
+             (setf (ioblock-read-char-when-locked-function ioblock)
+                   '%ioblock-read-swapped-u16-encoded-char)
+             (case sharing
+               (:private '%private-ioblock-read-swapped-u16-encoded-char)
+               (:lock '%locked-ioblock-read-swapped-u16-encoded-char)
+               (t '%ioblock-read-swapped-u16-encoded-char))))
+          (when output-p
+            (ecase unit-size
+              (16
+              (setf (ioblock-write-char-when-locked-function ioblock)
+                    '%ioblock-write-swapped-u16-encoded-char)
+              (case sharing
+                (:private '%private-ioblock-write-swapped-u16-encoded-char)
+                (:lock '%locked-ioblock-write-swapped-u16-encoded-char)
+                (t '%ioblock-write-swapped-u16-encoded-char))
+              (setf (ioblock-write-simple-string-function ioblock)
+                    '%ioblock-write-swapped-u8-encoded-simple-string)))))))))
+
+
 
 ;;; We can't define a MAKE-INSTANCE method on STRUCTURE-CLASS subclasses
 ;;; in MCL; of course, calling the structure-class's constructor does
@@ -4097,7 +4222,7 @@
 	  (unless (zerop octets)
 	    (%incf-ptr buf written)))))))
 
-(defmethod stream-read-line ((s buffered-stream-mixin))
+(defmethod stream-read-line ((s buffered-input-stream-mixin))
    (with-stream-ioblock-input (ioblock s :speedy t)
      (funcall (ioblock-read-line-function ioblock) ioblock)))
 
@@ -4188,7 +4313,7 @@
                                                 :error)
                                                (t :create)))
                       (external-format :default)
-		      (class 'fundamental-file-stream)
+		      (class 'file-stream)
                       (elements-per-buffer *elements-per-buffer*)
                       (sharing :private)
                       (basic t))
