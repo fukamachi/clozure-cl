@@ -1,3 +1,24 @@
+2006-09-26 20:49  gb
+
+	* level-1/l1-sysio.lisp: SELECT-STREAM-CLASS: should probably take
+	a BASIC-P argument.
+
+2006-09-26 20:47  gb
+
+	* level-1/l1-streams.lisp: More changes.  Imagine that.
+
+2006-09-26 20:46  gb
+
+	* compiler/: X86/X8664/x8664-vinsns.lisp, X86/x862.lisp,
+	optimizers.lisp: (Redundant) FIXNUM decls in LDB compiler macro.
+
+2006-09-26 20:43  gb
+
+	* level-1/l1-unicode.lisp: Memory/vector encode/decode functions
+	take/return strings, not chars.
+	
+	Some bom stuff.
+
 2006-09-24 20:14  gb
 
 	* lib/chars.lisp: Check for assumptions about character size. 
