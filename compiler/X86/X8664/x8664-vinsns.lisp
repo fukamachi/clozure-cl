@@ -2035,11 +2035,7 @@
    (movb (:$b val) (:@ offset (:%q dest)))))
 
 
-(define-x8664-vinsn mem-set-constant-doubleword (()
-                                                   ((val :s32const)
-                                                    (dest :address)
-                                                    (offset :s64)))
-   (movq (:$l val) (:@ (:%q dest) (:%q offset))))
+
 
 
 

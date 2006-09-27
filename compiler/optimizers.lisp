@@ -516,7 +516,7 @@
                 (position (byte-position byte)))
             (cond ((nx-form-typep integer 'fixnum env)
                    `(logand ,(byte-mask size)
-                            (ash ,integer ,(- position))))
+                     (the fixnum (ash ,integer ,(- position)))))
                   (t `(load-byte ,size ,position ,integer)))))
          ((and (consp byte)
                (eq (%car byte) 'byte)
@@ -525,7 +525,7 @@
                 (position (%caddr byte)))
             (if (and (nx-form-typep integer 'fixnum env) (fixnump position))
               ;; I'm not sure this is worth doing
-              `(logand (byte-mask ,size) (ash ,integer ,(- position)))
+              `(logand (byte-mask ,size) (the fixnum (ash ,integer ,(- position))))
               ;; this IS worth doing
               `(load-byte ,size ,position ,integer))))
          (t call)))

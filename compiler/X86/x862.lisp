@@ -3924,6 +3924,12 @@
 
           (and offval (%i> (integer-length offval) 31) (setq offval nil))
           (and intval (%i> (integer-length intval) 31) (setq intval nil))
+          (and intval
+               (case size
+                 (2
+                  (if (>= intval 32768) (setq intval (- intval 65536))))
+                 (1
+                  (if (>= intval 128) (setq intval (- intval 256))))))
           (cond (intval
                  (cond (offval
                         (with-imm-target () (ptr-reg :address)
