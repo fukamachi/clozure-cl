@@ -812,45 +812,45 @@
         (setf (faslstate.oldfaslstr s) nil
               (faslstate.faslstr s) parse-string)
 	(unwind-protect
-          (when (%fasl-open string s)
-	    (let* ((nblocks (%fasl-read-word s)))
-	      (declare (fixnum nblocks))
-	      (unless (= nblocks 0)
-		(let* ((pos (%fasl-get-file-pos s)))
-		  (dotimes (i nblocks)
-		    (%fasl-set-file-pos s pos)
-		    (%fasl-set-file-pos s (%fasl-read-long s))
-		    (incf pos 8)
-		    (let* ((version (%fasl-read-word s)))
-		      (declare (fixnum version))
-		      (if (or (> version (+ #xff00 $fasl-vers))
-			      (< version (+ #xff00 $fasl-min-vers)))
-                          (%err-disp (if (>= version #xff00) $xfaslvers $xnotfasl))
-			(progn
-			  (setf (faslstate.faslversion s) version)
-			  (%fasl-read-word s) 
-			  (%fasl-read-word s)       ; Ignore kernel version stuff
-			  (setf (faslstate.faslevec s) nil
-				(faslstate.faslecnt s) 0)
-			  (do* ((op (%fasl-read-byte s) (%fasl-read-byte s)))
-			       ((= op $faslend))
-			    (declare (fixnum op))
-			    (%fasl-dispatch s op))))))))))
+             (when (%fasl-open string s)
+               (let* ((nblocks (%fasl-read-word s)))
+                 (declare (fixnum nblocks))
+                 (unless (= nblocks 0)
+                   (let* ((pos (%fasl-get-file-pos s)))
+                     (dotimes (i nblocks)
+                       (%fasl-set-file-pos s pos)
+                       (%fasl-set-file-pos s (%fasl-read-long s))
+                       (incf pos 8)
+                       (let* ((version (%fasl-read-word s)))
+                         (declare (fixnum version))
+                         (if (or (> version (+ #xff00 $fasl-vers))
+                                 (< version (+ #xff00 $fasl-min-vers)))
+                           (%err-disp (if (>= version #xff00) $xfaslvers $xnotfasl))
+                           (progn
+                             (setf (faslstate.faslversion s) version)
+                             (%fasl-read-word s) 
+                             (%fasl-read-word s) ; Ignore kernel version stuff
+                             (setf (faslstate.faslevec s) nil
+                                   (faslstate.faslecnt s) 0)
+                             (do* ((op (%fasl-read-byte s) (%fasl-read-byte s)))
+                                  ((= op $faslend))
+                               (declare (fixnum op))
+                               (%fasl-dispatch s op))))))))))
 	  (%fasl-close s))
 	(let* ((err (faslstate.faslerr s)))
 	  (if err
-	      (progn
-		(when *%fasload-verbose*
-		  (let* ((herald ";!!Error loading ")
-			 (hlen (length herald))
-			 (len (length string))
-			 (msg (make-string (+ hlen len))))
-		    (declare (dynamic-extent msg))
-		    (%copy-ivector-to-ivector herald 0 msg 0 hlen)
-		    (%copy-ivector-to-ivector string 0 msg hlen len)
-		    (bug msg))
-		  (values nil err)))
-	    (values t nil)))))))
+            (progn
+              (when *%fasload-verbose*
+                (let* ((herald ";!!Error loading ")
+                       (hlen (length herald))
+                       (len (length string))
+                       (msg (make-string (+ hlen len))))
+                  (declare (dynamic-extent msg))
+                  (%copy-ivector-to-ivector herald 0 msg 0 (* hlen 4))
+                  (%copy-ivector-to-ivector string 0 msg (* hlen 4) (* len 4))
+                  (bug msg)))
+              (values nil err))
+            (values t nil)))))))
 
 
 (defun %new-package-hashtable (size)
