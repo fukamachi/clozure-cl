@@ -3156,10 +3156,12 @@ to replace that class with ~s" name old-class new-class)
 
 
 ;;; Need to define this for all of the BUILT-IN-CLASSes.
+(defmethod class-prototype ((class class))
+  (%class.prototype class))
+
 (defmethod class-prototype ((class std-class))
   (or (%class.prototype class)
       (setf (%class.prototype class) (allocate-instance class))))
-
 
 
 (defun gf-class-prototype (class)
