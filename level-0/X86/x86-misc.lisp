@@ -694,4 +694,10 @@
   (lea (@ x8664::nil-value (% imm0)) (% arg_z))
   (single-value-return))
 
+
+(defx86lapfunction debug-trap-with-string ((arg arg_z))
+  (check-nargs 1)
+  (uuo-error-debug-trap-with-string)
+  (single-value-return))
+
 ;;; end of x86-misc.lisp
