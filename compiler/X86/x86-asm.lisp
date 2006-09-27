@@ -3388,6 +3388,8 @@
                                                (:reg64 :insert-reg4-pseudo-rm-low))
      #xcdcc 0 nil)
 
+   (def-x8664-opcode uuo-error-debug-trap-with-string ()
+     #xcdcd nil nil)
    
    (def-x8664-opcode uuo-error-reg-not-tag ((:reg64 :insert-opcode-reg4) (:imm8 :insert-imm8))
      #xcdd0 nil 0)
