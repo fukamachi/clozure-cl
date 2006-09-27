@@ -1,3 +1,49 @@
+2006-09-27 05:46  gb
+
+	* level-1/l1-sysio.lisp: More FILE-STREAM changes.  Give
+	BASIC-STREAM classes a class prototype.
+
+2006-09-27 05:45  gb
+
+	* level-1/l1-streams.lisp: Some changes to FD-STREAM
+	initialization, to make it easier to use MAKE-FD-STREAM to open
+	(seekable) FILE-STREAMs.
+
+2006-09-27 05:41  gb
+
+	* lisp-kernel/: x86-exceptions.c, x86-exceptions.h: Decode and
+	handle UUO_ERROR_DEBUG_TRAP_WITH_STRING.
+
+2006-09-27 05:39  gb
+
+	* lisp-kernel/x86-spentry64.s: Still get very occasional SIGFPE on
+	return from (e.g.) #_asin on x86-64 Darwin.  (#_asin often does a
+	division-by-zero, but that should be masked when in foreign code.) 
+	Don't reload the lisp mxcsr until other registers have been popped,
+	to make debugging easier in case it's the act of reloading the
+	mxcsr that causes the spurious trap.)
+
+2006-09-27 05:36  gb
+
+	* level-0/X86/x86-misc.lisp: DEBUG-TRAP-WITH-STRING.
+
+2006-09-27 05:35  gb
+
+	* level-0/nfasload.lisp: Not sure when it happened, but %FASLOAD
+	was parenthesized in such a way as to not return the error value on
+	error.
+
+2006-09-27 05:34  gb
+
+	* level-0/l0-misc.lisp: On x8664, use a new UUO for BUG.  (Not
+	passing context into the kernel makes it too difficult to debug/get
+	backtrace, etc.)
+
+2006-09-27 05:33  gb
+
+	* compiler/X86/: x86-asm.lisp, x86-disassemble.lisp:
+	UUO-ERROR-DEBUG-TRAP-WITH-STRING.
+
 2006-09-27 05:05  gb
 
 	* level-1/l1-clos-boot.lisp: CLASS-PROTOTYPE method for CLASS class
