@@ -607,7 +607,27 @@ is :UNIX.")
 	  'fundamental-file-binary-output-stream
 	  'fundamental-file-stream)))))
 
+(defmethod select-stream-class ((class file-stream) in-p out-p char-p)
+  (if char-p
+    (if (and in-p out-p)
+      'fundamental-file-character-io-stream
+      (if in-p
+	'fundamental-file-character-input-stream
+	(if out-p
+	  'fundamental-file-character-output-stream
+	  'fundamental-file-stream)))
+    (if (and in-p out-p)
+      'fundamental-file-binary-io-stream
+      (if in-p
+	'fundamental-file-binary-input-stream
+	(if out-p
+	  'fundamental-file-binary-output-stream
+	  'fundamental-file-stream)))))
+
 (defmethod map-to-basic-stream-class-name ((name (eql 'fundamental-file-stream)))
+  'basic-file-stream)
+
+(defmethod map-to-basic-stream-class-name ((name (eql 'file-stream)))
   'basic-file-stream)
 
 (defmethod select-stream-class ((class (eql 'basic-file-stream)) in-p out-p char-p)
