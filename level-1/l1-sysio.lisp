@@ -20,7 +20,8 @@
   (octet-pos 0 :type fixnum)		; current io position in octets
   (fileeof 0 :type fixnum)		; file length in elements
   (input-filter #'false)
-  (output-filter #'false))
+  (output-filter #'false)
+  (line-termination :unix))
 
 
 ;;; The file-ioblock-octet-pos field is the (octet) position
@@ -309,7 +310,7 @@ is :UNIX.")
 (defmethod print-object ((s fundamental-file-stream) out)
   (print-file-stream s out))
 
-(make-built-in-class 'basic-file-stream 'basic-stream 'file-stream)
+(make-built-in-class 'basic-file-stream 'file-stream 'basic-stream)
 
 (defmethod stream-filename ((s basic-file-stream))
   (basic-file-stream.filename s))
@@ -387,6 +388,15 @@ is :UNIX.")
 
 (make-built-in-class 'basic-file-binary-io-stream 'basic-file-io-stream 'basic-binary-io-stream)
 
+
+(defun set-basic-stream-prototype (class)
+  (when (subtypep class 'basic-stream)
+    (setf (%class.prototype class) (or (%class.prototype class)
+                                       (allocate-basic-stream class)))
+    (dolist (subclass (class-direct-subclasses class))
+      (set-basic-stream-prototype subclass))))
+
+(set-basic-stream-prototype (find-class 'basic-stream))
 
 ;;; This stuff is a lot simpler if we restrict the hair to the
 ;;; case of file streams opened in :io mode (which have to worry
@@ -647,6 +657,20 @@ is :UNIX.")
 	  'basic-file-binary-output-stream
 	  'basic-file-stream)))))
 
+
+(defmethod select-stream-advance-function ((s file-stream) direction)
+  (ecase direction
+    (:io 'io-file-ioblock-advance)
+    (:input 'input-file-ioblock-advance)))
+
+(defmethod select-stream-force-output-function ((s file-stream) direction)
+  (ecase direction
+    (:io 'io-file-force-output)
+    (:output 'output-file-force-output)))
+
+
+
+
 (defun make-file-stream (filename
 			 direction
 			 element-type
@@ -692,12 +716,6 @@ is :UNIX.")
 		  ((not native-truename)
 		   (setq native-truename (%create-file filename)))
 		  ((memq direction '(:output :io))
-		   #|;;
-                   ;; this prevents us from writing a file that is open for anything            
-                   ;;l but does not protect against reading a file that is open for :output
-		   (when (and bits (eq direction :output)(neq 0 (logand bits #x81)))
-		   (signal-file-error EBUSY filename))
-		   |#
 		   (when (eq if-exists :supersede)
 		     (let ((truename (native-to-pathname native-truename)))
 		       (setq temp-name (gen-file-name truename))
@@ -724,67 +742,64 @@ is :UNIX.")
                   (setq class (map-to-basic-stream-class-name class))
                   (setq basic (subtypep (find-class class) 'basic-stream)))
                 (let* ((in-p (member direction '(:io :input)))
-                     (out-p (member direction '(:io :output)))
-                     (io-p (eq direction :io))
-                     (char-p (or (eq element-type 'character)
-                                 (subtypep element-type 'character)))
-                     (infer nil)
-                     (real-external-format
-                      (if (and char-p in-p)
-                        (progn
-                          (if (eq external-format :default)
-                            (setq external-format *default-external-format*))
-                          (if (eq external-format :inferred)
-                            (setq infer t external-format :unix)
-                            (unless (assoc external-format
-                                           *external-format-translations*
-                                           :test #'eq)
-                              (setq external-format :unix)))
-                          external-format)
-                        :binary))
-                     (fstream (make-ioblock-stream
-                               (select-stream-class class in-p out-p char-p)
-                               :insize (if in-p elements-per-buffer)
-                               :outsize (if (and out-p (not io-p))
-                                          elements-per-buffer)
-                               :share-buffers-p io-p
-                               :interactive nil
-                               :direction direction
-                               :element-type element-type
-                               :direction direction
-                               :listen-function 'fd-stream-listen
-                               :close-function 'fd-stream-close
-                               :advance-function
-                               (if io-p
-                                 'io-file-ioblock-advance
-                                 (if in-p
-                                   'input-file-ioblock-advance))
-                               :force-output-function
-                               (if io-p
-                                 'io-file-force-output
-                                 (if out-p
-                                   'output-file-force-output))
-                               :device fd
-                               :external-format real-external-format
-                               :sharing sharing
-                               :character-p (or (eq element-type 'character)
-                                                (subtypep element-type 'character))))
-                     (ioblock (stream-ioblock fstream t)))
-                (setf (stream-filename fstream) (namestring pathname)
-                      (stream-actual-filename fstream) temp-name)
-                (setf (file-ioblock-fileeof ioblock)
-                      (ioblock-octets-to-elements ioblock (fd-size fd)))
-                (if infer
-                  (infer-external-format fstream))
-                (cond ((eq if-exists :append)
-                       (file-position fstream :end))
-                      ((and (memq direction '(:io :output))
-                            (neq if-exists :overwrite))
-                       (stream-length fstream 0)))
-                (if (eq direction :probe)
-                  (close fstream)
-                  (push fstream *open-file-streams*))
-                fstream)))))))))
+                       (out-p (member direction '(:io :output)))
+                       (io-p (eq direction :io))
+                       (char-p (or (eq element-type 'character)
+                                   (subtypep element-type 'character)))
+                       (infer nil)
+                       (real-external-format
+                        (if (and char-p in-p)
+                          (progn
+                            (if (eq external-format :default)
+                              (setq external-format *default-external-format*))
+                            (if (eq external-format :inferred)
+                              (setq infer t external-format :unix)
+                              (unless (assoc external-format
+                                             *external-format-translations*
+                                             :test #'eq)
+                                (setq external-format :unix)))
+                            external-format)
+                          :binary))
+                       (class-name (select-stream-class class in-p out-p char-p))
+                       (class (find-class class-name))
+                       (fstream (make-ioblock-stream
+                                 class
+                                 :insize (if in-p elements-per-buffer)
+                                 :outsize (if (and out-p (not io-p))
+                                            elements-per-buffer)
+                                 :share-buffers-p io-p
+                                 :interactive nil
+                                 :direction direction
+                                 :element-type element-type
+                                 :direction direction
+                                 :listen-function 'fd-stream-listen
+                                 :close-function 'fd-stream-close
+                                 :advance-function
+                                 (if in-p (select-stream-advance-function class direction))
+                                 :force-output-function
+                                 (if out-p (select-stream-force-output-function
+                                           class direction))
+                                 :device fd
+                                 :external-format real-external-format
+                                 :sharing sharing
+                                 :character-p (or (eq element-type 'character)
+                                                  (subtypep element-type 'character))))
+                       (ioblock (stream-ioblock fstream t)))
+                  (setf (stream-filename fstream) (namestring pathname)
+                        (stream-actual-filename fstream) temp-name)
+                  (setf (file-ioblock-fileeof ioblock)
+                        (ioblock-octets-to-elements ioblock (fd-size fd)))
+                  (if infer
+                    (infer-external-format fstream))
+                  (cond ((eq if-exists :append)
+                         (file-position fstream :end))
+                        ((and (memq direction '(:io :output))
+                              (neq if-exists :overwrite))
+                         (stream-length fstream 0)))
+                  (if (eq direction :probe)
+                    (close fstream)
+                    (push fstream *open-file-streams*))
+                  fstream)))))))))
 
 (defmethod stream-external-format ((s fundamental-file-stream))
   (file-stream-external-format s))
