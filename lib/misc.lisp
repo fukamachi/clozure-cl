@@ -337,6 +337,19 @@ are running on, or NIL if we can't find any useful information."
       "progn form*
   Evaluates each FORM and returns the value(s) of the last FORM.")
 
+(defmethod documentation ((thing character-encoding) (doc-type (eql t)))
+  (character-encoding-documentation thing))
+
+(defmethod (setf documentation) (new (thing character-encoding) (doc-type (eql t)))
+  (check-type new (or null string))
+  (setf (character-encoding-documentation thing) new))
+
+(defmethod documentation ((thing symbol) (doc-type (eql 'character-encoding)))
+  (let* ((encoding (lookup-character-encoding (intern (string thing) :keyword))))
+    (when encoding
+      (documentation encoding t))))
+
+                                 
 
 
 #|
