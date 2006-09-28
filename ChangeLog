@@ -1,3 +1,11 @@
+2006-09-27 20:33  gb
+
+	* lib/misc.lisp: DOCUMENTATION works on character-encodings.
+
+2006-09-27 20:33  gb
+
+	* level-1/l1-unicode.lisp: Character-encodings have doc strings.
+
 2006-09-27 05:46  gb
 
 	* level-1/l1-sysio.lisp: More FILE-STREAM changes.  Give
