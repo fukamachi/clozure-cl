@@ -88,6 +88,7 @@
   ;; If non-nil, the value should be the name of the an encoding
   ;; that implements this encoding with swapped byte order.
   (use-byte-order-mark nil)
+  (documentation nil)
   )
 
 (defconstant byte-order-mark #\u+feff)
@@ -105,11 +106,11 @@
 ;;;       (cl:function (lambda (...) ...)), except that the resulting
 ;;; function will have "name" <name> (this is often helpful when debugging.)
 
-(defmacro define-character-encoding (name &rest args &key &allow-other-keys)
+(defmacro define-character-encoding (name doc &rest args &key &allow-other-keys)
   (setq name (intern (string name) "KEYWORD"))
   `(progn
     (setf (get-character-encoding ,name)
-     (make-character-encoding :name ,name  ,@args))))
+     (make-character-encoding :name ,name  :documentation ',doc ,@args))))
 
 (defun encoding-name (encoding)
   (character-encoding-name (or encoding (get-character-encoding nil))))
@@ -118,6 +119,9 @@
 ;;; whose CHAR-CODE is >= 256
 
 (define-character-encoding :iso-8859-1
+  "An 8-bit, fixed-width character encoding in which all character
+codes map to their Unicode equivalents. Intended to support most
+characters used in most Western European languages."
   :stream-encode-function
   (nfunction
    iso-8859-1-stream-encode
@@ -286,6 +290,10 @@
     ))
 
 (define-character-encoding :iso-8859-2
+  "An 8-bit, fixed-width character encoding in which codes #x00-#x9f
+map to their Unicode equivalents and other codes map to other Unicode
+character values.  Intended to provide most characters found in most
+languages used in Central/Eastern Europe."
   :stream-encode-function
   (nfunction
    iso-8859-2-stream-encode
@@ -482,6 +490,10 @@
 
     
 (define-character-encoding :iso-8859-3
+  "An 8-bit, fixed-width character encoding in which codes #x00-#x9f
+map to their Unicode equivalents and other codes map to other Unicode
+character values.  Intended to provide most characters found in most
+languages used in Southern Europe."
   :stream-encode-function
   (nfunction
    iso-8859-3-stream-encode
@@ -692,6 +704,10 @@
 
 
 (define-character-encoding :iso-8859-4
+  "An 8-bit, fixed-width character encoding in which codes #x00-#x9f
+map to their Unicode equivalents and other codes map to other Unicode
+character values.  Intended to provide most characters found in most
+languages used in Northern Europe."
   :stream-encode-function
   (nfunction
    iso-8859-4-stream-encode
@@ -826,6 +842,10 @@
 ;;; UTF-8.  Decoding checks for malformed sequences; it might be faster (and
 ;;; would certainly be simpler) if it didn't.
 (define-character-encoding :utf-8
+    "An 8-bit, variable-length character encoding in which characters
+with CHAR-CODEs in the range #x00-#x7f can be encoded in a single
+octet; characters with larger code values can be encoded in 2 to 4
+bytes."
     :max-units-per-char 4
     :stream-encode-function
     (nfunction
@@ -1249,8 +1269,21 @@
                 2))))))
 
 ;;; utf-16, native byte order.
-(define-character-encoding
-    #+big-endian-target :utf-16be #-big-endian-target :utf-16le
+(define-character-encoding #+big-endian-target :utf-16be #-big-endian-target :utf-16le
+    #+big-endian-target
+    "A 16-bit, variable-length encoding in which characters with
+CHAR-CODEs less than #x10000 can be encoded in a single 16-bit
+big-endian word and characters with larger codes can be encoded in a
+pair of 16-bit big-endian words.  The endianness of the encoded data
+is implicit in the encoding; byte-order-mark characters are not
+interpreted on input or prepended to output."
+    #+little-endian-target
+    "A 16-bit, variable-length encoding in which characters with
+CHAR-CODEs less than #x10000 can be encoded in a single 16-bit
+little-endian word and characters with larger codes can be encoded in
+a pair of 16-bit little-endian words.  The endianness of the encoded
+data is implicit in the encoding; byte-order-mark characters are not
+interpreted on input or prepended to output."
     :max-units-per-char 2
     :code-unit-size 16
     :native-endianness t
@@ -1406,8 +1439,21 @@
     )
 
 ;;; utf-16, reversed byte order
-(define-character-encoding
-    #+big-endian-target :utf-16le #-big-endian-target :utf-16be
+(define-character-encoding #+big-endian-target :utf-16le #-big-endian-target :utf-16be
+    #+little-endian-target
+    "A 16-bit, variable-length encoding in which characters with
+CHAR-CODEs less than #x10000 can be encoded in a single 16-bit
+big-endian word and characters with larger codes can be encoded in a
+pair of 16-bit big-endian words.  The endianness of the encoded data
+is implicit in the encoding; byte-order-mark characters are not
+interpreted on input or prepended to output."
+    #+big-endian-target
+    "A 16-bit, variable-length encoding in which characters with
+CHAR-CODEs less than #x10000 can be encoded in a single 16-bit
+little-endian word and characters with larger codes can be encoded in
+a pair of 16-bit little-endian words.  The endianness of the encoded
+data is implicit in the encoding; byte-order-mark characters are not
+interpreted on input or prepended to output."
     :max-units-per-char 2
     :code-unit-size 16
     :native-endianness nil
@@ -1575,8 +1621,14 @@
 ;;; a swapped BOM, and in big-endian order (per RFC 2781) if
 ;;; there is no BOM.
 
-(define-character-encoding
-    :utf-16
+(define-character-encoding :utf-16
+    "A 16-bit, variable-length encoding in which characters with
+CHAR-CODEs less than #x10000 can be encoded in a single 16-bit
+word and characters with larger codes can be encoded in a
+pair of 16-bit words.  The endianness of the encoded data is
+indicated by the endianness of a byte-order-mark character (#\u+feff)
+prepended to the data; in the absence of such a character on input,
+the data is assumed to be in big-endian order."    
     :max-units-per-char 2
     :code-unit-size 16
     :native-endianness t                ;not necessarily true.
@@ -1786,3 +1838,15 @@
     #+big-endian-target :utf-16le
     #+little-endian-target :utf-16be
     )
+
+
+
+(defun describe-character-encodings ()
+  (let* ((encodings nil))
+    (maphash #'(lambda (name enc)
+                 (when name
+                   (push (cons name (character-encoding-documentation enc))
+                         encodings)))
+             *character-encodings*)
+    (dolist (pair (sort encodings #'string< :key #'car))
+      (format t "~&~s~&~a~%~%" (car pair) (cdr pair)))))
