@@ -129,7 +129,9 @@ extern void freebsd_sigreturn(ExceptionInformation *);
 #ifdef DARWIN
 #define SIGNUM_FOR_INTN_TRAP SIGSEGV /* Not really, but our Mach handler fakes that */
 #define IS_MAYBE_INT_TRAP(info,xp) (info->si_code == EXC_I386_GPFLT)
-#define SIGRETURN(context)
+/* The x86 version of sigreturn just needs the context argument; the
+   hidden, magic "flavor" argument that sigtramp uses is ignored. */
+#define SIGRETURN(context) syscall(SYS_sigreturn,context)
 #endif
 
 /* Please go away. */
