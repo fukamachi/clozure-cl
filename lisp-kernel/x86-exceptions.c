@@ -618,12 +618,7 @@ void
 darwin_decode_vector_fp_exception(siginfo_t *info, ExceptionInformation *xp)
 {
   if (info->si_code == EXC_I386_SSEEXTERR) {
-#ifdef _STRUCT_MCONTEXT64
     uint32_t mxcsr = UC_MCONTEXT(xp)->__fs.__fpu_mxcsr;
-#else
-    uint32_t mxcsr = UC_MCONTEXT(xp)->fs.fpu_mxcsr;
-#endif
-
 
     decode_vector_fp_exception(info, mxcsr);
   }
@@ -894,12 +889,12 @@ copy_fpregs(ExceptionInformation *xp, LispObj *current, fpregset_t *destptr)
 
 #ifdef DARWIN
 LispObj *
-copy_darwin_mcontext(mcontext_t context, 
+copy_darwin_mcontext(MCONTEXT_T context, 
                      LispObj *current, 
-                     mcontext_t *out)
+                     MCONTEXT_T *out)
 {
-  mcontext_t dest = ((mcontext_t)current)-1;
-  dest = (mcontext_t) (((LispObj)dest) & ~15);
+  MCONTEXT_T dest = ((MCONTEXT_T)current)-1;
+  dest = (MCONTEXT_T) (((LispObj)dest) & ~15);
 
   *dest = *context;
   *out = dest;
@@ -1067,7 +1062,7 @@ altstack_interrupt_handler (int signum, siginfo_t *info, ExceptionInformation *c
   void *fpregs = NULL;
 #endif
 #ifdef DARWIN
-  mcontext_t mcontextp = NULL;
+  MCONTEXT_T mcontextp = NULL;
 #endif
   siginfo_t *info_copy = NULL;
   ExceptionInformation *xp = NULL;
@@ -1159,7 +1154,7 @@ altstack_suspend_resume_handler(int signum, siginfo_t *info, ExceptionInformatio
   void *fpregs = NULL;
 #endif
 #ifdef DARWIN
-  mcontext_t mcontextp = NULL;
+  MCONTEXT_T mcontextp = NULL;
 #endif
 
   siginfo_t *info_copy = NULL;
@@ -1719,7 +1714,7 @@ restore_mach_thread_state(mach_port_t thread, ExceptionInformation *pseudosigcon
   int i, j;
   kern_return_t kret;
 #if WORD_SIZE == 64
-  mcontext_t mc = UC_MCONTEXT(pseudosigcontext);
+  MCONTEXT_T mc = UC_MCONTEXT(pseudosigcontext);
 #else
   struct mcontext * mc = UC_MCONTEXT(pseudosigcontext);
 #endif
@@ -1797,7 +1792,7 @@ create_thread_context_frame(mach_port_t thread,
   int i,j;
   ExceptionInformation *pseudosigcontext;
 #ifdef X8664
-  mcontext_t mc;
+  MCONTEXT_T mc;
 #else
   struct mcontext *mc;
 #endif
@@ -1815,7 +1810,7 @@ create_thread_context_frame(mach_port_t thread,
 
   stackp = TRUNC_DOWN(stackp, sizeof(*mc), C_STK_ALIGN);
 #ifdef X8664
-  mc = (mcontext_t) ptr_from_lispobj(stackp);
+  mc = (MCONTEXT_T) ptr_from_lispobj(stackp);
 #else
   mc = (struct mcontext *) ptr_from_lispobj(stackp);
 #endif

@@ -84,13 +84,28 @@ typedef struct ucontext ExceptionInformation;
 /* Broken <i386/ucontext.h> in xcode 2.4 */
 #ifndef _STRUCT_MCONTEXT64 /* A guess at what'll be defined when this is fixed */
 struct mcontext64 {
-	x86_exception_state64_t	es;
-	x86_thread_state64_t 	ss;	
-	x86_float_state64_t	fs;
+	x86_exception_state64_t	__es;
+	x86_thread_state64_t 	__ss;	
+	x86_float_state64_t	__fs;
 };
-#endif /* _STRUCT_MCONTEXT64 */
+
+typedef struct mcontext64 *MCONTEXT_T;
+typedef ucontext64_t ExceptionInformation;
+#define UC_MCONTEXT(UC) UC->uc_mcontext64
+#define __rax rax
+#define __fpu_mxcsr fpu_mxcsr
+#define __rsp rsp
+#define __faultvaddr faultvaddr
+#define __rip rip
+#define __rsi rsi
+#define __rdi rdi
+#define __rdx rdx
+#define __rcx rcx
+#else
+typedef mcontext_t MCONTEXT_T;
 typedef ucontext_t ExceptionInformation;
 #define UC_MCONTEXT(UC) UC->uc_mcontext
+#endif /* _STRUCT_MCONTEXT64 */
 #endif /* X86_64 */
 #endif /* #ifdef DARWIN */
 
