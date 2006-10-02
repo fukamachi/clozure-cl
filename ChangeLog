@@ -1,3 +1,18 @@
+2006-10-02 08:13  gb
+
+	* lisp-kernel/x86-exceptions.h: Darwin uses _sigtramp glue to call
+	handlers, so we need to make handlers do a sigreturn after
+	switching off the signal stack, etc.
+
+2006-10-02 08:11  gb
+
+	* lisp-kernel/x86-exceptions.c: Don't use SIGRETURN to return from
+	signal_handler() on Darwin (since we depend on pseudo_sigreturn
+	handling for cleanup of tcr pending exception and since we can't
+	easily restore the signal mask.)
+	
+	(Up until this point, SIGRETURN has been a nop on Darwin.)
+
 2006-10-02 04:59  gb
 
 	* lisp-kernel/lisptypes.h: Compile on ppc,ppc64 osx 10.4 and
