@@ -83,13 +83,33 @@ typedef _STRUCT_MCONTEXT *MCONTEXT_T;
 #else
 typedef struct ucontext ExceptionInformation;
 typedef struct mcontext *MCONTEXT_T;
+#endif
+#define UC_MCONTEXT(UC) UC->uc_mcontext
+#endif /* WORD_SIZE */
+#ifndef _STRUCT_UCONTEXT
 #define __ss ss
 #define __es es
 #define __fs fs
 #define __vs vs
+
+#define __r0 r0
+#define __r1 r1
+#define __r3 r3
+#define __r4 r4
+#define __r5 r5
+#define __r13 r13
+#define __srr0 srr0
+#define __srr1 srr1
+#define __lr lr
+#define __ctr ctr
+#define __xer xer
+#define __cr cr
+#define __dsisr dsisr
+#define __dar dar
+#define __exception exception
+#define __fpscr fpscr
+#define __fpregs fpregs
 #endif
-#define UC_MCONTEXT(UC) UC->uc_mcontext
-#endif /* WORD_SIZE */
 #endif /* PPC */
 
 #ifdef X8664
