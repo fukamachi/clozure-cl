@@ -1,3 +1,14 @@
+2006-10-02 04:59  gb
+
+	* lisp-kernel/lisptypes.h: Compile on ppc,ppc64 osx 10.4 and
+	earlier.
+
+2006-10-02 04:47  gb
+
+	* lisp-kernel/: lisptypes.h, ppc-exceptions.c, ppc-exceptions.h:
+	Compile on post OSX 10.4 systems, for ppc/ppc64.  (Broken on
+	systems <= 10.4).
+
 2006-10-02 02:46  gb
 
 	* lisp-kernel/: lisptypes.h, x86-exceptions.c, x86-exceptions.h:
