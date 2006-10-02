@@ -63,41 +63,48 @@ typedef u32_t unsigned_of_pointer_size;
 #endif
 
 
-#if defined(DARWIN)
+#ifdef DARWIN
+#include <sys/ucontext.h>
+
+#ifdef PPC
 #if WORD_SIZE == 64
 #ifdef _STRUCT_UCONTEXT64
-typdef _STRUCT_UCONTEXT64 ExceptionInformation;
-#else
+typedef _STRUCT_UCONTEXT64 ExceptionInformation;
+#else /* _STRUCT_UCONTEXT64 */
 typedef struct ucontext64 ExceptionInformation;
-#endif
+#endif /* _STRUCT_UCONTEXT64 */
 #define UC_MCONTEXT(UC) UC->uc_mcontext64
+#else /* WORD_SIZE */
+typedef struct ucontext ExceptionInformation;
+#define UC_MCONTEXT(UC) UC->uc_mcontext
+#endif /* WORD_SIZE */
+#endif /* PPC */
+
 #ifdef X8664
 /* Broken <i386/ucontext.h> in xcode 2.4 */
-#include <sys/ucontext.h>
 #ifndef _STRUCT_MCONTEXT64 /* A guess at what'll be defined when this is fixed */
 struct mcontext64 {
 	x86_exception_state64_t	es;
 	x86_thread_state64_t 	ss;	
 	x86_float_state64_t	fs;
 };
-#endif
-#endif
-#else
-typedef struct ucontext ExceptionInformation;
+#endif /* _STRUCT_MCONTEXT64 */
+typedef ucontext_t ExceptionInformation;
 #define UC_MCONTEXT(UC) UC->uc_mcontext
-#endif
-#else  /* #ifdef DARWIN */
+#endif /* X86_64 */
+#endif /* #ifdef DARWIN */
+
 #ifdef LINUX
 typedef struct ucontext ExceptionInformation;
 #endif
+
 #ifdef FREEBSD
 typedef struct __ucontext ExceptionInformation;
 #endif
+
 #ifdef SOLARIS
 typedef struct ucontext ExceptionInformation;
 #endif
-#define UC_MCONTEXT(UC) UC->uc_mcontext
-#endif /* #ifdef DARWIN */
 
 typedef u32_t lisp_char_code;
 

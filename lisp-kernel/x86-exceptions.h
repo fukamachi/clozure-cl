@@ -30,11 +30,19 @@ typedef u8_t opcode, *pc;
 #include <sys/syscall.h>
 #define DarwinSigReturn(context) syscall(SYS_sigreturn,context)
 #ifdef X8664
+#ifdef _STRUCT_MCONTEXT64
+#define xpGPRvector(x) ((natural *)(&(UC_MCONTEXT(x)->__ss.__rax)))
+#else
 #define xpGPRvector(x) ((natural *)(&(UC_MCONTEXT(x)->ss.rax)))
+#endif
 #define xpGPR(x,gprno) (xpGPRvector(x)[gprno])
 #define set_xpGPR(x,gpr,new) xpGPR((x),(gpr)) = (natural)(new)
 #define xpPC(x) (xpGPR(x,Iip))
+#ifdef _STRUCT_MCONTEXT64
+#define xpFPRvector(x) ((natural *)(&(UC_MCONTEXT(x)->__fs.__fpu_stmm0)))
+#else
 #define xpFPRvector(x) ((natural *)(&(UC_MCONTEXT(x)->fs.fp_stmm0)))
+#endif
 #define xpMMXreg(x,n)  (xpFPRvector(x)[gprno])
 #endif
 #include <mach/mach.h>

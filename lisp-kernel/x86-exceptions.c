@@ -618,7 +618,12 @@ void
 darwin_decode_vector_fp_exception(siginfo_t *info, ExceptionInformation *xp)
 {
   if (info->si_code == EXC_I386_SSEEXTERR) {
+#ifdef _STRUCT_MCONTEXT64
+    uint32_t mxcsr = UC_MCONTEXT(xp)->__fs.__fpu_mxcsr;
+#else
     uint32_t mxcsr = UC_MCONTEXT(xp)->fs.fpu_mxcsr;
+#endif
+
 
     decode_vector_fp_exception(info, mxcsr);
   }
@@ -889,12 +894,12 @@ copy_fpregs(ExceptionInformation *xp, LispObj *current, fpregset_t *destptr)
 
 #ifdef DARWIN
 LispObj *
-copy_darwin_mcontext(struct mcontext64 *context, 
+copy_darwin_mcontext(mcontext_t context, 
                      LispObj *current, 
-                     struct mcontext64 **out)
+                     mcontext_t *out)
 {
-  struct mcontext64 *dest = ((struct mcontext64 *)current)-1;
-  dest = (struct mcontext64 *) (((LispObj)dest) & ~15);
+  mcontext_t dest = ((mcontext_t)current)-1;
+  dest = (mcontext_t) (((LispObj)dest) & ~15);
 
   *dest = *context;
   *out = dest;
@@ -1062,7 +1067,7 @@ altstack_interrupt_handler (int signum, siginfo_t *info, ExceptionInformation *c
   void *fpregs = NULL;
 #endif
 #ifdef DARWIN
-  struct mcontext64 *mcontextp = NULL;
+  mcontext_t mcontextp = NULL;
 #endif
   siginfo_t *info_copy = NULL;
   ExceptionInformation *xp = NULL;
@@ -1154,7 +1159,7 @@ altstack_suspend_resume_handler(int signum, siginfo_t *info, ExceptionInformatio
   void *fpregs = NULL;
 #endif
 #ifdef DARWIN
-  struct mcontext64 *mcontextp = NULL;
+  mcontext_t mcontextp = NULL;
 #endif
 
   siginfo_t *info_copy = NULL;
@@ -1714,7 +1719,7 @@ restore_mach_thread_state(mach_port_t thread, ExceptionInformation *pseudosigcon
   int i, j;
   kern_return_t kret;
 #if WORD_SIZE == 64
-  struct mcontext64 *mc = UC_MCONTEXT(pseudosigcontext);
+  mcontext_t mc = UC_MCONTEXT(pseudosigcontext);
 #else
   struct mcontext * mc = UC_MCONTEXT(pseudosigcontext);
 #endif
@@ -1722,7 +1727,7 @@ restore_mach_thread_state(mach_port_t thread, ExceptionInformation *pseudosigcon
   /* Set the thread's FP state from the pseudosigcontext */
   kret = thread_set_state(thread,
                           x86_FLOAT_STATE64,
-                          (thread_state_t)&(mc->fs),
+                          (thread_state_t)&(mc->__fs),
                           x86_FLOAT_STATE64_COUNT);
 
   MACH_CHECK_ERROR("setting thread FP state", kret);
@@ -1731,12 +1736,12 @@ restore_mach_thread_state(mach_port_t thread, ExceptionInformation *pseudosigcon
 #if WORD_SIZE == 64
   kret = thread_set_state(thread,
                           x86_THREAD_STATE64,
-                          (thread_state_t)&(mc->ss),
+                          (thread_state_t)&(mc->__ss),
                           x86_THREAD_STATE64_COUNT);
 #else
   kret = thread_set_state(thread, 
                           x86_THREAD_STATE32,
-                          (thread_state_t)&(mc->ss),
+                          (thread_state_t)&(mc->__ss),
                           x86_THREAD_STATE32_COUNT);
 #endif
   MACH_CHECK_ERROR("setting thread state", kret);
@@ -1792,14 +1797,14 @@ create_thread_context_frame(mach_port_t thread,
   int i,j;
   ExceptionInformation *pseudosigcontext;
 #ifdef X8664
-  struct mcontext64 *mc;
+  mcontext_t mc;
 #else
   struct mcontext *mc;
 #endif
   natural stackp, backlink;
 
   
-  stackp = (LispObj) find_foreign_rsp(ts->rsp,tcr->cs_area,tcr);
+  stackp = (LispObj) find_foreign_rsp(ts->__rsp,tcr->cs_area,tcr);
   stackp = TRUNC_DOWN(stackp, C_REDZONE_LEN, C_STK_ALIGN);
   stackp = TRUNC_DOWN(stackp, sizeof(siginfo_t), C_STK_ALIGN);
   if (info_ptr) {
@@ -1810,17 +1815,17 @@ create_thread_context_frame(mach_port_t thread,
 
   stackp = TRUNC_DOWN(stackp, sizeof(*mc), C_STK_ALIGN);
 #ifdef X8664
-  mc = (struct mcontext64 *) ptr_from_lispobj(stackp);
+  mc = (mcontext_t) ptr_from_lispobj(stackp);
 #else
   mc = (struct mcontext *) ptr_from_lispobj(stackp);
 #endif
   
-  bcopy(ts,&(mc->ss),sizeof(*ts));
+  bcopy(ts,&(mc->__ss),sizeof(*ts));
 
   thread_state_count = x86_FLOAT_STATE64_COUNT;
   thread_get_state(thread,
 		   x86_FLOAT_STATE64,
-		   (thread_state_t)&(mc->fs),
+		   (thread_state_t)&(mc->__fs),
 		   &thread_state_count);
 
 
@@ -1835,7 +1840,7 @@ create_thread_context_frame(mach_port_t thread,
 #else
 		   x86_EXCEPTION_STATE,
 #endif
-		   (thread_state_t)&(mc->es),
+		   (thread_state_t)&(mc->__es),
 		   &thread_state_count);
 
 
@@ -1893,7 +1898,7 @@ setup_signal_frame(mach_port_t thread,
   pseudosigcontext = create_thread_context_frame(thread, &stackp, &info, tcr,  ts);
   bzero(info, sizeof(*info));
   info->si_code = code;
-  info->si_addr = (void *)(UC_MCONTEXT(pseudosigcontext)->es.faultvaddr);
+  info->si_addr = (void *)(UC_MCONTEXT(pseudosigcontext)->__es.__faultvaddr);
   info->si_signo = signum;
   pseudosigcontext->uc_onstack = 0;
   pseudosigcontext->uc_sigmask = (sigset_t) 0;
@@ -1907,15 +1912,15 @@ setup_signal_frame(mach_port_t thread,
      args) when the thread's resumed.
   */
 
-  new_ts.rip = (natural) handler_address;
+  new_ts.__rip = (natural) handler_address;
   stackpp = (natural *)stackp;
   *--stackpp = (natural)pseudo_sigreturn;
   stackp = (natural)stackpp;
-  new_ts.rdi = signum;
-  new_ts.rsi = (natural)info;
-  new_ts.rdx = (natural)pseudosigcontext;
-  new_ts.rcx = (natural)tcr;
-  new_ts.rsp = stackp;
+  new_ts.__rdi = signum;
+  new_ts.__rsi = (natural)info;
+  new_ts.__rdx = (natural)pseudosigcontext;
+  new_ts.__rcx = (natural)tcr;
+  new_ts.__rsp = stackp;
 
 
 #ifdef X8664
@@ -1966,7 +1971,7 @@ setup_signal_frame(mach_port_t thread,
 */
 
 #ifdef X8664
-#define ts_pc(t) t.rip
+#define ts_pc(t) t.__rip
 #else
 #define ts_pc(t) t.eip
 #endif

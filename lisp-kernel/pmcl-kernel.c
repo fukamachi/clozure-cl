@@ -555,7 +555,7 @@ address_unmapped_p(char *addr, natural len)
 #else
   mach_msg_type_number_t vm_info_size = VM_REGION_BASIC_INFO_COUNT;
 #endif
-  port_t vm_object_name = (port_t) 0;
+  mach_port_t vm_object_name = (mach_port_t) 0;
   kern_return_t kret;
 
   kret = vm_region(mach_task_self(),
