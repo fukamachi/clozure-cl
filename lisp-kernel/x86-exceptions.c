@@ -865,7 +865,9 @@ signal_handler(int signum, siginfo_t *info, ExceptionInformation  *context, TCR 
     set_gs_address(tcr);
   }
 #endif
+#ifndef DARWIN
   SIGRETURN(context);
+#endif
 }
 
 #ifdef DARWIN
@@ -932,6 +934,7 @@ copy_ucontext(ExceptionInformation *context, LispObj *current, copy_ucontext_las
   dest->uc_stack.ss_sp = 0;
   dest->uc_stack.ss_size = 0;
   dest->uc_stack.ss_flags = 0;
+  dest->uc_link = NULL;
   return (LispObj *)dest;
 }
 
