@@ -70,12 +70,24 @@ typedef u32_t unsigned_of_pointer_size;
 #if WORD_SIZE == 64
 #ifdef _STRUCT_UCONTEXT64
 typedef _STRUCT_UCONTEXT64 ExceptionInformation;
+typedef _STRUCT_MCONTEXT64 *MCONTEXT_T;
 #else /* _STRUCT_UCONTEXT64 */
 typedef struct ucontext64 ExceptionInformation;
+typedef struct mcontext64 *MCONTEXT_T;
 #endif /* _STRUCT_UCONTEXT64 */
 #define UC_MCONTEXT(UC) UC->uc_mcontext64
 #else /* WORD_SIZE */
+#ifdef _STRUCT_UCONTEXT
+typedef _STRUCT_UCONTEXT ExceptionInformation;
+typedef _STRUCT_MCONTEXT *MCONTEXT_T;
+#else
 typedef struct ucontext ExceptionInformation;
+typedef struct mcontext *MCONTEXT_T;
+#define __ss ss
+#define __es es
+#define __fs fs
+#define __vs vs
+#endif
 #define UC_MCONTEXT(UC) UC->uc_mcontext
 #endif /* WORD_SIZE */
 #endif /* PPC */

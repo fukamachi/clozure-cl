@@ -2272,16 +2272,12 @@ restore_mach_thread_state(mach_port_t thread, ExceptionInformation *pseudosigcon
 {
   int i, j;
   kern_return_t kret;
-#ifdef PPC64
-  struct mcontext64 *mc = UC_MCONTEXT(pseudosigcontext);
-#else
-  struct mcontext * mc = UC_MCONTEXT(pseudosigcontext);
-#endif
+  MCONTEXT_T mc = UC_MCONTEXT(pseudosigcontext);
 
   /* Set the thread's FP state from the pseudosigcontext */
   kret = thread_set_state(thread,
                           PPC_FLOAT_STATE,
-                          (thread_state_t)&(mc->fs),
+                          (thread_state_t)&(mc->__fs),
                           PPC_FLOAT_STATE_COUNT);
 
   MACH_CHECK_ERROR("setting thread FP state", kret);
@@ -2290,12 +2286,12 @@ restore_mach_thread_state(mach_port_t thread, ExceptionInformation *pseudosigcon
 #ifdef PPC64
   kret = thread_set_state(thread,
                           PPC_THREAD_STATE64,
-                          (thread_state_t)&(mc->ss),
+                          (thread_state_t)&(mc->__ss),
                           PPC_THREAD_STATE64_COUNT);
 #else
   kret = thread_set_state(thread, 
                           MACHINE_THREAD_STATE,
-                          (thread_state_t)&(mc->ss),
+                          (thread_state_t)&(mc->__ss),
                           MACHINE_THREAD_STATE_COUNT);
 #endif
   MACH_CHECK_ERROR("setting thread state", kret);
@@ -2347,11 +2343,7 @@ create_thread_context_frame(mach_port_t thread,
   kern_return_t result;
   int i,j;
   ExceptionInformation *pseudosigcontext;
-#ifdef PPC64
-  struct mcontext64 *mc;
-#else
-  struct mcontext *mc;
-#endif
+  MCONTEXT_T mc;
   natural stackp, backlink;
 
 #ifdef PPC64
@@ -2372,24 +2364,20 @@ create_thread_context_frame(mach_port_t thread,
     get_tcr(true);
     Bug(NULL, "Exception thread can't obtain thread state, Mach result = %d", result);
   }
-  stackp = ts.r1;
+  stackp = ts.__r1;
   backlink = stackp;
   stackp = TRUNC_DOWN(stackp, C_REDZONE_LEN, C_STK_ALIGN);
   stackp -= sizeof(*pseudosigcontext);
   pseudosigcontext = (ExceptionInformation *) ptr_from_lispobj(stackp);
 
   stackp = TRUNC_DOWN(stackp, sizeof(*mc), C_STK_ALIGN);
-#ifdef PPC64
-  mc = (struct mcontext64 *) ptr_from_lispobj(stackp);
-#else
-  mc = (struct mcontext *) ptr_from_lispobj(stackp);
-#endif
-  bcopy(&ts,&(mc->ss),sizeof(ts));
+  mc = (MCONTEXT_T) ptr_from_lispobj(stackp);
+  bcopy(&ts,&(mc->__ss),sizeof(ts));
 
   thread_state_count = PPC_FLOAT_STATE_COUNT;
   thread_get_state(thread,
 		   PPC_FLOAT_STATE,
-		   (thread_state_t)&(mc->fs),
+		   (thread_state_t)&(mc->__fs),
 		   &thread_state_count);
 
 
@@ -2404,7 +2392,7 @@ create_thread_context_frame(mach_port_t thread,
 #else
 		   PPC_EXCEPTION_STATE,
 #endif
-		   (thread_state_t)&(mc->es),
+		   (thread_state_t)&(mc->__es),
 		   &thread_state_count);
 
 
@@ -2469,17 +2457,17 @@ setup_signal_frame(mach_port_t thread,
      args) when the thread's resumed.
   */
 
-  ts.srr0 = (natural) handler_address;
-  ts.srr1 = (int) xpMSR(pseudosigcontext) & ~MSR_FE0_FE1_MASK;
-  ts.r1 = stackp;
-  ts.r3 = signum;
-  ts.r4 = (natural)pseudosigcontext;
-  ts.r5 = (natural)tcr;
-  ts.lr = (natural)pseudo_sigreturn;
+  ts.__srr0 = (natural) handler_address;
+  ts.__srr1 = (int) xpMSR(pseudosigcontext) & ~MSR_FE0_FE1_MASK;
+  ts.__r1 = stackp;
+  ts.__r3 = signum;
+  ts.__r4 = (natural)pseudosigcontext;
+  ts.__r5 = (natural)tcr;
+  ts.__lr = (natural)pseudo_sigreturn;
 
 
 #ifdef PPC64
-  ts.r13 = xpGPR(pseudosigcontext,13);
+  ts.__r13 = xpGPR(pseudosigcontext,13);
   thread_set_state(thread,
                    PPC_THREAD_STATE64,
                    (thread_state_t)&ts,
@@ -2528,9 +2516,9 @@ thread_set_fp_exceptions_enabled(mach_port_t thread, Boolean enabled)
 		   (thread_state_t)&ts,
 		   &thread_state_count);
   if (enabled) {
-    ts.srr1 |= MSR_FE0_FE1_MASK;
+    ts.__srr1 |= MSR_FE0_FE1_MASK;
   } else {
-    ts.srr1 &= ~MSR_FE0_FE1_MASK;
+    ts.__srr1 &= ~MSR_FE0_FE1_MASK;
   }
   /* 
      Hack-o-rama warning (isn't it about time for such a warning?):
@@ -2548,14 +2536,14 @@ thread_set_fp_exceptions_enabled(mach_port_t thread, Boolean enabled)
      just adjust ts.srr0 to skip over the UUO.
   */
   {
-    lisp_frame *tos = (lisp_frame *)ts.r1,
+    lisp_frame *tos = (lisp_frame *)ts.__r1,
       *next_frame = tos->backlink;
     
     if (tos == (next_frame -1)) {
-      ts.srr0 = tos->savelr;
-      ts.r1 = (LispObj) next_frame;
+      ts.__srr0 = tos->savelr;
+      ts.__r1 = (LispObj) next_frame;
     } else {
-      ts.srr0 += 4;
+      ts.__srr0 += 4;
     }
   }
   thread_set_state(thread, 
