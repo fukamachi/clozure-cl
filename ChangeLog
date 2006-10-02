@@ -1,3 +1,17 @@
+2006-10-02 02:46  gb
+
+	* lisp-kernel/: lisptypes.h, x86-exceptions.c, x86-exceptions.h:
+	Try to make x86-64 version compile under 10.4 again; see if this
+	breaks post-10.4 compilation.
+
+2006-10-02 02:33  gb
+
+	* lisp-kernel/: lisptypes.h, pmcl-kernel.c, x86-exceptions.c,
+	x86-exceptions.h: Change things so that they compile for x86-64 on
+	systems later than 10.4.  Almost certainly break 10.4 compilation
+	in the process.  (Thanks, Apple!  Any time I can cause you to waste
+	hours on crap like this, just let me know!)
+
 2006-09-27 20:33  gb
 
 	* lib/misc.lisp: DOCUMENTATION works on character-encodings.
