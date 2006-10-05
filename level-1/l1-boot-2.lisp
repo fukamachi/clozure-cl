@@ -73,6 +73,17 @@ present and false otherwise. This variable shouldn't be set by user code.")
 (defvar *stdout* ())
 (defvar *stderr* ())
 
+
+(defun set-basic-stream-prototype (class)
+  (when (subtypep class 'basic-stream)
+    (setf (%class.prototype class) (or (%class.prototype class)
+                                       (allocate-basic-stream class)))
+    (dolist (subclass (class-direct-subclasses class))
+      (set-basic-stream-prototype subclass))))
+
+(set-basic-stream-prototype (find-class 'basic-stream))
+
+
 ;;; The hard parts here have to do with setting up *TERMINAL-IO*.
 ;;; Note that opening /dev/tty can fail, and that failure would
 ;;; be reported as a negative return value from FD-OPEN.
