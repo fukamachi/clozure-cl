@@ -1,3 +1,26 @@
+2006-10-05 06:09  gb
+
+	* lib/macros.lisp: WITH-ENCODED-CSTR(s).  (Hey, it's a start.)
+
+2006-10-05 06:09  gb
+
+	* lib/chars.lisp: CHAR-NAME: try to use at least 4 hex digits for
+	#\U+xxxx syntax.
+
+2006-10-05 06:08  gb
+
+	* level-1/l1-unicode.lisp: UCS-2, some other changes.
+
+2006-10-05 06:07  gb
+
+	* level-1/l1-sysio.lisp: Try to get
+	line-termination/external-format stuff working.
+
+2006-10-05 05:35  gb
+
+	* level-1/l1-streams.lisp: Assume that character data is always
+	encoded as one or more 8-bit octets.
+
 2006-10-05 04:59  gb
 
 	* level-1/l1-boot-2.lisp: Set class-prototypes for basic-streams
