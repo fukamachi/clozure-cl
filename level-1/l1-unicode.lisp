@@ -88,6 +88,11 @@
   ;; If non-nil, the value should be the name of the an encoding
   ;; that implements this encoding with swapped byte order.
   (use-byte-order-mark nil)
+  ;; Can we reliably (and dumbly) assume that code-units that appear
+  ;; to represent #\u+000a and #\u+000d in fact represent LF and CR ?
+  (allows-line-termination-detection t)
+  ;; By what other MIME names is this encoding known ?
+  (aliases nil)
   (documentation nil)
   )
 
@@ -108,9 +113,13 @@
 
 (defmacro define-character-encoding (name doc &rest args &key &allow-other-keys)
   (setq name (intern (string name) "KEYWORD"))
-  `(progn
-    (setf (get-character-encoding ,name)
-     (make-character-encoding :name ,name  :documentation ',doc ,@args))))
+  (let* ((encoding (gensym))
+         (alias (gensym)))
+  `(let* ((,encoding (make-character-encoding :name ,name :documentation ,doc ,@args)))
+    (setf (get-character-encoding ,name) ,encoding)
+    (dolist (,alias (character-encoding-aliases ,encoding))
+      (setf (get-character-encoding ,alias) ,encoding))
+    ',name)))
 
 (defun encoding-name (encoding)
   (character-encoding-name (or encoding (get-character-encoding nil))))
@@ -122,6 +131,11 @@
   "An 8-bit, fixed-width character encoding in which all character
 codes map to their Unicode equivalents. Intended to support most
 characters used in most Western European languages."
+
+  ;; The NIL alias is used internally to mean that ISO-8859-1 is
+  ;; the "null" 8-bit encoding
+  :aliases '(nil :iso_8859-1 :latin1 :l1 :ibm819 :cp819 :csISOLatin1)
+
   :stream-encode-function
   (nfunction
    iso-8859-1-stream-encode
@@ -214,9 +228,7 @@ characters used in most Western European languages."
   :literal-char-code-limit 256
   )
 
-;;; Make :ISO-8859-1 the "null" encoding (not necessarily the default).
-(setf (get-character-encoding nil)
-      (get-character-encoding :iso-8859-1))
+
 
 
 
@@ -294,6 +306,7 @@ characters used in most Western European languages."
 map to their Unicode equivalents and other codes map to other Unicode
 character values.  Intended to provide most characters found in most
 languages used in Central/Eastern Europe."
+  :aliases '(:iso_8859-2 :latin-2 :l2 :csISOLatin2)
   :stream-encode-function
   (nfunction
    iso-8859-2-stream-encode
@@ -494,6 +507,8 @@ languages used in Central/Eastern Europe."
 map to their Unicode equivalents and other codes map to other Unicode
 character values.  Intended to provide most characters found in most
 languages used in Southern Europe."
+
+  :aliases '(:iso_8859-3 :latin3 :l3 :csisolatin3)
   :stream-encode-function
   (nfunction
    iso-8859-3-stream-encode
@@ -708,6 +723,8 @@ languages used in Southern Europe."
 map to their Unicode equivalents and other codes map to other Unicode
 character values.  Intended to provide most characters found in most
 languages used in Northern Europe."
+
+  :aliases '(:iso_8859-4 :latin4 :l4 :csisolatin4)
   :stream-encode-function
   (nfunction
    iso-8859-4-stream-encode
@@ -1629,51 +1646,51 @@ pair of 16-bit words.  The endianness of the encoded data is
 indicated by the endianness of a byte-order-mark character (#\u+feff)
 prepended to the data; in the absence of such a character on input,
 the data is assumed to be in big-endian order."    
-    :max-units-per-char 2
-    :code-unit-size 16
-    :native-endianness t                ;not necessarily true.
-    :stream-encode-function
-    #'utf-16-stream-encode
-    :stream-decode-function
-    #'utf-16-stream-decode
-    :vector-encode-function
-    (nfunction
-     utf-16-vector-encode
-     (lambda (string vector idx &optional (start 0) (end (length string)))
-       (declare (type (simple-array (unsigned-byte 8) (*)) vector)
-                (fixnum idx))
-       (when (> end start)
-         (setf (aref vector idx) byte-order-mark-char-code)
-         (incf idx))
-       (do* ((i start (1+ i)))
-            ((>= i end) idx)
-         (let* ((char (schar string i))
-                (code (char-code char))
-                (highbits (- code #x10000)))
-           (declare (type (mod #x110000) code)
-                    (fixnum highbits))
-           (cond ((< highbits 0)
-                  (setf (aref vector idx) code)
-                  (incf idx))
-                 (t
-                  (setf (aref vector idx) (logior #xd800 (the fixnum (ash highbits -10))))
-                  (incf idx)
-                  (setf (aref vector idx) (logior #xdc00 (the fixnum (logand highbits #x3ff))))
-                  (incf idx)))))))
-    :vector-decode-function
-    (nfunction
-     utf-16-vector-decode 
-     (lambda (vector idx nunits string)
-       (declare (type (simple-array (unsigned-byte 16) (*)) vector)
-                (type index idx))
-       (let* ((len (length vector))
-              (swap (if (> len idx)
-                      (case (aref vector idx)
-                        (#.byte-order-mark-char-code
-                         (incf idx) nil)
-                        (#.swapped-byte-order-mark-char-code
-                         (incf idx t))
-                        (t #+little-endian-target t)))))
+  :max-units-per-char 2
+  :code-unit-size 16
+  :native-endianness t                  ;not necessarily true.
+  :stream-encode-function
+  #'utf-16-stream-encode
+  :stream-decode-function
+  #'utf-16-stream-decode
+  :vector-encode-function
+  (nfunction
+   utf-16-vector-encode
+   (lambda (string vector idx &optional (start 0) (end (length string)))
+     (declare (type (simple-array (unsigned-byte 8) (*)) vector)
+              (fixnum idx))
+     (when (> end start)
+       (setf (aref vector idx) byte-order-mark-char-code)
+       (incf idx))
+     (do* ((i start (1+ i)))
+          ((>= i end) idx)
+       (let* ((char (schar string i))
+              (code (char-code char))
+              (highbits (- code #x10000)))
+         (declare (type (mod #x110000) code)
+                  (fixnum highbits))
+         (cond ((< highbits 0)
+                (setf (aref vector idx) code)
+                (incf idx))
+               (t
+                (setf (aref vector idx) (logior #xd800 (the fixnum (ash highbits -10))))
+                (incf idx)
+                (setf (aref vector idx) (logior #xdc00 (the fixnum (logand highbits #x3ff))))
+                (incf idx)))))))
+  :vector-decode-function
+  (nfunction
+   utf-16-vector-decode 
+   (lambda (vector idx nunits string)
+     (declare (type (simple-array (unsigned-byte 16) (*)) vector)
+              (type index idx))
+     (let* ((len (length vector))
+            (swap (if (> len idx)
+                    (case (aref vector idx)
+                      (#.byte-order-mark-char-code
+                       (incf idx) nil)
+                      (#.swapped-byte-order-mark-char-code
+                       (incf idx t))
+                      (t #+little-endian-target t)))))
 
        (do* ((i 0 (1+ i))
              (index idx (1+ index)))
@@ -1703,21 +1720,21 @@ the data is assumed to be in big-endian order."
                (if char
                  (setf (schar string i) char)
                  (return (values nil idx))))))))))
-    :memory-encode-function
-    (nfunction
-     utf-16-memory-encode
-     (lambda (string pointer idx &optional (start 0) (end (length string)))
-       (declare (fixnum idx))
-       (when (> end start)
-         (setf (%get-unsigned-word pointer (+ idx idx))
-               byte-order-mark-char-code)
-         (incf idx))
-       (do* ((i start (1+ i)))
-            ((>= i end) idx)
-         (let* ((code (char-code (schar string i)))
-                (highbits (- code #x10000))
+  :memory-encode-function
+  (nfunction
+   utf-16-memory-encode
+   (lambda (string pointer idx &optional (start 0) (end (length string)))
+     (declare (fixnum idx))
+     (when (> end start)
+       (setf (%get-unsigned-word pointer (+ idx idx))
+             byte-order-mark-char-code)
+       (incf idx))
+     (do* ((i start (1+ i)))
+          ((>= i end) idx)
+       (let* ((code (char-code (schar string i)))
+              (highbits (- code #x10000))
               (p (+ idx idx)))
-           (declare (type (mod #x110000) code)
+         (declare (type (mod #x110000) code)
                   (fixnum p highbits))
          (cond ((< highbits 0)
                 (setf (%get-unsigned-word pointer p) code)
@@ -1731,13 +1748,13 @@ the data is assumed to be in big-endian order."
                 (setf (%get-unsigned-word pointer p) (logior #xdc00 (the fixnum (logand highbits #x3ff))))
                 (incf idx)
                 (incf p 2)))))))
-    :memory-decode-function
-    (nfunction
-     utf-16-memory-decode
-     (lambda (pointer nunits idx string)
-       (declare (fixnum nunits idx))
-       (let* ((swap (when (> nunits 0)
-                      (case (%get-unsigned-word pointer (+ idx idx))
+  :memory-decode-function
+  (nfunction
+   utf-16-memory-decode
+   (lambda (pointer nunits idx string)
+     (declare (fixnum nunits idx))
+     (let* ((swap (when (> nunits 0)
+                    (case (%get-unsigned-word pointer (+ idx idx))
                       (#.byte-order-mark-char-code
                        (incf idx)
                        (decf nunits)
@@ -1761,64 +1778,66 @@ the data is assumed to be in big-endian order."
                      (code-char 1st-unit)
                      (if (< 1st-unit #xdc00)
                        (let* ((2nd-unit (%get-unsigned-byte pointer (incf p 2))))
-                           (declare (type (unsigned-byte 16) 2nd-unit))
-                           (if swap (setq 2nd-unit (%swap-u16 2nd-unit)))
-                           (incf index)
-                           (if (and (>= 2nd-unit #xdc00)
-                                    (< 2nd-unit #xe000))
-                             (code-char (the (unsigned-byte 21)
-                                          (logior
-                                           (the (unsigned-byte 20) (ash (the (unsigned-byte 10)
-                                                                          (- 1st-unit #xd800))
-                                                                        10))
-                                           (the (unsigned-byte 10) (- 2nd-unit #xdc00)))))))))))
+                         (declare (type (unsigned-byte 16) 2nd-unit))
+                         (if swap (setq 2nd-unit (%swap-u16 2nd-unit)))
+                         (incf index)
+                         (if (and (>= 2nd-unit #xdc00)
+                                  (< 2nd-unit #xe000))
+                           (code-char (the (unsigned-byte 21)
+                                        (logior
+                                         (the (unsigned-byte 20) (ash (the (unsigned-byte 10)
+                                                                        (- 1st-unit #xd800))
+                                                                      10))
+                                         (the (unsigned-byte 10) (- 2nd-unit #xdc00)))))))))))
              (if char
                (setf (schar string i) char)
                (return (values nil idx)))))))))
-    :units-in-string-function
-    ;; Note that this does -not- include the BOM.
-    #'utf-16-units-in-string
-    :length-of-vector-encoding-function
-    (nfunction
-     utf-16-length-of-vector-encoding
-     (lambda (vector &optional (start 0) (end (length vector)))
-       (declare (type (simple-array (unsigned-byte 16) (*)) vector))
-       (let* ((swap (when (> end start)
-                      (case (aref vector start)
-                        (#.byte-order-mark-char-code
-                         (incf start)
-                         nil)
-                        (#.swapped-byte-order-mark-char-code
-                         (incf start)
-                         t)
-                        (t #+little-endian-target t)))))
-         (do* ((i start)
-               (nchars 0 (1+ nchars)))
-              ((>= i end)
-               (if (= i end) nchars))
-           (let* ((code (aref vector i)))
-             (declare (type (unsigned-byte 16) code))
-             (if swap (setq code (%swap-u16 code)))
-             (incf i
-                   (if (or (< code #xd800)
-                           (>= code #xe000))
-                     1
-                     2)))))))
-    :length-of-memory-encoding-function
-    (nfunction
-     utf-16-length-of-memory-encoding
-     (lambda (pointer nunits &optional (start 0))
-       (let* ((swap (when (> nunits 1)
-                      (case (%get-unsigned-word pointer (+ start start))
-                        (#.byte-order-mark-char-code
-                         (incf start)
-                         (decf nunits)
-                         nil)
-                        (#.swapped-byte-order-mark-char-code
-                         (incf start)
-                         (decf nunits)
-                         t)
-                        (t #+little-endian-target t)))))
+  :units-in-string-function
+  #'(lambda (&rest args)
+      (declare (dynamic-extent args))
+      ;; Add one for the BOM.
+      (1+ (apply #'utf-16-units-in-string args)))
+  :length-of-vector-encoding-function
+  (nfunction
+   utf-16-length-of-vector-encoding
+   (lambda (vector &optional (start 0) (end (length vector)))
+     (declare (type (simple-array (unsigned-byte 16) (*)) vector))
+     (let* ((swap (when (> end start)
+                    (case (aref vector start)
+                      (#.byte-order-mark-char-code
+                       (incf start)
+                       nil)
+                      (#.swapped-byte-order-mark-char-code
+                       (incf start)
+                       t)
+                      (t #+little-endian-target t)))))
+       (do* ((i start)
+             (nchars 0 (1+ nchars)))
+            ((>= i end)
+             (if (= i end) nchars))
+         (let* ((code (aref vector i)))
+           (declare (type (unsigned-byte 16) code))
+           (if swap (setq code (%swap-u16 code)))
+           (incf i
+                 (if (or (< code #xd800)
+                         (>= code #xe000))
+                   1
+                   2)))))))
+  :length-of-memory-encoding-function
+  (nfunction
+   utf-16-length-of-memory-encoding
+   (lambda (pointer nunits &optional (start 0))
+     (let* ((swap (when (> nunits 1)
+                    (case (%get-unsigned-word pointer (+ start start))
+                      (#.byte-order-mark-char-code
+                       (incf start)
+                       (decf nunits)
+                       nil)
+                      (#.swapped-byte-order-mark-char-code
+                       (incf start)
+                       (decf nunits)
+                       t)
+                      (t #+little-endian-target t)))))
        (do* ((i start)
              (p (+ start start) (+ p 2))
              (nchars 0 (1+ nchars)))
@@ -1833,20 +1852,445 @@ the data is assumed to be in big-endian order."
                                (>= code #xe000))
                          1
                          2))))))))
-    :literal-char-code-limit #x10000
-    :use-byte-order-mark
-    #+big-endian-target :utf-16le
-    #+little-endian-target :utf-16be
-    )
+  :literal-char-code-limit #x10000
+  :use-byte-order-mark
+  #+big-endian-target :utf-16le
+  #+little-endian-target :utf-16be
+  )
 
 
+(defun ucs-2-stream-encode (char write-function stream)
+  (let* ((code (char-code char)))
+    (declare (type (mod #x110000) code))
+    (if (< code #x10000)
+      (progn
+        (funcall write-function stream code)
+        1))))
 
+(defun ucs-2-stream-decode (1st-unit next-unit-function stream)
+  (declare (type (unsigned-byte 16) 1st-unit)
+           (ignore next-unit-function stream))
+  ;; CODE-CHAR returns NIL on either half of a surrogate pair.
+  (code-char 1st-unit))
+
+
+(defun ucs-2-units-in-string (string &optional (start 0) (end (length string)))
+  (when (>= end start)
+    (do* ((i start (1+ i)))
+         ((= i end) (- end start))
+      (let* ((code (char-code (schar string i))))
+        (declare (type (mod #x110000) code))
+        (unless (< code #x10000) (return nil))))))
+
+;;; UCS-2, native byte order
+(define-character-encoding #+big-endian-target :ucs-2be #-big-endian-target :ucs-2le
+  #+big-endian-target
+  "A 16-bit, variable-length encoding in which characters with
+CHAR-CODEs less than #x10000 can be encoded in a single 16-bit
+little-endian word. The encoded data is implicitly big-endian;
+byte-order-mark characters are not interpreted on input or prepended
+to output."
+  #+little-endian-target
+  "A 16-bit, variable-length encoding in which characters with
+CHAR-CODEs less than #x10000 can be encoded in a single 16-bit
+little-endian word. The encoded data is implicitly little-endian;
+byte-order-mark characters are not interpreted on input or prepended
+to output."
+  :max-units-per-char 1
+  :code-unit-size 16
+  :native-endianness t
+  :stream-encode-function
+  #'ucs-2-stream-encode
+  :stream-decode-function
+  #'ucs-2-stream-decode
+  :vector-encode-function
+  (nfunction
+   native-ucs-2-vector-encode
+   (lambda (string vector idx &optional (start 0) (end (length string)))
+     (declare (type (simple-array (unsigned-byte 16) (*)) vector)
+              (fixnum idx))
+     (do* ((i start (1+ i)))
+          ((>= i end) idx)
+       (let* ((char (schar string i))
+              (code (char-code char)))
+         (declare (type (mod #x110000) code)
+                  (fixnum highbits))
+         (cond ((< code #x10000)
+                (setf (aref vector idx) code)
+                (incf idx))
+               (t (return nil)))))))
+  :vector-decode-function
+  (nfunction
+   native-ucs-2-vector-decode
+   (lambda (vector idx nunits string)
+     (declare (type (simple-array (unsigned-byte 16) (*)) vector)
+              (type index idx))
+     (do* ((i 0 (1+ i))
+           (len (length vector))
+           (index idx (1+ index)))
+          ((>= i nunits) (values string index))
+       (declare (fixnum i len index))
+       (if (>= index len)
+         (values nil idx)
+         (let* ((char (code-char (the (unsigned-byte 16) (aref vector index)))))
+           (if char
+             (setf (schar string i) char)
+             (return (values nil idx))))))))
+  :memory-encode-function
+  (nfunction
+   native-ucs-2-memory-encode
+   (lambda (string pointer idx &optional (start 0) (end (length string)))
+     (declare (fixnum idx))
+     (do* ((i start (1+ i)))
+          ((>= i end) idx)
+       (let* ((code (char-code (schar string i)))
+              (p (+ idx idx)))
+         (declare (type (mod #x110000) code)
+                  (fixnum p highbits))
+         (cond ((< code #x10000)
+                (setf (%get-unsigned-word pointer p) code)
+                (incf idx)
+                (incf p 2))
+               (t
+                (return nil)))))))
+  :memory-decode-function
+  (nfunction
+   native-ucs-2-memory-decode
+   (lambda (pointer nunits idx string)
+     (declare (fixnum nunits idx))
+     (do* ((i 0 (1+ i))
+           (index idx (1+ index))
+           (p (+ index index) (+ p 2)))
+          ((>= i nunits) (values string index))
+       (declare (fixnum i index p))
+       (let* ((1st-unit (%get-unsigned-word pointer p)))
+         (declare (type (unsigned-byte 16) 1st-unit))
+         (let* ((char (code-char 1st-unit)))
+             (setf (schar string i) char)
+             (return (values nil idx)))))))
+  :units-in-string-function
+  #'ucs-2-units-in-string
+  :length-of-vector-encoding-function
+  (nfunction
+   native-ucs-2-length-of-vector-encoding
+   (lambda (vector &optional (start 0) (end (length vector)))
+     (when (>= end start)
+       (- end start))))
+  :length-of-memory-encoding-function
+  (nfunction
+   native-ucs-2-length-of-memory-encoding
+   (lambda (pointer nunits &optional start)
+     (declare (ignore pointer start))
+     nunits))
+  :literal-char-code-limit #x10000
+  )
+
+;;; UCS-2, reversed byte order
+(define-character-encoding #+big-endian-target :ucs-2le #-big-endian-target :ucs-2be
+  #+little-endian-target
+  "A 16-bit, variable-length encoding in which characters with
+CHAR-CODEs less than #x10000 can be encoded in a single 16-bit
+little-endian word. The encoded data is implicitly big-endian;
+byte-order-mark characters are not interpreted on input or prepended
+to output."
+  #+big-endian-target
+  "A 16-bit, variable-length encoding in which characters with
+CHAR-CODEs less than #x10000 can be encoded in a single 16-bit
+little-endian word. The encoded data is implicitly little-endian;
+byte-order-mark characters are not interpreted on input or prepended
+to output."
+  :max-units-per-char 1
+  :code-unit-size 16
+  :native-endianness nil
+  :stream-encode-function
+  #'ucs-2-stream-encode
+  :stream-decode-function
+  #'ucs-2-stream-decode
+  :vector-encode-function
+  (nfunction
+   reversed-ucs-2-vector-encode
+   (lambda (string vector idx &optional (start 0) (end (length string)))
+     (declare (type (simple-array (unsigned-byte 16) (*)) vector)
+              (fixnum idx))
+     (do* ((i start (1+ i)))
+          ((>= i end) idx)
+       (let* ((char (schar string i))
+              (code (char-code char)))
+         (declare (type (mod #x110000) code)
+                  (fixnum highbits))
+         (cond ((< code #x10000)
+                (setf (aref vector idx) (%swap-u16 code))
+                (incf idx))
+               (t (return nil)))))))
+  :vector-decode-function
+  (nfunction
+   reversed-ucs-2-vector-decode
+   (lambda (vector idx nunits string)
+     (declare (type (simple-array (unsigned-byte 16) (*)) vector)
+              (type index idx))
+     (do* ((i 0 (1+ i))
+           (len (length vector))
+           (index idx (1+ index)))
+          ((>= i nunits) (values string index))
+       (declare (fixnum i len index))
+       (if (>= index len)
+         (values nil idx)
+         (let* ((char (code-char (the (unsigned-byte 16) (%swap-u16 (aref vector index))))))
+           (if char
+             (setf (schar string i) char)
+             (return (values nil idx))))))))
+  :memory-encode-function
+  (nfunction
+   reversed-ucs-2-memory-encode
+   (lambda (string pointer idx &optional (start 0) (end (length string)))
+     (declare (fixnum idx))
+     (do* ((i start (1+ i)))
+          ((>= i end) idx)
+       (let* ((code (char-code (schar string i)))
+              (p (+ idx idx)))
+         (declare (type (mod #x110000) code)
+                  (fixnum p highbits))
+         (cond ((< code #x10000)
+                (setf (%get-unsigned-word pointer p) (%swap-u16 code))
+                (incf idx)
+                (incf p 2))
+               (t
+                (return nil)))))))
+  :memory-decode-function
+  (nfunction
+   reversed-ucs-2-memory-decode
+   (lambda (pointer nunits idx string)
+     (declare (fixnum nunits idx))
+     (do* ((i 0 (1+ i))
+           (index idx (1+ index))
+           (p (+ index index) (+ p 2)))
+          ((>= i nunits) (values string index))
+       (declare (fixnum i index p))
+       (let* ((1st-unit (%swap-u16 (%get-unsigned-word pointer p))))
+         (declare (type (unsigned-byte 16) 1st-unit))
+         (let* ((char (code-char 1st-unit)))
+           (if char
+             (setf (schar string i) char)
+             (return (values nil idx))))))))
+  :units-in-string-function
+  #'ucs-2-units-in-string
+  :length-of-vector-encoding-function
+  (nfunction
+   reversed-ucs-2-length-of-vector-encoding
+   (lambda (vector &optional (start 0) (end (length vector)))
+     (when (>= end start)
+       (- end start))))
+  :length-of-memory-encoding-function
+  (nfunction
+   reversed-ucs-2-length-of-memory-encoding
+   (lambda (pointer nunits &optional start)
+     (declare (ignore pointer start))
+     nunits))
+  :literal-char-code-limit #x10000
+  )
+
+(define-character-encoding :ucs-2
+    "A 16-bit, fixed-length encoding in which characters with
+CHAR-CODEs less than #x10000 can be encoded in a single 16-bit words.
+The endianness of the encoded data is indicated by the endianness of a
+byte-order-mark character (#\u+feff) prepended to the data; in the
+absence of such a character on input, the data is assumed to be in
+big-endian order."
+  :max-units-per-char 1
+  :code-unit-size 16
+  :native-endianness t                  ;not necessarily true.
+  :stream-encode-function
+  #'ucs-2-stream-encode
+  :stream-decode-function
+  #'ucs-2-stream-decode
+  :vector-encode-function
+  (nfunction
+   ucs-2-vector-encode
+   (lambda (string vector idx &optional (start 0) (end (length string)))
+     (declare (type (simple-array (unsigned-byte 8) (*)) vector)
+              (fixnum idx))
+     (when (> end start)
+       (setf (aref vector idx) byte-order-mark-char-code)
+       (incf idx))
+     (do* ((i start (1+ i)))
+          ((>= i end) idx)
+       (let* ((char (schar string i))
+              (code (char-code char)))
+         (declare (type (mod #x110000) code)
+                  (fixnum highbits))
+         (cond ((< code #x10000)
+                (setf (aref vector idx) code)
+                (incf idx))
+               (t
+                (return nil)))))))
+  :vector-decode-function
+  (nfunction
+   ucs-2-vector-decode 
+   (lambda (vector idx nunits string)
+     (declare (type (simple-array (unsigned-byte 16) (*)) vector)
+              (type index idx))
+     (let* ((len (length vector))
+            (swap (if (> len idx)
+                    (case (aref vector idx)
+                      (#.byte-order-mark-char-code
+                       (incf idx) nil)
+                      (#.swapped-byte-order-mark-char-code
+                       (incf idx t))
+                      (t #+little-endian-target t)))))
+
+       (do* ((i 0 (1+ i))
+             (index idx (1+ index)))
+            ((>= i nunits) (values string index))
+         (declare (fixnum i len index))
+         (if (>= index len)
+           (values nil idx)
+           (let* ((1st-unit (aref vector index)))
+             (declare (type (unsigned-byte 16) 1st-unit))
+             (if swap (setq 1st-unit (%swap-u16 1st-unit)))
+             (let* ((char (code-char 1st-unit)))
+               (if char
+                 (setf (schar string i) char)
+                 (return (values nil idx))))))))))
+  :memory-encode-function
+  (nfunction
+   ucs-2-memory-encode
+   (lambda (string pointer idx &optional (start 0) (end (length string)))
+     (declare (fixnum idx))
+     (when (> end start)
+       (setf (%get-unsigned-word pointer (+ idx idx))
+             byte-order-mark-char-code)
+       (incf idx))
+     (do* ((i start (1+ i)))
+          ((>= i end) idx)
+       (let* ((code (char-code (schar string i)))
+              (p (+ idx idx)))
+         (declare (type (mod #x110000) code)
+                  (fixnum p))
+         (cond ((< code #x10000)
+                (setf (%get-unsigned-word pointer p) code)
+                (incf idx)
+                (incf p 2))
+               (t
+                (return (values nil idx))))))))
+  :memory-decode-function
+  (nfunction
+   ucs-2-memory-decode
+   (lambda (pointer nunits idx string)
+     (declare (fixnum nunits idx))
+     (let* ((swap (when (> nunits 0)
+                    (case (%get-unsigned-word pointer (+ idx idx))
+                      (#.byte-order-mark-char-code
+                       (incf idx)
+                       (decf nunits)
+                       nil)
+                      (#.swapped-byte-order-mark-char-code
+                       (incf idx)
+                       (decf nunits)
+                       t)
+                      (t #+little-endian-target t)))))
+       (do* ((i 0 (1+ i))
+             (index idx (1+ index))
+             (p (+ index index) (+ p 2)))
+            ((>= i nunits) (values string index))
+         (declare (fixnum i index p))
+         (let* ((1st-unit (%get-unsigned-word pointer p)))
+           (declare (type (unsigned-byte 16) 1st-unit))
+           (if swap (setq 1st-unit (%swap-u16 1st-unit)))
+           (let* ((char (code-char 1st-unit)))
+             (if char
+               (setf (schar string i) char)
+               (return (values nil idx)))))))))
+  :units-in-string-function
+  #'(lambda (&rest args)
+      (declare (dynamic-extent args))
+      ;; Add one for the BOM.
+      (1+ (apply #'ucs-2-units-in-string args)))
+  :length-of-vector-encoding-function
+  (nfunction
+   ucs-2-length-of-vector-encoding
+   (lambda (vector &optional (start 0) (end (length vector)))
+     (declare (type (simple-array (unsigned-byte 16) (*)) vector))
+     (let* ((swap (when (> end start)
+                    (case (aref vector start)
+                      (#.byte-order-mark-char-code
+                       (incf start)
+                       nil)
+                      (#.swapped-byte-order-mark-char-code
+                       (incf start)
+                       t)
+                      (t #+little-endian-target t)))))
+       (do* ((i start)
+             (nchars 0 (1+ nchars)))
+            ((>= i end)
+             (if (= i end) nchars))
+         (let* ((code (aref vector i)))
+           (declare (type (unsigned-byte 16) code))
+           (if swap (setq code (%swap-u16 code)))
+           (incf i))))))
+  :length-of-memory-encoding-function
+  (nfunction
+   ucs-2-length-of-memory-encoding
+   (lambda (pointer nunits &optional (start 0))
+     (when (> nunits 1)
+                    (case (%get-unsigned-word pointer (+ start start))
+                      (#.byte-order-mark-char-code
+                       (incf start)
+                       (decf nunits)
+                       nil)
+                      (#.swapped-byte-order-mark-char-code
+                       (incf start)
+                       (decf nunits)
+                       t)
+                      (t #+little-endian-target t)))
+       (do* ((i start (1+ i))
+             (p (+ start start) (+ p 2))
+             (nchars 0 (1+ nchars)))
+            ((>= i nunits)
+             (if (= i nunits) nchars)))))
+  :literal-char-code-limit #x10000
+  :use-byte-order-mark
+  #+big-endian-target :ucs-2le
+  #+little-endian-target :ucs-2be
+  )
+
+(defun describe-character-encoding (name)
+  (let* ((enc (lookup-character-encoding name)))
+    (when enc
+      (let* ((name (character-encoding-name enc))
+             (doc (character-encoding-documentation enc))
+             (aliases (character-encoding-aliases enc)))
+        (format t "~&~s" name)
+        (when (null (car aliases))
+          (pop aliases))
+        (when aliases
+          (format t " [Aliases:~{ ~s~}]" aliases))
+        (format t "~&~a~%~%"  doc)
+        (values)))))
+      
 (defun describe-character-encodings ()
-  (let* ((encodings nil))
+  (let* ((names nil))
     (maphash #'(lambda (name enc)
-                 (when name
-                   (push (cons name (character-encoding-documentation enc))
-                         encodings)))
+                 (when (eq name (character-encoding-name enc))
+                   (push name names)))
              *character-encodings*)
-    (dolist (pair (sort encodings #'string< :key #'car))
-      (format t "~&~s~&~a~%~%" (car pair) (cdr pair)))))
+    (dolist (name (sort names #'string<) (values))
+      (describe-character-encoding name))))
+
+(defmethod make-load-form ((c character-encoding) &optional environment)
+  (declare (ignore environment))
+  `(get-character-encoding ,(character-encoding-name c)))
+
+(defun cstring-encoded-length-in-bytes (encoding string start end)
+  (ash (+ 1                             ; NULL terminator
+          (funcall (character-encoding-units-in-string-function encoding)
+                    string
+                    (or start 0)
+                    (or end (length string))))
+       (case (character-encoding-code-unit-size encoding)
+                (8 0)
+                (16 1)
+                (32 2))))
+
+(defun encode-string-to-memory (encoding pointer offset string start end)
+  (funcall (character-encoding-memory-encode-function encoding)
+           string pointer offset (or start 0) (or end (length string))))
