@@ -1,3 +1,29 @@
+2006-10-05 14:46  gb
+
+	* lisp-kernel/lisptypes.h: More register name aliases.	FMH.
+
+2006-10-05 14:46  gb
+
+	* lisp-kernel/x86-asmutils64.s: get_mxcsr, set_mxcsr.
+
+2006-10-05 14:46  gb
+
+	* lisp-kernel/x86-exceptions.c: Save the mxcsr, load it with a
+	C-like value (all exceptions masked) before doing a callback.  (Not
+	doing this meant that tcr.foreign_mxcsr was often set to a "lispy"
+	value, where most exceptions were unmasked, and this caused FP
+	exceptions when calling out to foreign code with the "lispy"
+	tcr.foreign_mxcsr in effect.)
+	
+	Mach exception stuff arranges to return via sigreturn.	Didn't fix
+	the spurious SIGTRAPs, but might be the right idea (and might save
+	a context switch or two.)
+	
+	Mach exception stuff initializes rflags to exception rflags when
+	arranging to resume thread at handler.	Leaving them uninitialized
+	was causing spurious SIGTRAPs, since the trace bit(s) may have been
+	set.
+
 2006-10-05 06:09  gb
 
 	* lib/macros.lisp: WITH-ENCODED-CSTR(s).  (Hey, it's a start.)
