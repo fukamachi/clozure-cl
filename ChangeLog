@@ -1,3 +1,8 @@
+2006-10-05 04:59  gb
+
+	* level-1/l1-boot-2.lisp: Set class-prototypes for basic-streams
+	just before we make the first one.
+
 2006-10-02 08:13  gb
 
 	* lisp-kernel/x86-exceptions.h: Darwin uses _sigtramp glue to call
