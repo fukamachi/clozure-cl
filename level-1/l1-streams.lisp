@@ -661,37 +661,346 @@
     (%ioblock-read-s64-byte ioblock)))
 )
 
-(declaim (inline %ioblock-read-swapped-u16-byte))
-(defun %ioblock-read-swapped-u16-byte (ioblock)
-  (declare (optimize (speed 3) (safety 0)))
-  (let* ((buf (ioblock-inbuf ioblock))
-         (idx (io-buffer-idx buf))
-         (limit (io-buffer-count buf)))
-    (declare (fixnum idx limit))
-    (when (= idx limit)
-      (unless (%ioblock-advance ioblock t)
-        (return-from %ioblock-read-swapped-u16-byte :eof))
-      (setq idx (io-buffer-idx buf)
-            limit (io-buffer-count buf)))
-    (setf (io-buffer-idx buf) (the fixnum (1+ idx)))
-    (%swap-u16 (aref (the (simple-array (unsigned-byte 16) (*))
-                       (io-buffer-buffer buf)) idx))))
 
-(declaim (inline %ioblock-read-swapped-u32-element))
-(defun %ioblock-read-swapped-u32-element (ioblock)
+;;; Read a 16-bit code element from a stream with element-type
+;;; (UNSIGNED-BYTE 8), in native byte-order.
+
+(declaim (inline %ioblock-read-u16-code-element))
+(defun %ioblock-read-u16-code-element (ioblock)
   (declare (optimize (speed 3) (safety 0)))
   (let* ((buf (ioblock-inbuf ioblock))
          (idx (io-buffer-idx buf))
-         (limit (io-buffer-count buf)))
-    (declare (fixnum idx limit))
-    (when (= idx limit)
-      (unless (%ioblock-advance ioblock t)
-        (return-from %ioblock-read-swapped-u32-element :eof))
-      (setq idx (io-buffer-idx buf)
-            limit (io-buffer-count buf)))
-    (setf (io-buffer-idx buf) (the fixnum (1+ idx)))
-    (%swap-u32 (aref (the (simple-array (unsigned-byte 32) (*))
-                       (io-buffer-buffer buf)) idx))))
+         (limit (io-buffer-count buf))
+         (vector (io-buffer-buffer buf)))
+    (declare (fixnum idx limit)
+             (type (simple-array (unsigned-byte 8) (*)) vector))
+    (if (<= (the fixnum (+ idx 2)) limit)
+      (let* ((b0 (aref vector idx))
+             (b1 (aref vector (the fixnum (1+ idx)))))
+        (declare (type (unsigned-byte 8) b0 b1))
+        (setf (io-buffer-idx buf) (the fixnum (+ idx 2)))
+        #+big-endian-target
+        (logior (the (unsigned-byte 16) (ash b0 8)) b1)
+        #+little-endian-target
+        (logior (the (unsigned-byte 16) (ash b1 8)) b0))
+      (if (< idx limit)
+        (let* ((b0 (aref vector idx))
+               (n (%ioblock-advance ioblock t)))
+          (declare (type (unsigned-byte 8) b0))
+          (if (null n)
+            :eof
+            (let* ((b1 (aref vector 0)))
+              (declare (type (unsigned-byte 8) b1))
+              (setf (io-buffer-idx buf) 1)
+              #+big-endian-target
+              (logior (the (unsigned-byte 16) (ash b0 8)) b1)
+              #+little-endian-target
+              (logior (the (unsigned-byte 16) (ash b1 8)) b0))))
+        (let* ((n (%ioblock-advance ioblock t)))
+          (if (null n)
+            :eof
+            (if (eql n 1)
+              (progn
+                (setf (io-buffer-idx buf) 1)
+                :eof)
+              (let* ((b0 (aref vector 0))
+                     (b1 (aref vector 1)))
+                (declare (type (unsigned-byte 8) b0 b1))
+                (setf (io-buffer-idx buf) 2)
+                #+big-endian-target
+                (logior (the (unsigned-byte 16) (ash b0 8)) b1)
+                #+little-endian-target
+                (logior (the (unsigned-byte 16) (ash b1 8)) b0)))))))))
+  
+(declaim (inline %ioblock-read-swapped-u16-code-element))
+(defun %ioblock-read-swapped-u16-code-element (ioblock)
+  (declare (optimize (speed 3) (safety 0)))
+    (let* ((buf (ioblock-inbuf ioblock))
+         (idx (io-buffer-idx buf))
+         (limit (io-buffer-count buf))
+         (vector (io-buffer-buffer buf)))
+    (declare (fixnum idx limit)
+             (type (simple-array (unsigned-byte 8) (*)) vector))
+    (if (<= (the fixnum (+ idx 2)) limit)
+      (let* ((b0 (aref vector idx))
+             (b1 (aref vector (the fixnum (1+ idx)))))
+        (declare (type (unsigned-byte 8) b0 b1))
+        (setf (io-buffer-idx buf) (the fixnum (+ idx 2)))
+        #+little-endian-target
+        (logior (the (unsigned-byte 16) (ash b0 8)) b1)
+        #+big-endian-target
+        (logior (the (unsigned-byte 16) (ash b1 8)) b0))
+      (if (< idx limit)
+        (let* ((b0 (aref vector idx))
+               (n (%ioblock-advance ioblock t)))
+          (declare (type (unsigned-byte 8) b0))
+          (if (null n)
+            :eof
+            (let* ((b1 (aref vector 0)))
+              (declare (type (unsigned-byte 8) b1))
+              (setf (io-buffer-idx buf) 1)
+              #+little-endian-target
+              (logior (the (unsigned-byte 16) (ash b0 8)) b1)
+              #+big-endian-target
+              (logior (the (unsigned-byte 16) (ash b1 8)) b0))))
+        (let* ((n (%ioblock-advance ioblock t)))
+          (if (null n)
+            :eof
+            (if (eql n 1)
+              (progn
+                (setf (io-buffer-idx buf) 1)
+                :eof)
+              (let* ((b0 (aref vector 0))
+                     (b1 (aref vector 1)))
+                (declare (type (unsigned-byte 8) b0 b1))
+                (setf (io-buffer-idx buf) 2)
+                #+little-endian-target
+                (logior (the (unsigned-byte 16) (ash b0 8)) b1)
+                #+big-endian-target
+                (logior (the (unsigned-byte 16) (ash b1 8)) b0)))))))))
+
+
+(declaim (inline %ioblock-read-u32-code-element))
+(defun %ioblock-read-u32-code-element (ioblock)
+  (declare (optimize (speed 3) (safety 0)))
+  (let* ((buf (ioblock-inbuf ioblock))
+         (idx (io-buffer-idx buf))
+         (limit (io-buffer-count buf))
+         (vector (io-buffer-buffer buf)))
+    (declare (fixnum idx limit)
+             (type (simple-array (unsigned-byte 8) (*)) vector))
+    (cond ((<= (the fixnum (+ idx 4)) limit)
+           (let* ((b0 (aref vector idx))
+                  (b1 (aref vector (the fixnum (1+ idx))))
+                  (b2 (aref vector (the fixnum (+ idx 2))))
+                  (b3 (aref vector (the fixnum (+ idx 3)))))
+             (declare (type (unsigned-byte 8) b0 b1 b2 b3))
+             (setf (io-buffer-idx buf) (the fixnum (+ idx 4)))
+             #+big-endian-target
+             (logior (the (unsigned-byte 32) (ash b0 24))
+                     (the (unsigned-byte 24) (ash b1 16))
+                     (the (unsigned-byte 16) (ash b2 8))
+                     b3)
+             #+little-endian-target
+             (logior (the (unsigned-byte 32) (ash b3 24))
+                     (the (unsigned-byte 24) (ash b2 16))
+                     (the (unsigned-byte 16) (ash b1 8))
+                     b0)))
+          ((= (the fixnum (+ idx 3)) limit)
+           (let* ((b0 (aref vector idx))
+                  (b1 (aref vector (the fixnum (1+ idx))))
+                  (b2 (aref vector (the fixnum (+ idx 2))))
+                  (n (%ioblock-advance ioblock t)))
+             (declare (type (unsigned-byte 8) b0 b1 b2))
+             (if (null n)
+               :eof
+               (let* ((b3 (aref vector 0)))
+                 (declare (type (unsigned-byte 8) b3))
+                 (setf (io-buffer-idx buf) 1)
+                 #+big-endian-target
+                 (logior (the (unsigned-byte 32) (ash b0 24))
+                         (the (unsigned-byte 24) (ash b1 16))
+                         (the (unsigned-byte 16) (ash b2 8))
+                         b3)
+                 #+little-endian-target
+                 (logior (the (unsigned-byte 32) (ash b3 24))
+                         (the (unsigned-byte 24) (ash b2 16))
+                         (the (unsigned-byte 16) (ash b1 8))
+                         b0)))))
+          ((= (the fixnum (+ idx 2)) limit)
+           (let* ((b0 (aref vector idx))
+                  (b1 (aref vector (the fixnum (1+ idx))))
+                  (n (%ioblock-advance ioblock t)))
+             (declare (type (unsigned-byte 8) b0 b1))
+             (if (null n)
+               :eof
+               (if (eql n 1)
+                 (progn
+                   (setf (io-buffer-idx buf) 1)
+                   :eof)
+                 (let* ((b2 (aref vector 0))
+                        (b3 (aref vector 1)))
+                   (declare (type (unsigned-byte 8) b2 b3))
+                   (setf (io-buffer-idx buf) 2)
+                   #+big-endian-target
+                   (logior (the (unsigned-byte 32) (ash b0 24))
+                           (the (unsigned-byte 24) (ash b1 16))
+                           (the (unsigned-byte 16) (ash b2 8))
+                           b3)
+                   #+little-endian-target
+                   (logior (the (unsigned-byte 32) (ash b3 24))
+                           (the (unsigned-byte 24) (ash b2 16))
+                           (the (unsigned-byte 16) (ash b1 8))
+                           b0))))))
+          ((= (the fixnum (1+ idx)) limit)
+           (let* ((b0 (aref vector idx))
+                  (n (%ioblock-advance ioblock t)))
+             (declare (type (unsigned-byte 8) b0))
+             (if (null n)
+               :eof
+               (if (< n 3)
+                 (progn
+                   (setf (io-buffer-idx buf) n)
+                   :eof)
+                 (let* ((b1 (aref vector 0))
+                        (b2 (aref vector 1))
+                        (b3 (aref vector 2)))
+                   (setf (io-buffer-idx buf) 3)
+                   #+big-endian-target
+                   (logior (the (unsigned-byte 32) (ash b0 24))
+                           (the (unsigned-byte 24) (ash b1 16))
+                           (the (unsigned-byte 16) (ash b2 8))
+                           b3)
+                   #+little-endian-target
+                   (logior (the (unsigned-byte 32) (ash b3 24))
+                           (the (unsigned-byte 24) (ash b2 16))
+                           (the (unsigned-byte 16) (ash b1 8))
+                           b0))))))
+          (t
+           (let* ((n (%ioblock-advance ioblock t)))
+             (if (null n)
+               :eof
+               (if (< n 4)
+                 (progn
+                   (setf (io-buffer-idx buf) n)
+                   :eof)
+                 (let* ((b0 (aref vector 0))
+                        (b1 (aref vector 1))
+                        (b2 (aref vector 2))
+                        (b3 (aref vector 3)))
+                (declare (type (unsigned-byte 8) b0 b1 b2 b3))
+                (setf (io-buffer-idx buf) 4)
+                #+big-endian-target
+                (logior (the (unsigned-byte 32) (ash b0 24))
+                        (the (unsigned-byte 24) (ash b1 16))
+                        (the (unsigned-byte 16) (ash b2 8))
+                        b3)
+                #+little-endian-target
+                (logior (the (unsigned-byte 32) (ash b3 24))
+                        (the (unsigned-byte 24) (ash b2 16))
+                        (the (unsigned-byte 16) (ash b1 8))
+                        b0)))))))))
+
+(declaim (inline %ioblock-read-swapped-u32-code-element))
+(defun %ioblock-read-swapped-u32-code-element (ioblock)
+  (declare (optimize (speed 3) (safety 0)))
+  (let* ((buf (ioblock-inbuf ioblock))
+         (idx (io-buffer-idx buf))
+         (limit (io-buffer-count buf))
+         (vector (io-buffer-buffer buf)))
+    (declare (fixnum idx limit)
+             (type (simple-array (unsigned-byte 8) (*)) vector))
+    (cond ((<= (the fixnum (+ idx 4)) limit)
+           (let* ((b0 (aref vector idx))
+                  (b1 (aref vector (the fixnum (1+ idx))))
+                  (b2 (aref vector (the fixnum (+ idx 2))))
+                  (b3 (aref vector (the fixnum (+ idx 3)))))
+             (declare (type (unsigned-byte 8) b0 b1 b2 b3))
+             (setf (io-buffer-idx buf) (the fixnum (+ idx 4)))
+             #+little-endian-target
+             (logior (the (unsigned-byte 32) (ash b0 24))
+                     (the (unsigned-byte 24) (ash b1 16))
+                     (the (unsigned-byte 16) (ash b2 8))
+                     b3)
+             #+big-endian-target
+             (logior (the (unsigned-byte 32) (ash b3 24))
+                     (the (unsigned-byte 24) (ash b2 16))
+                     (the (unsigned-byte 16) (ash b1 8))
+                     b0)))
+          ((= (the fixnum (+ idx 3)) limit)
+           (let* ((b0 (aref vector idx))
+                  (b1 (aref vector (the fixnum (1+ idx))))
+                  (b2 (aref vector (the fixnum (+ idx 2))))
+                  (n (%ioblock-advance ioblock t)))
+             (declare (type (unsigned-byte 8) b0 b1 b2))
+             (if (null n)
+               :eof
+               (let* ((b3 (aref vector 0)))
+                 (declare (type (unsigned-byte 8) b3))
+                 (setf (io-buffer-idx buf) 1)
+                 #+little-endian-target
+                 (logior (the (unsigned-byte 32) (ash b0 24))
+                         (the (unsigned-byte 24) (ash b1 16))
+                         (the (unsigned-byte 16) (ash b2 8))
+                         b3)
+                 #+big-endian-target
+                 (logior (the (unsigned-byte 32) (ash b3 24))
+                         (the (unsigned-byte 24) (ash b2 16))
+                         (the (unsigned-byte 16) (ash b1 8))
+                         b0)))))
+          ((= (the fixnum (+ idx 2)) limit)
+           (let* ((b0 (aref vector idx))
+                  (b1 (aref vector (the fixnum (1+ idx))))
+                  (n (%ioblock-advance ioblock t)))
+             (declare (type (unsigned-byte 8) b0 b1))
+             (if (null n)
+               :eof
+               (if (eql n 1)
+                 (progn
+                   (setf (io-buffer-idx buf) 1)
+                   :eof)
+                 (let* ((b2 (aref vector 0))
+                        (b3 (aref vector 1)))
+                   (declare (type (unsigned-byte 8) b2 b3))
+                   (setf (io-buffer-idx buf) 2)
+                   #+little-endian-target
+                   (logior (the (unsigned-byte 32) (ash b0 24))
+                           (the (unsigned-byte 24) (ash b1 16))
+                           (the (unsigned-byte 16) (ash b2 8))
+                           b3)
+                   #+big-endian-target
+                   (logior (the (unsigned-byte 32) (ash b3 24))
+                           (the (unsigned-byte 24) (ash b2 16))
+                           (the (unsigned-byte 16) (ash b1 8))
+                           b0))))))
+          ((= (the fixnum (1+ idx)) limit)
+           (let* ((b0 (aref vector idx))
+                  (n (%ioblock-advance ioblock t)))
+             (declare (type (unsigned-byte 8) b0))
+             (if (null n)
+               :eof
+               (if (< n 3)
+                 (progn
+                   (setf (io-buffer-idx buf) n)
+                   :eof)
+                 (let* ((b1 (aref vector 0))
+                        (b2 (aref vector 1))
+                        (b3 (aref vector 2)))
+                   (setf (io-buffer-idx buf) 3)
+                   #+little-endian-target
+                   (logior (the (unsigned-byte 32) (ash b0 24))
+                           (the (unsigned-byte 24) (ash b1 16))
+                           (the (unsigned-byte 16) (ash b2 8))
+                           b3)
+                   #+big-endian-target
+                   (logior (the (unsigned-byte 32) (ash b3 24))
+                           (the (unsigned-byte 24) (ash b2 16))
+                           (the (unsigned-byte 16) (ash b1 8))
+                           b0))))))
+          (t
+           (let* ((n (%ioblock-advance ioblock t)))
+             (if (null n)
+               :eof
+               (if (< n 4)
+                 (progn
+                   (setf (io-buffer-idx buf) n)
+                   :eof)
+                 (let* ((b0 (aref vector 0))
+                        (b1 (aref vector 1))
+                        (b2 (aref vector 2))
+                        (b3 (aref vector 3)))
+                (declare (type (unsigned-byte 8) b0 b1 b2 b3))
+                (setf (io-buffer-idx buf) 4)
+                #+little-endian-target
+                (logior (the (unsigned-byte 32) (ash b0 24))
+                        (the (unsigned-byte 24) (ash b1 16))
+                        (the (unsigned-byte 16) (ash b2 8))
+                        b3)
+                #+big-endian-target
+                (logior (the (unsigned-byte 32) (ash b3 24))
+                        (the (unsigned-byte 24) (ash b2 16))
+                        (the (unsigned-byte 16) (ash b1 8))
+                        b0)))))))))
 
 
 (defun %bivalent-private-ioblock-read-u8-byte (ioblock)
@@ -826,7 +1135,7 @@
     (if ch
       (prog1 ch
         (setf (ioblock-untyi-char ioblock) nil))
-      (let* ((1st-unit (%ioblock-read-u16-byte ioblock)))
+      (let* ((1st-unit (%ioblock-read-u16-code-element ioblock)))
         (if (eq 1st-unit :eof)
           1st-unit
           (locally
@@ -836,7 +1145,7 @@
               (code-char 1st-unit)
               (funcall (ioblock-decode-input-function ioblock)
                        1st-unit
-                       #'%ioblock-read-u16-byte
+                       #'%ioblock-read-u16-code-element
                        ioblock))))))))
 
 (defun %private-ioblock-read-u16-encoded-char (ioblock)
@@ -856,7 +1165,7 @@
     (if ch
       (prog1 ch
         (setf (ioblock-untyi-char ioblock) nil))
-      (let* ((1st-unit (%ioblock-read-swapped-u16-byte ioblock)))
+      (let* ((1st-unit (%ioblock-read-swapped-u16-code-element ioblock)))
         (if (eq 1st-unit :eof)
           1st-unit
           (locally
@@ -866,7 +1175,7 @@
               (code-char 1st-unit)
               (funcall (ioblock-decode-input-function ioblock)
                        1st-unit
-                       #'%ioblock-read-swapped-u16-byte
+                       #'%ioblock-read-swapped-u16-code-element
                        ioblock))))))))
 
 (defun %private-ioblock-read-swapped-u16-encoded-char (ioblock)
@@ -941,69 +1250,6 @@
   (io-buffer-count (ioblock-outbuf ioblock)))
 
 
-;;; Return #\Return if an encoded #\Return is found first in vector,
-;;; #\Linefeed if and encoded #\Linefeed is found first or if neither
-;;; is found.
-(defun u8-infer-line-termination (vector n)
-  (declare (type (simple-array (unsigned-byte 8) (*)) vector)
-           (type index n)
-           (optimize (speed 3) (safety 0)))
-  (dotimes (i n #\linefeed)
-    (let* ((code (aref vector i)))
-      (declare (type (unsigned-byte 8) code))
-      (if (= code (char-code #\linefeed))
-        (return #\linefeed)
-        (if (= code (char-code #\return))
-          (return #\return))))))
-
-(defun u16-infer-line-termination (vector n)
-  (declare (type (simple-array (unsigned-byte 16) (*)) vector)
-           (type index n)
-           (optimize (speed 3) (safety 0)))
-  (dotimes (i n #\linefeed)
-    (let* ((code (aref vector i)))
-      (declare (type (unsigned-byte 16) code))
-      (if (= code (char-code #\linefeed))
-        (return #\linefeed)
-        (if (= code (char-code #\return))
-          (return #\return))))))
-
-(defun swapped-u16-infer-line-termination (vector n)
-  (declare (type (simple-array (unsigned-byte 16) (*)) vector)
-           (type index n)
-           (optimize (speed 3) (safety 0)))
-  (dotimes (i n #\linefeed)
-    (let* ((code (%swap-u16 (aref vector i))))
-      (declare (type (unsigned-byte 16) code))
-      (if (= code (char-code #\linefeed))
-        (return #\linefeed)
-        (if (= code (char-code #\return))
-          (return #\return))))))
-
-(defun u32-infer-line-termination (vector n)
-  (declare (type (simple-array (unsigned-byte 32) (*)) vector)
-           (type index n)
-           (optimize (speed 3) (safety 0)))
-  (dotimes (i n #\linefeed)
-    (let* ((code (aref vector i)))
-      (declare (type (unsigned-byte 32) code))
-      (if (= code (char-code #\linefeed))
-        (return #\linefeed)
-        (if (= code (char-code #\return))
-          (return #\return))))))
-
-(defun swapped-u32-infer-line-termination (vector n)
-  (declare (type (simple-array (unsigned-byte 32) (*)) vector)
-           (type index n)
-           (optimize (speed 3) (safety 0)))
-  (dotimes (i n #\linefeed)
-    (let* ((code (%swap-u32 (aref vector i))))
-      (declare (type (unsigned-byte 32) code))
-      (if (= code (char-code #\linefeed))
-        (return #\linefeed)
-        (if (= code (char-code #\return))
-          (return #\return))))))
-
 
 
              
@@ -1026,70 +1272,119 @@
       (setf (aref vector i) (char-code #\Return)))))
 
 
-(defun u16-translate-cr-to-lf (vector n)
-  (declare (type (simple-array (unsigned-byte 16) (*)) vector)
+(defun big-endian-u16-translate-cr-to-lf (vector n)
+  (declare (type (simple-array (unsigned-byte 8) (*)) vector)
            (type index n)
            (optimize (speed 3) (safety 0)))
-  (dotimes (i n t)
-    (if (= (the (unsigned-byte 16) (aref vector i)) (char-code #\Return))
+  (do* ((i 0 (+ i 2))
+        (j 1 (+ j 2)))
+       ((>= i n) (= i n))
+       (declare (type index i j))
+    (if (and (= 0 (the (unsigned-byte 8) (aref vector i)))
+             (= (the (unsigned-byte 8) (aref vector j)) (char-code #\Return)))
+      (setf (aref vector j) (char-code #\Linefeed)))))
+
+(defun big-endian-u16-translate-lf-to-cr (vector n)
+  (declare (type (simple-array (unsigned-byte 8) (*)) vector)
+           (type index n)
+           (optimize (speed 3) (safety 0)))
+  (do* ((i 0 (+ i 2))
+        (j 1 (+ j 2)))
+       ((>= i n) (= i n))
+       (declare (type index i j))
+    (if (and (= 0 (the (unsigned-byte 8) (aref vector i)))
+             (= (the (unsigned-byte 8) (aref vector j)) (char-code #\Linefeed)))
+      (setf (aref vector j) (char-code #\Return)))))
+
+(defun big-endian-u32-translate-cr-to-lf (vector n)
+  (declare (type (simple-array (unsigned-byte 8) (*)) vector)
+           (type index n)
+           (optimize (speed 3) (safety 0)))
+  (do* ((w 0 (+ w 4))
+        (x 1 (+ x 4))
+        (y 2 (+ y 4))
+        (z 3 (+ z 4)))
+       ((>= w n) (= w n))
+    (declare (type index w x y z))
+    (if (and (= 0 (the (unsigned-byte 8) (aref vector w)))
+             (= 0 (the (unsigned-byte 8) (aref vector x)))
+             (= 0 (the (unsigned-byte 8) (aref vector y)))
+             (= (the (unsigned-byte 8) (aref vector z)) (char-code #\Return)))
+      (setf (aref vector z) (char-code #\Linefeed)))))
+
+(defun big-endian-u32-translate-lf-to-cr (vector n)
+  (declare (type (simple-array (unsigned-byte 8) (*)) vector)
+           (type index n)
+           (optimize (speed 3) (safety 0)))
+  (do* ((w 0 (+ w 4))
+        (x 1 (+ x 4))
+        (y 2 (+ y 4))
+        (z 3 (+ z 4)))
+       ((>= w n) (= w n))
+    (declare (type index w x y z))
+    (if (and (= 0 (the (unsigned-byte 8) (aref vector w)))
+             (= 0 (the (unsigned-byte 8) (aref vector x)))
+             (= 0 (the (unsigned-byte 8) (aref vector y)))
+             (= (the (unsigned-byte 8) (aref vector z)) (char-code #\Linefeed)))
+      (setf (aref vector z) (char-code #\Return)))))
+
+
+(defun little-endian-u16-translate-cr-to-lf (vector n)
+  (declare (type (simple-array (unsigned-byte 8) (*)) vector)
+           (type index n)
+           (optimize (speed 3) (safety 0)))
+  (do* ((i 0 (+ i 2))
+        (j 1 (+ j 2)))
+       ((>= i n) (= i n))
+       (declare (type index i j))
+    (if (and (= 0 (the (unsigned-byte 8) (aref vector j)))
+             (= (the (unsigned-byte 8) (aref vector i)) (char-code #\Return)))
       (setf (aref vector i) (char-code #\Linefeed)))))
 
-(defun u16-translate-lf-to-cr (vector n)
-  (declare (type (simple-array (unsigned-byte 16) (*)) vector)
+
+(defun little-endian-u16-translate-lf-to-cr (vector n)
+  (declare (type (simple-array (unsigned-byte 8) (*)) vector)
            (type index n)
            (optimize (speed 3) (safety 0)))
-  (dotimes (i n t)
-    (if (= (the (unsigned-byte 16) (aref vector i)) (char-code #\Linefeed))
+  (do* ((i 0 (+ i 2))
+        (j 1 (+ j 2)))
+        ((>= i n) (= i n))
+       (declare (type index i j))
+    (if (and (= 0 (the (unsigned-byte 8) (aref vector j)))
+             (= (the (unsigned-byte 8) (aref vector i)) (char-code #\Linefeed)))
       (setf (aref vector i) (char-code #\Return)))))
 
-(defun u32-translate-cr-to-lf (vector n)
-  (declare (type (simple-array (unsigned-byte 32) (*)) vector)
+(defun little-endian-u32-translate-cr-to-lf (vector n)
+  (declare (type (simple-array (unsigned-byte 8) (*)) vector)
            (type index n)
            (optimize (speed 3) (safety 0)))
-  (dotimes (i n t)
-    (if (= (the (unsigned-byte 32) (aref vector i)) (char-code #\Return))
-      (setf (aref vector i) (char-code #\Linefeed)))))
+  (do* ((w 0 (+ w 4))
+        (x 1 (+ x 4))
+        (y 2 (+ y 4))
+        (z 3 (+ z 4)))
+       ((>= w n) (= w n))
+    (declare (type index w x y z))
+    (if (and (= (the (unsigned-byte 8) (aref vector w)) (char-code #\Return))
+             (= 0 (the (unsigned-byte 8) (aref vector x)))
+             (= 0 (the (unsigned-byte 8) (aref vector y)))
+             (= 0 (the (unsigned-byte 8) (aref vector z))))
+      (setf (aref vector 2) (char-code #\Linefeed)))))
 
-(defun u32-translate-lf-to-cr (vector n)
-  (declare (type (simple-array (unsigned-byte 32) (*)) vector)
+(defun little-endian-32-translate-lf-to-cr (vector n)
+  (declare (type (simple-array (unsigned-byte 8) (*)) vector)
            (type index n)
            (optimize (speed 3) (safety 0)))
-  (dotimes (i n t)
-    (if (= (the (unsigned-byte 32) (aref vector i)) (char-code #\Linefeed))
-      (setf (aref vector i) (char-code #\Return)))))
-
-
-(defun swapped-u16-translate-cr-to-lf (vector n)
-  (declare (type (simple-array (unsigned-byte 16) (*)) vector)
-           (type index n)
-           (optimize (speed 3) (safety 0)))
-  (dotimes (i n t)
-    (if (= (the (unsigned-byte 16) (aref vector i)) #xd00)
-      (setf (aref vector i) #xa00))))
-
-(defun swapped-u16-translate-lf-to-cr (vector n)
-  (declare (type (simple-array (unsigned-byte 16) (*)) vector)
-           (type index n)
-           (optimize (speed 3) (safety 0)))
-  (dotimes (i n t)
-    (if (= (the (unsigned-byte 16) (aref vector i)) #xa00)
-      (setf (aref vector i) #xd00))))
-
-(defun swapped-u32-translate-cr-to-lf (vector n)
-  (declare (type (simple-array (unsigned-byte 32) (*)) vector)
-           (type index n)
-           (optimize (speed 3) (safety 0)))
-  (dotimes (i n t)
-    (if (= (the (unsigned-byte 32) (aref vector i)) #xd000000)
-      (setf (aref vector i) #xa000000))))
-
-(defun swapped-32-translate-lf-to-cr (vector n)
-  (declare (type (simple-array (unsigned-byte 32) (*)) vector)
-           (type index n)
-           (optimize (speed 3) (safety 0)))
-  (dotimes (i n t)
-    (if (= (the (unsigned-byte 32) (aref vector i)) #xa000000)
-      (setf (aref vector i) #xd0000000))))
+  (do* ((w 0 (+ w 4))
+        (x 1 (+ x 4))
+        (y 2 (+ y 4))
+        (z 3 (+ z 4)))
+       ((>= w n) (= w n))
+    (declare (type index w x y z))
+    (if (and (= (the (unsigned-byte 8) (aref vector w)) (char-code #\Linefeed))
+             (= 0 (the (unsigned-byte 8) (aref vector x)))
+             (= 0 (the (unsigned-byte 8) (aref vector y)))
+             (= 0 (the (unsigned-byte 8) (aref vector z))))
+      (setf (aref vector 2) (char-code #\Return)))))
 
 (declaim (inline %ioblock-force-output))
 
@@ -1277,20 +1572,64 @@
     (setf (ioblock-dirty ioblock) t)
     element))
 
-(declaim (inline %ioblock-write-swapped-u16-element))
-(defun %ioblock-write-swapped-u16-element (ioblock element)
-  (declare (optimize (speed 3) (safety 0)))
+(declaim (inline %ioblock-write-u16-code-element))
+(defun %ioblock-write-u16-code-element (ioblock element)
+  (declare (optimize (speed 3) (safety 0))
+           (type (unsigned-byte 16) element))
   (let* ((buf (ioblock-outbuf ioblock))
          (idx (io-buffer-idx buf))
 	 (count (io-buffer-count buf))
-         (limit (io-buffer-limit buf)))
-    (declare (fixnum idx limit count))
+         (limit (io-buffer-limit buf))
+         (vector (io-buffer-buffer buf))
+         (b0 #+big-endian-target (ldb (byte 8 8) element)
+             #+little-endian-target (ldb (byte 8 0) element))
+         (b1 #+big-endian-target (ldb (byte 8 0) element)
+             #+little-endian-target (ldb (byte 8 8) element)))
+    (declare (fixnum idx limit count)
+             (type (simple-array (unsigned-byte 8) (*)) vector)
+             (type (unsigned-byte 8) b0 b1))
+   
     (when (= idx limit)
       (%ioblock-force-output ioblock nil)
       (setq idx 0 count 0))
-    (setf (aref (the (simple-array (unsigned-byte 16) (*))
-                  (io-buffer-buffer buf)) idx)
-          (%swap-u16 element))
+    (setf (aref vector idx) b0)
+    (incf idx)
+    (when (= idx limit)
+      (%ioblock-force-output ioblock nil)
+      (setq idx 0 count 0))
+    (setf (aref vector idx) b1)
+    (incf idx)
+    (setf (io-buffer-idx buf) idx)
+    (when (> idx count)
+      (setf (io-buffer-count buf) idx))
+    (setf (ioblock-dirty ioblock) t)
+    element))
+
+(declaim (inline %ioblock-write-swapped-u16-code-element))
+(defun %ioblock-write-swapped-u16-code-element (ioblock element)
+  (declare (optimize (speed 3) (safety 0)))
+(let* ((buf (ioblock-outbuf ioblock))
+         (idx (io-buffer-idx buf))
+	 (count (io-buffer-count buf))
+         (limit (io-buffer-limit buf))
+         (vector (io-buffer-buffer buf))
+         (b0 #+big-endian-target (ldb (byte 8 8) element)
+             #+little-endian-target (ldb (byte 8 0) element))
+         (b1 #+big-endian-target (ldb (byte 8 0) element)
+             #+little-endian-target (ldb (byte 8 8) element)))
+    (declare (fixnum idx limit count)
+             (type (simple-array (unsigned-byte 8) (*)) vector)
+             (type (unsigned-byte 8) b0 b1))
+   
+    (when (= idx limit)
+      (%ioblock-force-output ioblock nil)
+      (setq idx 0 count 0))
+    (setf (aref vector idx) b1)
+    (incf idx)
+    (when (= idx limit)
+      (%ioblock-force-output ioblock nil)
+      (setq idx 0 count 0))
+    (setf (aref vector idx) b0)
     (incf idx)
     (setf (io-buffer-idx buf) idx)
     (when (> idx count)
@@ -1492,7 +1831,7 @@
     (setf (ioblock-pending-byte-order-mark ioblock) nil)
     (funcall (ioblock-encode-output-function ioblock)
              byte-order-mark
-             #'%ioblock-write-u16-element
+             #'%ioblock-write-u16-code-element
              ioblock))
   (if (eq char #\linefeed)
     (setf (ioblock-charpos ioblock) 0)
@@ -1503,7 +1842,7 @@
       (%ioblock-write-u16-element ioblock code)
       (funcall (ioblock-encode-output-function ioblock)
                char
-               #'%ioblock-write-u16-element
+               #'%ioblock-write-u16-code-element
                ioblock))))
 
 (defun %private-ioblock-write-u16-encoded-char (ioblock char)
@@ -1523,7 +1862,7 @@
            (optimize (speed 3) (safety 0)))
   (when (ioblock-pending-byte-order-mark ioblock)
     (setf (ioblock-pending-byte-order-mark ioblock) nil)
-    (%ioblock-write-u16-element ioblock byte-order-mark-char-code))
+    (%ioblock-write-u16-code-element ioblock byte-order-mark-char-code))
   (do* ((i 0 (1+ i))
         (col (ioblock-charpos ioblock))
         (limit (ioblock-literal-char-code-limit ioblock))
@@ -1538,8 +1877,8 @@
         (setq col 0)
         (incf col))
       (if (< code limit)
-        (%ioblock-write-u16-element ioblock code)
-        (funcall encode-function char #'%ioblock-write-u16-element ioblock)))))
+        (%ioblock-write-u16-code-element ioblock code)
+        (funcall encode-function char #'%ioblock-write-u16-code-element ioblock)))))
 
 (declaim (inline %ioblock-write-swapped-u16-encoded-char))
 (defun %ioblock-write-swapped-u16-encoded-char (ioblock char)
@@ -1550,10 +1889,10 @@
   (let* ((code (char-code char)))
     (declare (type (mod #x110000) code))
     (if (< code (the fixnum (ioblock-literal-char-code-limit ioblock)))
-      (%ioblock-write-swapped-u16-element ioblock code)
+      (%ioblock-write-swapped-u16-code-element ioblock code)
       (funcall (ioblock-encode-output-function ioblock)
                char
-               #'%ioblock-write-swapped-u16-element
+               #'%ioblock-write-swapped-u16-code-element
                ioblock))))
 
 (defun %private-ioblock-write-swapped-u16-encoded-char (ioblock char)
@@ -1584,8 +1923,8 @@
         (setq col 0)
         (incf col))
       (if (< code limit)
-        (%ioblock-write-swapped-u16-element ioblock code)
-        (funcall encode-function char #'%ioblock-write-swapped-u16-element ioblock)))))
+        (%ioblock-write-swapped-u16-code-element ioblock code)
+        (funcall encode-function char #'%ioblock-write-swapped-u16-code-element ioblock)))))
 
 
 (declaim (inline %ioblock-write-u8-byte))
@@ -2211,12 +2550,8 @@
                    '%general-ioblock-write-byte))))))
 
 (defun buffer-element-type-for-character-encoding (encoding)
-  (if encoding
-    (ecase (character-encoding-code-unit-size encoding)
-      (8 '(unsigned-byte 8))
-      (16 '(unsigned-byte 16))
-      (32 '(unsigned-byte 32)))
-    '(unsigned-byte 8)))
+  (declare (ignore encoding))
+  '(unsigned-byte 8))
 
 (defun init-stream-ioblock (stream
                             &key
@@ -2342,45 +2677,54 @@
 ;;; ordinarily appear as input.)
 ;;;
 (defun ioblock-check-input-bom (ioblock swapped-encoding-name sharing)
-  (when (%ioblock-advance ioblock nil)  ; try to read, don't block
-    (setf (ioblock-pending-byte-order-mark ioblock) nil)
-    (let* ((inbuf (ioblock-inbuf ioblock))
-           (buf (io-buffer-buffer inbuf))
-           (swapped-encoding
-            (and
-             (case (aref buf 0)
-               (#.byte-order-mark-char-code
-                (setf (io-buffer-idx inbuf) 1)
-                nil)
-               (#.swapped-byte-order-mark-char-code
-                (setf (io-buffer-idx inbuf) 1)
-                t)
-               (t #+little-endian-target t))
-             (lookup-character-encoding swapped-encoding-name))))
-      (when swapped-encoding
-        (let* ((unit-size (character-encoding-code-unit-size swapped-encoding))
-               (output-p (not (null (ioblock-outbuf ioblock)))))
-          (setf (ioblock-native-byte-order ioblock)
-                (character-encoding-native-endianness swapped-encoding))
-          (ecase unit-size
-            (16
-             (setf (ioblock-read-char-when-locked-function ioblock)
-                   '%ioblock-read-swapped-u16-encoded-char)
-             (case sharing
-               (:private '%private-ioblock-read-swapped-u16-encoded-char)
-               (:lock '%locked-ioblock-read-swapped-u16-encoded-char)
-               (t '%ioblock-read-swapped-u16-encoded-char))))
-          (when output-p
+  (let* ((n (%ioblock-advance ioblock nil))) ; try to read, don't block
+    (when n
+      (setf (ioblock-pending-byte-order-mark ioblock) nil)
+      (let* ((inbuf (ioblock-inbuf ioblock))
+             (unit-size (character-encoding-code-unit-size (ioblock-encoding ioblock)))
+             (min (ash unit-size -3))
+             (buf (io-buffer-buffer inbuf))
+             (swapped-encoding
+              (and
+               (>= n min)
+               (case (case unit-size
+                       (16 (logior (ash (aref buf 0) 8)
+                                   (aref buf 1)))
+                       (32 (logior (ash (aref buf 0) 24)
+                                   (ash (aref buf 1) 16)
+                                   (ash (aref buf 2) 8)
+                                   (aref buf 3))))
+                 (#.byte-order-mark-char-code
+                  (setf (io-buffer-idx inbuf) min)
+                  nil)
+                 (#.swapped-byte-order-mark-char-code
+                  (setf (io-buffer-idx inbuf) min)
+                  t)
+                 (t #+little-endian-target t))
+               (lookup-character-encoding swapped-encoding-name))))
+        (when swapped-encoding
+          (let* ((output-p (not (null (ioblock-outbuf ioblock)))))
+            (setf (ioblock-native-byte-order ioblock)
+                  (character-encoding-native-endianness swapped-encoding))
             (ecase unit-size
               (16
-              (setf (ioblock-write-char-when-locked-function ioblock)
-                    '%ioblock-write-swapped-u16-encoded-char)
-              (case sharing
-                (:private '%private-ioblock-write-swapped-u16-encoded-char)
-                (:lock '%locked-ioblock-write-swapped-u16-encoded-char)
-                (t '%ioblock-write-swapped-u16-encoded-char))
-              (setf (ioblock-write-simple-string-function ioblock)
-                    '%ioblock-write-swapped-u8-encoded-simple-string)))))))))
+               (setf (ioblock-read-char-when-locked-function ioblock)
+                     '%ioblock-read-swapped-u16-encoded-char)
+               (case sharing
+                 (:private '%private-ioblock-read-swapped-u16-encoded-char)
+                 (:lock '%locked-ioblock-read-swapped-u16-encoded-char)
+                 (t '%ioblock-read-swapped-u16-encoded-char))))
+            (when output-p
+              (ecase unit-size
+                (16
+                 (setf (ioblock-write-char-when-locked-function ioblock)
+                       '%ioblock-write-swapped-u16-encoded-char)
+                 (case sharing
+                   (:private '%private-ioblock-write-swapped-u16-encoded-char)
+                   (:lock '%locked-ioblock-write-swapped-u16-encoded-char)
+                   (t '%ioblock-write-swapped-u16-encoded-char))
+                 (setf (ioblock-write-simple-string-function ioblock)
+                       '%ioblock-write-swapped-u8-encoded-simple-string))))))))))
 
 
 
