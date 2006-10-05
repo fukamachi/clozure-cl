@@ -133,6 +133,8 @@ typedef ucontext64_t ExceptionInformation;
 #define __rdi rdi
 #define __rdx rdx
 #define __rcx rcx
+#define __r8 r8
+#define __rflags rflags
 #else
 typedef mcontext_t MCONTEXT_T;
 typedef ucontext_t ExceptionInformation;
