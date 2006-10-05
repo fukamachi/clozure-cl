@@ -19,10 +19,53 @@
 (defstruct (file-ioblock (:include ioblock))
   (octet-pos 0 :type fixnum)		; current io position in octets
   (fileeof 0 :type fixnum)		; file length in elements
-  (input-filter #'false)
-  (output-filter #'false)
+  (input-filter nil)
+  (output-filter nil)
   (line-termination :unix))
 
+
+(defun install-line-termination-filters (file-ioblock line-termination in-p out-p)
+  (let* ((inferred-macos nil))
+    (if (eq line-termination :inferred)
+      (if in-p
+        (if (eq (setq line-termination (infer-line-termination file-ioblock))
+                :macos)
+          (setq inferred-macos t))
+        (setq line-termination :unix)))
+    (setf (file-ioblock-line-termination file-ioblock) line-termination)
+    (when (eq line-termination :macos)
+      (let* ((encoding (or (file-ioblock-encoding file-ioblock)
+                           (get-character-encoding nil)))
+             (element-size (character-encoding-code-unit-size encoding))
+             (native-byte-order (ioblock-native-byte-order file-ioblock)))
+        (when in-p
+          (setf (file-ioblock-input-filter file-ioblock)
+                (case element-size
+                  (8 'u8-translate-cr-to-lf)
+                  (16 (if #+big-endian-target native-byte-order
+                          #+little-endian-target (not native-byte-order)
+                        'big-endian-u16-translate-cr-to-lf
+                        'little-endian-swapped-u16-translate-cr-to-lf))
+                  (32 (if #+big-endian-target native-byte-order
+                          #+little-endian-target (not native-byte-order)
+                        'big-endian-u32-translate-cr-to-lf
+                        'little-endian-swapped-u32-translate-cr-to-lf))))
+          (if inferred-macos
+            (let* ((inbuf (file-ioblock-inbuf file-ioblock)))
+              (funcall (file-ioblock-input-filter file-ioblock)
+                       (io-buffer-buffer inbuf)
+                       (io-buffer-count inbuf)))))
+        (when out-p
+          (setf (file-ioblock-output-filter file-ioblock)
+                (case element-size
+                  (8 'u8-translate-lf-to-cr)
+                  (16 (if native-byte-order
+                        'u16-translate-lf-to-cr
+                        'swapped-u16-translate-lf-to-cr))
+                  (32 (if native-byte-order
+                        'u32-translate-lf-to-cr
+                        'swapped-u32-translate-lf-to-cr)))))
+        line-termination))))
 
 ;;; The file-ioblock-octet-pos field is the (octet) position
 ;;; at which the next I/O operation will begin (e.g., where the
@@ -57,26 +100,55 @@
       (if (eq (schar string i) #\Linefeed)
 	(setf (schar string i) #\Return)))))
 
-(defun infer-external-format (file-stream)
-  (with-stream-ioblock-input (ioblock file-stream :speedy t)
-    (setf (file-stream-external-format file-stream)
-	  (if (eq (funcall (ioblock-peek-char-function ioblock) ioblock)
-                  :eof)
-	    :unix
-	    (let* ((inbuf (ioblock-inbuf ioblock))
-		   (string (io-buffer-buffer inbuf))
-		   (n (io-buffer-count inbuf)))
-	      (declare (simple-base-string string)
-		       (fixnum n))
-	      (dotimes (i n :unix)
-		(let* ((ch (schar string i)))
-		  (if (eq ch #\Linefeed)
-		    (return :unix))
-		  (when (eq ch #\Return)
-		    (translate-cr-to-lf ioblock)
-		    (return :macos)))))))))
+(defun infer-line-termination (file-ioblock)
+  (let* ((encoding (or (file-ioblock-encoding file-ioblock)
+                       (get-character-encoding nil)))
+         (unit-size (character-encoding-code-unit-size encoding))
+         (octets-per-unit (ash unit-size -3))
+         (native-byte-order (file-ioblock-native-byte-order file-ioblock))
+         (little-endian #+little-endian-target native-byte-order
+                        #+big-endian-target (not native-byte-order))
+         (leading-zeros (if little-endian
+                          0
+                          (1- octets-per-unit)))
+         (trailing-zeros (if (not little-endian)
+                           0
+                           (1- octets-per-unit)))
+         (cr (char-code #\Return))
+         (lf (char-code #\linefeed))
+         (inbuf (file-ioblock-inbuf file-ioblock))
+         (buffer (io-buffer-buffer inbuf))
+         (n (io-buffer-count inbuf)))
+    (if (zerop n)
+      (setq n (fd-stream-advance (file-ioblock-stream file-ioblock)
+                                 file-ioblock
+                                 t)))
+    (do* ((i 0 (+ i octets-per-unit))
+          (code))
+         ((= i n) :unix)
+      (when (and (dotimes (k leading-zeros t)
+                   (unless (zerop (the (unsigned-byte 8) (aref buffer (+ i k))))
+                     (return)))
+                 (setq code (aref buffer (+ i leading-zeros)))
+                 (dotimes (k trailing-zeros t)
+                   (unless (zerop (the (unsigned-byte 8) (aref buffer (+ i 1 leading-zeros k))))
+                     (return))))
+        (if (= code cr)
+          (return :macos)
+          (if (= code lf)
+            (return :unix)))))))
 
-(defvar *default-external-format* :unix
+
+(defvar *known-line-termination-formats* '(:unix :macos :inferred))
+
+(defvar *default-external-format* :unix)
+
+(defvar *default-file-character-encoding* nil)
+
+(defmethod default-character-encoding ((domain (eql :file)))
+  *default-file-character-encoding*)
+
+(defvar *default-line-termination* :unix
   "The value of this variable is used when :EXTERNAL-FORMAT is
 unspecified or specified as :DEFAULT. It can meaningfully be given any
 of the values :UNIX, :MACOS, or :INFERRED, each of which is
@@ -86,18 +158,46 @@ Because there's some risk that unsolicited newline translation could have
 undesirable consequences, the initial value of this variable in OpenMCL
 is :UNIX.")
 
-(defparameter *external-format-translations*
-  '((:unix nil nil)
-    (:macos translate-cr-to-lf translate-lf-to-cr))
-  "an alist: external-format-name, input-translation-function (or NIL),
-   output-translation-function (or NIL)")
+(defun normalize-external-format (domain external-format)
+  (cond ((listp external-format)
+         (unless (plistp external-format)
+           (error "External-format ~s is not a property list." external-format))
+         (let* ((character-encoding (getf external-format :character-encoding :default))
+                (line-termination (getf external-format :line-termination :default)))
+           (when (or (eq character-encoding :default)
+                     (eq line-termination :default))
+             (setq external-format (copy-list external-format))
+             (if (eq line-termination :default)
+               (setf (getf external-format :line-termination)
+                     (setq line-termination *default-line-termination*)))
+             (unless (member line-termination *known-line-termination-formats*)
+               (error "~S is not a known line-termination format." line-termination))
+             (if (eq character-encoding :default)
+               (setf (getf external-format :character-encoding)
+                     (setq character-encoding
+                           (default-character-encoding domain))))
+             (unless (lookup-character-encoding character-encoding)
+               (error "~S is not the name of a known characer encoding."
+                      character-encoding)))
+           external-format))
+        ((eq external-format :default)
+         (normalize-external-format domain nil))
+        ((lookup-character-encoding external-format)
+         (normalize-external-format domain `(:character-encoding ,external-format)))
+        ((member external-format *known-line-termination-formats*)
+         (normalize-external-format domain `(:line-termination ,external-format)))
+        (t
+         (error "Invalid external-format: ~s" external-format))))
+               
+           
+    
+
 
 (defun file-stream-force-output (stream ioblock count finish-p)
-  (let* ((filter (caddr (assoc (file-stream-external-format stream)
-			       *external-format-translations*
-			       :test #'eq))))
+  (let* ((filter (file-ioblock-output-filter ioblock)))
     (when filter
-      (funcall filter ioblock count))
+      (let* ((buffer (io-buffer-buffer (file-ioblock-outbuf ioblock))))
+        (funcall filter buffer count)))
     (fd-stream-force-output stream ioblock count finish-p)))
 
 ;;; Establish a new position for the specified file-stream.
@@ -389,14 +489,7 @@ is :UNIX.")
 (make-built-in-class 'basic-file-binary-io-stream 'basic-file-io-stream 'basic-binary-io-stream)
 
 
-(defun set-basic-stream-prototype (class)
-  (when (subtypep class 'basic-stream)
-    (setf (%class.prototype class) (or (%class.prototype class)
-                                       (allocate-basic-stream class)))
-    (dolist (subclass (class-direct-subclasses class))
-      (set-basic-stream-prototype subclass))))
 
-(set-basic-stream-prototype (find-class 'basic-stream))
 
 ;;; This stuff is a lot simpler if we restrict the hair to the
 ;;; case of file streams opened in :io mode (which have to worry
@@ -448,11 +541,11 @@ is :UNIX.")
 ;;; Fill the input buffer, possibly doing newline translation.
 (defun file-stream-advance (stream file-ioblock read-p)
   (let* ((n (fd-stream-advance stream file-ioblock read-p))
-	   (filter (cadr (assoc (stream-external-format stream)
-				*external-format-translations*
-				:test #'eq))))
-      (if filter
-	(funcall filter file-ioblock))
+         (filter (file-ioblock-input-filter file-ioblock)))
+      (when (and filter n (> n 0))
+        (let* ((buf (file-ioblock-inbuf file-ioblock))
+               (vector (io-buffer-buffer buf)))
+          (funcall filter vector n)))
       n))
   
 ;;; If we've been reading, the file position where we're going
@@ -746,20 +839,12 @@ is :UNIX.")
                        (io-p (eq direction :io))
                        (char-p (or (eq element-type 'character)
                                    (subtypep element-type 'character)))
-                       (infer nil)
                        (real-external-format
-                        (if (and char-p in-p)
-                          (progn
-                            (if (eq external-format :default)
-                              (setq external-format *default-external-format*))
-                            (if (eq external-format :inferred)
-                              (setq infer t external-format :unix)
-                              (unless (assoc external-format
-                                             *external-format-translations*
-                                             :test #'eq)
-                                (setq external-format :unix)))
-                            external-format)
-                          :binary))
+                        (if char-p
+                          (normalize-external-format :file external-format)
+                          '(:binary :t)))
+                       (line-termination (getf real-external-format :line-termination))
+                       (encoding (getf real-external-format :character-encoding))
                        (class-name (select-stream-class class in-p out-p char-p))
                        (class (find-class class-name))
                        (fstream (make-ioblock-stream
@@ -780,6 +865,7 @@ is :UNIX.")
                                  (if out-p (select-stream-force-output-function
                                            class direction))
                                  :device fd
+                                 :encoding encoding
                                  :external-format real-external-format
                                  :sharing sharing
                                  :character-p (or (eq element-type 'character)
@@ -789,8 +875,7 @@ is :UNIX.")
                         (stream-actual-filename fstream) temp-name)
                   (setf (file-ioblock-fileeof ioblock)
                         (ioblock-octets-to-elements ioblock (fd-size fd)))
-                  (if infer
-                    (infer-external-format fstream))
+                  (install-line-termination-filters ioblock line-termination in-p out-p)
                   (cond ((eq if-exists :append)
                          (file-position fstream :end))
                         ((and (memq direction '(:io :output))
