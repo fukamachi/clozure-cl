@@ -371,6 +371,8 @@ create_exception_callback_frame(ExceptionInformation *xp)
 }
 
 
+extern unsigned get_mxcsr();
+extern void set_mxcsr(unsigned);
   
 int
 callback_to_lisp (TCR * tcr, LispObj callback_macptr, ExceptionInformation *xp,
@@ -379,6 +381,9 @@ callback_to_lisp (TCR * tcr, LispObj callback_macptr, ExceptionInformation *xp,
   sigset_t mask;
   natural  callback_ptr, i;
   int delta;
+  unsigned old_mxcsr = get_mxcsr();
+
+  set_mxcsr(0x1f80);
 
   /* Put the active stack pointers where .SPcallback expects them */
   tcr->save_vsp = (LispObj *) xpGPR(xp, Isp);
@@ -392,6 +397,7 @@ callback_to_lisp (TCR * tcr, LispObj callback_macptr, ExceptionInformation *xp,
   UNLOCK(lisp_global(EXCEPTION_LOCK), tcr);
   delta = ((int (*)())callback_ptr) (xp, arg1, arg2, arg3, arg4, arg5);
   LOCK(lisp_global(EXCEPTION_LOCK), tcr);
+  set_mxcsr(old_mxcsr);
   return delta;
 }
 
@@ -831,13 +837,12 @@ exit_signal_handler(TCR *tcr, int old_valence)
 }
 
 void
-signal_handler(int signum, siginfo_t *info, ExceptionInformation  *context, TCR *tcr)
+signal_handler(int signum, siginfo_t *info, ExceptionInformation  *context, TCR *tcr, int old_valence)
 {
 #ifdef DARWIN_GS_HACK
   Boolean gs_was_tcr = ensure_gs_pthread();
 #endif
   xframe_list xframe_link;
-  int old_valence;
 #ifndef DARWIN
   tcr = get_tcr(false);
 
@@ -856,22 +861,30 @@ signal_handler(int signum, siginfo_t *info, ExceptionInformation  *context, TCR 
     }
   }
   unlock_exception_lock_in_handler(tcr);
-#ifndef DARWIN
   exit_signal_handler(tcr, old_valence);
-#endif
   /* raise_pending_interrupt(tcr); */
 #ifdef DARWIN_GS_HACK
   if (gs_was_tcr) {
     set_gs_address(tcr);
   }
 #endif
-#ifndef DARWIN
   SIGRETURN(context);
-#endif
 }
 
 #ifdef DARWIN
+void
+pseudo_signal_handler(int signum, siginfo_t *info, ExceptionInformation  *context, TCR *tcr, int old_valence)
+{
+  sigset_t mask;
+
+  sigfillset(&mask);
+
+  pthread_sigmask(SIG_SETMASK,&mask,&(context->uc_sigmask));
+  signal_handler(signum, info, context, tcr, old_valence);
+}
 #endif
+
+
 
 #ifdef LINUX
 LispObj *
@@ -1885,7 +1898,7 @@ setup_signal_frame(mach_port_t thread,
   x86_thread_state_t new_ts;
 #endif
   ExceptionInformation *pseudosigcontext;
-  int i, j;
+  int i, j, old_valence = tcr->valence;
   kern_return_t result;
   natural stackp, *stackpp;
   siginfo_t *info;
@@ -1918,7 +1931,9 @@ setup_signal_frame(mach_port_t thread,
   new_ts.__rsi = (natural)info;
   new_ts.__rdx = (natural)pseudosigcontext;
   new_ts.__rcx = (natural)tcr;
+  new_ts.__r8 = (natural)old_valence;
   new_ts.__rsp = stackp;
+  new_ts.__rflags = ts->__rflags;
 
 
 #ifdef X8664
@@ -2052,7 +2067,7 @@ catch_exception_raise(mach_port_t exception_port,
       }
       if (signum) {
         kret = setup_signal_frame(thread,
-                                  (void *)signal_handler,
+                                  (void *)pseudo_signal_handler,
                                   signum,
                                   code,
                                   tcr, 
