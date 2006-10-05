@@ -54,17 +54,25 @@ _exportfn(C(noop))
 	__(retq)
 _endfn
 
-/* Do we need to set FP control modes in the x87 FPU ? Or just SSE2 ?  */
-_exportfn(C(set_fpscr))
+_exportfn(C(set_mxcsr))
+        __(pushq %rdi)
+        __(ldmxcsr (%rsp))
+        __(addq $8,%rsp)
+        __(ret)
 _endfn
 	
+_exportfn(C(get_mxcsr))
+        __(pushq $0)
+        __(stmxcsr (%rsp))
+        __(popq %rax)
+        __(ret)
+_endfn
+
 _exportfn(C(save_fp_context))
 _endfn
-
+        
 _exportfn(C(restore_fp_context))
-_endfn
-
-
+_endfn                        
 
 /*  Atomically store new value (%rdx) in *%rdi, if old value == %rsi. */
 /*  Return actual old value. */
