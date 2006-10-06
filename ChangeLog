@@ -1,3 +1,25 @@
+2006-10-06 04:49  gb
+
+	* level-1/l1-streams.lisp: CODE-UNIT, not CODE-ELEMENT.  Add a
+	TRANSLATE slot to IO-BUFFER.
+
+2006-10-06 04:40  gb
+
+	* level-1/l1-sockets.lisp: basic (vs fundamental) socket streams.
+
+2006-10-06 04:39  gb
+
+	* level-1/l1-sysio.lisp: Real, live EXTERNAL-FORMAT structures.
+
+2006-10-06 04:38  gb
+
+	* level-1/version.lisp: Bump.
+
+2006-10-06 04:38  gb
+
+	* level-0/l0-misc.lisp: %COPY-STRING-TO-U8: use #\? as a
+	replacement character.
+
 2006-10-05 14:46  gb
 
 	* lisp-kernel/lisptypes.h: More register name aliases.	FMH.
