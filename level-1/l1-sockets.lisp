@@ -68,18 +68,10 @@
   (declaim (inline %bswap32 %bswap16))
   (defun %bswap32 (x)
     (declare (type (unsigned-byte 32) x))
-    (dpb (ldb (byte 8 0) x)
-         (byte 8 24)
-         (dpb (ldb (byte 8 8) x)
-              (byte 8 16)
-              (dpb (ldb (byte 8 16) x)
-                   (byte 8 8)
-                   (ldb (byte 8 24) x)))))
+    (%swap-u32 x))
   (defun %bswap16 (x)
     (declare (type (unsigned-byte 16) x))
-    (dpb (ldb (byte 8 0) x)
-         (byte 8 8)
-         (ldb (byte 8 8) x)))
+    (%swap-u16 x))
   (defmacro HTONL (x) `(%bswap32 ,x))
   (defmacro HTONS (x) `(%bswap16 ,x))
   (defmacro NTOHL (x) `(%bswap32 ,x))
@@ -293,13 +285,22 @@ for udp-socket."))
 
 
 ;;; An active TCP socket is an honest-to-goodness stream.
-(defclass tcp-stream (tcp-socket fd-stream
-				 buffered-binary-io-stream-mixin
-				 buffered-character-io-stream-mixin)
+(defclass tcp-stream (tcp-socket)
   ())
 
+(defclass fundamental-tcp-stream (tcp-stream
+                                  fd-stream
+                                  buffered-binary-io-stream-mixin
+                                  buffered-character-io-stream-mixin)
+    ())
+
+(make-built-in-class 'basic-tcp-stream
+                     'tcp-stream
+                     'basic-binary-io-stream
+                     'basic-character-io-stream)
+
 (defgeneric socket-connect (stream)
-  (:documentation
+ (:documentation
    "Return :active for tcp-stream, :passive for listener-socket, and NIL
 for udp-socket"))
 
@@ -325,19 +326,37 @@ make-socket."))
   (declare (ignore char-p)) ; TODO: is there any real reason to care about this?
   ;; Yes, in general.  There is.
   (assert (and in-p out-p) () "Non-bidirectional tcp stream?")
-  'tcp-stream)
+  'fundamental-tcp-stream)
+
+(defmethod map-to-basic-stream-class-name ((name (eql 'tcp-stream)))
+  'basic-tcp-stream)
+
+(defmethod select-stream-class ((s (eql 'basic-tcp-stream)) in-p out-p char-p)
+  (declare (ignore char-p))
+  (assert (and in-p out-p) () "Non-bidirectional tcp stream?")
+  'basic-tcp-stream)
 
 ;;; A FILE-SOCKET-STREAM is also honest. To goodness.
-(defclass file-socket-stream (stream-file-socket
-                              fd-stream
-                              buffered-binary-io-stream-mixin
-                              buffered-character-io-stream-mixin)
+(defclass file-socket-stream (stream-file-socket)
   ())
+
+(defclass fundamental-file-socket-stream (file-socket-stream
+                                          fd-stream
+                                          buffered-binary-io-stream-mixin
+                                          buffered-character-io-stream-mixin)
+    ())
+
+(make-built-in-class 'basic-file-socket-stream
+                     'file-socket-stream
+                     'basic-binary-io-stream
+                     'basic-character-io-stream)
+
+
 
 (defmethod select-stream-class ((class file-socket-stream) in-p out-p char-p)
   (declare (ignore char-p)) ; TODO: is there any real reason to care about this?
   (assert (and in-p out-p) () "Non-bidirectional tcp stream?")
-  'file-socket-stream)
+  'fundamental-file-socket-stream)
 
 (defclass unconnected-socket (socket)
   ((device :initarg :device :accessor socket-device)
@@ -571,13 +590,13 @@ the socket is not connected."))
 		    type connect remote-host remote-port eol format
 		    keepalive reuse-address nodelay broadcast linger
 		    local-port local-host backlog class out-of-band-inline
-		    local-filename remote-filename sharing)
+		    local-filename remote-filename sharing basic)
   "Create and return a new socket."
   (declare (dynamic-extent keys))
   (declare (ignore type connect remote-host remote-port eol format
 		   keepalive reuse-address nodelay broadcast linger
 		   local-port local-host backlog class out-of-band-inline
-		   local-filename remote-filename sharing))
+		   local-filename remote-filename sharing basic))
   (ecase address-family
     ((:file) (apply #'make-file-socket keys))
     ((nil :internet) (apply #'make-ip-socket keys))))
@@ -653,22 +672,24 @@ the socket is not connected."))
 				  eol
 				  format
 				  (class 'tcp-stream)
+                                  (basic t)
 				  &allow-other-keys)
   (inet-connect fd
 		(host-as-inet-host remote-host)
 		(port-as-inet-port remote-port "tcp"))
-  (make-tcp-stream fd :format format :eol eol :class class))
+  (make-tcp-stream fd :format format :eol eol :class class :basic basic))
 
 (defun make-file-stream-socket (fd &key remote-filename
                                    eol
                                    format
                                    (class 'file-socket-stream)
+                                   (basic t)
                                    &allow-other-keys)
   (file-socket-connect fd remote-filename)
-  (make-file-socket-stream fd :format format :eol eol :class class))
+  (make-file-socket-stream fd :format format :eol eol :class class :basic basic))
 
 
-(defun make-tcp-stream (fd &key format eol (class 'tcp-stream) sharing &allow-other-keys)
+(defun make-tcp-stream (fd &key format eol (class 'tcp-stream) sharing (basic t) &allow-other-keys)
   (declare (ignore eol))		;???
   (let ((element-type (ecase format
 			((nil :text) 'character)
@@ -680,9 +701,10 @@ the socket is not connected."))
 		    :direction :io
 		    :element-type element-type
                     :sharing sharing
-                    :character-p t)))
+                    :character-p t
+                    :basic basic)))
 
-(defun make-file-socket-stream (fd &key format eol (class 'file-socket-stream)  sharing &allow-other-keys)
+(defun make-file-socket-stream (fd &key format eol (class 'file-socket-stream)  sharing basic &allow-other-keys)
   (declare (ignore eol))		;???
   (let ((element-type (ecase format
 			((nil :text) 'character)
@@ -694,7 +716,8 @@ the socket is not connected."))
 		    :direction :io
 		    :element-type element-type
                     :sharing sharing
-                    :character-p t)))
+                    :character-p t
+                    :basic basic)))
 
 (defun make-tcp-listener-socket (fd &rest keys &key backlog &allow-other-keys)
   (socket-call nil "listen" (c_listen fd (or backlog 5)))
