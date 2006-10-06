@@ -328,6 +328,7 @@
   (idx 0 :type fixnum)			; index of next element
   (count 0 :type fixnum)		; count of active elements
   (limit 0 :type fixnum)		; size (in elements) of buffer
+  (translate nil)                       ; newline-translation
   )
 
 (defmethod print-object ((buf io-buffer) out)
@@ -665,8 +666,8 @@
 ;;; Read a 16-bit code element from a stream with element-type
 ;;; (UNSIGNED-BYTE 8), in native byte-order.
 
-(declaim (inline %ioblock-read-u16-code-element))
-(defun %ioblock-read-u16-code-element (ioblock)
+(declaim (inline %ioblock-read-u16-code-unit))
+(defun %ioblock-read-u16-code-unit (ioblock)
   (declare (optimize (speed 3) (safety 0)))
   (let* ((buf (ioblock-inbuf ioblock))
          (idx (io-buffer-idx buf))
@@ -712,8 +713,8 @@
                 #+little-endian-target
                 (logior (the (unsigned-byte 16) (ash b1 8)) b0)))))))))
   
-(declaim (inline %ioblock-read-swapped-u16-code-element))
-(defun %ioblock-read-swapped-u16-code-element (ioblock)
+(declaim (inline %ioblock-read-swapped-u16-code-unit))
+(defun %ioblock-read-swapped-u16-code-unit (ioblock)
   (declare (optimize (speed 3) (safety 0)))
     (let* ((buf (ioblock-inbuf ioblock))
          (idx (io-buffer-idx buf))
@@ -760,8 +761,8 @@
                 (logior (the (unsigned-byte 16) (ash b1 8)) b0)))))))))
 
 
-(declaim (inline %ioblock-read-u32-code-element))
-(defun %ioblock-read-u32-code-element (ioblock)
+(declaim (inline %ioblock-read-u32-code-unit))
+(defun %ioblock-read-u32-code-unit (ioblock)
   (declare (optimize (speed 3) (safety 0)))
   (let* ((buf (ioblock-inbuf ioblock))
          (idx (io-buffer-idx buf))
@@ -881,8 +882,8 @@
                         (the (unsigned-byte 16) (ash b1 8))
                         b0)))))))))
 
-(declaim (inline %ioblock-read-swapped-u32-code-element))
-(defun %ioblock-read-swapped-u32-code-element (ioblock)
+(declaim (inline %ioblock-read-swapped-u32-code-unit))
+(defun %ioblock-read-swapped-u32-code-unit (ioblock)
   (declare (optimize (speed 3) (safety 0)))
   (let* ((buf (ioblock-inbuf ioblock))
          (idx (io-buffer-idx buf))
@@ -1135,7 +1136,7 @@
     (if ch
       (prog1 ch
         (setf (ioblock-untyi-char ioblock) nil))
-      (let* ((1st-unit (%ioblock-read-u16-code-element ioblock)))
+      (let* ((1st-unit (%ioblock-read-u16-code-unit ioblock)))
         (if (eq 1st-unit :eof)
           1st-unit
           (locally
@@ -1145,7 +1146,7 @@
               (code-char 1st-unit)
               (funcall (ioblock-decode-input-function ioblock)
                        1st-unit
-                       #'%ioblock-read-u16-code-element
+                       #'%ioblock-read-u16-code-unit
                        ioblock))))))))
 
 (defun %private-ioblock-read-u16-encoded-char (ioblock)
@@ -1165,7 +1166,7 @@
     (if ch
       (prog1 ch
         (setf (ioblock-untyi-char ioblock) nil))
-      (let* ((1st-unit (%ioblock-read-swapped-u16-code-element ioblock)))
+      (let* ((1st-unit (%ioblock-read-swapped-u16-code-unit ioblock)))
         (if (eq 1st-unit :eof)
           1st-unit
           (locally
@@ -1175,7 +1176,7 @@
               (code-char 1st-unit)
               (funcall (ioblock-decode-input-function ioblock)
                        1st-unit
-                       #'%ioblock-read-swapped-u16-code-element
+                       #'%ioblock-read-swapped-u16-code-unit
                        ioblock))))))))
 
 (defun %private-ioblock-read-swapped-u16-encoded-char (ioblock)
@@ -1572,8 +1573,8 @@
     (setf (ioblock-dirty ioblock) t)
     element))
 
-(declaim (inline %ioblock-write-u16-code-element))
-(defun %ioblock-write-u16-code-element (ioblock element)
+(declaim (inline %ioblock-write-u16-code-unit))
+(defun %ioblock-write-u16-code-unit (ioblock element)
   (declare (optimize (speed 3) (safety 0))
            (type (unsigned-byte 16) element))
   (let* ((buf (ioblock-outbuf ioblock))
@@ -1605,8 +1606,8 @@
     (setf (ioblock-dirty ioblock) t)
     element))
 
-(declaim (inline %ioblock-write-swapped-u16-code-element))
-(defun %ioblock-write-swapped-u16-code-element (ioblock element)
+(declaim (inline %ioblock-write-swapped-u16-code-unit))
+(defun %ioblock-write-swapped-u16-code-unit (ioblock element)
   (declare (optimize (speed 3) (safety 0)))
 (let* ((buf (ioblock-outbuf ioblock))
          (idx (io-buffer-idx buf))
@@ -1831,7 +1832,7 @@
     (setf (ioblock-pending-byte-order-mark ioblock) nil)
     (funcall (ioblock-encode-output-function ioblock)
              byte-order-mark
-             #'%ioblock-write-u16-code-element
+             #'%ioblock-write-u16-code-unit
              ioblock))
   (if (eq char #\linefeed)
     (setf (ioblock-charpos ioblock) 0)
@@ -1842,7 +1843,7 @@
       (%ioblock-write-u16-element ioblock code)
       (funcall (ioblock-encode-output-function ioblock)
                char
-               #'%ioblock-write-u16-code-element
+               #'%ioblock-write-u16-code-unit
                ioblock))))
 
 (defun %private-ioblock-write-u16-encoded-char (ioblock char)
@@ -1862,7 +1863,7 @@
            (optimize (speed 3) (safety 0)))
   (when (ioblock-pending-byte-order-mark ioblock)
     (setf (ioblock-pending-byte-order-mark ioblock) nil)
-    (%ioblock-write-u16-code-element ioblock byte-order-mark-char-code))
+    (%ioblock-write-u16-code-unit ioblock byte-order-mark-char-code))
   (do* ((i 0 (1+ i))
         (col (ioblock-charpos ioblock))
         (limit (ioblock-literal-char-code-limit ioblock))
@@ -1877,8 +1878,8 @@
         (setq col 0)
         (incf col))
       (if (< code limit)
-        (%ioblock-write-u16-code-element ioblock code)
-        (funcall encode-function char #'%ioblock-write-u16-code-element ioblock)))))
+        (%ioblock-write-u16-code-unit ioblock code)
+        (funcall encode-function char #'%ioblock-write-u16-code-unit ioblock)))))
 
 (declaim (inline %ioblock-write-swapped-u16-encoded-char))
 (defun %ioblock-write-swapped-u16-encoded-char (ioblock char)
@@ -1889,10 +1890,10 @@
   (let* ((code (char-code char)))
     (declare (type (mod #x110000) code))
     (if (< code (the fixnum (ioblock-literal-char-code-limit ioblock)))
-      (%ioblock-write-swapped-u16-code-element ioblock code)
+      (%ioblock-write-swapped-u16-code-unit ioblock code)
       (funcall (ioblock-encode-output-function ioblock)
                char
-               #'%ioblock-write-swapped-u16-code-element
+               #'%ioblock-write-swapped-u16-code-unit
                ioblock))))
 
 (defun %private-ioblock-write-swapped-u16-encoded-char (ioblock char)
@@ -1923,8 +1924,8 @@
         (setq col 0)
         (incf col))
       (if (< code limit)
-        (%ioblock-write-swapped-u16-code-element ioblock code)
-        (funcall encode-function char #'%ioblock-write-swapped-u16-code-element ioblock)))))
+        (%ioblock-write-swapped-u16-code-unit ioblock code)
+        (funcall encode-function char #'%ioblock-write-swapped-u16-code-unit ioblock)))))
 
 
 (declaim (inline %ioblock-write-u8-byte))
