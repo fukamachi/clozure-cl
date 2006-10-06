@@ -158,22 +158,29 @@ Because there's some risk that unsolicited newline translation could have
 undesirable consequences, the initial value of this variable in OpenMCL
 is :UNIX.")
 
+(defstruct external-format
+  (character-encoding :default)
+  (line-termination :default))
+
+
 (defun normalize-external-format (domain external-format)
   (cond ((listp external-format)
          (unless (plistp external-format)
            (error "External-format ~s is not a property list." external-format))
-         (let* ((character-encoding (getf external-format :character-encoding :default))
-                (line-termination (getf external-format :line-termination :default)))
+         (normalize-external-format domain (apply #'make-external-format external-format)))
+        ((typep external-format 'external-format)
+         (let* ((character-encoding (external-format-character-encoding external-format))
+                (line-termination (external-format-line-termination external-format)))
            (when (or (eq character-encoding :default)
                      (eq line-termination :default))
-             (setq external-format (copy-list external-format))
+             (setq external-format (copy-external-format external-format))
              (if (eq line-termination :default)
-               (setf (getf external-format :line-termination)
+               (setf (external-format-line-termination external-format)
                      (setq line-termination *default-line-termination*)))
              (unless (member line-termination *known-line-termination-formats*)
                (error "~S is not a known line-termination format." line-termination))
              (if (eq character-encoding :default)
-               (setf (getf external-format :character-encoding)
+               (setf (external-format-character-encoding external-format)
                      (setq character-encoding
                            (default-character-encoding domain))))
              (unless (lookup-character-encoding character-encoding)
@@ -842,9 +849,9 @@ is :UNIX.")
                        (real-external-format
                         (if char-p
                           (normalize-external-format :file external-format)
-                          '(:binary :t)))
-                       (line-termination (getf real-external-format :line-termination))
-                       (encoding (getf real-external-format :character-encoding))
+                          ))
+                       (line-termination (if char-p (external-format-line-termination real-external-format)))
+                       (encoding (if char-p (external-format-character-encoding real-external-format)))
                        (class-name (select-stream-class class in-p out-p char-p))
                        (class (find-class class-name))
                        (fstream (make-ioblock-stream
@@ -866,7 +873,7 @@ is :UNIX.")
                                            class direction))
                                  :device fd
                                  :encoding encoding
-                                 :external-format real-external-format
+                                 :external-format (or real-external-format :binary)
                                  :sharing sharing
                                  :character-p (or (eq element-type 'character)
                                                   (subtypep element-type 'character))))
