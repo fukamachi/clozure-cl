@@ -44,9 +44,14 @@
   (do* ((i 0 (1+ i)))
        ((= i n) u8-vector)
     (declare (fixnum i))
-    (setf (aref u8-vector dest-idx) (%scharcode string source-idx))
-    (incf source-idx)
-    (incf dest-idx)))
+    (let* ((char (schar string source-idx))
+           (code (char-code char)))
+      (declare (type (mod #x11000) code))
+      (if (> code #xff)
+        (setq code (char-code #\?)))
+      (setf (aref u8-vector dest-idx) code)
+      (incf source-idx)
+      (incf dest-idx))))
     
         
 
