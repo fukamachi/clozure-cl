@@ -117,8 +117,6 @@
 			 #'(lambda ()
 			     (process-exit-application *current-process*
                                                        #'(lambda ()
-                                                           (fresh-line *stdout*)
-                                                           (force-output *stdout*)
                                                            (#_exit exit-status)))))
       (unless (eq cp ip)
 	(process-kill cp)))))
