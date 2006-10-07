@@ -1,3 +1,24 @@
+2006-10-07 11:14  gb
+
+	* level-1/l1-streams.lisp: INPUT-STREAM-P, OUTPUT-STREAM-P are true
+	of instances if INPUT-STREAM/ OUTPUT-STREAM, respectively (not just
+	instances of FUNDAMENTAL-INPUT/OUTPUT-STREAM).
+
+2006-10-07 11:13  gb
+
+	* lisp-kernel/lisp-debug.c: Do abort() if kernel debugger is
+	entered when --batch is in effect.
+
+2006-10-07 11:12  gb
+
+	* level-1/l1-readloop.lisp: QUIT: flush *STDOUT* in
+	PROCESS-EXIT-APPLICATION.
+
+2006-10-07 11:11  gb
+
+	* level-1/l1-processes.lisp: PROCESS-EXIT-APPLICATION: flush
+	*stdout* here.
+
 2006-10-06 04:49  gb
 
 	* level-1/l1-streams.lisp: CODE-UNIT, not CODE-ELEMENT.  Add a
