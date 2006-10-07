@@ -810,7 +810,7 @@ lisp_Debugger(ExceptionInformation *xp,
   fprintf(stderr, "\n");
   va_end(args);
   if (lisp_global(BATCH_FLAG)) {
-    terminate_lisp();
+    abort();
   }
   if (xp) {
     if (why > debug_entry_exception) {
