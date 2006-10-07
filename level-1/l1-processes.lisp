@@ -568,6 +568,8 @@ some point in the near future, and then return to what it was doing."
   (when (eq process *initial-process*)
     (prepare-to-quit)
     (%set-toplevel thunk)
+    (fresh-line *stdout*)
+    (finish-output *stdout*)
     (toplevel)))
 
 
