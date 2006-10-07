@@ -2812,20 +2812,20 @@
 (defmethod input-stream-p ((x t))
   (report-bad-arg x 'stream))
 			   
-(defmethod input-stream-p ((s fundamental-input-stream))
+(defmethod input-stream-p ((s input-stream))
   t)
 
 (defmethod output-stream-p ((x t))
   (report-bad-arg x 'stream))
 
-(defmethod output-stream-p ((s fundamental-input-stream))
-  (typep s 'fundamental-output-stream))
+(defmethod output-stream-p ((s input-stream))
+  (typep s 'output-stream))
 
-(defmethod output-stream-p ((s fundamental-output-stream))
+(defmethod output-stream-p ((s output-stream))
   t)
 
-(defmethod input-stream-p ((s fundamental-output-stream))
-  (typep s 'fundamental-input-stream))
+(defmethod input-stream-p ((s output-stream))
+  (typep s 'input-stream))
 
 (defclass binary-stream (stream)
     ())
