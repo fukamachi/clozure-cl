@@ -91,55 +91,62 @@ present and false otherwise. This variable shouldn't be set by user code.")
 ;;; since there may not be any valid streams to write an error
 ;;; message to.
 
-(def-ccl-pointers fd-streams ()
-  (setq *stdin*	(make-fd-stream 0
-                                :basic t
-                                :sharing :lock
-                                :direction :input
-                                :interactive (not *batch-flag*)
-                                :encoding :utf-8))
-  (setq *stdout* (make-fd-stream 1 :basic t :direction :output :sharing :lock :encoding :utf-8))
+(defloadvar *interactive-streams-initialized* nil)
 
-  (setq *stderr* (make-fd-stream 2 :basic t :direction :output :sharing :lock :encoding :utf-8))
-  (if *batch-flag*
-    (let* ((tty-fd (let* ((fd (fd-open "/dev/tty" #$O_RDWR)))
-                     (if (>= fd 0) fd)))
-           (can-use-tty (and tty-fd (eql (tcgetpgrp tty-fd) (getpid)))))
-      (if can-use-tty
-        (setq
-         *terminal-input* (make-fd-stream tty-fd
-                                          :basic t
-                                          :direction :input
-                                          :interactive t
-                                          :sharing :lock
-                                          :encoding :utf-8)
-         *terminal-output* (make-fd-stream tty-fd :basic t :direction :output :sharing :lock :encoding :utf-8)
-         *terminal-io* (make-echoing-two-way-stream
-                        *terminal-input* *terminal-output*))
-        (progn
-          (when tty-fd (fd-close tty-fd))
-          (setq *terminal-input* *stdin*
-                *terminal-output* *stdout*
-                *terminal-io* (make-two-way-stream
-                               *terminal-input* *terminal-output*))))
-      (setq *standard-input* *stdin*
-            *standard-output* *stdout*))
-    (progn
-      (setq *terminal-input* *stdin*
-            *terminal-output* *stdout*
-            *terminal-io* (make-echoing-two-way-stream
-                           *terminal-input* *terminal-output*))
-      (setq *standard-input* (make-synonym-stream '*terminal-io*)
-            *standard-output* (make-synonym-stream '*terminal-io*))))
-  (setq *error-output* (if *batch-flag*
-                         (make-synonym-stream '*stderr*)
-                         (make-synonym-stream '*terminal-io*)))
-  (setq *query-io* (make-synonym-stream '*terminal-io*))
-  (setq *debug-io* *query-io*)
-  (setq *trace-output* *standard-output*)
-  (push *stdout* *auto-flush-streams*)
-  (setf (input-stream-shared-resource *terminal-input*)
-	(make-shared-resource "Shared Terminal Input")))
+(defun initialize-interactive-streams ()
+  (let* ((encoding (lookup-character-encoding *terminal-character-encoding-name*))
+         (encoding-name (if encoding (character-encoding-name encoding))))
+    (setq *stdin* (make-fd-stream 0
+                                  :basic t
+                                  :sharing :lock
+                                  :direction :input
+                                  :interactive (not *batch-flag*)
+                                  :encoding encoding-name))
+    (setq *stdout* (make-fd-stream 1 :basic t :direction :output :sharing :lock :encoding encoding-name))
+
+    (setq *stderr* (make-fd-stream 2 :basic t :direction :output :sharing :lock :encoding encoding-name))
+    (if *batch-flag*
+      (let* ((tty-fd (let* ((fd (fd-open "/dev/tty" #$O_RDWR)))
+                       (if (>= fd 0) fd)))
+             (can-use-tty (and tty-fd (eql (tcgetpgrp tty-fd) (getpid)))))
+        (if can-use-tty
+          (setq
+           *terminal-input* (make-fd-stream tty-fd
+                                            :basic t
+                                            :direction :input
+                                            :interactive t
+                                            :sharing :lock
+                                            :encoding encoding-name)
+           *terminal-output* (make-fd-stream tty-fd :basic t :direction :output :sharing :lock :encoding encoding-name)
+           *terminal-io* (make-echoing-two-way-stream
+                          *terminal-input* *terminal-output*))
+          (progn
+            (when tty-fd (fd-close tty-fd))
+            (setq *terminal-input* *stdin*
+                  *terminal-output* *stdout*
+                  *terminal-io* (make-two-way-stream
+                                 *terminal-input* *terminal-output*))))
+        (setq *standard-input* *stdin*
+              *standard-output* *stdout*))
+      (progn
+        (setq *terminal-input* *stdin*
+              *terminal-output* *stdout*
+              *terminal-io* (make-echoing-two-way-stream
+                             *terminal-input* *terminal-output*))
+        (setq *standard-input* (make-synonym-stream '*terminal-io*)
+              *standard-output* (make-synonym-stream '*terminal-io*))))
+    (setq *error-output* (if *batch-flag*
+                           (make-synonym-stream '*stderr*)
+                           (make-synonym-stream '*terminal-io*)))
+    (setq *query-io* (make-synonym-stream '*terminal-io*))
+    (setq *debug-io* *query-io*)
+    (setq *trace-output* *standard-output*)
+    (push *stdout* *auto-flush-streams*)
+    (setf (input-stream-shared-resource *terminal-input*)
+          (make-shared-resource "Shared Terminal Input")))
+  (setq *interactive-streams-initialized* t))
+
+(initialize-interactive-streams)
 
 
 
