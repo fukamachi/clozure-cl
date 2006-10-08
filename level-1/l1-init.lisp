@@ -305,9 +305,14 @@ methods that are marked as being predefined signal continuable errors.")
 
 
 
-; MCL-Alice build constants...
-(defconstant *genapp-src* "./AppGen.lisp")
-(defconstant *genapp-fsl* #.(merge-pathnames *.fasl-pathname* "./AppGen"))
+(defvar *terminal-character-encoding-name* nil
+  "NIL (implying :ISO-8859-1), or a keyword which names a defined
+character encoding to be used for *TERMINAL-IO* and other predefined
+initial streams.  The value of *TERMINAL-CHARACTER-ENCODING-NAME*
+persists across calls to SAVE-APPLICATION; it can be specified via
+the command-line argument --terminal-encoding (-K)")
 
-; end of L1-init.lisp
+
+
+;;; end of L1-init.lisp
 
