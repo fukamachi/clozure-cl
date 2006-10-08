@@ -1,3 +1,26 @@
+2006-10-07 20:35  gb
+
+	* level-1/l1-init.lisp: *TERMINAL-CHARACTER-ENCODING-NAME*.
+
+2006-10-07 20:34  gb
+
+	* level-1/l1-error-signal.lisp: In %ERROR, go straight to the
+	kernel debugger if interactive streams aren't initialized yet. 
+	(We'd probably get there sooner or later in that case; try to get
+	there sooner.)
+
+2006-10-07 20:33  gb
+
+	* level-1/l1-boot-2.lisp: Don't initialize interactive streams via
+	DEF-LOAD-POINTERS.  Wrap that up in a function, and set a flag when
+	the function's called (from APPLICATION's TOPLEVEL-FUNCTION
+	method.)
+
+2006-10-07 20:32  gb
+
+	* level-1/l1-application.lisp: Handle the (new)
+	-K/--terminal-encoding command-line argument.
+
 2006-10-07 11:14  gb
 
 	* level-1/l1-streams.lisp: INPUT-STREAM-P, OUTPUT-STREAM-P are true
