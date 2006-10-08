@@ -116,6 +116,10 @@
 (defun %error (condition args error-pointer)
   (setq condition (condition-arg condition args 'simple-error))
   (signal condition)
+  (unless *interactive-streams-initialized*
+    (bug (format nil "Error during early application initialization:~%
+~a" condition))
+    (#_exit #$EX_SOFTWARE))
   (application-error *application* condition error-pointer)
   (application-error
    *application*
