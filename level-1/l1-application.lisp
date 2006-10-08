@@ -42,6 +42,15 @@
    :option-char #\V
    :long-name "version"))
 
+(defvar *standard-terminal-encoding-argument*
+  (make-command-line-argument
+   :option-char #\K
+   :long-name "terminal-encoding"
+   :help-string "specify character encoding to use for *TERMINAL-IO*"
+   :may-take-operand t
+   :keyword :terminal-encoding
+   :allow-multiple nil))
+
 (defclass application ()
     ((command-line-arguments
       :initform
@@ -137,7 +146,13 @@
 	(progn
 	  (format t "~&~a~&" (application-version-string a))
 	  (force-output t)
-	  (#_exit 0))))
+	  (#_exit 0))
+        (let* ((encoding (assoc :terminal-encoding opts)))
+          (if encoding
+            (setq *terminal-character-encoding-name*
+                  (if (cdr encoding)
+                    (let* ((*package* (find-package "KEYWORD")))
+                      (ignore-errors (read-from-string (cdr encoding))))))))))
     (%usage-exit
      (format nil
 	     (case error-flag
@@ -156,7 +171,8 @@
   (multiple-value-bind (error-flag options args rest-arg)
       (parse-application-arguments a)
     (setq *unprocessed-command-line-arguments* rest-arg)
-    (process-application-arguments a error-flag options args)))
+    (process-application-arguments a error-flag options args)
+    (initialize-interactive-streams)))
 
 (defmethod application-version-string ((a application))
   "Return a string which (arbitrarily) represents the application version.
@@ -192,6 +208,7 @@ Default version returns OpenMCL version info."
     :initform
     (list *standard-help-argument*
 	  *standard-version-argument*
+          *standard-terminal-encoding-argument*
 	  (make-command-line-argument
 	   :option-char #\n
 	   :long-name "no-init"
@@ -241,13 +258,18 @@ Default version returns OpenMCL version info."
     (%usage-exit (format nil "Unrecognized non-option arguments: ~a" args)
 		 #$EX_USAGE
 		 (summarize-option-syntax a))
-    (setq *load-lisp-init-file* (not (assoc :noinit options))
-          *quiet-flag* (if *batch-flag*
-                         (not (null (assoc :quiet options))))
-	  *lisp-startup-parameters*
-	  (mapcan #'(lambda (x)
-		      (and (member (car x) '(:load :eval :gc-threshold)) (list x)))
-		  options))))
+    (progn
+      (let* ((encoding (assoc :terminal-encoding options)))
+        (when encoding
+          ))
+        
+      (setq *load-lisp-init-file* (not (assoc :noinit options))
+            *quiet-flag* (if *batch-flag*
+                           (not (null (assoc :quiet options))))
+            *lisp-startup-parameters*
+            (mapcan #'(lambda (x)
+                        (and (member (car x) '(:load :eval :gc-threshold)) (list x)))
+                    options)))))
 	
 
 (defmethod toplevel-function ((a lisp-development-system) init-file)
