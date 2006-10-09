@@ -1,4 +1,4 @@
-;;-*-Mode: LISP; Package: CCL -*-
+;;;-*-Mode: LISP; Package: CCL -*-
 ;;;
 ;;;   Copyright (C) 2006 Clozure Associates and contributors.
 ;;;   This file is part of OpenMCL.  
@@ -94,6 +94,7 @@
   ;; By what other MIME names is this encoding known ?
   (aliases nil)
   (documentation nil)
+  (encodable-limit char-code-limit)
   )
 
 (defconstant byte-order-mark #\u+feff)
@@ -226,10 +227,121 @@ characters used in most Western European languages."
      (declare (ignore pointer start))
      nunits))
   :literal-char-code-limit 256
+  :encodable-limit 256
   )
 
+(define-character-encoding :us-ascii
+  "An 7-bit, fixed-width character encoding in which all character
+codes map to their Unicode equivalents. "
 
+  :aliases '(:csASCII :cp637 :IBM637 :us :ISO646-US :ascii :ISO-ir-6)
 
+  :stream-encode-function
+  (nfunction
+   ascii-stream-encode
+   (lambda (char write-function stream)
+     (let* ((code (char-code char)))
+       (declare (type (mod #x110000) code))
+       (when (< code 128)
+         (funcall write-function stream code)
+         1))))
+  :stream-decode-function
+  (nfunction
+   ascii-stream-decode
+   (lambda (1st-unit next-unit-function stream)
+     (declare (ignore next-unit-function stream)
+              (type (unsigned-byte 8) 1st-unit))
+     (if (< 1st-unit 128)
+       (code-char 1st-unit))))
+  :vector-encode-function
+  (nfunction
+   ascii-vector-encode
+   (lambda (string vector idx &optional (start 0) (end (length string)))
+     (declare (type (simple-array (unsigned-byte 8) (*)) vector)
+              (fixnum idx))
+     (do* ((i start (1+ i)))
+          ((>= i end) idx)
+       (let* ((char (schar string i))
+              (code (char-code char)))
+         (declare (type (mod #x110000) code))
+         (if (>= code 128)
+           (return nil)
+           (progn
+             (setf (aref vector idx) code)
+             (incf idx)))))))
+  :vector-decode-function
+  (nfunction
+   ascii-vector-decode
+   (lambda (vector idx nunits string)
+     (declare (type (simple-array (unsigned-byte 8) (*)) vector))
+     (do* ((i 0 (1+ i))
+           (len (length vector))
+           (index idx (1+ index)))
+          ((>= i nunits) (values string index))
+       (if (>= index len)
+         (return (values nil idx))
+         (let* ((code (aref vector index)))
+           (declare (type (unsigned-byte 8) code))
+           (if (< code 128)
+             (setf (schar string i) code)
+             (return (values nil idx))))))))
+  :memory-encode-function
+  (nfunction
+   ascii-memory-encode
+   (lambda (string pointer idx &optional (start 0) (end (length string)))
+     (do* ((i start (1+ i)))
+          ((>= i end) idx)
+       (let* ((code (char-code (schar string i))))
+         (declare (type (mod #x110000) code))
+         (if (>= code 128)
+           (return nil)
+           (progn
+             (setf (%get-unsigned-byte pointer idx) code)
+             (incf idx)))))))
+  :memory-decode-function
+  (nfunction
+   ascii-memory-decode
+   (lambda (pointer nunits idx string)
+     (do* ((i 0 (1+ i))
+           (index idx (1+ index)))
+          ((>= i nunits) (values string index))
+       (let* ((code (%get-unsigned-byte pointer index)))
+         (declare (type (unsigned-byte 8) code))
+         (if (< code 128)
+           (setf (schar string i) (code-char code))
+           (return (values nil idx)))))))
+  :units-in-string-function
+  (nfunction
+   ascii-units-in-string
+   (lambda (string &optional (start 0) (end (length string)))
+     (when (>= end start)
+       (do* ((i start (1+ i)))
+            ((= i end) (- end start))
+         (let* ((code (char-code (schar string i))))
+           (declare (type (mod #x110000) code))
+           (unless (< code 128) (return nil)))))))
+  :length-of-vector-encoding-function
+  (nfunction
+   ascii-length-of-vector-encoding
+   (lambda (vector &optional (start 0) (end (length vector)))
+     (when (>= end start)
+       (do* ((i start (1+ i))
+             (k 0 (1+ k)))
+            ((= i end) k)
+         (when (>= 128 (the (unsigned-byte 8) (aref vector i)))
+           (return nil))))))
+  :length-of-memory-encoding-function 
+  (nfunction
+   ascii-length-of-memory-encoding
+   (lambda (pointer nunits &optional (start 0))
+     (do* ((i 0 (1+ i))
+           (p start (1+ p)))
+          ((= i nunits) nunits)
+       (when (>= 128 (the (unsigned-byte 8) (%get-unsigned-byte pointer p)))
+         (return nil)))))
+  :literal-char-code-limit 128
+  :encodable-limit 128
+  )
 
 
 
@@ -826,7 +938,7 @@ languages used in Northern Europe."
                  (svref *iso-8859-4-to-unicode* (the fixnum (- 1st-unit #xa0)))))))))
   :units-in-string-function
   (nfunction
-   iso-8859-1-units-in-string
+   iso-8859-4-units-in-string
    (lambda (string &optional (start 0) (end (length string)))
      (when (>= end start)
        (do* ((i start (1+ i)))
@@ -1974,12 +2086,15 @@ to output."
   (nfunction
    native-ucs-2-length-of-vector-encoding
    (lambda (vector &optional (start 0) (end (length vector)))
-     (when (>= end start)
-       (- end start))))
+     (do* ((i start (1+ i)))
+          ((>= i end) (if (= i end) (- end start)))
+       (let* ((code (aref vector i)))
+         (unless (code-char code)
+           (return nil))))))
   :length-of-memory-encoding-function
   (nfunction
    native-ucs-2-length-of-memory-encoding
-   (lambda (pointer nunits &optional start)
+   (lambda (pointer nunits &optional (start 0))
      (declare (ignore pointer start))
      nunits))
   :literal-char-code-limit #x10000
