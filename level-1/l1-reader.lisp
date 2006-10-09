@@ -25,21 +25,17 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;; Maps character codes to character names, for (some of the) first 2K codes.
-(defvar *character-names* #2048(nil))
-
 ;;; Maps character names to characters
 (defvar *name->char* (make-hash-table :test #'equalp))
+;;; Maps characters to (canonical) character names.
+(defvar *char->name* (make-hash-table :test #'eql))
 
 ;;; This isn't thread-safe.  If the user really wants to register character
 ;;; names from multiple threads, they should do their own locking.
 (defun register-character-name (name char)
-  (let* ((code (char-code char)))
-    (when (>= code (length *character-names*))
-      (setq *character-names* (%extend-vector 0 *character-names* (+ code 1024))))
-    (setf (gethash name *name->char*) char)    
-    (unless (svref *character-names* code)
-      (setf (svref *character-names* code) name))))
+  (setf (gethash name *name->char*) char)    
+  (unless (gethash char *char->name*)
+    (setf (gethash char *char->name*) name)))
 
 (dolist (pair '(
                 ;; Standard character names
@@ -47,9 +43,9 @@
                 ;; Semi-standard character names
                 ("Rubout" . #\177) ("Page" . #\014) ("Tab" . #\011)
                 ("Backspace" . #\010) ("Return" . #\015) ("Linefeed" . #\012)
-                ;; Other character names.  (When available, standard names
-                ;; should be used for printing in preference to any non-standard
-                ;; names.)
+                ;; Other character names.  (When available, standard
+                ;; names should be used for printing in preference to
+                ;; any non-standard names.)
                 ("Null" . #\000) ("Nul" . #\000)
                 ("Bell"  . #\007)       ; ^G , used by Franz (and others with bells.)
                 ("Delete" . #\010) ("BS" . #\010)
@@ -57,6 +53,7 @@
                 ("PageUp" . #\013)
                 ("PageDown" . #\014)("Formfeed" . #\014) ("FF" . #\014)
                 ("CR" . #\015)
+                ("Sub" . #\032)
                 ("ESC" .  #\033) ("Escape" . #\033) ("Clear" .  #\033)
                 ("Altmode" .  #\033) ("ALT" .  #\033)
                 ("Fs" . #\034)
@@ -1812,6 +1809,7 @@
                 ("Nko_Lajanyalan" . #\u+07fa)
                 ("Line_Separator" . #\u+2028)
                 ("Paragraph_Separator" . #\u+2029)
+                ("Replacement_Character" . #\u+fffd)
                 ))
   (destructuring-bind (name . char) pair
     (register-character-name name char)))
