@@ -1,3 +1,19 @@
+2006-10-09 16:34  gb
+
+	* level-1/l1-streams.lisp: Write  #\Sub's char-code if we can't
+	encode a character in (implicit) iso-8859-1.
+
+2006-10-09 16:33  gb
+
+	* level-0/l0-misc.lisp: %COPY-STRING-TO-U8: use #\Sub (ascii 26) as
+	a replacement character.
+
+2006-10-09 16:31  gb
+
+	* level-1/l1-unicode.lisp: :stream-encode/decode functions always
+	write/read something, even if it's a replacement character of some
+	sort.
+
 2006-10-09 15:19  gb
 
 	* level-1/l1-streams.lisp: More stuff about line termination.  When
