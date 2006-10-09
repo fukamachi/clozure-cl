@@ -113,7 +113,7 @@ sprint_unsigned_hex(natural n)
 #endif
     ;
 
-  add_c_string("#0x");
+  add_c_string("#x");
   for (i = 0; i < ndigits; i++) {
     add_char(digits[(n>>(4*(ndigits-(i+1))))&15]);
   }
