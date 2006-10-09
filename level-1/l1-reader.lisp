@@ -1809,7 +1809,10 @@
                 ("Nko_Symbol_Gbakurunen" . #\u+07f7)
                 ("Nko_Comma" . #\u+07f8)
                 ("Nko_Exclamation_Mark" . #\u+07f9)
-                ("Nko_Lajanyalan" . #\u+07fa)))
+                ("Nko_Lajanyalan" . #\u+07fa)
+                ("Line_Separator" . #\u+2028)
+                ("Paragraph_Separator" . #\u+2029)
+                ))
   (destructuring-bind (name . char) pair
     (register-character-name name char)))
 
@@ -1827,6 +1830,7 @@
 ;;;Otherwise, if it consists of octal digits, the number denoted by
 ;;;  those octal digits is interpreted as per the U+ case above.
 ;;;Otherwise return NIL.
+
 
 (defun name-char (name)
   "Given an argument acceptable to STRING, NAME-CHAR returns a character
