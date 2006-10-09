@@ -54,6 +54,12 @@
   (declare (ignore toplevel-function error-handler application-class
                    resources clear-clos-caches init-file impurify
 		   mode prepend-kernel))
+  (unless (probe-file (make-pathname :defaults nil
+                                     :directory (pathname-directory filename)))
+    (error "Directory containing ~s does not exist." filename))
+  (let* ((kind (%unix-file-kind (namestring (translate-logical-pathname filename)))))
+    (when (and kind (not (eq kind :file )))
+      (error "~S is not a regular file." filename)))
   (let* ((ip *initial-process*)
 	 (cp *current-process*))
     (when (process-verify-quit ip)
@@ -179,6 +185,7 @@
     (when prepend-fd
       (setq mode (logior #o111 mode)))
     (let* ((image-fd (fd-open filename (logior #$O_WRONLY #$O_CREAT))))
+      (unless (>= image-fd 0) (signal-file-error image-fd filename))
       (fd-chmod image-fd mode)
       (when prepend-fd
 	(%prepend-file image-fd prepend-fd prepend-len))
