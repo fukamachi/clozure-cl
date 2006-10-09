@@ -64,6 +64,7 @@ typedef u32_t unsigned_of_pointer_size;
 
 
 #ifdef DARWIN
+#include <sys/signal.h>
 #include <sys/ucontext.h>
 
 #ifdef PPC
