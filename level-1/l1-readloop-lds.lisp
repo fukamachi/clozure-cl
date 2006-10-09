@@ -457,7 +457,7 @@ whose name or ID matches <p>, or to any process if <p> is null"
 
 (defun select-backtrace ()
   (declare (notinline select-backtrace))
-  (require 'new-backtrace)
+  ;(require 'new-backtrace)
   (require :inspector)
   (select-backtrace))
 
