@@ -1,3 +1,20 @@
+2006-10-09 15:19  gb
+
+	* level-1/l1-streams.lisp: More stuff about line termination.  When
+	will this end ?
+
+2006-10-09 15:19  gb
+
+	* lib/chars.lisp: Use a hashtable to map characters to their names.
+	 (Maybe a sparse vector ?).
+
+2006-10-09 15:18  gb
+
+	* level-1/l1-reader.lisp: Use a hashtable to map characters to
+	their names.  (Maybe a sparse vector ?).
+	
+	Define #\Sub and #\Replacement_Character.
+
 2006-10-08 21:17  gb
 
 	* level-1/l1-readloop-lds.lisp: SELECT-BACKTRACE: it's been all
