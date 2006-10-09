@@ -104,39 +104,26 @@
   (let* ((encoding (or (file-ioblock-encoding file-ioblock)
                        (get-character-encoding nil)))
          (unit-size (character-encoding-code-unit-size encoding))
-         (octets-per-unit (ash unit-size -3))
-         (native-byte-order (file-ioblock-native-byte-order file-ioblock))
-         (little-endian #+little-endian-target native-byte-order
-                        #+big-endian-target (not native-byte-order))
-         (leading-zeros (if little-endian
-                          0
-                          (1- octets-per-unit)))
-         (trailing-zeros (if (not little-endian)
-                           0
-                           (1- octets-per-unit)))
          (cr (char-code #\Return))
          (lf (char-code #\linefeed))
          (inbuf (file-ioblock-inbuf file-ioblock))
          (buffer (io-buffer-buffer inbuf))
          (n (io-buffer-count inbuf)))
-    (if (zerop n)
-      (setq n (fd-stream-advance (file-ioblock-stream file-ioblock)
-                                 file-ioblock
-                                 t)))
-    (do* ((i 0 (+ i octets-per-unit))
-          (code))
-         ((= i n) :unix)
-      (when (and (dotimes (k leading-zeros t)
-                   (unless (zerop (the (unsigned-byte 8) (aref buffer (+ i k))))
-                     (return)))
-                 (setq code (aref buffer (+ i leading-zeros)))
-                 (dotimes (k trailing-zeros t)
-                   (unless (zerop (the (unsigned-byte 8) (aref buffer (+ i 1 leading-zeros k))))
-                     (return))))
-        (if (= code cr)
-          (return :macos)
-          (if (= code lf)
-            (return :unix)))))))
+    (cond ((= unit-size 8)
+           (if (zerop n)
+             (setq n (fd-stream-advance (file-ioblock-stream file-ioblock)
+                                        file-ioblock
+                                        t)))
+      
+      
+           (do* ((i 0 (+ i 1))
+                 (code))
+                ((= i n) :unix)
+             (setq code (aref buffer i))           
+             (if (= code cr)
+               (return :macos)
+               (if (= code lf)
+                 (return :unix))))))))
 
 
 (defvar *known-line-termination-formats* '(:unix :macos :inferred))
@@ -151,7 +138,7 @@
 (defvar *default-line-termination* :unix
   "The value of this variable is used when :EXTERNAL-FORMAT is
 unspecified or specified as :DEFAULT. It can meaningfully be given any
-of the values :UNIX, :MACOS, or :INFERRED, each of which is
+of the values :UNIX, :MACOS, :MSDOS or :INFERRED, each of which is
 interpreted as described in the documentation.
 
 Because there's some risk that unsolicited newline translation could have
@@ -177,7 +164,7 @@ is :UNIX.")
              (if (eq line-termination :default)
                (setf (external-format-line-termination external-format)
                      (setq line-termination *default-line-termination*)))
-             (unless (member line-termination *known-line-termination-formats*)
+             (unless (assq line-termination *canonical-line-termination-conventions*)
                (error "~S is not a known line-termination format." line-termination))
              (if (eq character-encoding :default)
                (setf (external-format-character-encoding external-format)
@@ -433,6 +420,11 @@ is :UNIX.")
 
 (defmethod print-object ((s basic-file-stream) out)
   (print-file-stream s out))
+
+
+(defmethod initialize-basic-stream ((s basic-file-stream) &key element-type external-format &allow-other-keys)
+  (setf (getf (basic-stream.info s) :element-type) element-type)
+  (setf (basic-file-stream.external-format s) external-format))
 
 (defmethod stream-create-ioblock ((stream fundamental-file-stream) &rest args &key)
   (declare (dynamic-extent args))
@@ -875,6 +867,7 @@ is :UNIX.")
                                  :encoding encoding
                                  :external-format (or real-external-format :binary)
                                  :sharing sharing
+                                 :line-termination line-termination
                                  :character-p (or (eq element-type 'character)
                                                   (subtypep element-type 'character))))
                        (ioblock (stream-ioblock fstream t)))
