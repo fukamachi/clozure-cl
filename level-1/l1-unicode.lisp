@@ -38,12 +38,11 @@
   (native-endianness t)                 ;if nil, need to swap 16,32-bit units
   (max-units-per-char 1)                ;usually 1-4
 
-  ;; Returns NIL if the character can't be encoded, else writes it
-  ;; to the stream and returns the number of units written.
+  ;; Writes CHAR (or a replacement character if CHAR can't be encoded)
+  ;; to STREAM and returns the number of code-units written.
   stream-encode-function                ;(CHAR WRITE-FUNCTION STREAM)
   
-  ;; Returns a charcter or NIL, possibly calling a function to
-  ;; obtain the next unit from a stream-like argument
+  ;; Returns a charcter (possibly #\Replacement_Character) or :EOF.
   stream-decode-function                ;(1ST-UNIT NEXT-UNIT STREAM)
 
   ;; Returns NIL if the string can't be encoded, else sets 1 or
@@ -143,9 +142,10 @@ characters used in most Western European languages."
    (lambda (char write-function stream)
      (let* ((code (char-code char)))
        (declare (type (mod #x110000) code))
-       (when (< code 256)
-         (funcall write-function stream code)
-         1))))
+       (if (>= code 256)
+         (setq code (char-code #\Sub)))
+       (funcall write-function stream code)
+       1)))
   :stream-decode-function
   (nfunction
    iso-8859-1-stream-decode
@@ -235,16 +235,16 @@ characters used in most Western European languages."
 codes map to their Unicode equivalents. "
 
   :aliases '(:csASCII :cp637 :IBM637 :us :ISO646-US :ascii :ISO-ir-6)
-
   :stream-encode-function
   (nfunction
    ascii-stream-encode
    (lambda (char write-function stream)
      (let* ((code (char-code char)))
        (declare (type (mod #x110000) code))
-       (when (< code 128)
-         (funcall write-function stream code)
-         1))))
+       (when (>= code 128)
+         (setq code (char-code #\Sub)))
+       (funcall write-function stream code)
+       1)))
   :stream-decode-function
   (nfunction
    ascii-stream-decode
@@ -252,7 +252,8 @@ codes map to their Unicode equivalents. "
      (declare (ignore next-unit-function stream)
               (type (unsigned-byte 8) 1st-unit))
      (if (< 1st-unit 128)
-       (code-char 1st-unit))))
+       (code-char 1st-unit)
+       #\Replacement_Character)))
   :vector-encode-function
   (nfunction
    ascii-vector-encode
@@ -433,9 +434,8 @@ languages used in Central/Eastern Europe."
                                       (the fixnum (- code #x2c0)))))))
                       
        (declare (type (mod #x110000) code))
-       (when c2
-         (funcall write-function stream code)
-         1))))
+       (funcall write-function stream (or c2 (char-code #\Sub)))
+       1)))
   :stream-decode-function
   (nfunction
    iso-8859-2-stream-decode
@@ -636,11 +636,9 @@ languages used in Southern Europe."
                       ((and (>= code #x2d8) (< code #x2e0))
                        (svref *unicode-2d8-2e0-to-iso8859-3*
                               (the fixnum (- code #x2d8)))))))
-                      
        (declare (type (mod #x110000) code))
-       (when c2
-         (funcall write-function stream code)
-         1))))
+       (funcall write-function stream (or c2 (char-code #\Sub)))
+       1)))
   :stream-decode-function
   (nfunction
    iso-8859-3-stream-decode
@@ -851,9 +849,8 @@ languages used in Northern Europe."
                               (the fixnum (- code #x2c0)))))))
                       
        (declare (type (mod #x110000) code))
-       (when c2
-         (funcall write-function stream code)
-         1))))
+       (funcall write-function stream (or c2 (char-code #\Sub)))
+       1)))
   :stream-decode-function
   (nfunction
    iso-8859-4-stream-decode
@@ -1030,8 +1027,9 @@ bytes."
                      (code-char
                       (logior
                        (the fixnum (ash (the fixnum (logand #x1f 1st-unit)) 6))
-                       (the fixnum (logxor s1 #x80)))))
-                   (let* ((s2 (funcall next-unit-function stream)))                 
+                       (the fixnum (logxor s1 #x80))))
+                     #\Replacement_Character)
+                   (let* ((s2 (funcall next-unit-function stream)))
                      (if (eq s2 :eof)
                        s2
                        (locally
@@ -1050,7 +1048,8 @@ bytes."
                                                      (the fixnum
                                                        (ash (the fixnum (logand s1 #x3f))
                                                             6))
-                                                     (the fixnum (logand s2 #x3f))))))))
+                                                     (the fixnum (logand s2 #x3f)))))))
+                             #\Replacement_Character)
                            (if (< 1st-unit #xf8)
                              (let* ((s3 (funcall next-unit-function stream)))
                                (if (eq s3 :eof)
@@ -1074,7 +1073,9 @@ bytes."
                                          (logior
                                           (the fixnum
                                             (ash (the fixnum (logxor s2 #x80)) 6))
-                                          (the fixnum (logxor s3 #x80)))))))))))))))))))))))
+                                          (the fixnum (logxor s3 #x80))))))
+                                     #\Replacement_Character))))
+                             #\Replacement_Character)))))))))))))
     :vector-encode-function
     (nfunction
      utf-8-vector-encode
@@ -1381,7 +1382,8 @@ bytes."
                             (the (unsigned-byte 20) (ash (the (unsigned-byte 10)
                                                            (- 1st-unit #xd800))
                                                          10))
-                            (the (unsigned-byte 10) (- 2nd-unit #xdc00))))))))))))
+                            (the (unsigned-byte 10) (- 2nd-unit #xdc00)))))
+              #\Replacement_Character)))))))
 
 
 (defun utf-16-units-in-string (string &optional (start 0) (end (length string)))
@@ -1974,16 +1976,17 @@ the data is assumed to be in big-endian order."
 (defun ucs-2-stream-encode (char write-function stream)
   (let* ((code (char-code char)))
     (declare (type (mod #x110000) code))
-    (if (< code #x10000)
-      (progn
-        (funcall write-function stream code)
-        1))))
+    (if (>= code #x10000)
+      (setq code (char-code #\Replacement_Character)))
+    (funcall write-function stream code)
+    1))
 
 (defun ucs-2-stream-decode (1st-unit next-unit-function stream)
   (declare (type (unsigned-byte 16) 1st-unit)
            (ignore next-unit-function stream))
   ;; CODE-CHAR returns NIL on either half of a surrogate pair.
-  (code-char 1st-unit))
+  (or (code-char 1st-unit)
+      #\Replacement_Character))
 
 
 (defun ucs-2-units-in-string (string &optional (start 0) (end (length string)))
