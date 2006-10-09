@@ -379,9 +379,13 @@
   (write-byte-when-locked-function 'ioblock-no-binary-output)
   (peek-char-function 'ioblock-no-char-input)
   (native-byte-order t)
+  (read-char-without-translation-while-locked-function 'ioblock-no-char-input)
+  (write-char-without-translation-while-locked-function 'iblock-no-char-output)
+  (sharing nil)
+  (reserved0 nil)
+  (reserved1 nil)
   (reserved2 nil)
-  (reserved3 nil)
-  (reserved4 nil))
+  (reserved3 nil))
 
 
 ;;; Functions on ioblocks.  So far, we aren't saying anything
@@ -474,11 +478,26 @@
     (when (= idx limit)
       (unless (%ioblock-advance ioblock t)
         (return-from %ioblock-read-u8-byte :eof))
+      (setq idx (io-buffer-idx buf)))
+    (setf (io-buffer-idx buf) (the fixnum (1+ idx)))
+    (aref (the (simple-array (unsigned-byte 8) (*))
+            (io-buffer-buffer buf)) idx)))
+
+(declaim (inline %ioblock-read-u8-code-unit))
+(defun %ioblock-read-u8-code-unit (ioblock)
+  (declare (optimize (speed 3) (safety 0)))
+  (let* ((buf (ioblock-inbuf ioblock))
+         (idx (io-buffer-idx buf))
+         (limit (io-buffer-count buf)))
+    (declare (fixnum idx limit))
+    (when (= idx limit)
+      (unless (%ioblock-advance ioblock t)
+        (return-from %ioblock-read-u8-code-unit :eof))
       (setq idx (io-buffer-idx buf)
             limit (io-buffer-count buf)))
     (setf (io-buffer-idx buf) (the fixnum (1+ idx)))
     (aref (the (simple-array (unsigned-byte 8) (*))
-            (io-buffer-buffer buf)) idx)))
+              (io-buffer-buffer buf)) idx)))             
 
 (declaim (inline %ioblock-read-s8-byte))
 (defun %ioblock-read-s8-byte (ioblock)
@@ -1082,11 +1101,10 @@
         (when (= idx limit)
           (unless (%ioblock-advance ioblock t)
             (return-from %ioblock-tyi :eof))
-          (setq idx (io-buffer-idx buf)
-                limit (io-buffer-count buf)))
+          (setq idx 0))
         (setf (io-buffer-idx buf) (the fixnum (1+ idx)))
         (%code-char (aref (the (simple-array (unsigned-byte 8) (*))
-                            (io-buffer-buffer buf)) idx))))))
+                                       (io-buffer-buffer buf)) idx))))))
 
 (defun %private-ioblock-tyi (ioblock)
   (declare (optimize (speed 3) (safety 0)))
@@ -1106,7 +1124,7 @@
     (if ch
       (prog1 ch
         (setf (ioblock-untyi-char ioblock) nil))
-      (let* ((1st-unit (%ioblock-read-u8-byte ioblock)))
+      (let* ((1st-unit (%ioblock-read-u8-code-unit ioblock)))
         (if (eq 1st-unit :eof)
           1st-unit
           (locally
@@ -1116,7 +1134,7 @@
               (%code-char 1st-unit)
               (funcall (ioblock-decode-input-function ioblock)
                        1st-unit
-                       #'%ioblock-read-u8-byte
+                       #'%ioblock-read-u8-code-unit
                        ioblock))))))))
 
 (defun %private-ioblock-read-u8-encoded-char (ioblock)
@@ -2057,56 +2075,58 @@
             (io-buffer-idx buf) 0)))
 
 (defun %ioblock-unencoded-read-line (ioblock)
-  (let* ((string "")
-	 (len 0)
-	 (eof nil)
-	 (inbuf (ioblock-inbuf ioblock))
-	 (buf (io-buffer-buffer inbuf))
-	 (newline (char-code #\newline)))
-    (let* ((ch (ioblock-untyi-char ioblock)))
-      (when ch
-	(setf (ioblock-untyi-char ioblock) nil)
-	(if (eql ch #\newline)
-	  (return-from %ioblock-unencoded-read-line 
-	    (values string nil))
-	  (progn
-	    (setq string (make-string 1)
-		  len 1)
-	    (setf (schar string 0) ch)))))
-    (loop
-      (let* ((more 0)
-             (idx (io-buffer-idx inbuf))
-             (count (io-buffer-count inbuf)))
-        (declare (fixnum idx count more))
-        (if (= idx count)
-          (if eof
-            (return (values string t))
-            (progn
-              (setq eof t)
-              (%ioblock-advance ioblock t)))
-          (progn
-            (setq eof nil)
-            (let* ((pos (position newline buf :start idx :end count)))
-              (when pos
-                (locally (declare (fixnum pos))
-                  (setf (io-buffer-idx inbuf) (the fixnum (1+ pos)))
-                  (setq more (- pos idx))
-                  (unless (zerop more)
-                    (setq string
-                          (%extend-vector
-                           0 string (the fixnum (+ len more)))))
+  (let* ((inbuf (ioblock-inbuf ioblock)))
+    (if (io-buffer-translate inbuf)
+      (%ioblock-encoded-read-line ioblock)
+      (let* ((string "")
+             (len 0)
+             (eof nil)
+             (buf (io-buffer-buffer inbuf))
+             (newline (char-code #\newline)))
+        (let* ((ch (ioblock-untyi-char ioblock)))
+          (when ch
+            (setf (ioblock-untyi-char ioblock) nil)
+            (if (eql ch #\newline)
+              (return-from %ioblock-unencoded-read-line 
+                (values string nil))
+              (progn
+                (setq string (make-string 1)
+                      len 1)
+                (setf (schar string 0) ch)))))
+        (loop
+          (let* ((more 0)
+                 (idx (io-buffer-idx inbuf))
+                 (count (io-buffer-count inbuf)))
+            (declare (fixnum idx count more))
+            (if (= idx count)
+              (if eof
+                (return (values string t))
+                (progn
+                  (setq eof t)
+                  (%ioblock-advance ioblock t)))
+              (progn
+                (setq eof nil)
+                (let* ((pos (position newline buf :start idx :end count)))
+                  (when pos
+                    (locally (declare (fixnum pos))
+                      (setf (io-buffer-idx inbuf) (the fixnum (1+ pos)))
+                      (setq more (- pos idx))
+                      (unless (zerop more)
+                        (setq string
+                              (%extend-vector
+                               0 string (the fixnum (+ len more)))))
+                      (%copy-u8-to-string
+                       buf idx string len more)
+                      (return (values string nil))))
+                  ;; No #\newline in the buffer.  Read everything that's
+                  ;; there into the string, and fill the buffer again.
+                  (setf (io-buffer-idx inbuf) count)
+                  (setq more (- count idx)
+                        string (%extend-vector
+                                0 string (the fixnum (+ len more))))
                   (%copy-u8-to-string
                    buf idx string len more)
-                  (return (values string nil))))
-              ;; No #\newline in the buffer.  Read everything that's
-              ;; there into the string, and fill the buffer again.
-              (setf (io-buffer-idx inbuf) count)
-              (setq more (- count idx)
-                    string (%extend-vector
-                            0 string (the fixnum (+ len more))))
-              (%copy-u8-to-string
-               buf idx string len more)
-              (incf len more))))))))
+                  (incf len more))))))))))
 
 ;;; There are lots of ways of doing better here, but in the most general
 ;;; case we can't tell (a) what a newline looks like in the buffer or (b)
@@ -2122,29 +2142,31 @@
       (vector-push-extend ch str))))
 	 
 (defun %ioblock-unencoded-character-read-vector (ioblock vector start end)
-  (do* ((i start)
-	(in (ioblock-inbuf ioblock))
-	(inbuf (io-buffer-buffer in))
-	(need (- end start)))
-       ((= i end) end)
-    (declare (fixnum i need))
-    (let* ((ch (%ioblock-tyi ioblock)))
-      (if (eq ch :eof)
-	(return i))
-      (setf (schar vector i) ch)
-      (incf i)
-      (decf need)
-      (let* ((idx (io-buffer-idx in))
-	     (count (io-buffer-count in))
-	     (avail (- count idx)))
-	(declare (fixnum idx count avail))
-	(unless (zerop avail)
-	  (if (> avail need)
-	    (setq avail need))
-	  (%copy-u8-to-string inbuf idx vector i avail)
-	  (setf (io-buffer-idx in) (+ idx avail))
-	  (incf i avail)
-	  (decf need avail))))))
+  (let* ((in (ioblock-inbuf ioblock)))
+    (if (io-buffer-translate in)
+      (%ioblock-encoded-character-read-vector ioblock vector start end)
+      (do* ((i start)
+            (inbuf (io-buffer-buffer in))
+            (need (- end start)))
+           ((= i end) end)
+        (declare (fixnum i need))
+        (let* ((ch (%ioblock-tyi ioblock)))
+          (if (eq ch :eof)
+            (return i))
+          (setf (schar vector i) ch)
+          (incf i)
+          (decf need)
+          (let* ((idx (io-buffer-idx in))
+                 (count (io-buffer-count in))
+                 (avail (- count idx)))
+            (declare (fixnum idx count avail))
+            (unless (zerop avail)
+              (if (> avail need)
+                (setq avail need))
+              (%copy-u8-to-string inbuf idx vector i avail)
+              (setf (io-buffer-idx in) (+ idx avail))
+              (incf i avail)
+              (decf need avail))))))))
 
 (defun %ioblock-encoded-character-read-vector (ioblock vector start end)
   (declare (fixnum start end))
@@ -2292,12 +2314,136 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;;; Character-at-a-time line-termination-translation functions.
+;;; It's not always possible to just blast through the buffer, blindly
+;;; replacing #xd with #xa (for example), and it's not always desirable
+;;; to do that (if we support changing encoding on open streams.)
+;;; This is done at a fairly high level; some cases could be done at
+;;; a lower level, and some cases are hard even at that lower level.
+;;; This approach doesn't slow down the simple case (when no line-termination
+;;; translation is used), and hopefully isn't -that- bad.
 
+(declaim (inline %ioblock-read-char-translating-cr-to-newline))
+(defun %ioblock-read-char-translating-cr-to-newline (ioblock)
+  (let* ((ch (funcall
+              (ioblock-read-char-without-translation-while-locked-function
+               ioblock)
+              ioblock)))
+    (if (eql ch #\Return)
+      #\Newline
+      ch)))
 
-(defun setup-ioblock-input (ioblock character-p element-type sharing encoding)
+(defun %private-ioblock-read-char-translating-cr-to-newline (ioblock)
+  (check-ioblock-owner ioblock)
+  (%ioblock-read-char-translating-cr-to-newline ioblock))
+
+(defun %locked-ioblock-read-char-translating-cr-to-newline (ioblock)
+  (with-ioblock-input-lock-grabbed (ioblock)
+    (%ioblock-read-char-translating-cr-to-newline ioblock)))
+
+(declaim (inline %ioblock-read-char-translating-crlf-to-newline))
+(defun %ioblock-read-char-translating-crlf-to-newline (ioblock)
+  (let* ((ch (funcall
+              (ioblock-read-char-without-translation-while-locked-function
+               ioblock)
+              ioblock)))
+    (if (eql ch #\Return)
+      (let* ((next (funcall
+                    (ioblock-read-char-without-translation-while-locked-function
+                     ioblock)
+                    ioblock)))
+        (if (eql next #\Linefeed)
+          next
+          (progn
+            (unless (eq next :eof)
+              (setf (ioblock-untyi-char ioblock) next))
+            ch)))
+      ch)))
+    
+(defun %private-ioblock-read-char-translating-crlf-to-newline (ioblock)
+  (check-ioblock-owner ioblock)
+  (%ioblock-read-char-translating-crlf-to-newline ioblock))
+
+(defun %locked-ioblock-read-char-translating-crlf-to-newline (ioblock)
+  (with-ioblock-input-lock-grabbed (ioblock)
+    (%ioblock-read-char-translating-crlf-to-newline ioblock)))
+
+(declaim (inline %ioblock-read-char-translating-line-separator-to-newline))
+(defun %ioblock-read-char-translating-line-separator-to-newline (ioblock)
+  (let* ((ch (funcall
+              (ioblock-read-char-without-translation-while-locked-function
+               ioblock)
+              ioblock)))
+    (if (eql ch #\Line_Separator)
+      #\Newline
+      ch)))
+
+(defun %private-ioblock-read-char-translating-line-separator-to-newline (ioblock)
+  (check-ioblock-owner ioblock)
+  (%ioblock-read-char-translating-line-separator-to-newline ioblock))
+
+(defun %locked-ioblock-read-char-translating-line-separator-to-newline (ioblock)
+  (with-ioblock-input-lock-grabbed (ioblock)
+    (%ioblock-read-char-translating-line-separator-to-newline ioblock)))
+
+(declaim (inline %ioblock-write-char-translating-newline-to-cr))
+(defun %ioblock-write-char-translating-newline-to-cr (ioblock char)
+  (funcall (ioblock-write-char-without-translation-while-locked-function
+            ioblock)
+           ioblock
+           (if (eql char #\Newline) #\Return char)))
+
+(defun %private-ioblock-write-char-translating-newline-to-cr (ioblock char)
+  (check-ioblock-owner ioblock)
+  (%ioblock-write-char-translating-newline-to-cr ioblock char))
+
+(defun %locked-ioblock-write-char-translating-newline-to-cr (ioblock char)
+  (with-ioblock-input-lock-grabbed (ioblock)
+    (%ioblock-write-char-translating-newline-to-cr ioblock char)))
+
+(declaim (inline %ioblock-write-char-translating-newline-to-crlf))
+(defun %ioblock-write-char-translating-newline-to-crlf (ioblock char)
+  (when (eql char #\Newline)
+    (funcall (ioblock-write-char-without-translation-while-locked-function
+              ioblock)
+             ioblock
+             #\Return))    
+  (funcall (ioblock-write-char-without-translation-while-locked-function
+            ioblock)
+           ioblock
+           char))
+
+(defun %private-ioblock-write-char-translating-newline-to-crlf (ioblock char)
+  (check-ioblock-owner ioblock)
+  (%ioblock-write-char-translating-newline-to-crlf ioblock char))
+
+(defun %locked-ioblock-write-char-translating-newline-to-crlf (ioblock char)
+  (with-ioblock-input-lock-grabbed (ioblock)
+    (%ioblock-write-char-translating-newline-to-crlf ioblock char)))
+
+(declaim (inline %ioblock-write-char-translating-newline-to-line-separator))
+(defun %ioblock-write-char-translating-newline-to-line-separator (ioblock char)
+  (funcall (ioblock-write-char-without-translation-while-locked-function
+            ioblock)
+           ioblock
+           (if (eql char #\Newline) #\Line_Separator char)))
+
+(defun %private-ioblock-write-char-translating-newline-to-line-separator (ioblock char)
+  (check-ioblock-owner ioblock)
+  (%ioblock-write-char-translating-newline-to-line-separator ioblock char))
+
+(defun %locked-ioblock-write-char-translating-newline-to-line-separator (ioblock char)
+  (with-ioblock-input-lock-grabbed (ioblock)
+    (%ioblock-write-char-translating-newline-to-line-separator ioblock char)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defun setup-ioblock-input (ioblock character-p element-type sharing encoding line-termination)
   (when character-p
     (if encoding
       (let* ((unit-size (character-encoding-code-unit-size encoding)))
+        (unless (eql unit-size 8)
+          (setq line-termination nil))
         (setf (ioblock-peek-char-function ioblock) '%encoded-ioblock-peek-char)
         (setf (ioblock-read-line-function ioblock)
               '%ioblock-encoded-read-line)
@@ -2342,7 +2488,11 @@
         (setf (ioblock-character-read-vector-function ioblock)
               '%ioblock-unencoded-character-read-vector)
         (setf (ioblock-read-line-function ioblock)
-              '%ioblock-unencoded-read-line))))
+              '%ioblock-unencoded-read-line)))
+    (case line-termination
+      ((:cr :crlf)
+       (let* ((inbuf (ioblock-inbuf ioblock)))
+         (setf (io-buffer-translate inbuf) line-termination)))))
   (unless (or (eq element-type 'character)
               (subtypep element-type 'character))
     (let* ((subtag (element-type-subtype element-type)))
@@ -2422,10 +2572,12 @@
                          '%general-ioblock-read-byte)
                    '%general-ioblock-read-byte))))))
 
-(defun setup-ioblock-output (ioblock character-p element-type sharing encoding)
+(defun setup-ioblock-output (ioblock character-p element-type sharing encoding line-termination)
   (when character-p
     (if encoding
       (let* ((unit-size (character-encoding-code-unit-size encoding)))
+        (unless (eq unit-size 8)
+          (setq line-termination nil))
         (setf (ioblock-encode-output-function ioblock)
               (character-encoding-stream-encode-function encoding))
         (setf (ioblock-write-char-function ioblock)
@@ -2471,7 +2623,11 @@
               (case sharing
                 (:private '%private-ioblock-write-char)
                 (:lock '%locked-ioblock-write-char)
-                (t '%ioblock-write-char))))))
+                (t '%ioblock-write-char)))))
+        (case line-termination
+          ((:cr :crlf)
+           (let* ((outbuf (ioblock-outbuf ioblock)))
+             (setf (io-buffer-translate outbuf) line-termination)))))
   (unless (or (eq element-type 'character)
               (subtypep element-type 'character))
     (let* ((subtag (element-type-subtype element-type)))
@@ -2574,6 +2730,7 @@
                             (sharing :private)
                             character-p
                             encoding
+                            line-termination
                             &allow-other-keys)
   (declare (ignorable element-shift))
   (when encoding
@@ -2613,7 +2770,7 @@
                                 :limit insize))
           (when (eq sharing :lock)
             (setf (ioblock-inbuf-lock ioblock) (make-lock)))
-          (setup-ioblock-input ioblock character-p element-type sharing encoding)
+          (setup-ioblock-input ioblock character-p element-type sharing encoding line-termination)
           (setf (ioblock-element-shift ioblock) (max 0 (ceiling (log  (/ in-size-in-octets insize) 2))))
           )))
     (if share-buffers-p
@@ -2641,7 +2798,7 @@
             (setf (ioblock-element-shift ioblock) (max 0 (ceiling (log (/ out-size-in-octets outsize) 2))))
             ))))
     (when (or share-buffers-p outsize)
-      (setup-ioblock-output ioblock character-p element-type sharing encoding))
+      (setup-ioblock-output ioblock character-p element-type sharing encoding line-termination))
     (when element-type
       (setf (ioblock-element-type ioblock) element-type))
 ;    (when element-shift
@@ -2761,6 +2918,19 @@
   (select-stream-class (class-prototype s) in-p out-p char-p))
 
 
+(defparameter *canonical-line-termination-conventions*
+  '((:unix . nil)
+    (:macos . :cr)
+    (:cr . :cr)
+    (:crlf . :crlf)
+    (:cp/m . :crlf)
+    (:msdos . :crlf)
+    (:windows . :crlf)
+    (:inferred . nil)))
+
+
+    
+
 ;;; Note that we can get "bivalent" streams by specifiying :character-p t
 ;;; with a reasonable element-type (e.g. (UNSIGNED-BYTE 8))
 (defun make-fd-stream (fd &key
@@ -2773,7 +2943,11 @@
                           (character-p (or (eq element-type 'character)
                                            (subtypep element-type 'character)))
                           (basic nil)
-                          encoding)
+                          encoding
+                          line-termination)
+  (when line-termination
+    (setq line-termination
+          (cdr (assoc line-termination *canonical-line-termination-conventions*))))
   (when basic
     (setq class (map-to-basic-stream-class-name class))
     (setq basic (subtypep (find-class class) 'basic-stream)))
@@ -2796,7 +2970,8 @@
 			 :close-function 'fd-stream-close
                          :sharing sharing
                          :character-p character-p
-                         :encoding encoding)))
+                         :encoding encoding
+                         :line-termination line-termination)))
   
 ;;;  Fundamental streams.
 
