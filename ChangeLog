@@ -1,3 +1,42 @@
+2006-10-08 21:17  gb
+
+	* level-1/l1-readloop-lds.lisp: SELECT-BACKTRACE: it's been all
+	NEW-BACKTRACE for a while now.
+
+2006-10-08 21:16  gb
+
+	* lisp-kernel/lisptypes.h: Need to #include <sys/signal.h> to keep
+	Panther happy.
+
+2006-10-08 20:30  gb
+
+	* lisp-kernel/x86_print.c: Print hex with leading #x, not #0x ...
+
+2006-10-08 20:30  gb
+
+	* lib/dumplisp.lisp: Do some sanity checks on SAVE-APPLICATION
+	pathname, before it's too late ...
+
+2006-10-08 20:29  gb
+
+	* level-1/l1-unicode.lisp: ASCII, some other changes.
+
+2006-10-08 20:29  gb
+
+	* level-1/l1-sysio.lisp: Rearrange a few things; pass
+	:line-termination option to MAKE-FD-STREAM.
+
+2006-10-08 20:28  gb
+
+	* level-1/l1-streams.lisp: Yet another line-termination translation
+	scheme; hopefully, the last for a while. (More tedium before it's
+	actually installed.)
+
+2006-10-08 20:27  gb
+
+	* level-1/l1-reader.lisp: Add character names for #\Line_Separator,
+	#\Paragraph_separator.
+
 2006-10-07 20:35  gb
 
 	* level-1/l1-init.lisp: *TERMINAL-CHARACTER-ENCODING-NAME*.
