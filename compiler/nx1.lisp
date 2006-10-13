@@ -210,9 +210,6 @@
 
 
 
-
-
-
 (defnx1 nx1-ccEQ-binaryop ( (%ptr-eql) (eq))
         (form1 form2)
   (nx1-cc-binaryop (%nx1-default-operator) :eq form1 form2))
@@ -594,7 +591,7 @@
 (defnx1 nx1-numcmp ((<-2) (>-2) (<=-2) (>=-2)) (&whole whole &environment env num1 num2)
   (let* ((op *nx-sfname*)
          (both-fixnums (nx-binary-fixnum-op-p num1 num2 env t))
-	 (both-natural (nx-binary-natural-op-p num1 num2 env ))
+         (both-natural (nx-binary-natural-op-p num1 num2 env ))
          (both-double-floats
           (let* ((dfloat-1 (nx-form-typep num1 'double-float env))
                  (dfloat-2 (nx-form-typep num2 'double-float env)))
@@ -612,11 +609,11 @@
       (make-acode
        (if both-fixnums
          (%nx1-operator %i<>)
-	 (if both-natural
-	   (%nx1-operator %natural<>)
-	   (if both-double-floats
-	     (%nx1-operator double-float-compare)
-	     (%nx1-operator short-float-compare))))
+         (if both-natural
+           (%nx1-operator %natural<>)
+           (if both-double-floats
+             (%nx1-operator double-float-compare)
+             (%nx1-operator short-float-compare))))
        (make-acode
         (%nx1-operator immediate)
         (if (eq op '<-2)
@@ -628,7 +625,18 @@
               :GT))))
        (nx1-form num1)
        (nx1-form num2))
-      (nx1-treat-as-call whole))))
+      (make-acode (%nx1-operator numcmp)
+                  (make-acode
+                   (%nx1-operator immediate)
+                   (if (eq op '<-2)
+                     :LT
+                     (if (eq op '>=-2)
+                       :GE
+                       (if (eq op '<=-2)
+                         :LE
+                         :GT))))
+                  (nx1-form num1)
+                  (nx1-form num2)))))
 
 (defnx1 nx1-num= ((=-2) (/=-2)) (&whole whole &environment env num1 num2 )
   (let* ((op *nx-sfname*)
@@ -672,7 +680,14 @@
 	      :NE))
 	   (nx1-form num1)
 	   (nx1-form num2))
-	  (nx1-treat-as-call whole))))))
+          (make-acode (%nx1-operator numcmp)
+                      (make-acode
+                       (%nx1-operator immediate)     
+                       (if (eq op '=-2)
+                         :EQ
+                         :NE))
+                      (nx1-form num1)
+                      (nx1-form num2)))))))
              
 
 (defnx1 nx1-uvset ((uvset) (%misc-set)) (vector index value &environment env)
