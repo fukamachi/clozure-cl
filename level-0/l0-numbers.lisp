@@ -309,16 +309,19 @@
                 (and (zerop (%imagpart x)) (= (%realpart x) y)))))))
 
 (defun /=-2 (x y)
-  (not (=-2 x y)))
+  (declare (notinline =-2))
+  (not (= x y)))
 
 
 ; true iff (< x y) is false.
 (defun >=-2 (x y)
+  (declare (notinline <-2))
   (not (< x y)))
 
 
 
 (defun <=-2 (x y)
+  (declare (notinline >-2))
   (not (> x y)))
 
 (defun <-2 (x y)
