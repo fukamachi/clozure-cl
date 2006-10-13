@@ -1,3 +1,19 @@
+2006-10-12 19:46  gb
+
+	* lisp-kernel/pmcl-kernel.c: Terminate argument processing when
+	"--" is seen.
+
+2006-10-12 19:45  gb
+
+	* level-1/: l1-streams.lisp, l1-sysio.lisp, l1-unicode.lisp: Handle
+	newline translation differenly (at the character I/O level, not the
+	buffer level).
+	
+	All character encoding/decoding functions operate on octets, not
+	necessarily code units.  (The stream encode/decode functions are an
+	exception; serialization and byte ordering are handled by the
+	stream.)
+
 2006-10-09 16:34  gb
 
 	* level-1/l1-streams.lisp: Write  #\Sub's char-code if we can't
