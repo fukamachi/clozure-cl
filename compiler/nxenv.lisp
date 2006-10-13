@@ -204,7 +204,7 @@
      (add2 . #.(logior operator-assignment-free-mask operator-single-valued-mask operator-acode-subforms-mask operator-side-effect-free-mask))
      (sub2 . #.(logior operator-assignment-free-mask operator-single-valued-mask operator-acode-subforms-mask operator-side-effect-free-mask))
      (numeric-comparison . #.(logior operator-assignment-free-mask operator-single-valued-mask operator-cc-invertable-mask))
-     (num= . #.(logior operator-assignment-free-mask operator-acode-subforms-mask operator-single-valued-mask operator-cc-invertable-mask))
+     (numcmp . #.(logior operator-assignment-free-mask operator-acode-subforms-mask operator-single-valued-mask operator-cc-invertable-mask))
      (struct-ref . 0)
      (struct-set . 0)
      (%aref1 . #.(logior operator-acode-subforms-mask operator-assignment-free-mask operator-single-valued-mask))
