@@ -32,6 +32,14 @@
 (defun (setf get-character-encoding) (new name)
   (setf (gethash name *character-encodings*) new))
 
+(defun ensure-character-encoding (thing)
+  (if (typep thing 'character-encoding)
+    thing
+    (or (lookup-character-encoding thing)
+        (error "~s is not a character-encoding or the name of a character-encoding."
+               thing))))
+
+
 (defstruct character-encoding
   (name ())                             ;canonical name
   (code-unit-size 8)                    ;in bits: 8, 16, 32
@@ -45,39 +53,37 @@
   ;; Returns a charcter (possibly #\Replacement_Character) or :EOF.
   stream-decode-function                ;(1ST-UNIT NEXT-UNIT STREAM)
 
-  ;; Returns NIL if the string can't be encoded, else sets 1 or
-  ;; more units in a vector argument and returns a value 1 greater
-  ;; than the index of the last unit written to the vector
-  vector-encode-function                ;(STRING VECTOR INDEX &optional
-                                        ;(START 0) (END (length string)))
+  ;; Sets 1 or more units in a vector argument and returns a value 1
+  ;; greater than the index of the last octet written to the vector
+  vector-encode-function                ;(STRING VECTOR INDEX START END)
   
-  ;; Returns the string and a value 1 greater than the last unit
-  ;; index consumed from the vector argument, or NIL and the
-  ;; argument index if the character can't be decoded.
-  vector-decode-function                ;(VECTOR INDEX NUNITS STRING)
+  ;; Returns a value 1 greater than the last octet index consumed from
+  ;; the vector argument.
+  vector-decode-function                ;(VECTOR INDEX NOCTETS STRING)
   
   ;; Sets one or more units in memory at the address denoted by
   ;; the pointer and idx arguments and returns (+ idx number of
   ;; units written to memory), else returns NIL if any character
   ;; can't be encoded.
-  memory-encode-function                ;(STRING POINTER INDEX &optional 
-                                        ; (START 0) (END (length string)))
+  memory-encode-function                ;(STRING POINTER INDEX START END)
+
   
   ;; Returns (as multiple values) the  string encoded in memory
   ;; at the address denoted by the address and index args and the
-  ;; sum of the index arg and the number of units consumed, else
-  ;; NIL and the incoming index arg if the characters can't be
-  ;; encoded.  (Note that the index args are and return value
-  ;; are "code unit indices", not "byte offsets".)
-  memory-decode-function                ;(POINTER NUNITS INDEX STRING)
+  ;; sum of the index arg and the number of octets consumed.
+  memory-decode-function                ;(POINTER NOCTETS INDEX STRING)
   
-  ;; Returns the number of units needed to encode STRING between START and END.
-  ;; Might return NIL if any character can't be encoded.
-  units-in-string-function              ;(STRING &optional (START 0) (END (LENGTH STRING)))
-  ;; Might return NIL if the encoding's bogus
-  length-of-vector-encoding-function    ;(VECTOR &optional (START 0) (END (LENGTH VECTOR))) 
-  ;; Might return NIL if the encoding's bogus
-  length-of-memory-encoding-function    ;(POINTER NUNITS &optional (START 0))
+  ;; Returns the number of octets needed to encode STRING between START and END
+  octets-in-string-function              ;(STRING START END)
+
+  ;; Returns the number of (full) characters encoded in VECTOR, and the index
+  ;; of the first octet not used to encode them. (The second value may be less than END).
+  length-of-vector-encoding-function    ;(VECTOR START END) 
+
+  ;; Returns the number of (full) characters encoded in memort at (+ POINTER START)
+  ;; and the number of octets used to encode them.  (The second value may be less
+  ;; than NOCTETS.)
+  length-of-memory-encoding-function    ;(POINTER NOCTETS START)
 
   ;; Code units and character codes less than this value map to themselves
   (literal-char-code-limit 0)
@@ -87,13 +93,13 @@
   ;; If non-nil, the value should be the name of the an encoding
   ;; that implements this encoding with swapped byte order.
   (use-byte-order-mark nil)
-  ;; Can we reliably (and dumbly) assume that code-units that appear
-  ;; to represent #\u+000a and #\u+000d in fact represent LF and CR ?
-  (allows-line-termination-detection t)
+  ;; What alternate line-termination conventions can be encoded ?  (This basically
+  ;; means "can #\Line_Separator be encoded?", since :CR and :CRLF can always
+  ;; be encoded.)
+  (alternate-line-termination-conventions '(:cr :crlf))
   ;; By what other MIME names is this encoding known ?
   (aliases nil)
   (documentation nil)
-  (encodable-limit char-code-limit)
   )
 
 (defconstant byte-order-mark #\u+feff)
@@ -101,6 +107,30 @@
 (defconstant swapped-byte-order-mark #\u+fffe)
 (defconstant swapped-byte-order-mark-char-code (char-code swapped-byte-order-mark))
 
+
+(defun decode-character-encoded-vector (encoding vector start-index noctets string)
+  (setq encoding (ensure-character-encoding encoding))
+  (unless (= (the (unsigned-byte 8) (typecode vector))
+             target::subtag-u8-vector)
+    (report-bad-arg vector '(simple-array (unsigned-byte 8) (*))))
+  (unless (= (the (unsigned-byte 8) (typecode string))
+             target::subtag-simple-base-string)
+    (report-bad-arg vector 'simple-string))
+  (let* ((len (length vector)))
+    (declare (type index len))
+    (unless (and (typep start-index 'fixnum)
+                 (>= (the fixnum start-index) 0)
+                 (< (the fixnum start-index) len))
+      (error "~s is an invalid start index for ~s" start-index vector))
+    (unless (and (typep noctets 'fixnum)
+                 (>= (the fixnum noctets) 0)
+                 (<= (+ (the fixnum start-index) (the fixnum noctets)) len))
+      (error "~S is an invalid octet count for ~s at ~s" noctets vector start-index))
+    (funcall (character-encoding-vector-decode-function encoding)
+             vector
+             start-index
+             noctets
+             string)))
 
 
 (defmethod print-object ((ce character-encoding) stream)
@@ -127,6 +157,22 @@
 ;;; ISO-8859-1 is trivial, though of course it can't really encode characters
 ;;; whose CHAR-CODE is >= 256
 
+(defun 8-bit-fixed-width-octets-in-string (string start end)
+  (declare (ignore string))
+  (if (>= end start)
+    (- end start)
+    0))
+
+(defun 8-bit-fixed-width-length-of-vector-encoding (vector start end)
+  (declare (ignore vector))
+  (if (>= end start)
+    (values (- end start) (- end start))
+    (values 0 0)))
+
+(defun 8-bit-fixed-width-length-of-memory-encoding (pointer noctets start)
+  (declare (ignore pointer start))
+  noctets)
+
 (define-character-encoding :iso-8859-1
   "An 8-bit, fixed-width character encoding in which all character
 codes map to their Unicode equivalents. Intended to support most
@@ -135,7 +181,6 @@ characters used in most Western European languages."
   ;; The NIL alias is used internally to mean that ISO-8859-1 is
   ;; the "null" 8-bit encoding
   :aliases '(nil :iso_8859-1 :latin1 :l1 :ibm819 :cp819 :csISOLatin1)
-
   :stream-encode-function
   (nfunction
    iso-8859-1-stream-encode
@@ -156,7 +201,7 @@ characters used in most Western European languages."
   :vector-encode-function
   (nfunction
    iso-8859-1-vector-encode
-   (lambda (string vector idx &optional (start 0) (end (length string)))
+   (lambda (string vector idx start end)
      (declare (type (simple-array (unsigned-byte 8) (*)) vector)
               (fixnum idx))
      (do* ((i start (1+ i)))
@@ -165,69 +210,48 @@ characters used in most Western European languages."
               (code (char-code char)))
          (declare (type (mod #x110000) code))
          (if (>= code 256)
-           (return nil)
-           (progn
-             (setf (aref vector idx) code)
-             (incf idx)))))))
+           (setq code (char-code #\Sub)))
+         (progn
+           (setf (aref vector idx) code)
+           (incf idx))))))
   :vector-decode-function
   (nfunction
    iso-8859-1-vector-decode
-   (lambda (vector idx nunits string)
+   (lambda (vector idx noctets string)
      (declare (type (simple-array (unsigned-byte 8) (*)) vector))
      (do* ((i 0 (1+ i))
-           (len (length vector))
            (index idx (1+ index)))
-          ((>= i nunits) (values string index))
-       (if (>= index len)
-         (return (values nil idx))
-         (setf (schar string i) (code-char (the (unsigned-byte 8)
-                                             (aref vector index))))))))
+          ((>= i noctets) index)
+       (setf (schar string i) (code-char (the (unsigned-byte 8)
+                                             (aref vector index)))))))
   :memory-encode-function
   (nfunction
    iso-8859-1-memory-encode
-   (lambda (string pointer idx &optional (start 0) (end (length string)))
+   (lambda (string pointer idx start end)
      (do* ((i start (1+ i)))
           ((>= i end) idx)
        (let* ((code (char-code (schar string i))))
          (declare (type (mod #x110000) code))
          (if (>= code 256)
-           (return nil)
-           (progn
-             (setf (%get-unsigned-byte pointer idx) code)
-             (incf idx)))))))
+           (setq code (char-code #\Sub)))
+         (setf (%get-unsigned-byte pointer idx) code)
+         (incf idx)))))
   :memory-decode-function
   (nfunction
    iso-8859-1-memory-decode
-   (lambda (pointer nunits idx string)
+   (lambda (pointer noctets idx string)
      (do* ((i 0 (1+ i))
            (index idx (1+ index)))
-          ((>= i nunits) (values string index))
+          ((>= i noctets) index)
          (setf (schar string i) (code-char (the (unsigned-byte 8)
                                              (%get-unsigned-byte pointer index)))))))
-  :units-in-string-function
-  (nfunction
-   iso-8859-1-units-in-string
-   (lambda (string &optional (start 0) (end (length string)))
-     (when (>= end start)
-       (do* ((i start (1+ i)))
-            ((= i end) (- end start))
-         (let* ((code (char-code (schar string i))))
-           (declare (type (mod #x110000) code))
-           (unless (< code 256) (return nil)))))))
+  :octets-in-string-function
+  #'8-bit-fixed-width-octets-in-string
   :length-of-vector-encoding-function
-  (nfunction
-   iso-8859-1-length-of-vector-encoding
-   (lambda (vector &optional (start 0) (end (length vector)))
-     (when (>= end start)
-       (- end start))))
+  #'8-bit-fixed-width-length-of-vector-encoding
   :length-of-memory-encoding-function 
-  (nfunction
-   iso-8859-1-length-of-memory-encoding
-   (lambda (pointer nunits &optional start)
-     (declare (ignore pointer start))
-     nunits))
+  #'8-bit-fixed-width-length-of-memory-encoding
   :literal-char-code-limit 256
-  :encodable-limit 256
   )
 
 (define-character-encoding :us-ascii
@@ -257,7 +281,7 @@ codes map to their Unicode equivalents. "
   :vector-encode-function
   (nfunction
    ascii-vector-encode
-   (lambda (string vector idx &optional (start 0) (end (length string)))
+   (lambda (string vector idx start end)
      (declare (type (simple-array (unsigned-byte 8) (*)) vector)
               (fixnum idx))
      (do* ((i start (1+ i)))
@@ -266,82 +290,53 @@ codes map to their Unicode equivalents. "
               (code (char-code char)))
          (declare (type (mod #x110000) code))
          (if (>= code 128)
-           (return nil)
-           (progn
-             (setf (aref vector idx) code)
-             (incf idx)))))))
+           (setq code (char-code #\Sub)))
+         (setf (aref vector idx) code)
+         (incf idx)))))
   :vector-decode-function
   (nfunction
    ascii-vector-decode
-   (lambda (vector idx nunits string)
+   (lambda (vector idx noctets string)
      (declare (type (simple-array (unsigned-byte 8) (*)) vector))
      (do* ((i 0 (1+ i))
-           (len (length vector))
            (index idx (1+ index)))
-          ((>= i nunits) (values string index))
-       (if (>= index len)
-         (return (values nil idx))
-         (let* ((code (aref vector index)))
-           (declare (type (unsigned-byte 8) code))
-           (if (< code 128)
-             (setf (schar string i) code)
-             (return (values nil idx))))))))
+          ((>= i noctets) index)
+       (let* ((code (aref vector index)))
+         (declare (type (unsigned-byte 8) code))
+         (when (>= code 128)
+           (setq code (char-code #\Sub)))
+         (setf (schar string i) code)))))
   :memory-encode-function
   (nfunction
    ascii-memory-encode
-   (lambda (string pointer idx &optional (start 0) (end (length string)))
+   (lambda (string pointer idx start end)
      (do* ((i start (1+ i)))
           ((>= i end) idx)
        (let* ((code (char-code (schar string i))))
          (declare (type (mod #x110000) code))
          (if (>= code 128)
-           (return nil)
-           (progn
-             (setf (%get-unsigned-byte pointer idx) code)
-             (incf idx)))))))
+           (setq code (char-code #\Sub)))
+         (setf (%get-unsigned-byte pointer idx) code)
+         (incf idx)))))
   :memory-decode-function
   (nfunction
    ascii-memory-decode
-   (lambda (pointer nunits idx string)
+   (lambda (pointer noctets idx string)
      (do* ((i 0 (1+ i))
            (index idx (1+ index)))
-          ((>= i nunits) (values string index))
+          ((>= i noctets) index)
        (let* ((code (%get-unsigned-byte pointer index)))
          (declare (type (unsigned-byte 8) code))
-         (if (< code 128)
-           (setf (schar string i) (code-char code))
-           (return (values nil idx)))))))
-  :units-in-string-function
-  (nfunction
-   ascii-units-in-string
-   (lambda (string &optional (start 0) (end (length string)))
-     (when (>= end start)
-       (do* ((i start (1+ i)))
-            ((= i end) (- end start))
-         (let* ((code (char-code (schar string i))))
-           (declare (type (mod #x110000) code))
-           (unless (< code 128) (return nil)))))))
+         (if (>= code 128)
+           (setf (schar string i) #\sub)
+           (setf (schar string i) (code-char code)))))))
+  :octets-in-string-function
+  #'8-bit-fixed-width-octets-in-string
   :length-of-vector-encoding-function
-  (nfunction
-   ascii-length-of-vector-encoding
-   (lambda (vector &optional (start 0) (end (length vector)))
-     (when (>= end start)
-       (do* ((i start (1+ i))
-             (k 0 (1+ k)))
-            ((= i end) k)
-         (when (>= 128 (the (unsigned-byte 8) (aref vector i)))
-           (return nil))))))
+  #'8-bit-fixed-width-length-of-vector-encoding
   :length-of-memory-encoding-function 
-  (nfunction
-   ascii-length-of-memory-encoding
-   (lambda (pointer nunits &optional (start 0))
-     (do* ((i 0 (1+ i))
-           (p start (1+ p)))
-          ((= i nunits) nunits)
-       (when (>= 128 (the (unsigned-byte 8) (%get-unsigned-byte pointer p)))
-         (return nil)))))
+  #'8-bit-fixed-width-length-of-memory-encoding
   :literal-char-code-limit 128
-  :encodable-limit 128
   )
 
 
@@ -448,7 +443,7 @@ languages used in Central/Eastern Europe."
   :vector-encode-function
   (nfunction
    iso-8859-2-vector-encode
-   (lambda (string vector idx &optional (start 0) (end (length string)))
+   (lambda (string vector idx start end)
      (declare (type (simple-array (unsigned-byte 8) (*)) vector)
               (fixnum idx))
      (do* ((i start (1+ i)))
@@ -462,33 +457,26 @@ languages used in Central/Eastern Europe."
                            (svref *unicode-00c0-00e0-to-iso8859-2*
                                   (the fixnum (- code #x2c0)))))))
          (declare (type (mod #x110000) code))
-         (if (null c2)
-           (return nil)
-           (progn
-             (setf (aref vector idx) c2)
-             (incf idx)))))))
+         (setf (aref vector idx) (or c2 (char-code #\Sub)))
+         (incf idx)))))
   :vector-decode-function
   (nfunction
    iso-8859-2-vector-decode
-   (lambda (vector idx nunits string)
+   (lambda (vector idx noctets string)
      (declare (type (simple-array (unsigned-byte 8) (*)) vector))
-          (do* ((i 0 (1+ i))
-           (len (length vector))
+     (do* ((i 0 (1+ i))
            (index idx (1+ index)))
-          ((>= i nunits) (values string index))
-       (if (>= index len)
-         (return (values nil idx))
-         (let* ((1st-unit (aref vector index)))
+          ((>= i noctets) index)
+       (let* ((1st-unit (aref vector index)))
            (declare (type (unsigned-byte 8) 1st-unit))
            (setf (schar string i)
             (if (< 1st-unit #xa0)
               (code-char 1st-unit)
-              (svref *iso-8859-2-to-unicode* (the fixnum (- 1st-unit #xa0))))
-))))))
+              (svref *iso-8859-2-to-unicode* (the fixnum (- 1st-unit #xa0)))))))))
   :memory-encode-function
   (nfunction
    iso-8859-2-memory-encode
-   (lambda (string pointer idx &optional (start 0) (end (length string)))
+   (lambda (string pointer idx start end)
      (do* ((i start (1+ i)))
           ((>= i end) idx)
        (let* ((code (char-code (schar string i)))
@@ -500,53 +488,27 @@ languages used in Central/Eastern Europe."
                          (svref *unicode-00c0-00e0-to-iso8859-2*
                                 (the fixnum (- code #x2c0)))))))
        (declare (type (mod #x110000) code))
-       (if (null c2)
-         (return nil)
-         (progn
-           (setf (%get-unsigned-byte pointer idx) c2)
-           (1+ idx)))))))
+       (setf (%get-unsigned-byte pointer idx) (or c2 (char-code #\Sub)))
+       (1+ idx)))))
   :memory-decode-function
   (nfunction
    iso-8859-2-memory-decode
-   (lambda (pointer nunits idx string)
+   (lambda (pointer noctets idx string)
      (do* ((i 0 (1+ i))
            (index idx (1+ index)))
-          ((>= i nunits) (values string index))
+          ((>= i noctets) index)
        (let* ((1st-unit (%get-unsigned-byte pointer index)))
          (declare (type (unsigned-byte 8) 1st-unit))
          (setf (schar string i)
                (if (< 1st-unit #xa0)
                  (code-char 1st-unit)
                  (svref *iso-8859-2-to-unicode* (the fixnum (- 1st-unit #xa0)))))))))
-  :units-in-string-function
-  (nfunction
-   iso-8859-2-units-in-string
-   (lambda (string &optional (start 0) (end (length string)))
-     (when (>= end start)
-       (do* ((i start (1+ i)))
-            ((= i end) (- end start))
-         (let* ((code (char-code (schar string i)))
-                (c2 (cond ((< code #xa0) code)
-                        ((< code #x180)
-                         (svref *unicode-00a0-0180-to-iso8859-2*
-                                (the fixnum (- code #xa0))))
-                        ((and (>= code #x2c0) (< code #x2e0))
-                         (svref *unicode-00c0-00e0-to-iso8859-2*
-                                (the fixnum (- code #x2c0)))))))
-           (declare (type (mod #x110000) code))
-           (unless c2 (return nil)))))))
+  :octets-in-string-function
+  #'8-bit-fixed-width-octets-in-string
   :length-of-vector-encoding-function
-  (nfunction
-   iso-8859-2-length-of-vector-encoding
-   (lambda (vector &optional (start 0) (end (length vector)))
-     (when (>= end start)
-       (- end start))))
+  #'8-bit-fixed-width-length-of-vector-encoding
   :length-of-memory-encoding-function 
-  (nfunction
-   iso-8859-2-length-of-memory-encoding
-   (lambda (pointer nunits &optional start)
-     (declare (ignore pointer start))
-     nunits))
+  #'8-bit-fixed-width-length-of-memory-encoding
   :literal-char-code-limit #xa0
   )
 
@@ -651,7 +613,7 @@ languages used in Southern Europe."
   :vector-encode-function
   (nfunction
    iso-8859-3-vector-encode
-   (lambda (string vector idx &optional (start 0) (end (length string)))
+   (lambda (string vector idx start end)
      (declare (type (simple-array (unsigned-byte 8) (*)) vector)
               (fixnum idx))
      (do* ((i start (1+ i)))
@@ -667,34 +629,29 @@ languages used in Southern Europe."
                                 (the fixnum (- code #x108))))
                         ((and (>= code #x2d8) (< code #x2e0))
                          (svref *unicode-2d8-2e0-to-iso8859-3*
-                                (the fixnum (- code #x2d8)))))))
+                 
+               (the fixnum (- code #x2d8)))))))
          (declare (type (mod #x110000) code))
-         (if (null c2)
-           (return nil)
-           (progn
-             (setf (aref vector idx) c2)
-             (incf idx)))))))
+         (setf (aref vector idx) (or c2 (char-code #\Sub)))
+         (incf idx)))))
   :vector-decode-function
   (nfunction
    iso-8859-3-vector-decode
-   (lambda (vector idx nunits string)
+   (lambda (vector idx noctets string)
      (declare (type (simple-array (unsigned-byte 8) (*)) vector))
      (do* ((i 0 (1+ i))
-           (len (length vector))
            (index idx (1+ index)))
-          ((>= i nunits) (values string index))
-       (if (>= index len)
-         (return (values nil idx))
+          ((>= i noctets) index)
          (let* ((1st-unit (aref vector index)))
            (declare (type (unsigned-byte 8) 1st-unit))
            (setf (schar string i)
-               (if (< 1st-unit #xa0)
-                 (code-char 1st-unit)
-                 (svref *iso-8859-3-to-unicode* (the fixnum (- 1st-unit #xa0))))))))))
+                 (if (< 1st-unit #xa0)
+                   (code-char 1st-unit)
+                   (svref *iso-8859-3-to-unicode* (the fixnum (- 1st-unit #xa0)))))))))
   :memory-encode-function
   (nfunction
    iso-8859-3-memory-encode
-   (lambda (string pointer idx &optional (start 0) (end (length string)))
+   (lambda (string pointer idx start end)
      (do* ((i start (1+ i)))
           ((>= i end) idx)
        (let* ((code (char-code (schar string i)))
@@ -709,56 +666,27 @@ languages used in Southern Europe."
                          (svref *unicode-2d8-2e0-to-iso8859-3*
                                 (the fixnum (- code #x2d8)))))))
          (declare (type (mod #x110000) code))
-         (if (null c2)
-           (return nil)
-           (progn
-             (setf (%get-unsigned-byte pointer idx) c2)
-             (incf idx)))))))
+         (setf (%get-unsigned-byte pointer idx) (or c2 (char-code #\Sub)))
+         (incf idx)))))
   :memory-decode-function
   (nfunction
    iso-8859-3-memory-decode
-   (lambda (pointer nunits idx string)
+   (lambda (pointer noctets idx string)
      (do* ((i 0 (1+ i))
            (index idx (1+ index)))
-          ((>= i nunits) (values string index))
+          ((>= i noctets) index)
        (let* ((1st-unit (%get-unsigned-byte pointer index)))
          (declare (type (unsigned-byte 8) 1st-unit))
          (setf (schar string i)
                (if (< 1st-unit #xa0)
                  (code-char 1st-unit)
                  (svref *iso-8859-3-to-unicode* (the fixnum (- 1st-unit #xa0)))))))))
-  :units-in-string-function
-  (nfunction
-   iso-8859-3-units-in-string
-   (lambda (string &optional (start 0) (end (length string)))
-     (when (>= end start)
-       (do* ((i start (1+ i)))
-            ((= i end) (- end start))
-         (let* ((code (char-code (schar string i)))
-                (c2 (cond ((< code #xa0) code)
-                      ((< code #x100)
-                       (svref *unicode-a0-100-to-iso8859-3*
-                              (the fixnum (- code #xa0))))
-                      ((and (>= code #x108) (< code #x180))
-                       (svref *unicode-108-180-to-iso8859-3*
-                              (the fixnum (- code #x108))))
-                      ((and (>= code #x2d8) (< code #x2e0))
-                       (svref *unicode-2d8-2e0-to-iso8859-3*
-                              (the fixnum (- code #x2d8)))))))
-           (declare (type (mod #x110000) code))
-           (unless c2 (return nil)))))))
+  :octets-in-string-function
+  #'8-bit-fixed-width-octets-in-string
   :length-of-vector-encoding-function
-  (nfunction
-   iso-8859-3-length-of-vector-encoding
-   (lambda (vector &optional (start 0) (end (length vector)))
-     (when (>= end start)
-       (- end start))))
+  #'8-bit-fixed-width-length-of-vector-encoding
   :length-of-memory-encoding-function 
-  (nfunction
-   iso-8859-3-length-of-memory-encoding
-   (lambda (pointer nunits &optional start)
-     (declare (ignore pointer start))
-     nunits))
+  #'8-bit-fixed-width-length-of-memory-encoding
   :literal-char-code-limit #xa0
   )
 
@@ -863,7 +791,7 @@ languages used in Northern Europe."
   :vector-encode-function
   (nfunction
    iso-8859-4-vector-encode
-   (lambda (string vector idx &optional (start 0) (end (length string)))
+   (lambda (string vector idx start end)
      (declare (type (simple-array (unsigned-byte 8) (*)) vector)
               (fixnum idx))
      (do* ((i start (1+ i)))
@@ -878,32 +806,26 @@ languages used in Northern Europe."
                          (svref *unicode-2c0-2e0-to-iso8859-4*
                                 (the fixnum (- code #x2c0)))))))
          (declare (type (mod #x110000) code))
-         (if (null c2)
-           (return nil)
-           (progn
-             (setf (aref vector idx) c2)
-             (incf idx)))))))
+         (setf (aref vector idx) (or c2 (char-code #\Sub)))
+         (incf idx)))))
   :vector-decode-function
   (nfunction
    iso-8859-4-vector-decode
-   (lambda (vector idx nunits string)
+   (lambda (vector idx noctets string)
      (declare (type (simple-array (unsigned-byte 8) (*)) vector))
      (do* ((i 0 (1+ i))
-           (len (length vector))
            (index idx (1+ index)))
-          ((>= i nunits) (values string index))
-       (if (>= index len)
-         (return (values nil idx))
-         (let* ((1st-unit (aref vector index)))
-           (declare (type (unsigned-byte 8) 1st-unit))
-           (setf (schar string i)
-                 (if (< 1st-unit #xa0)
-                   (code-char 1st-unit)
-                   (svref *iso-8859-4-to-unicode* (the fixnum (- 1st-unit #xa0))))))))))
+          ((>= i noctets) index)
+       (let* ((1st-unit (aref vector index)))
+         (declare (type (unsigned-byte 8) 1st-unit))
+         (setf (schar string i)
+               (if (< 1st-unit #xa0)
+                 (code-char 1st-unit)
+                 (svref *iso-8859-4-to-unicode* (the fixnum (- 1st-unit #xa0)))))))))
   :memory-encode-function
   (nfunction
    iso-8859-4-memory-encode
-   (lambda (string pointer idx &optional (start 0) (end (length string)))
+   (lambda (string pointer idx start end)
      (do* ((i start (1+ i)))
           ((>= i end) idx)
        (let* ((code (char-code (schar string i)))
@@ -915,53 +837,27 @@ languages used in Northern Europe."
                          (svref *unicode-2c0-2e0-to-iso8859-4*
                                 (the fixnum (- code #x2c0)))))))
          (declare (type (mod #x110000) code))
-         (if (null c2)
-           (return nil)
-           (progn
-             (setf (%get-unsigned-byte pointer idx) c2)
-             (incf idx)))))))
+         (setf (%get-unsigned-byte pointer idx) (or c2 (char-code #\Sub)))
+         (incf idx)))))
   :memory-decode-function
   (nfunction
    iso-8859-4-memory-decode
-   (lambda (pointer nunits idx string)
+   (lambda (pointer noctets idx string)
      (do* ((i 0 (1+ i))
            (index idx (1+ index)))
-          ((>= i nunits) (values string index))
+          ((>= i noctets) index)
        (let* ((1st-unit (%get-unsigned-byte pointer index)))
          (declare (type (unsigned-byte 8) 1st-unit))
          (setf (schar string i)
                (if (< 1st-unit #xa0)
                  (code-char 1st-unit)
                  (svref *iso-8859-4-to-unicode* (the fixnum (- 1st-unit #xa0)))))))))
-  :units-in-string-function
-  (nfunction
-   iso-8859-4-units-in-string
-   (lambda (string &optional (start 0) (end (length string)))
-     (when (>= end start)
-       (do* ((i start (1+ i)))
-            ((= i end) (- end start))
-         (let* ((code (char-code (schar string i)))
-                (c2 (cond ((< code #xa0) code)
-                      ((< code #x180)
-                       (svref *unicode-a0-180-to-iso8859-4*
-                              (the fixnum (- code #xa0))))
-                      ((and (>= code #x2d8) (< code #x2e0))
-                       (svref *unicode-2c0-2e0-to-iso8859-4*
-                              (the fixnum (- code #x2c0))))) ))
-           (declare (type (mod #x110000) code))
-           (unless c2 (return nil)))))))
+  :octets-in-string-function
+  #'8-bit-fixed-width-octets-in-string
   :length-of-vector-encoding-function
-  (nfunction
-   iso-8859-4-length-of-vector-encoding
-   (lambda (vector &optional (start 0) (end (length vector)))
-     (when (>= end start)
-       (- end start))))
+  #'8-bit-fixed-width-length-of-vector-encoding
   :length-of-memory-encoding-function 
-  (nfunction
-   iso-8859-4-length-of-memory-encoding
-   (lambda (pointer nunits &optional start)
-     (declare (ignore pointer start))
-     nunits))
+  #'8-bit-fixed-width-length-of-memory-encoding
   :literal-char-code-limit #xa0
   )
 
@@ -1016,7 +912,7 @@ bytes."
        (declare (type (unsigned-byte 8) 1st-unit))
        (if (< 1st-unit #x80)
          (code-char 1st-unit)
-         (when (>= 1st-unit #xc2)
+         (if (>= 1st-unit #xc2)
            (let* ((s1 (funcall next-unit-function stream)))
              (if (eq s1 :eof)
                s1
@@ -1075,11 +971,12 @@ bytes."
                                             (ash (the fixnum (logxor s2 #x80)) 6))
                                           (the fixnum (logxor s3 #x80))))))
                                      #\Replacement_Character))))
-                             #\Replacement_Character)))))))))))))
+                             #\Replacement_Character)))))))))
+           #\Replacement_Character))))
     :vector-encode-function
     (nfunction
      utf-8-vector-encode
-     (lambda (string vector idx &optional (start 0) (end (length string)))
+     (lambda (string vector idx start end)
        (declare (type (simple-array (unsigned-byte 8) (*)) vector)
                 (fixnum idx))
        (do* ((i start (1+ i)))
@@ -1093,103 +990,93 @@ bytes."
                  ((< code #x800)
                   (setf (aref vector idx)
                         (logior #xc0 (the fixnum (ash code -6))))
-                  (incf idx)
-                  (setf (aref vector idx)
+                  (setf (aref vector (the fixnum (1+ idx)))
                         (logior #x80 (the fixnum (logand code #x3f))))
-                  (incf idx))
+                  (incf idx 2))
                  ((< code #x10000)
                   (setf (aref vector idx)
                         (logior #xe0 (the fixnum (ash code -12))))
-                  (incf idx)
-                  (setf (aref vector idx)
+                  (setf (aref vector (the fixnum (1+ idx)))
                         (logior #x80 (the fixnum (logand #x3f (the fixnum (ash code -6))))))
-                  (incf idx)
-                  (setf (aref vector idx)
+                  (setf (aref vector (the fixnum (+ idx 2)))
                         (logior #x80 (the fixnum (logand code #x3f))))
-                  (incf idx))
+                  (incf idx 3))
                  (t
                    (setf (aref vector idx)
                          (logior #xf0
                                  (the fixnum (logand #x7 (the fixnum (ash code -18))))))
-                   (incf idx)
-                   (setf (aref vector idx)
+                   (setf (aref vector (the fixnum (1+ idx)))
                          (logior #x80 (the fixnum (logand #x3f (the fixnum (ash code -12))))))
-                   (incf idx)
-                   (setf (aref vector idx)
+                   (setf (aref vector (the fixnum (+ idx 2)))
                          (logior #x80 (the fixnum (logand #x3f (the fixnum (ash code -6))))))
-                   (incf idx)
-                   (setf (aref vector idx) (logand #x3f code))
-                   (incf idx)))))))
+                   (setf (aref vector (the fixnum (+ idx 3))) (logand #x3f code))
+                   (incf idx 4)))))))
     :vector-decode-function
     (nfunction
      utf-8-vector-decode
-     (lambda (vector idx nunits string)
+     (lambda (vector idx noctets string)
        (declare (type (simple-array (unsigned-byte 8) (*)) vector)
                 (type index idx))
        (do* ((i 0 (1+ i))
-             (len (length vector))
+             (end (+ idx noctets))
              (index idx (1+ index)))
-            ((>= i nunits) (values string index))
-         (if (>= index len)
-           (values nil idx)
+            ((= index end) index)
            (let* ((1st-unit (aref vector index)))
              (declare (type (unsigned-byte 8) 1st-unit))
              (let* ((char 
                      (if (< 1st-unit #x80)
                        (code-char 1st-unit)
                        (if (>= 1st-unit #xc2)
-                         (let* ((2nd-unit (aref vector (incf index))))
-                           (declare (type (unsigned-byte 8) 2nd-unit))
-                           (if (< 1st-unit #xe0)
-                             (if (< (the fixnum (logxor 2nd-unit #x80)) #x40)
-                               (code-char
-                                (logior
-                                 (the fixnum (ash (the fixnum (logand #x1f 1st-unit)) 6))
-                                 (the fixnum (logxor 2nd-unit #x80)))))
-                             (let* ((3rd-unit (aref vector (incf index))))
-                               (declare (type (unsigned-byte 8) 3rd-unit))
-                               (if (< 1st-unit #xf0)
-                                 (if (and (< (the fixnum (logxor 2nd-unit #x80)) #x40)
-                                          (< (the fixnum (logxor 3rd-unit #x80)) #x40)
-                                          (or (>= 1st-unit #xe1)
-                                              (>= 2nd-unit #xa0)))
-                                   (code-char (the fixnum
-                                                (logior (the fixnum
-                                                          (ash (the fixnum (logand 1st-unit #xf))
-                                                               12))
-                                                        (the fixnum
-                                                          (logior
-                                                           (the fixnum
-                                                             (ash (the fixnum (logand 2nd-unit #x3f))
-                                                                  6))
-                                                           (the fixnum (logand 3rd-unit #x3f))))))))
-                                 (let* ((4th-unit (aref vector (incf index))))
-                                   (declare (type (unsigned-byte 8) 4th-unit))
+                           (let* ((2nd-unit (aref vector (incf index))))
+                             (declare (type (unsigned-byte 8) 2nd-unit))
+                             (if (< 1st-unit #xe0)
+                               (if (< (the fixnum (logxor 2nd-unit #x80)) #x40)
+                                 (code-char
+                                  (logior
+                                   (the fixnum (ash (the fixnum (logand #x1f 1st-unit)) 6))
+                                   (the fixnum (logxor 2nd-unit #x80)))))
+                               (let* ((3rd-unit (aref vector (incf index))))
+                                 (declare (type (unsigned-byte 8) 3rd-unit))
+                                 (if (< 1st-unit #xf0)
                                    (if (and (< (the fixnum (logxor 2nd-unit #x80)) #x40)
                                             (< (the fixnum (logxor 3rd-unit #x80)) #x40)
-                                            (< (the fixnum (logxor 4th-unit #x80)) #x40)
-                                            (or (>= 1st-unit #xf1)
-                                                (>= 2nd-unit #x90)))
-                                     (code-char
-                                      (logior
-                                       (the fixnum
-                                         (logior
-                                          (the fixnum
-                                            (ash (the fixnum (logand 1st-unit 7)) 18))
-                                          (the fixnum
-                                            (ash (the fixnum (logxor 2nd-unit #x80)) 12))))
-                                       (the fixnum
-                                         (logior
-                                          (the fixnum
-                                            (ash (the fixnum (logxor 3rd-unit #x80)) 6))
-                                          (the fixnum (logxor 4th-unit #x80))))))))))))))))
-               (if char
-                 (setf (schar string i) char)
-                 (return (values nil idx)))))))))
+                                            (or (>= 1st-unit #xe1)
+                                                (>= 2nd-unit #xa0)))
+                                     (code-char (the fixnum
+                                                  (logior (the fixnum
+                                                            (ash (the fixnum (logand 1st-unit #xf))
+                                                                 12))
+                                                          (the fixnum
+                                                            (logior
+                                                             (the fixnum
+                                                               (ash (the fixnum (logand 2nd-unit #x3f))
+                                                                    6))
+                                                             (the fixnum (logand 3rd-unit #x3f))))))))
+                                   (let* ((4th-unit (aref vector (incf index))))
+                                     (declare (type (unsigned-byte 8) 4th-unit))
+                                     (if (and (< (the fixnum (logxor 2nd-unit #x80)) #x40)
+                                              (< (the fixnum (logxor 3rd-unit #x80)) #x40)
+                                              (< (the fixnum (logxor 4th-unit #x80)) #x40)
+                                              (or (>= 1st-unit #xf1)
+                                                  (>= 2nd-unit #x90)))
+                                       (code-char
+                                        (logior
+                                         (the fixnum
+                                           (logior
+                                            (the fixnum
+                                              (ash (the fixnum (logand 1st-unit 7)) 18))
+                                            (the fixnum
+                                              (ash (the fixnum (logxor 2nd-unit #x80)) 12))))
+                                         (the fixnum
+                                           (logior
+                                            (the fixnum
+                                              (ash (the fixnum (logxor 3rd-unit #x80)) 6))
+                                            (the fixnum (logxor 4th-unit #x80))))))))))))))))
+               (setf (schar string i) (or char #\Replacement_Character)))))))
     :memory-encode-function
     (nfunction
      utf-8-memory-encode
-     (lambda (string pointer idx &optional (start 0) (end (length string)))
+     (lambda (string pointer idx start end)
        (declare (fixnum idx))
        (do* ((i start (1+ i)))
             ((>= i end) idx)
@@ -1201,42 +1088,37 @@ bytes."
                  ((< code #x800)
                   (setf (%get-unsigned-byte pointer idx)
                         (logior #xc0 (the fixnum (ash code -6))))
-                  (incf idx)
-                  (setf (%get-unsigned-byte pointer idx)
+                  (setf (%get-unsigned-byte pointer (the fixnum (1+ idx)))
                         (logior #x80 (the fixnum (logand code #x3f))))
-                  (incf idx))
+                  (incf idx 2))
                  ((< code #x10000)
                   (setf (%get-unsigned-byte pointer idx)
                         (logior #xe0 (the fixnum (ash code -12))))
-                  (incf idx)
-                  (setf (%get-unsigned-byte pointer idx)
+                  (setf (%get-unsigned-byte pointer (the fixnum (1+ idx)))
                         (logior #x80 (the fixnum (logand #x3f (the fixnum (ash code -6))))))
-                  (incf idx)
-                  (setf (%get-unsigned-byte pointer idx)
+                  (setf (%get-unsigned-byte pointer (the fixnum (+ idx 2)))
                         (logior #x80 (the fixnum (logand code #x3f))))
-                  (incf idx))
+                  (incf idx 3))
                  (t
                   (setf (%get-unsigned-byte pointer idx)
                         (logior #xf0
                                 (the fixnum (logand #x7 (the fixnum (ash code -18))))))
-                  (incf idx)
-                  (setf (%get-unsigned-byte pointer idx)
+                  (setf (%get-unsigned-byte pointer (the fixnum (1+ idx)))
                         (logior #x80 (the fixnum (logand #x3f (the fixnum (ash code -12))))))
-                  (incf idx)
-                  (setf (%get-unsigned-byte pointer idx)
+                  (setf (%get-unsigned-byte pointer (the fixnum (+ idx 2)))
                         (logior #x80 (the fixnum (logand #x3f (the fixnum (ash code -6))))))
-                  (incf idx)
-                  (setf (%get-unsigned-byte pointer idx)
+                  (setf (%get-unsigned-byte pointer (the fixnum (+ idx 3)))
                         (logand #x3f code))
-                  (incf idx)))))))
+                  (incf idx 4)))))))
     :memory-decode-function
     (nfunction
      utf-8-memory-decode
-     (lambda (pointer nunits idx string)
-       (declare (fixnum nunits idx))
+     (lambda (pointer noctets idx string)
+       (declare (fixnum noctets idx))
        (do* ((i 0 (1+ i))
+             (end (+ idx noctets))
              (index idx (1+ index)))
-            ((>= i nunits) (values string index))
+            ((>= index end) (if (= index end) index 0))
          (let* ((1st-unit (%get-unsigned-byte pointer index)))
            (declare (type (unsigned-byte 8) 1st-unit))
            (let* ((char (if (< 1st-unit #x80)
@@ -1288,61 +1170,66 @@ bytes."
                                                (the fixnum
                                                  (ash (the fixnum (logxor 3rd-unit #x80)) 6))
                                                (the fixnum (logxor 4th-unit #x80)))))))))))))))))
-             (if char
-               (setf (schar string i) char)
-               (return (values nil idx))))))))
-    :units-in-string-function
+             (setf (schar string i) (or char #\Replacement_Character)))))))
+    :octets-in-string-function
     (nfunction
-     utf-8-units-in-string
-     (lambda (string &optional (start 0) (end (length string)))
-       (when (>= end start)
-         (do* ((nunits 0)
+     utf-8-octets-in-string
+     (lambda (string start end)
+       (if (>= end start)
+         (do* ((noctets 0)
                (i start (1+ i)))
-              ((= i end) nunits)
-           (declare (fixnum nunits))
+              ((= i end) noctets)
+           (declare (fixnum noctets))
            (let* ((code (char-code (schar string i))))
              (declare (type (mod #x110000) code))
-             (incf nunits
+             (incf noctets
                    (if (< code #x80)
                      1
                      (if (< code #x800)
                        2
                        (if (< code #x10000)
                          3
-                         4)))))))))
+                         4))))))
+         0)))
     :length-of-vector-encoding-function
     (nfunction
      utf-8-length-of-vector-encoding
-     (lambda (vector &optional (start 0) (end (length vector)))
+     (lambda (vector start end)
        (declare (type (simple-array (unsigned-byte 8) (*)) vector))
        (do* ((i start)
-             (nchars 0 (1+ nchars)))
+             (nchars 0))
             ((>= i end)
-             (if (= i end) nchars))
-         (let* ((code (aref vector i)))
+             (if (= i end) (values nchars i)))
+         (declare (fixnum i))
+         (let* ((code (aref vector i))
+                (nexti (+ i (cond ((< code #x80) 1)
+                                  ((< code #xe0) 2)
+                                  ((< code #xf0) 3)
+                                  (t 4)))))
            (declare (type (unsigned-byte 8) code))
-           (incf i
-                 (cond ((< code #x80) 1)
-                       ((< code #xe0) 2)
-                       ((< code #xf0) 3)
-                       (t 4)))))))
+           (if (> nexti end)
+             (return (values nchars i))
+             (setq nchars (1+ nchars) i nexti))))))
     :length-of-memory-encoding-function
     (nfunction
      utf-8-length-of-memory-encoding
-     (lambda (pointer nunits &optional (start 0))
+     (lambda (pointer noctets start)
        (do* ((i start)
+             (end (+ start noctets))
              (nchars 0 (1+ nchars)))
-            ((>= i nunits)
-             (if (= i nunits) nchars))
-         (let* ((code (%get-unsigned-byte pointer i)))
+            ((= i end) (values nchars i))
+         (let* ((code (%get-unsigned-byte pointer i))
+                (nexti (+ i (cond ((< code #x80) 1)
+                                  ((< code #xe0) 2)
+                                  ((< code #xf0) 3)
+                                  (t 4)))))
            (declare (type (unsigned-byte 8) code))
-           (incf i
-                 (cond ((< code #x80) 1)
-                       ((< code #xe0) 2)
-                       ((< code #xf0) 3)
-                       (t 4)))))))
+           (if (> nexti end)
+             (return (values nchars i))
+             (setq nchars (1+ nchars) i nexti))))))
     :literal-char-code-limit #x80
     )
+
 
 ;;; For a code-unit-size greater than 8: the stream-encode function's write-function
 ;;; accepts a code-unit in native byte order and swaps it if necessary and the
@@ -1351,6 +1238,17 @@ bytes."
 ;;; functions have to do their own byte swapping.
 
 
+(defmacro utf-16-combine-surrogate-pairs (a b)
+  `(code-char
+    (the (unsigned-byte 21)
+      (+ #x10000
+         (the (unsigned-byte 20)
+           (logior
+            (the (unsigned-byte 20) (ash (the (unsigned-byte 10)
+                                           (- ,a #xd800))
+                                         10))
+            (the (unsigned-byte 10) (- ,b #xdc00))))))))
+    
 (defun utf-16-stream-encode (char write-function stream)
   (let* ((code (char-code char))
          (highbits (- code #x10000)))
@@ -1377,27 +1275,76 @@ bytes."
           (locally (declare (type (unsigned-byte 16) 2nd-unit))
             (if (and (>= 2nd-unit #xdc00)
                      (< 2nd-unit #xe000))
-              (code-char (the (unsigned-byte 21)
-                           (logior
-                            (the (unsigned-byte 20) (ash (the (unsigned-byte 10)
-                                                           (- 1st-unit #xd800))
-                                                         10))
-                            (the (unsigned-byte 10) (- 2nd-unit #xdc00)))))
-              #\Replacement_Character)))))))
+              (utf-16-combine-surrogate-pairs 1st-unit 2nd-unit)
+              #\Replacement_Character))))
+      #\Replacement_Character)))
 
 
-(defun utf-16-units-in-string (string &optional (start 0) (end (length string)))
-  (when (>= end start)
-    (do* ((nunits 0)
+(defun utf-16-octets-in-string (string start end)
+  (if (>= end start)
+    (do* ((noctets 0)
           (i start (1+ i)))
-         ((= i end) nunits)
-      (declare (fixnum nunits))
+         ((= i end) noctets)
+      (declare (fixnum noctets))
       (let* ((code (char-code (schar string i))))
         (declare (type (mod #x110000) code))
-        (incf nunits
+        (incf noctets
               (if (< code #x10000)
-                1
-                2))))))
+                2
+                4))))
+    0))
+
+
+(declaim (inline %big-endian-u8-ref-u16 %little-endian-u8-ref-u16))
+(defun %big-endian-u8-ref-u16 (u8-vector idx)
+  (declare (type (simple-array (unsigned-byte 8) (*)) u8-vector)
+           (fixnum idx))
+  (logior (the (unsigned-byte 16) (ash (the (unsigned-byte 8) (aref u8-vector idx)) 8))
+          (the (unsigned-byte 8) (aref u8-vector (the fixnum (1+ idx))))))
+
+(defun %little-endian-u8-ref-u16 (u8-vector idx)
+  (declare (type (simple-array (unsigned-byte 8) (*)) u8-vector)
+           (fixnum idx))
+  (logior (the (unsigned-byte 16) (ash (the (unsigned-byte 8)
+                                         (aref u8-vector (the fixnum (1+ idx)))) 8))
+          (the (unsigned-byte 8) (aref u8-vector idx))))
+
+#+big-endian-target
+(progn
+(defmacro %native-u8-ref-u16 (vector idx)
+  `(%big-endian-u8-ref-u16 ,vector ,idx))
+
+(defmacro %reversed-u8-ref-u16 (vector idx)
+  `(%little-endian-u8-ref-u16 ,vector ,idx))
+)
+
+#+little-endian-target
+(progn
+(defmacro %native-u8-ref-u16 (vector idx)
+  `(%little-endian-u8-ref-u16 ,vector ,idx))
+
+(defmacro %reversed-u8-ref-u16 (vector idx)
+  `(%big-endian-u8-ref-u16 ,vector ,idx))
+)
+
+
+(declaim (inline (setf %big-endian-u8-ref-u16) (setf %little-endian-u8-ref-u16)))
+(defun (setf %big-endian-u8-ref-u16) (val u8-vector idx)
+  (declare (type (unsigned-byte 16) val)
+           (type (simple-array (unsigned-byte 8) (*)) u8-vector)
+           (fixnum idx))
+  (setf (aref u8-vector idx) (ldb (byte 8 8) val)
+        (aref u8-vector (the fixnum (1+ idx))) (ldb (byte 8 0) val))
+  val)
+
+(defun (setf %little-endian-u8-ref-u16) (val u8-vector idx)
+  (declare (type (unsigned-byte 16) val)
+           (type (simple-array (unsigned-byte 8) (*)) u8-vector)
+           (fixnum idx))
+  (setf (aref u8-vector idx) (ldb (byte 8 0) val)
+        (aref u8-vector (the fixnum (1+ idx))) (ldb (byte 8 8) val))
+  val)
+
 
 ;;; utf-16, native byte order.
 (define-character-encoding #+big-endian-target :utf-16be #-big-endian-target :utf-16le
@@ -1425,319 +1372,303 @@ interpreted on input or prepended to output."
     :vector-encode-function
     (nfunction
      native-utf-16-vector-encode
-     (lambda (string vector idx &optional (start 0) (end (length string)))
-       (declare (type (simple-array (unsigned-byte 16) (*)) vector)
-                (fixnum idx))
+     (lambda (string vector idx start end)
+       (declare (type (simple-array (unsigned-byte 8) (*)) vector)
+                (fixnum idx start end))
        (do* ((i start (1+ i)))
             ((>= i end) idx)
+         (declare (fixnum i))
          (let* ((char (schar string i))
                 (code (char-code char))
                 (highbits (- code #x10000)))
            (declare (type (mod #x110000) code)
                     (fixnum highbits))
            (cond ((< highbits 0)
-                  (setf (aref vector idx) code)
-                  (incf idx))
+                  (setf (%native-u8-ref-u16 vector idx) code)
+                  (incf idx 2))
                  (t
-                  (setf (aref vector idx) (logior #xd800 (the fixnum (ash highbits -10))))
-                  (incf idx)
-                  (setf (aref vector ) (logior #xdc00 (the fixnum (logand highbits #x3ff))))
-                  (incf idx)))))))
+                  (let* ((firstword (logior #xd800 (the fixnum (ash highbits -10))))
+                         (secondword (logior #xdc00 (the fixnum (logand highbits #x3ff)))))
+                    (declare (type (unsigned-byte 16) firstword secondword))
+                    (setf (%native-u8-ref-u16 vector idx) firstword
+                          (%native-u8-ref-u16 vector (the fixnum (+ idx 2))) secondword)
+                    (incf idx 4))))))))
     :vector-decode-function
     (nfunction
      native-utf-16-vector-decode
-     (lambda (vector idx nunits string)
-       (declare (type (simple-array (unsigned-byte 16) (*)) vector)
+     (lambda (vector idx noctets string)
+       (declare (type (simple-array (unsigned-byte 8) (*)) vector)
                 (type index idx))
        (do* ((i 0 (1+ i))
-             (len (length vector))
-             (index idx (1+ index)))
-            ((>= i nunits) (values string index))
+             (end (+ idx noctets))
+             (index idx))
+            ((= index end) index)
          (declare (fixnum i len index))
-         (if (>= index len)
-           (values nil idx)
-           (let* ((1st-unit (aref vector index)))
-             (declare (type (unsigned-byte 16) 1st-unit))
-             (let* ((char
-                     (if (or (< 1st-unit #xd800)
-                             (>= 1st-unit #xe000))
-                       (code-char 1st-unit)
-                       (if (< 1st-unit #xdc00)
-                         (let* ((2nd-unit (aref vector (incf index))))
-                           (declare (type (unsigned-byte 16) 2nd-unit))
-                           (if (and (>= 2nd-unit #xdc00)
-                                    (< 2nd-unit #xe000))
-                             (code-char (the (unsigned-byte 21)
-                                          (logior
-                                           (the (unsigned-byte 20) (ash (the (unsigned-byte 10)
-                                                                          (- 1st-unit #xd800))
-                                                                        10))
-                                           (the (unsigned-byte 10) (- 2nd-unit #xdc00)))))))))))
-               (if char
-                 (setf (schar string i) char)
-                 (return (values nil idx)))))))))
-    :memory-encode-function
-    (nfunction
-     native-utf-16-memory-encode
-     (lambda (string pointer idx &optional (start 0) (end (length string)))
-       (declare (fixnum idx))
-       (do* ((i start (1+ i)))
-            ((>= i end) idx)
-         (let* ((code (char-code (schar string i)))
-                (highbits (- code #x10000))
-              (p (+ idx idx)))
-           (declare (type (mod #x110000) code)
-                  (fixnum p highbits))
-         (cond ((< highbits 0)
-                (setf (%get-unsigned-word pointer p) code)
-                (incf idx)
-                (incf p 2))
-
-               (t
-                (setf (%get-unsigned-word pointer p) (logior #xd800 (the fixnum (ash highbits -10))))
-                (incf idx)
-                (incf p 2)
-                (setf (%get-unsigned-word pointer p) (logior #xdc00 (the fixnum (logand highbits #x3ff))))
-                (incf idx)
-                (incf p 2)))))))
-    :memory-decode-function
-    (nfunction
-     native-utf-16-memory-decode
-     (lambda (pointer nunits idx string)
-       (declare (fixnum nunits idx))
-       (do* ((i 0 (1+ i))
-             (index idx (1+ index))
-             (p (+ index index) (+ p 2)))
-            ((>= i nunits) (values string index))
-         (declare (fixnum i index p))
-         (let* ((1st-unit (%get-unsigned-word pointer p)))
+         (let* ((1st-unit (%native-u8-ref-u16 vector index)))
            (declare (type (unsigned-byte 16) 1st-unit))
+           (incf index 2)
            (let* ((char
                    (if (or (< 1st-unit #xd800)
                            (>= 1st-unit #xe000))
                      (code-char 1st-unit)
                      (if (< 1st-unit #xdc00)
-                       (let* ((2nd-unit (%get-unsigned-byte pointer (incf p 2))))
+                       (let* ((2nd-unit (%native-u8-ref-u16 vector index)))
+                         (declare (type (unsigned-byte 16) 2nd-unit))
+                         (incf index 2)
+                         (if (and (>= 2nd-unit #xdc00)
+                                  (< 2nd-unit #xe000))
+                           (utf-16-combine-surrogate-pairs 1st-unit 2nd-unit)))))))
+             (setf (schar string i) (or char #\Replacement_Character)))))))
+    :memory-encode-function
+    (nfunction
+     native-utf-16-memory-encode
+     (lambda (string pointer idx start end)
+       (declare (fixnum idx))
+       (do* ((i start (1+ i)))
+            ((>= i end) idx)
+         (let* ((code (char-code (schar string i)))
+                (highbits (- code #x10000)))
+           (declare (type (mod #x110000) code)
+                  (fixnum  highbits))
+         (cond ((< highbits 0)
+                (setf (%get-unsigned-word pointer idx) code)
+                (incf idx 2))
+               (t
+                (setf (%get-unsigned-word pointer idx) (logior #xd800 (the fixnum (ash highbits -10))))
+                (incf idx 2)
+                (setf (%get-unsigned-word pointer idx) (logior #xdc00 (the fixnum (logand highbits #x3ff))))
+                (incf idx 2)))))))
+    :memory-decode-function
+    (nfunction
+     native-utf-16-memory-decode
+     (lambda (pointer noctets idx string)
+       (declare (fixnum noctets idx))
+       (do* ((i 0 (1+ i))
+             (end (+ idx noctets))
+             (index idx))
+            ((>= index end) index)
+         (declare (fixnum i index p))
+         (let* ((1st-unit (%get-unsigned-word pointer index)))
+           (declare (type (unsigned-byte 16) 1st-unit))
+           (incf index 2)
+           (let* ((char
+                   (if (or (< 1st-unit #xd800)
+                           (>= 1st-unit #xe000))
+                     (code-char 1st-unit)
+                     (if (< 1st-unit #xdc00)
+                       (let* ((2nd-unit (%get-unsigned-word pointer index)))
                            (declare (type (unsigned-byte 16) 2nd-unit))
                            (incf index)
                            (if (and (>= 2nd-unit #xdc00)
                                     (< 2nd-unit #xe000))
-                             (code-char (the (unsigned-byte 21)
-                                          (logior
-                                           (the (unsigned-byte 20) (ash (the (unsigned-byte 10)
-                                                                          (- 1st-unit #xd800))
-                                                                        10))
-                                           (the (unsigned-byte 10) (- 2nd-unit #xdc00)))))))))))
-             (if char
-               (setf (schar string i) char)
-               (return (values nil idx))))))))
-    :units-in-string-function
-    #'utf-16-units-in-string
+                             (utf-16-combine-surrogate-pairs 1st-unit 2nd-unit)))))))
+            (setf (schar string i) (or char #\Replacement_Character)))))))
+    :octets-in-string-function
+    #'utf-16-octets-in-string
     :length-of-vector-encoding-function
     (nfunction
      native-utf-16-length-of-vector-encoding
-     (lambda (vector &optional (start 0) (end (length vector)))
-       (declare (type (simple-array (unsigned-byte 16) (*)) vector))
+     (lambda (vector start end)
+       (declare (type (simple-array (unsigned-byte 8) (*)) vector))
+       (declare (fixnum start end))
        (do* ((i start)
-             (nchars 0 (1+ nchars)))
-            ((>= i end)
-             (if (= i end) nchars))
-         (let* ((code (aref vector i)))
-           (declare (type (unsigned-byte 16) code))
-           (incf i
-                 (if (or (< code #xd800)
-                         (>= code #xe000))
-                   1
-                   2))))))
+             (j (+ 2 i) (+ 2 i))
+             (nchars 0))
+            ((> j end) (values nchars i))
+         (declare (fixnum i j nchars))
+         (let* ((code (%native-u8-ref-u16 vector i))
+                (nexti (+ i (if (or (< code #xd800)
+                                    (>= code #xdc00))
+                              2
+                              4))))
+           (declare (type (unsigned-byte 16) code)
+                    (fixnum nexti))
+           (if (> nexti end)
+             (return (values nchars i))
+             (setq i nexti nchars (1+ nchars)))))))
     :length-of-memory-encoding-function
     (nfunction
      native-utf-16-length-of-memory-encoding
-     (lambda (pointer nunits &optional (start 0))
+     (lambda (pointer noctets start)
        (do* ((i start)
-             (p (+ start start) (+ p 2))
-             (nchars 0 (1+ nchars)))
-            ((>= i nunits)
-             (if (= i nunits) nchars))
-         (let* ((code (%get-unsigned-word pointer p)))
-           (declare (type (unsigned-byte 16) code))
-           (incf i
-                 (incf i
-                       (if (or (< code #xd800)
-                               (>= code #xe000))
-                         1
-                         2)))))))
+             (j (+ i 2) (+ i 2))
+             (end (+ start noctets))
+             (nchars 0))
+            ((> j end) (values nchars i))
+         (let* ((code (%get-unsigned-word pointer i))
+                (nexti (+ i (if (or (< code #xd800)
+                                    (>= code #xdc00))
+                              2
+                              4))))
+           (declare (type (unsigned-byte 16) code)
+                    (fixnum nexti))
+           (if (> nexti end)
+             (return (values nchars i))
+             (setq i nexti nchars (1+ nchars)))))))
     :literal-char-code-limit #x10000
     )
 
 ;;; utf-16, reversed byte order
 (define-character-encoding #+big-endian-target :utf-16le #-big-endian-target :utf-16be
-    #+little-endian-target
-    "A 16-bit, variable-length encoding in which characters with
+   #+little-endian-target
+   "A 16-bit, variable-length encoding in which characters with
 CHAR-CODEs less than #x10000 can be encoded in a single 16-bit
 big-endian word and characters with larger codes can be encoded in a
 pair of 16-bit big-endian words.  The endianness of the encoded data
 is implicit in the encoding; byte-order-mark characters are not
 interpreted on input or prepended to output."
-    #+big-endian-target
-    "A 16-bit, variable-length encoding in which characters with
+  #+big-endian-target
+  "A 16-bit, variable-length encoding in which characters with
 CHAR-CODEs less than #x10000 can be encoded in a single 16-bit
 little-endian word and characters with larger codes can be encoded in
 a pair of 16-bit little-endian words.  The endianness of the encoded
 data is implicit in the encoding; byte-order-mark characters are not
 interpreted on input or prepended to output."
-    :max-units-per-char 2
-    :code-unit-size 16
-    :native-endianness nil
-    :stream-encode-function
-    #'utf-16-stream-encode
-    :stream-decode-function
-    #'utf-16-stream-decode
-    :vector-encode-function
-    (nfunction
-     reversed-utf-16-vector-encode
-     (lambda (string vector idx &optional (start 0) (end (length string)))
-       (declare (type (simple-array (unsigned-byte 16) (*)) vector)
-                (fixnum idx))
-       (do* ((i start (1+ i)))
-            ((>= i end) idx)
-         (let* ((char (schar string i))
-                (code (char-code char))
-                (highbits (- code #x10000)))
-           (declare (type (mod #x110000) code)
-                    (fixnum highbits))
-           (cond ((< highbits 0)
-                  (setf (aref vector idx) (%swap-u16 code))
-                  (incf idx))
-                 (t
-                  (setf (aref vector idx) (%swap-u16 (logior #xd800 (the fixnum (ash highbits -10)))))
-                  (incf idx)
-                  (setf (aref vector idx) (%swap-u16 (logior #xdc00 (the fixnum (logand highbits #x3ff)))))
-                  (incf idx)))))))
-    :vector-decode-function
-    (nfunction
-     reversed-utf-16-vector-decode
-     (lambda (vector idx nunits string)
-       (declare (type (simple-array (unsigned-byte 16) (*)) vector)
-                (type index idx))
-       (do* ((i 0 (1+ i))
-             (len (length vector))
-             (index idx (1+ index)))
-            ((>= i nunits) (values string index))
-         (declare (fixnum i len index))
-         (if (>= index len)
-           (values nil idx)
-           (let* ((1st-unit (%swap-u16 (aref vector index))))
-             (declare (type (unsigned-byte 16) 1st-unit))
-             (let* ((char
-                     (if (or (< 1st-unit #xd800)
-                             (>= 1st-unit #xe000))
-                       (code-char 1st-unit)
-                       (if (< 1st-unit #xdc00)
-                         (let* ((2nd-unit (%swap-u16 (aref vector (incf index)))))
-                           (declare (type (unsigned-byte 16) 2nd-unit))
-                           (if (and (>= 2nd-unit #xdc00)
-                                    (< 2nd-unit #xe000))
-                             (code-char (the (unsigned-byte 21)
-                                          (logior
-                                           (the (unsigned-byte 20) (ash (the (unsigned-byte 10)
-                                                                          (- 1st-unit #xd800))
-                                                                        10))
-                                           (the (unsigned-byte 10) (- 2nd-unit #xdc00)))))))))))
-               (if char
-                 (setf (schar string i) char)
-                 (return (values nil idx)))))))))
-    :memory-encode-function
-    (nfunction
-     reversed-utf-16-memory-encode
-     (lambda (string pointer idx &optional (start 0) (end (length string)))
-       (declare (fixnum idx))
-       (do* ((i start (1+ i)))
-            ((>= i end) idx)
-         (let* ((code (char-code (schar string i)))
-                (highbits (- code #x10000))
-              (p (+ idx idx)))
-           (declare (type (mod #x110000) code)
-                  (fixnum p highbits))
+  :max-units-per-char 2
+  :code-unit-size 16
+  :native-endianness nil
+  :stream-encode-function
+  #'utf-16-stream-encode
+  :stream-decode-function
+  #'utf-16-stream-decode
+  :vector-encode-function
+  (nfunction
+   reversed-utf-16-vector-encode
+   (lambda (string vector idx start end)
+     (declare (type (simple-array (unsigned-byte 8) (*)) vector)
+              (fixnum idx start end))
+     (do* ((i start (1+ i)))
+          ((>= i end) idx)
+       (declare (fixnum i))
+       (let* ((char (schar string i))
+              (code (char-code char))
+              (highbits (- code #x10000)))
+         (declare (type (mod #x110000) code)
+                  (fixnum highbits))
          (cond ((< highbits 0)
-                (setf (%get-unsigned-word pointer p) (%swap-u16 code))
-                (incf idx)
-                (incf p 2))
-
+                (setf (%reversed-u8-ref-u16 vector idx) code)
+                (incf idx 2))
                (t
-                (setf (%get-unsigned-word pointer p) (%swap-u16 (logior #xd800 (the fixnum (ash highbits -10)))))
-                (incf idx)
-                (incf p 2)
-                (setf (%get-unsigned-word pointer p) (%swap-u16 (logior #xdc00 (the fixnum (logand highbits #x3ff)))))
-                (incf idx)
-                (incf p 2)))))))
-    :memory-decode-function
-    (nfunction
-     reversed-utf-16-memory-decode
-     (lambda (pointer nunits idx string)
-       (declare (fixnum nunits idx))
-       (do* ((i 0 (1+ i))
-             (index idx (1+ index))
-             (p (+ index index) (+ p 2)))
-            ((>= i nunits) (values string index))
-         (declare (fixnum i index p))
-         (let* ((1st-unit (%swap-u16 (%get-unsigned-word pointer p))))
-           (declare (type (unsigned-byte 16) 1st-unit))
-           (let* ((char
-                   (if (or (< 1st-unit #xd800)
-                           (>= 1st-unit #xe000))
-                     (code-char 1st-unit)
-                     (if (< 1st-unit #xdc00)
-                       (let* ((2nd-unit (%swap-u16 (%get-unsigned-byte pointer (incf p 2)))))
-                           (declare (type (unsigned-byte 16) 2nd-unit))
-                           (incf index)
-                           (if (and (>= 2nd-unit #xdc00)
-                                    (< 2nd-unit #xe000))
-                             (code-char (the (unsigned-byte 21)
-                                          (logior
-                                           (the (unsigned-byte 20) (ash (the (unsigned-byte 10)
-                                                                          (- 1st-unit #xd800))
-                                                                        10))
-                                           (the (unsigned-byte 10) (- 2nd-unit #xdc00)))))))))))
-             (if char
-               (setf (schar string i) char)
-               (return (values nil idx))))))))
-    :units-in-string-function
-    #'utf-16-units-in-string
-    :length-of-vector-encoding-function
-    (nfunction
-     reversed-utf-16-length-of-vector-encoding
-     (lambda (vector &optional (start 0) (end (length vector)))
-       (declare (type (simple-array (unsigned-byte 16) (*)) vector))
-       (do* ((i start)
-             (nchars 0 (1+ nchars)))
-            ((>= i end)
-             (if (= i end) nchars))
-         (let* ((code (%swap-u16 (aref vector i))))
-           (declare (type (unsigned-byte 16) code))
-           (incf i
-                 (if (or (< code #xd800)
-                         (>= code #xe000))
-                   1
-                   2))))))
-    :length-of-memory-encoding-function
-    (nfunction
-     reversed-utf-16-length-of-memory-encoding
-     (lambda (pointer nunits &optional (start 0))
-       (do* ((i start)
-             (p (+ start start) (+ p 2))
-             (nchars 0 (1+ nchars)))
-            ((>= i nunits)
-             (if (= i nunits) nchars))
-         (let* ((code (%swap-u16 (%get-unsigned-word pointer p))))
-           (declare (type (unsigned-byte 8) code))
-           (incf i
-                 (incf i
-                       (if (or (< code #xd800)
-                               (>= code #xe000))
-                         1
-                         2)))))))
-    :literal-char-code-limit #x10000
-    )
+                (let* ((firstword (logior #xd800 (the fixnum (ash highbits -10))))
+                       (secondword (logior #xdc00 (the fixnum (logand highbits #x3ff)))))
+                  (declare (type (unsigned-byte 16) firstword secondword))
+                  (setf (%reversed-u8-ref-u16 vector idx) firstword
+                        (%reversed-u8-ref-u16 vector (the fixnum (+ idx 2))) secondword)
+                  (incf idx 4))))))))
+  :vector-decode-function
+  (nfunction
+   reversed-utf-16-vector-decode
+   (lambda (vector idx noctets string)
+     (declare (type (simple-array (unsigned-byte 8) (*)) vector)
+              (type index idx))
+     (do* ((i 0 (1+ i))
+           (end (+ idx noctets))
+           (index idx))
+          ((= index end) index)
+       (declare (fixnum i len index))
+       (let* ((1st-unit (%reversed-u8-ref-u16 vector index)))
+         (declare (type (unsigned-byte 16) 1st-unit))
+         (incf index 2)
+         (let* ((char
+                 (if (or (< 1st-unit #xd800)
+                         (>= 1st-unit #xe000))
+                   (code-char 1st-unit)
+                   (if (< 1st-unit #xdc00)
+                     (let* ((2nd-unit (%reversed-u8-ref-u16 vector index)))
+                       (declare (type (unsigned-byte 16) 2nd-unit))
+                       (incf index 2)
+                       (if (and (>= 2nd-unit #xdc00)
+                                (< 2nd-unit #xe000))
+                         (utf-16-combine-surrogate-pairs 1st-unit 2nd-unit)))))))
+           (setf (schar string i) (or char #\Replacement_Character)))))))
+  :memory-encode-function
+  (nfunction
+   reversed-utf-16-memory-encode
+   (lambda (string pointer idx start end)
+     (declare (fixnum idx))
+     (do* ((i start (1+ i)))
+          ((>= i end) idx)
+       (let* ((code (char-code (schar string i)))
+              (highbits (- code #x10000)))
+         (declare (type (mod #x110000) code)
+                  (fixnum  highbits))
+         (cond ((< highbits 0)
+                (setf (%get-unsigned-word pointer idx) (%swap-u16 code))
+                (incf idx 2))
+               (t
+                (setf (%get-unsigned-word pointer idx) (%swap-u16 (logior #xd800 (the fixnum (ash highbits -10)))))
+                (incf idx 2)
+                (setf (%get-unsigned-word pointer idx) (%swap-u16 (logior #xdc00 (the fixnum (logand highbits #x3ff)))))
+                (incf idx 2)))))))
+  :memory-decode-function
+  (nfunction
+   reversed-utf-16-memory-decode
+   (lambda (pointer noctets idx string)
+     (declare (fixnum noctets idx))
+     (do* ((i 0 (1+ i))
+           (end (+ idx noctets))
+           (index idx))
+          ((>= index end) index)
+       (declare (fixnum i index p))
+       (let* ((1st-unit (%swap-u16 (%get-unsigned-word pointer index))))
+         (declare (type (unsigned-byte 16) 1st-unit))
+         (incf index 2)
+         (let* ((char
+                 (if (or (< 1st-unit #xd800)
+                         (>= 1st-unit #xe000))
+                   (code-char 1st-unit)
+                   (if (< 1st-unit #xdc00)
+                     (let* ((2nd-unit (%swap-u16 (%get-unsigned-word pointer index))))
+                       (declare (type (unsigned-byte 16) 2nd-unit))
+                       (incf index)
+                       (if (and (>= 2nd-unit #xdc00)
+                                (< 2nd-unit #xe000))
+                         (utf-16-combine-surrogate-pairs 1st-unit 2nd-unit)))))))
+           (setf (schar string i) (or char #\Replacement_Character)))))))
+  :octets-in-string-function
+  #'utf-16-octets-in-string
+  :length-of-vector-encoding-function
+  (nfunction
+   reversed-utf-16-length-of-vector-encoding
+   (lambda (vector start end)
+     (declare (type (simple-array (unsigned-byte 8) (*)) vector))
+     (declare (fixnum start end))
+     (do* ((i start)
+           (j (+ 2 i) (+ 2 i))
+           (nchars 0))
+          ((> j end) (values nchars i))
+       (declare (fixnum i j nchars))
+       (let* ((code (%reversed-u8-ref-u16 vector i))
+              (nexti (+ i (if (or (< code #xd800)
+                                  (>= code #xdc00))
+                            2
+                            4))))
+         (declare (type (unsigned-byte 16) code)
+                  (fixnum nexti))
+         (if (> nexti end)
+           (return (values nchars i))
+           (setq i nexti nchars (1+ nchars)))))))
+  :length-of-memory-encoding-function
+  (nfunction
+   reversed-utf-16-length-of-memory-encoding
+   (lambda (pointer noctets start)
+     (do* ((i start)
+           (j (+ i 2) (+ i 2))
+           (end (+ start noctets))
+           (nchars 0))
+          ((> j end) (values nchars i))
+       (let* ((code (%swap-u16 (%get-unsigned-word pointer i)))
+              (nexti (+ i (if (or (< code #xd800)
+                                  (>= code #xdc00))
+                            2
+                            4))))
+         (declare (type (unsigned-byte 16) code)
+                  (fixnum nexti))
+         (if (> nexti end)
+           (return (values nchars i))
+           (setq i nexti nchars (1+ nchars)))))))
+  :literal-char-code-limit #x10000
+  )
 
 ;;; UTF-16.  Memory and vector functions determine endianness of
 ;;; input by the presence of a byte-order mark (or swapped BOM)
@@ -1770,202 +1701,191 @@ the data is assumed to be in big-endian order."
   :vector-encode-function
   (nfunction
    utf-16-vector-encode
-   (lambda (string vector idx &optional (start 0) (end (length string)))
+   (lambda (string vector idx start end)
      (declare (type (simple-array (unsigned-byte 8) (*)) vector)
               (fixnum idx))
      (when (> end start)
-       (setf (aref vector idx) byte-order-mark-char-code)
-       (incf idx))
-     (do* ((i start (1+ i)))
-          ((>= i end) idx)
-       (let* ((char (schar string i))
-              (code (char-code char))
-              (highbits (- code #x10000)))
-         (declare (type (mod #x110000) code)
-                  (fixnum highbits))
-         (cond ((< highbits 0)
-                (setf (aref vector idx) code)
-                (incf idx))
-               (t
-                (setf (aref vector idx) (logior #xd800 (the fixnum (ash highbits -10))))
-                (incf idx)
-                (setf (aref vector idx) (logior #xdc00 (the fixnum (logand highbits #x3ff))))
-                (incf idx)))))))
+       (setf (%native-u8-ref-u16 vector idx) byte-order-mark-char-code)
+       (incf idx 2))
+            (do* ((i start (1+ i)))
+            ((>= i end) idx)
+         (declare (fixnum i))
+         (let* ((char (schar string i))
+                (code (char-code char))
+                (highbits (- code #x10000)))
+           (declare (type (mod #x110000) code)
+                    (fixnum highbits))
+           (cond ((< highbits 0)
+                  (setf (%native-u8-ref-u16 vector idx) code)
+                  (incf idx 2))
+                 (t
+                  (let* ((firstword (logior #xd800 (the fixnum (ash highbits -10))))
+                         (secondword (logior #xdc00 (the fixnum (logand highbits #x3ff)))))
+                    (declare (type (unsigned-byte 16) firstword secondword))
+                    (setf (%native-u8-ref-u16 vector idx) firstword
+                          (%native-u8-ref-u16 vector (the fixnum (+ idx 2))) secondword)
+                    (incf idx 4))))))))
   :vector-decode-function
   (nfunction
    utf-16-vector-decode 
-   (lambda (vector idx nunits string)
+   (lambda (vector idx noctets string)
      (declare (type (simple-array (unsigned-byte 16) (*)) vector)
               (type index idx))
-     (let* ((len (length vector))
-            (swap (if (> len idx)
-                    (case (aref vector idx)
+     (let* ((swap (if (>= noctets 2)
+                    (case (%native-u8-ref-u16 vector idx)
                       (#.byte-order-mark-char-code
-                       (incf idx) nil)
+                       (incf idx 2) nil)
                       (#.swapped-byte-order-mark-char-code
-                       (incf idx t))
+                       (incf idx 2) t)
                       (t #+little-endian-target t)))))
-
        (do* ((i 0 (1+ i))
-             (index idx (1+ index)))
-            ((>= i nunits) (values string index))
+             (end (+ idx noctets))
+             (index idx))
+            ((= index end) index)
          (declare (fixnum i len index))
-         (if (>= index len)
-           (values nil idx)
-           (let* ((1st-unit (aref vector index)))
-             (declare (type (unsigned-byte 16) 1st-unit))
-             (if swap (setq 1st-unit (%swap-u16 1st-unit)))
-             (let* ((char
-                     (if (or (< 1st-unit #xd800)
-                             (>= 1st-unit #xe000))
-                       (code-char 1st-unit)
-                       (if (< 1st-unit #xdc00)
-                         (let* ((2nd-unit (aref vector (incf index))))
-                           (declare (type (unsigned-byte 16) 2nd-unit))
-                           (if swap (setq 2nd-unit (%swap-u16 2nd-unit)))
-                           (if (and (>= 2nd-unit #xdc00)
-                                    (< 2nd-unit #xe000))
-                             (code-char (the (unsigned-byte 21)
-                                          (logior
-                                           (the (unsigned-byte 20) (ash (the (unsigned-byte 10)
-                                                                          (- 1st-unit #xd800))
-                                                                        10))
-                                           (the (unsigned-byte 10) (- 2nd-unit #xdc00)))))))))))
-               (if char
-                 (setf (schar string i) char)
-                 (return (values nil idx))))))))))
+         (let* ((1st-unit (if swap
+                            (%reversed-u8-ref-u16 vector index)
+                            (%native-u8-ref-u16 vector index))))
+           (declare (type (unsigned-byte 16) 1st-unit))
+           (incf index 2)
+           (let* ((char
+                   (if (or (< 1st-unit #xd800)
+                           (>= 1st-unit #xe000))
+                     (code-char 1st-unit)
+                     (if (< 1st-unit #xdc00)
+                       (let* ((2nd-unit (if swap
+                                          (%reversed-u8-ref-u16 vector index)
+                                          (%native-u8-ref-u16 vector index))))
+                         (declare (type (unsigned-byte 16) 2nd-unit))
+                         (incf index 2)
+                         (if (and (>= 2nd-unit #xdc00)
+                                  (< 2nd-unit #xe000))
+                           (utf-16-combine-surrogate-pairs 1st-unit 2nd-unit)))))))
+             (setf (schar string i) (or char #\Replacement_Character))))))))
   :memory-encode-function
   (nfunction
    utf-16-memory-encode
-   (lambda (string pointer idx &optional (start 0) (end (length string)))
+   (lambda (string pointer idx start end)
      (declare (fixnum idx))
      (when (> end start)
-       (setf (%get-unsigned-word pointer (+ idx idx))
+       (setf (%get-unsigned-word pointer idx)
              byte-order-mark-char-code)
-       (incf idx))
+       (incf idx 2))
      (do* ((i start (1+ i)))
           ((>= i end) idx)
        (let* ((code (char-code (schar string i)))
-              (highbits (- code #x10000))
-              (p (+ idx idx)))
+              (highbits (- code #x10000)))
          (declare (type (mod #x110000) code)
                   (fixnum p highbits))
          (cond ((< highbits 0)
-                (setf (%get-unsigned-word pointer p) code)
-                (incf idx)
-                (incf p 2))
-
+                (setf (%get-unsigned-word pointer idx) code)
+                (incf idx 2))
                (t
-                (setf (%get-unsigned-word pointer p) (logior #xd800 (the fixnum (ash highbits -10))))
-                (incf idx)
-                (incf p 2)
-                (setf (%get-unsigned-word pointer p) (logior #xdc00 (the fixnum (logand highbits #x3ff))))
-                (incf idx)
-                (incf p 2)))))))
+                (setf (%get-unsigned-word pointer idx) (logior #xd800 (the fixnum (ash highbits -10))))
+
+                (setf (%get-unsigned-word pointer (the fixnum (+ idx 2))) (logior #xdc00 (the fixnum (logand highbits #x3ff))))
+                (incf idx 4)))))))
   :memory-decode-function
   (nfunction
    utf-16-memory-decode
-   (lambda (pointer nunits idx string)
+   (lambda (pointer noctets idx string)
      (declare (fixnum nunits idx))
-     (let* ((swap (when (> nunits 0)
-                    (case (%get-unsigned-word pointer (+ idx idx))
+     (let* ((swap (when (> noctets 1)
+                    (case (%get-unsigned-word pointer idx)
                       (#.byte-order-mark-char-code
-                       (incf idx)
-                       (decf nunits)
+                       (incf idx 2)
+                       (decf noctets 2)
                        nil)
                       (#.swapped-byte-order-mark-char-code
-                       (incf idx)
-                       (decf nunits)
+                       (incf idx 2)
+                       (decf noctets 2)
                        t)
                       (t #+little-endian-target t)))))
        (do* ((i 0 (1+ i))
-             (index idx (1+ index))
-             (p (+ index index) (+ p 2)))
-            ((>= i nunits) (values string index))
+             (end (+ idx noctets))
+             (index idx ))
+            ((>= index end) index)
          (declare (fixnum i index p))
-         (let* ((1st-unit (%get-unsigned-word pointer p)))
+         (let* ((1st-unit (%get-unsigned-word pointer index)))
            (declare (type (unsigned-byte 16) 1st-unit))
+           (incf index 2)
            (if swap (setq 1st-unit (%swap-u16 1st-unit)))
            (let* ((char
                    (if (or (< 1st-unit #xd800)
                            (>= 1st-unit #xe000))
                      (code-char 1st-unit)
                      (if (< 1st-unit #xdc00)
-                       (let* ((2nd-unit (%get-unsigned-byte pointer (incf p 2))))
+                       (let* ((2nd-unit (%get-unsigned-byte pointer index)))
                          (declare (type (unsigned-byte 16) 2nd-unit))
                          (if swap (setq 2nd-unit (%swap-u16 2nd-unit)))
-                         (incf index)
+                         (incf index 2)
                          (if (and (>= 2nd-unit #xdc00)
                                   (< 2nd-unit #xe000))
-                           (code-char (the (unsigned-byte 21)
-                                        (logior
-                                         (the (unsigned-byte 20) (ash (the (unsigned-byte 10)
-                                                                        (- 1st-unit #xd800))
-                                                                      10))
-                                         (the (unsigned-byte 10) (- 2nd-unit #xdc00)))))))))))
-             (if char
-               (setf (schar string i) char)
-               (return (values nil idx)))))))))
-  :units-in-string-function
+                           (utf-16-combine-surrogate-pairs 1st-unit 2nd-unit)))))))
+             (setf (schar string i) (or char #\Replacement_Character))))))))
+  :octets-in-string-function
   #'(lambda (&rest args)
       (declare (dynamic-extent args))
-      ;; Add one for the BOM.
-      (1+ (apply #'utf-16-units-in-string args)))
+      ;; Add two for the BOM.
+      (+ 2 (apply #'utf-16-octets-in-string args)))
   :length-of-vector-encoding-function
   (nfunction
    utf-16-length-of-vector-encoding
-   (lambda (vector &optional (start 0) (end (length vector)))
+   (lambda (vector start end)
      (declare (type (simple-array (unsigned-byte 16) (*)) vector))
      (let* ((swap (when (> end start)
-                    (case (aref vector start)
+                    (case (%native-u8-ref-u16 vector start)
                       (#.byte-order-mark-char-code
-                       (incf start)
+                       (incf start 2)
                        nil)
                       (#.swapped-byte-order-mark-char-code
-                       (incf start)
+                       (incf start 2)
+                       t)
+                      (t #+little-endian-target t)))))
+       (do* ((i start)
+             (j (+ 2 i) (+ 2 i))
+             (nchars 0))
+            ((> j end)
+             (if (= i end) (values nchars i))
+             (let* ((code (if swap
+                            (%reversed-u8-ref-u16 vector i)
+                            (%native-u8-ref-u16 vector i)))
+                    (nexti (+ i (if (or (< code #xd800)
+                                        (>= code #xdc00))
+                                  2
+                                  4))))
+               (declare (type (unsigned-byte 16) code)
+                        (fixnum nexti))
+               (if (> nexti end)
+                 (return (values nchars i))
+                 (setq i nexti nchars (1+ nchars)))))))))
+  :length-of-memory-encoding-function
+  (nfunction
+   utf-16-length-of-memory-encoding
+   (lambda (pointer noctets start)
+     (let* ((swap (when (>= noctets 2)
+                    (case (%get-unsigned-word pointer (+ start start))
+                      (#.byte-order-mark-char-code
+                       (incf start 2)
+                       (decf noctets 2)
+                       nil)
+                      (#.swapped-byte-order-mark-char-code
+                       (incf start 2)
+                       (decf noctets 2)
                        t)
                       (t #+little-endian-target t)))))
        (do* ((i start)
              (nchars 0 (1+ nchars)))
-            ((>= i end)
-             (if (= i end) nchars))
-         (let* ((code (aref vector i)))
+            ((>= i noctets)
+             (if (= i noctets) nchars))
+         (let* ((code (%get-unsigned-word pointer i)))
            (declare (type (unsigned-byte 16) code))
            (if swap (setq code (%swap-u16 code)))
            (incf i
                  (if (or (< code #xd800)
-                         (>= code #xe000))
-                   1
-                   2)))))))
-  :length-of-memory-encoding-function
-  (nfunction
-   utf-16-length-of-memory-encoding
-   (lambda (pointer nunits &optional (start 0))
-     (let* ((swap (when (> nunits 1)
-                    (case (%get-unsigned-word pointer (+ start start))
-                      (#.byte-order-mark-char-code
-                       (incf start)
-                       (decf nunits)
-                       nil)
-                      (#.swapped-byte-order-mark-char-code
-                       (incf start)
-                       (decf nunits)
-                       t)
-                      (t #+little-endian-target t)))))
-       (do* ((i start)
-             (p (+ start start) (+ p 2))
-             (nchars 0 (1+ nchars)))
-            ((>= i nunits)
-             (if (= i nunits) nchars))
-         (let* ((code (%get-unsigned-word pointer p)))
-           (declare (type (unsigned-byte 16) code))
-           (if swap (setq code (%swap-u16 code)))
-           (incf i
-                 (incf i
-                       (if (or (< code #xd800)
-                               (>= code #xe000))
-                         1
-                         2))))))))
+                         (>= code #xdc00))
+                   2
+                   4)))))))
   :literal-char-code-limit #x10000
   :use-byte-order-mark
   #+big-endian-target :utf-16le
@@ -1989,13 +1909,12 @@ the data is assumed to be in big-endian order."
       #\Replacement_Character))
 
 
-(defun ucs-2-units-in-string (string &optional (start 0) (end (length string)))
-  (when (>= end start)
-    (do* ((i start (1+ i)))
-         ((= i end) (- end start))
-      (let* ((code (char-code (schar string i))))
-        (declare (type (mod #x110000) code))
-        (unless (< code #x10000) (return nil))))))
+(defun ucs-2-octets-in-string (string start end)
+  (declare (ignore string))
+  (if (>= end start)
+    (* 2 (- end start))
+    0))
+
 
 ;;; UCS-2, native byte order
 (define-character-encoding #+big-endian-target :ucs-2be #-big-endian-target :ucs-2le
@@ -2021,85 +1940,75 @@ to output."
   :vector-encode-function
   (nfunction
    native-ucs-2-vector-encode
-   (lambda (string vector idx &optional (start 0) (end (length string)))
-     (declare (type (simple-array (unsigned-byte 16) (*)) vector)
+   (lambda (string vector idx start end)
+     (declare (type (simple-array (unsigned-byte 8) (*)) vector)
               (fixnum idx))
      (do* ((i start (1+ i)))
           ((>= i end) idx)
        (let* ((char (schar string i))
               (code (char-code char)))
-         (declare (type (mod #x110000) code)
-                  (fixnum highbits))
-         (cond ((< code #x10000)
-                (setf (aref vector idx) code)
-                (incf idx))
-               (t (return nil)))))))
+         (declare (type (mod #x110000) code))
+         (when (>= code #x10000)
+           (setq code (char-code #\Replacement_Character)))
+         (setf (%native-u8-ref-u16 vector idx) code)
+         (incf idx 2)))))
   :vector-decode-function
   (nfunction
    native-ucs-2-vector-decode
-   (lambda (vector idx nunits string)
-     (declare (type (simple-array (unsigned-byte 16) (*)) vector)
+   (lambda (vector idx noctets string)
+     (declare (type (simple-array (unsigned-byte 8) (*)) vector)
               (type index idx))
      (do* ((i 0 (1+ i))
-           (len (length vector))
-           (index idx (1+ index)))
-          ((>= i nunits) (values string index))
+           (end (+ idx noctets))
+           (index idx (+ 2 index)))
+          ((>= index end) index)
        (declare (fixnum i len index))
-       (if (>= index len)
-         (values nil idx)
-         (let* ((char (code-char (the (unsigned-byte 16) (aref vector index)))))
-           (if char
-             (setf (schar string i) char)
-             (return (values nil idx))))))))
+       (setf (schar string i)
+             (or (code-char (%native-u8-ref-u16 vector index))
+                 #\Replacement_Character)))))
   :memory-encode-function
   (nfunction
    native-ucs-2-memory-encode
-   (lambda (string pointer idx &optional (start 0) (end (length string)))
+   (lambda (string pointer idx start end)
      (declare (fixnum idx))
      (do* ((i start (1+ i)))
           ((>= i end) idx)
-       (let* ((code (char-code (schar string i)))
-              (p (+ idx idx)))
-         (declare (type (mod #x110000) code)
-                  (fixnum p highbits))
-         (cond ((< code #x10000)
-                (setf (%get-unsigned-word pointer p) code)
-                (incf idx)
-                (incf p 2))
-               (t
-                (return nil)))))))
+       (let* ((code (char-code (schar string i))))
+         (declare (type (mod #x110000) code))
+         (setf (%get-unsigned-word pointer idx)
+                      (if (>= code #x10000)
+                        (char-code #\Replacement_Character)
+                        code))
+         (incf idx 2)))))
   :memory-decode-function
   (nfunction
    native-ucs-2-memory-decode
-   (lambda (pointer nunits idx string)
-     (declare (fixnum nunits idx))
+   (lambda (pointer noctets idx string)
+     (declare (fixnum noctets idx))
      (do* ((i 0 (1+ i))
-           (index idx (1+ index))
-           (p (+ index index) (+ p 2)))
-          ((>= i nunits) (values string index))
-       (declare (fixnum i index p))
-       (let* ((1st-unit (%get-unsigned-word pointer p)))
+           (index idx (+ index 2)))
+          ((>= i noctets) index)
+       (declare (fixnum i index))
+       (let* ((1st-unit (%get-unsigned-word pointer index)))
          (declare (type (unsigned-byte 16) 1st-unit))
-         (let* ((char (code-char 1st-unit)))
-             (setf (schar string i) char)
-             (return (values nil idx)))))))
-  :units-in-string-function
-  #'ucs-2-units-in-string
+         (setf (schar string i) (or (char-code 1st-unit) #\Replacement_Character))))))
+  :octets-in-string-function
+  #'ucs-2-octets-in-string
   :length-of-vector-encoding-function
   (nfunction
    native-ucs-2-length-of-vector-encoding
-   (lambda (vector &optional (start 0) (end (length vector)))
-     (do* ((i start (1+ i)))
-          ((>= i end) (if (= i end) (- end start)))
-       (let* ((code (aref vector i)))
-         (unless (code-char code)
-           (return nil))))))
+   (lambda (vector start end)
+     (declare (ignore vector))
+     (do* ((i start (1+ i))
+           (j (+ i 2) (+ i 2))
+           (nchars 0 (1+ nchars)))
+          ((> j end) (values nchars i)))))
   :length-of-memory-encoding-function
   (nfunction
    native-ucs-2-length-of-memory-encoding
-   (lambda (pointer nunits &optional (start 0))
-     (declare (ignore pointer start))
-     nunits))
+   (lambda (pointer noctets start)
+     (declare (ignore pointer))
+     (values (floor noctets 2) (+ start noctets))))
   :literal-char-code-limit #x10000
   )
 
@@ -2127,83 +2036,75 @@ to output."
   :vector-encode-function
   (nfunction
    reversed-ucs-2-vector-encode
-   (lambda (string vector idx &optional (start 0) (end (length string)))
-     (declare (type (simple-array (unsigned-byte 16) (*)) vector)
+   (lambda (string vector idx start end)
+     (declare (type (simple-array (unsigned-byte 8) (*)) vector)
               (fixnum idx))
      (do* ((i start (1+ i)))
           ((>= i end) idx)
        (let* ((char (schar string i))
               (code (char-code char)))
-         (declare (type (mod #x110000) code)
-                  (fixnum highbits))
-         (cond ((< code #x10000)
-                (setf (aref vector idx) (%swap-u16 code))
-                (incf idx))
-               (t (return nil)))))))
+         (declare (type (mod #x110000) code))
+         (when (>= code #x10000)
+           (setq code (char-code #\Replacement_Character)))
+         (setf (%reversed-u8-ref-u16 vector idx) code)
+         (incf idx 2)))))
   :vector-decode-function
   (nfunction
    reversed-ucs-2-vector-decode
-   (lambda (vector idx nunits string)
-     (declare (type (simple-array (unsigned-byte 16) (*)) vector)
+   (lambda (vector idx noctets string)
+     (declare (type (simple-array (unsigned-byte 8) (*)) vector)
               (type index idx))
      (do* ((i 0 (1+ i))
-           (len (length vector))
-           (index idx (1+ index)))
-          ((>= i nunits) (values string index))
+           (end (+ idx noctets))
+           (index idx (+ 2 index)))
+          ((>= index end) index)
        (declare (fixnum i len index))
-       (if (>= index len)
-         (values nil idx)
-         (let* ((char (code-char (the (unsigned-byte 16) (%swap-u16 (aref vector index))))))
-           (if char
-             (setf (schar string i) char)
-             (return (values nil idx))))))))
+       (setf (schar string i)
+             (or (code-char (%reversed-u8-ref-u16 vector index))
+                 #\Replacement_Character)))))
   :memory-encode-function
   (nfunction
    reversed-ucs-2-memory-encode
-   (lambda (string pointer idx &optional (start 0) (end (length string)))
+   (lambda (string pointer idx start end)
      (declare (fixnum idx))
      (do* ((i start (1+ i)))
           ((>= i end) idx)
-       (let* ((code (char-code (schar string i)))
-              (p (+ idx idx)))
-         (declare (type (mod #x110000) code)
-                  (fixnum p highbits))
-         (cond ((< code #x10000)
-                (setf (%get-unsigned-word pointer p) (%swap-u16 code))
-                (incf idx)
-                (incf p 2))
-               (t
-                (return nil)))))))
+       (let* ((code (char-code (schar string i))))
+         (declare (type (mod #x110000) code))
+         (setf (%get-unsigned-word pointer idx)
+               (if (>= code #x10000)
+                 (%swap-u16 (char-code #\Replacement_Character))
+                 (%swap-u16 code)))
+         (incf idx 2)))))
   :memory-decode-function
   (nfunction
    reversed-ucs-2-memory-decode
-   (lambda (pointer nunits idx string)
-     (declare (fixnum nunits idx))
+   (lambda (pointer noctets idx string)
+     (declare (fixnum noctets idx))
      (do* ((i 0 (1+ i))
-           (index idx (1+ index))
-           (p (+ index index) (+ p 2)))
-          ((>= i nunits) (values string index))
-       (declare (fixnum i index p))
-       (let* ((1st-unit (%swap-u16 (%get-unsigned-word pointer p))))
+           (index idx (+ index 2)))
+          ((>= i noctets) index)
+       (declare (fixnum i index))
+       (let* ((1st-unit (%swap-u16 (%get-unsigned-word pointer index))))
          (declare (type (unsigned-byte 16) 1st-unit))
-         (let* ((char (code-char 1st-unit)))
-           (if char
-             (setf (schar string i) char)
-             (return (values nil idx))))))))
-  :units-in-string-function
-  #'ucs-2-units-in-string
+         (setf (schar string i) (or (char-code 1st-unit) #\Replacement_Character))))))
+  :octets-in-string-function
+  #'ucs-2-octets-in-string
   :length-of-vector-encoding-function
   (nfunction
    reversed-ucs-2-length-of-vector-encoding
-   (lambda (vector &optional (start 0) (end (length vector)))
-     (when (>= end start)
-       (- end start))))
+   (lambda (vector start end)
+     (declare (ignore vector))
+     (do* ((i start (1+ i))
+           (j (+ i 2) (+ i 2))
+           (nchars 0 (1+ nchars)))
+          ((> j end) (values nchars i)))))
   :length-of-memory-encoding-function
   (nfunction
    reversed-ucs-2-length-of-memory-encoding
-   (lambda (pointer nunits &optional start)
-     (declare (ignore pointer start))
-     nunits))
+   (lambda (pointer noctets start)
+     (declare (ignore pointer))
+     (values (floor noctets 2) (+ start noctets))))
   :literal-char-code-limit #x10000
   )
 
@@ -2224,147 +2125,115 @@ big-endian order."
   :vector-encode-function
   (nfunction
    ucs-2-vector-encode
-   (lambda (string vector idx &optional (start 0) (end (length string)))
+   (lambda (string vector idx start end)
      (declare (type (simple-array (unsigned-byte 8) (*)) vector)
               (fixnum idx))
      (when (> end start)
-       (setf (aref vector idx) byte-order-mark-char-code)
-       (incf idx))
+       (setf (%native-u8-ref-u16 vector idx) byte-order-mark-char-code)
+       (incf idx 2))
      (do* ((i start (1+ i)))
           ((>= i end) idx)
        (let* ((char (schar string i))
               (code (char-code char)))
-         (declare (type (mod #x110000) code)
-                  (fixnum highbits))
-         (cond ((< code #x10000)
-                (setf (aref vector idx) code)
-                (incf idx))
-               (t
-                (return nil)))))))
+         (declare (type (mod #x110000) code))
+         (when (>= code #x10000)
+           (setq code (char-code #\Replacement_Character)))
+         (setf (%native-u8-ref-u16 vector idx) code)
+         (incf idx 2)))))
   :vector-decode-function
   (nfunction
    ucs-2-vector-decode 
-   (lambda (vector idx nunits string)
-     (declare (type (simple-array (unsigned-byte 16) (*)) vector)
-              (type index idx))
-     (let* ((len (length vector))
-            (swap (if (> len idx)
-                    (case (aref vector idx)
+   (lambda (vector idx noctets string)
+     (declare (type (simple-array (unsigned-byte 8) (*)) vector)
+              (type index idx)
+              (fixnum noctets))
+     (let* ((swap (if (> noctets 1)
+                    (case (%native-u8-ref-u16 vector idx)
                       (#.byte-order-mark-char-code
-                       (incf idx) nil)
+                       (incf idx 2) (decf noctets 2) nil)
                       (#.swapped-byte-order-mark-char-code
-                       (incf idx t))
-                      (t #+little-endian-target t)))))
+                       (incf idx 2) (decf noctets 2) t)
+                       (t #+little-endian-target t)))))
 
        (do* ((i 0 (1+ i))
+             (end (+ idx noctets))
              (index idx (1+ index)))
-            ((>= i nunits) (values string index))
+            ((>= index end) index)
          (declare (fixnum i len index))
-         (if (>= index len)
-           (values nil idx)
-           (let* ((1st-unit (aref vector index)))
+         (let* ((1st-unit (if swap
+                            (%reversed-u8-ref-u16 vector index)
+                            (%native-u8-ref-u16 vector index))))
              (declare (type (unsigned-byte 16) 1st-unit))
-             (if swap (setq 1st-unit (%swap-u16 1st-unit)))
-             (let* ((char (code-char 1st-unit)))
-               (if char
-                 (setf (schar string i) char)
-                 (return (values nil idx))))))))))
+             (setf (schar string i) (or (code-char 1st-unit) #\Replacement_Character)))))))
   :memory-encode-function
   (nfunction
    ucs-2-memory-encode
-   (lambda (string pointer idx &optional (start 0) (end (length string)))
+   (lambda (string pointer idx start end)
      (declare (fixnum idx))
      (when (> end start)
-       (setf (%get-unsigned-word pointer (+ idx idx))
+       (setf (%get-unsigned-word pointer idx)
              byte-order-mark-char-code)
-       (incf idx))
+       (incf idx 2))
      (do* ((i start (1+ i)))
           ((>= i end) idx)
-       (let* ((code (char-code (schar string i)))
-              (p (+ idx idx)))
-         (declare (type (mod #x110000) code)
-                  (fixnum p))
-         (cond ((< code #x10000)
-                (setf (%get-unsigned-word pointer p) code)
-                (incf idx)
-                (incf p 2))
-               (t
-                (return (values nil idx))))))))
+       (let* ((code (char-code (schar string i))))
+         (declare (type (mod #x110000) code))
+         (setf (%get-unsigned-word pointer idx)
+                      (if (>= code #x10000)
+                        (char-code #\Replacement_Character)
+                        code))
+         (incf idx 2)))))
   :memory-decode-function
   (nfunction
    ucs-2-memory-decode
-   (lambda (pointer nunits idx string)
-     (declare (fixnum nunits idx))
-     (let* ((swap (when (> nunits 0)
-                    (case (%get-unsigned-word pointer (+ idx idx))
+   (lambda (pointer noctets idx string)
+     (declare (fixnum noctets idx))
+     (let* ((swap (when (> noctets 1)
+                    (case (%get-unsigned-word pointer idx)
                       (#.byte-order-mark-char-code
-                       (incf idx)
-                       (decf nunits)
+                       (incf idx 2)
+                       (decf noctets 2)
                        nil)
                       (#.swapped-byte-order-mark-char-code
-                       (incf idx)
-                       (decf nunits)
+                       (incf idx 2)
+                       (decf noctets 2)
                        t)
                       (t #+little-endian-target t)))))
        (do* ((i 0 (1+ i))
-             (index idx (1+ index))
-             (p (+ index index) (+ p 2)))
-            ((>= i nunits) (values string index))
-         (declare (fixnum i index p))
-         (let* ((1st-unit (%get-unsigned-word pointer p)))
-           (declare (type (unsigned-byte 16) 1st-unit))
-           (if swap (setq 1st-unit (%swap-u16 1st-unit)))
-           (let* ((char (code-char 1st-unit)))
-             (if char
-               (setf (schar string i) char)
-               (return (values nil idx)))))))))
-  :units-in-string-function
+           (index idx (+ index 2)))
+          ((>= i noctets) index)
+       (declare (fixnum i index))
+       (let* ((1st-unit (%get-unsigned-word pointer index)))
+         (declare (type (unsigned-byte 16) 1st-unit))
+         (if swap (setq 1st-unit (%swap-u16 1st-unit)))
+         (setf (schar string i) (or (code-char 1st-unit) #\Replacement_Character)))))))
+  :octets-in-string-function
   #'(lambda (&rest args)
       (declare (dynamic-extent args))
-      ;; Add one for the BOM.
-      (1+ (apply #'ucs-2-units-in-string args)))
+      ;; Add two for the BOM.
+      (+ 2 (apply #'ucs-2-octets-in-string args)))
   :length-of-vector-encoding-function
   (nfunction
    ucs-2-length-of-vector-encoding
-   (lambda (vector &optional (start 0) (end (length vector)))
-     (declare (type (simple-array (unsigned-byte 16) (*)) vector))
-     (let* ((swap (when (> end start)
-                    (case (aref vector start)
-                      (#.byte-order-mark-char-code
-                       (incf start)
-                       nil)
-                      (#.swapped-byte-order-mark-char-code
-                       (incf start)
-                       t)
-                      (t #+little-endian-target t)))))
-       (do* ((i start)
-             (nchars 0 (1+ nchars)))
-            ((>= i end)
-             (if (= i end) nchars))
-         (let* ((code (aref vector i)))
-           (declare (type (unsigned-byte 16) code))
-           (if swap (setq code (%swap-u16 code)))
-           (incf i))))))
+   (lambda (vector start end)
+     (declare (ignore vector))
+     (do* ((i start (1+ i))
+           (j (+ i 2) (+ i 2))
+           (nchars 0 (1+ nchars)))
+          ((> j end) (values nchars i)))))
   :length-of-memory-encoding-function
   (nfunction
    ucs-2-length-of-memory-encoding
-   (lambda (pointer nunits &optional (start 0))
-     (when (> nunits 1)
-                    (case (%get-unsigned-word pointer (+ start start))
-                      (#.byte-order-mark-char-code
-                       (incf start)
-                       (decf nunits)
-                       nil)
-                      (#.swapped-byte-order-mark-char-code
-                       (incf start)
-                       (decf nunits)
-                       t)
-                      (t #+little-endian-target t)))
-       (do* ((i start (1+ i))
-             (p (+ start start) (+ p 2))
-             (nchars 0 (1+ nchars)))
-            ((>= i nunits)
-             (if (= i nunits) nchars)))))
+   (lambda (pointer noctets start)
+     (when (> noctets 1)
+       (case (%get-unsigned-word pointer )
+         (#.byte-order-mark-char-code
+          (incf start 2)
+          (decf noctets 2))
+         (#.swapped-byte-order-mark-char-code
+          (incf start)
+          (decf noctets))))
+     (values (floor noctets 2) (+ start noctets))))
   :literal-char-code-limit #x10000
   :use-byte-order-mark
   #+big-endian-target :ucs-2le
@@ -2399,15 +2268,11 @@ big-endian order."
   `(get-character-encoding ,(character-encoding-name c)))
 
 (defun cstring-encoded-length-in-bytes (encoding string start end)
-  (ash (+ 1                             ; NULL terminator
-          (funcall (character-encoding-units-in-string-function encoding)
-                    string
-                    (or start 0)
-                    (or end (length string))))
-       (case (character-encoding-code-unit-size encoding)
-                (8 0)
-                (16 1)
-                (32 2))))
+  (+ 1                             ; NULL terminator
+     (funcall (character-encoding-octets-in-string-function encoding)
+              string
+              (or start 0)
+              (or end (length string)))))
 
 (defun encode-string-to-memory (encoding pointer offset string start end)
   (funcall (character-encoding-memory-encode-function encoding)

@@ -19,53 +19,10 @@
 (defstruct (file-ioblock (:include ioblock))
   (octet-pos 0 :type fixnum)		; current io position in octets
   (fileeof 0 :type fixnum)		; file length in elements
-  (input-filter nil)
-  (output-filter nil)
-  (line-termination :unix))
+  )
 
 
-(defun install-line-termination-filters (file-ioblock line-termination in-p out-p)
-  (let* ((inferred-macos nil))
-    (if (eq line-termination :inferred)
-      (if in-p
-        (if (eq (setq line-termination (infer-line-termination file-ioblock))
-                :macos)
-          (setq inferred-macos t))
-        (setq line-termination :unix)))
-    (setf (file-ioblock-line-termination file-ioblock) line-termination)
-    (when (eq line-termination :macos)
-      (let* ((encoding (or (file-ioblock-encoding file-ioblock)
-                           (get-character-encoding nil)))
-             (element-size (character-encoding-code-unit-size encoding))
-             (native-byte-order (ioblock-native-byte-order file-ioblock)))
-        (when in-p
-          (setf (file-ioblock-input-filter file-ioblock)
-                (case element-size
-                  (8 'u8-translate-cr-to-lf)
-                  (16 (if #+big-endian-target native-byte-order
-                          #+little-endian-target (not native-byte-order)
-                        'big-endian-u16-translate-cr-to-lf
-                        'little-endian-swapped-u16-translate-cr-to-lf))
-                  (32 (if #+big-endian-target native-byte-order
-                          #+little-endian-target (not native-byte-order)
-                        'big-endian-u32-translate-cr-to-lf
-                        'little-endian-swapped-u32-translate-cr-to-lf))))
-          (if inferred-macos
-            (let* ((inbuf (file-ioblock-inbuf file-ioblock)))
-              (funcall (file-ioblock-input-filter file-ioblock)
-                       (io-buffer-buffer inbuf)
-                       (io-buffer-count inbuf)))))
-        (when out-p
-          (setf (file-ioblock-output-filter file-ioblock)
-                (case element-size
-                  (8 'u8-translate-lf-to-cr)
-                  (16 (if native-byte-order
-                        'u16-translate-lf-to-cr
-                        'swapped-u16-translate-lf-to-cr))
-                  (32 (if native-byte-order
-                        'u32-translate-lf-to-cr
-                        'swapped-u32-translate-lf-to-cr)))))
-        line-termination))))
+
 
 ;;; The file-ioblock-octet-pos field is the (octet) position
 ;;; at which the next I/O operation will begin (e.g., where the
@@ -81,52 +38,46 @@
   (setf (file-ioblock-octet-pos file-ioblock)
 	(file-octet-filepos file-ioblock)))
 
-(defun translate-cr-to-lf (file-ioblock)
-  (let* ((inbuf (file-ioblock-inbuf file-ioblock))
-	 (string (io-buffer-buffer inbuf))
-	 (n (io-buffer-count inbuf)))
-    (declare (simple-base-string string)
-	     (fixnum n))
-    (dotimes (i n n)
-      (if (eq (schar string i) #\Return)
-	(setf (schar string i) #\Linefeed)))))
-
-(defun translate-lf-to-cr (file-ioblock n)
-  (declare (fixnum n))
-  (let* ((outbuf (file-ioblock-outbuf file-ioblock))
-	 (string (io-buffer-buffer outbuf)))
-    (declare (simple-base-string string))
-    (dotimes (i n n)
-      (if (eq (schar string i) #\Linefeed)
-	(setf (schar string i) #\Return)))))
-
 (defun infer-line-termination (file-ioblock)
   (let* ((encoding (or (file-ioblock-encoding file-ioblock)
                        (get-character-encoding nil)))
-         (unit-size (character-encoding-code-unit-size encoding))
-         (cr (char-code #\Return))
-         (lf (char-code #\linefeed))
          (inbuf (file-ioblock-inbuf file-ioblock))
          (buffer (io-buffer-buffer inbuf))
          (n (io-buffer-count inbuf)))
-    (cond ((= unit-size 8)
-           (if (zerop n)
-             (setq n (fd-stream-advance (file-ioblock-stream file-ioblock)
-                                        file-ioblock
-                                        t)))
-      
-      
-           (do* ((i 0 (+ i 1))
-                 (code))
-                ((= i n) :unix)
-             (setq code (aref buffer i))           
-             (if (= code cr)
-               (return :macos)
-               (if (= code lf)
-                 (return :unix))))))))
+    (when (zerop n)
+      (setq n (or (fd-stream-advance (file-ioblock-stream file-ioblock)
+                                     file-ioblock
+                                     t)
+                  0)))
+    (multiple-value-bind (nchars last)
+        (funcall (character-encoding-length-of-vector-encoding-function encoding)
+                 buffer
+                 0
+                 n)
+      (declare (fixnum nchars last))
+      (let* ((string (make-string nchars)))
+        (declare (dynamic-extent string))
+        (decode-character-encoded-vector encoding buffer 0 last string)
+        (let* ((line-termination
+                (do* ((i 0 (1+ i))
+                      (last-was-cr nil))
+                     ((= nchars) (if last-was-cr :cr))
+                  (declare (fixnum i))
+                  (let* ((char (schar string i)))
+                    (if last-was-cr
+                      (if (eq char #\Linefeed)
+                        (return :crlf)
+                        (return :cr))
+                      (case char
+                        (#\Newline (return nil))
+                        (#\Line_Separator (return :unicode))
+                        (#\Return (setq last-was-cr t))))))))
+        (when line-termination
+          (install-ioblock-input-line-termination file-ioblock line-termination)
+          (when (file-ioblock-outbuf file-ioblock)
+            (install-ioblock-output-line-termination file-ioblock line-termination))))))))
 
 
-(defvar *known-line-termination-formats* '(:unix :macos :inferred))
 
 (defvar *default-external-format* :unix)
 
@@ -138,7 +89,7 @@
 (defvar *default-line-termination* :unix
   "The value of this variable is used when :EXTERNAL-FORMAT is
 unspecified or specified as :DEFAULT. It can meaningfully be given any
-of the values :UNIX, :MACOS, :MSDOS or :INFERRED, each of which is
+of the values :UNIX, :MACOS, :MSDOS, :UNICODE or :INFERRED, each of which is
 interpreted as described in the documentation.
 
 Because there's some risk that unsolicited newline translation could have
@@ -178,7 +129,7 @@ is :UNIX.")
          (normalize-external-format domain nil))
         ((lookup-character-encoding external-format)
          (normalize-external-format domain `(:character-encoding ,external-format)))
-        ((member external-format *known-line-termination-formats*)
+        ((assq external-format *canonical-line-termination-conventions*)
          (normalize-external-format domain `(:line-termination ,external-format)))
         (t
          (error "Invalid external-format: ~s" external-format))))
@@ -187,12 +138,7 @@ is :UNIX.")
     
 
 
-(defun file-stream-force-output (stream ioblock count finish-p)
-  (let* ((filter (file-ioblock-output-filter ioblock)))
-    (when filter
-      (let* ((buffer (io-buffer-buffer (file-ioblock-outbuf ioblock))))
-        (funcall filter buffer count)))
-    (fd-stream-force-output stream ioblock count finish-p)))
+
 
 ;;; Establish a new position for the specified file-stream.
 (defun file-ioblock-seek (file-ioblock newoctetpos)
@@ -254,10 +200,10 @@ is :UNIX.")
 	    (setf (io-buffer-idx outbuf) newidx))
 	  (progn
 	    (when (file-ioblock-dirty file-ioblock)
-	      (file-stream-force-output (file-ioblock-stream file-ioblock)
-					file-ioblock
-					(io-buffer-count outbuf)
-					nil)
+	      (fd-stream-force-output (file-ioblock-stream file-ioblock)
+                                      file-ioblock
+                                      (io-buffer-count outbuf)
+                                      nil)
 	      ;; May have just extended the file; may need to update
 	      ;; fileeof.
 	      (when (> maxpos (file-ioblock-fileeof file-ioblock))
@@ -308,10 +254,10 @@ is :UNIX.")
 	       (setf (file-ioblock-fileeof file-ioblock) maxpos)))
 	   (when (file-ioblock-dirty file-ioblock)
 	     (file-ioblock-seek file-ioblock octet-base)
-	     (file-stream-force-output (file-ioblock-stream file-ioblock)
-				       file-ioblock
-				       (io-buffer-count outbuf)
-				       nil))
+	     (fd-stream-force-output (file-ioblock-stream file-ioblock)
+                                     file-ioblock
+                                     (io-buffer-count outbuf)
+                                     nil))
 	   (file-ioblock-seek-and-reset file-ioblock
 					(ioblock-elements-to-octets
 					 file-ioblock newpos))))
@@ -537,15 +483,7 @@ is :UNIX.")
       (synch-file-octet-filepos file-ioblock)
       nil)))
 
-;;; Fill the input buffer, possibly doing newline translation.
-(defun file-stream-advance (stream file-ioblock read-p)
-  (let* ((n (fd-stream-advance stream file-ioblock read-p))
-         (filter (file-ioblock-input-filter file-ioblock)))
-      (when (and filter n (> n 0))
-        (let* ((buf (file-ioblock-inbuf file-ioblock))
-               (vector (io-buffer-buffer buf)))
-          (funcall filter vector n)))
-      n))
+
   
 ;;; If we've been reading, the file position where we're going
 ;;; to read this time is (+ where-it-was-last-time what-we-read-last-time.)
@@ -558,7 +496,7 @@ is :UNIX.")
     (unless (eql newpos curpos)
       (break "Expected newpos to be ~d, fd is at ~d" newpos curpos))
     (setf (file-ioblock-octet-pos file-ioblock) newpos)
-    (file-stream-advance stream file-ioblock read-p)))
+    (fd-stream-advance stream file-ioblock read-p)))
 
 ;;; If the buffer's dirty, we have to back up and rewrite it before
 ;;; reading in a new buffer.
@@ -569,12 +507,12 @@ is :UNIX.")
 		    (ioblock-elements-to-octets file-ioblock count))))
     (when (ioblock-dirty file-ioblock)
       (file-ioblock-seek file-ioblock curpos)
-      (file-stream-force-output stream file-ioblock count nil))
+      (fd-stream-force-output stream file-ioblock count nil))
     (unless (eql newpos (file-octet-filepos file-ioblock))
       (break "Expected newpos to be ~d, fd is at ~d"
 	     newpos (file-octet-filepos file-ioblock)))
     (setf (file-ioblock-octet-pos file-ioblock) newpos)
-    (file-stream-advance stream file-ioblock read-p)))
+    (fd-stream-advance stream file-ioblock read-p)))
 
 		    
 (defun output-file-force-output (stream file-ioblock count finish-p)
@@ -583,7 +521,7 @@ is :UNIX.")
     (unless (eql curpos (file-octet-filepos file-ioblock))
       (break "Expected newpos to be ~d, fd is at ~d"
 	     curpos (file-octet-filepos file-ioblock)))
-    (let* ((n (file-stream-force-output stream file-ioblock count finish-p)))
+    (let* ((n (fd-stream-force-output stream file-ioblock count finish-p)))
       (incf (file-ioblock-octet-pos file-ioblock) (or n 0))
       n)))
 
@@ -875,7 +813,8 @@ is :UNIX.")
                         (stream-actual-filename fstream) temp-name)
                   (setf (file-ioblock-fileeof ioblock)
                         (ioblock-octets-to-elements ioblock (fd-size fd)))
-                  (install-line-termination-filters ioblock line-termination in-p out-p)
+                  (when (and in-p (eq line-termination :inferred))
+                    (infer-line-termination ioblock))
                   (cond ((eq if-exists :append)
                          (file-position fstream :end))
                         ((and (memq direction '(:io :output))
