@@ -1152,6 +1152,8 @@ process_options(int argc, char *argv[])
 		 (strcmp(arg, "--batch") == 0)) {
 	batch_flag = 1;
 	num_elide = 1;
+      } else if (strcmp(arg,"--") == 0) {
+        break;
       } else {
 	i++;
       }
