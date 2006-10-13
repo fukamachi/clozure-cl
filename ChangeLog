@@ -1,3 +1,21 @@
+2006-10-13 04:54  gb
+
+	* compiler/nx1.lisp: Use new NUMCMP operator.
+
+2006-10-13 04:53  gb
+
+	* compiler/nx0.lisp: Change inline expansion: use optimize settings
+	in effect at call time, not those in effect at definition time.
+
+2006-10-13 04:50  gb
+
+	* level-0/l0-numbers.lisp: Change >=-2, <=-2, /=-2 to avoid
+	inlining issues.
+
+2006-10-13 04:30  gb
+
+	* compiler/nxenv.lisp: Replace unused num= with numcmp.
+
 2006-10-12 19:46  gb
 
 	* lisp-kernel/pmcl-kernel.c: Terminate argument processing when
