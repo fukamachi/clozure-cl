@@ -419,10 +419,16 @@
 (defmacro ensuring-node-target ((target-var vreg-var) &body body)
   `(let* ((*available-backend-node-temps* *available-backend-node-temps*)
           (,target-var (ensure-node-target ,vreg-var)))
-     (declare (special *available-backend-node-temps*))     
-     (progn
-       ,@body)
-     (<- ,target-var)))
+    (declare (special *available-backend-node-temps*))
+    (macrolet ((<- (&whole call &rest args)
+                 (declare (ignore args))
+                 (error "Invalid use of <- inside ENSURING-NODE-TARGET: ~s" call))
+               (^ (&whole call &rest args)
+                 (declare (ignore args))
+                 (error "Invalid use of ^ inside ENSURING-NODE-TARGET: ~s" call)))
+      (progn
+        ,@body))
+    (<- ,target-var)))
 
 (defun acode-invert-condition-keyword (k)
   (or 
