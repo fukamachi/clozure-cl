@@ -1,3 +1,15 @@
+2006-10-14 07:41  gb
+
+	* compiler/PPC/ppc2.lisp: Fix use of ^,<- vinsn macros inside
+	ENSURING-NODE-TARGET.
+	
+	Inline the fixnum case of two-arg numeric comparisons.
+
+2006-10-14 07:39  gb
+
+	* compiler/PPC/: PPC32/ppc32-vinsns.lisp, PPC64/ppc64-vinsns.lisp:
+	INLINE-SUB2 support.
+
 2006-10-14 06:30  gb
 
 	* lib/defstruct.lisp: Don't (DECLARE (OPTIMIZE (SAFETY 3))) in
