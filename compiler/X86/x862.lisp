@@ -3035,10 +3035,11 @@
       (regspec-crf-gpr-case 
        (vreg dest)
        (^ cr-bit true-p)
-       (ensuring-node-target (target dest)
-         (if (not true-p)
-           (setq cr-bit (logxor 1 cr-bit)))
-         (! cr-bit->boolean target cr-bit)
+       (progn
+         (ensuring-node-target (target dest)
+           (if (not true-p)
+             (setq cr-bit (logxor 1 cr-bit)))
+           (! cr-bit->boolean target cr-bit))
          (^))))))
 
 ;;; There are other cases involving constants that are worth exploiting.
@@ -3131,8 +3132,8 @@
          (^ cr-bit true-p)
          (progn
            (ensuring-node-target (target dest)
-             (! cr-bit->boolean target cr-bit)
-             (^)))))
+             (! cr-bit->boolean target cr-bit))
+           (^))))
       (^))))
 
 
@@ -3144,10 +3145,11 @@
         (regspec-crf-gpr-case 
          (vreg dest)
          (^ cr-bit true-p)
-         (ensuring-node-target (target dest)
-           (if (not true-p)
-             (setq cr-bit (logxor 1 cr-bit)))
-           (! cr-bit->boolean target cr-bit)
+         (progn
+           (ensuring-node-target (target dest)
+             (if (not true-p)
+               (setq cr-bit (logxor 1 cr-bit)))
+             (! cr-bit->boolean target cr-bit))
            (^))))
       (^))))
 
@@ -3158,11 +3160,12 @@
       (regspec-crf-gpr-case 
        (vreg dest)
        (^ cr-bit true-p)
+       (progn
        (ensuring-node-target (target dest)
          (if (not true-p)
            (setq cr-bit (logxor 1 cr-bit)))
-         (! cr-bit->boolean target cr-bit)
-         (^))))))
+         (! cr-bit->boolean target cr-bit))
+       (^))))))
 
 (defun x862-cr-bit-for-unsigned-comparison (cr-bit)
   (ecase cr-bit
@@ -3231,10 +3234,11 @@
     (regspec-crf-gpr-case 
      (vreg dest)
      (^ cr-bit true-p)
-     (ensuring-node-target (target dest)
-       (if (not true-p)
-         (setq cr-bit (logxor 1 cr-bit)))
-       (! cr-bit->boolean target cr-bit)
+     (progn
+       (ensuring-node-target (target dest)
+         (if (not true-p)
+           (setq cr-bit (logxor 1 cr-bit)))
+         (! cr-bit->boolean target cr-bit))
        (^)))))
 
 (defun x862-lexical-reference-ea (form &optional (no-closed-p t))
@@ -5498,7 +5502,7 @@
         (! check-misc-bound i v))
       (with-node-temps (v) (temp)
         (! %slot-ref temp v i)
-        (<- temp))))
+        (x862-copy-register seg target temp))))
   (^))
 
 (pushnew (%nx1-operator %svref) *x862-operator-supports-push*)
@@ -5539,10 +5543,11 @@
         (regspec-crf-gpr-case 
          (vreg dest)
          (^ cr-bit true-p)
-         (ensuring-node-target (target dest)
-           (if (not true-p)
-             (setq cr-bit (logxor 1 cr-bit)))
-           (! cr-bit->boolean target cr-bit)
+         (progn
+           (ensuring-node-target (target dest)
+             (if (not true-p)
+               (setq cr-bit (logxor 1 cr-bit)))
+             (! cr-bit->boolean target cr-bit))
            (^)))))))
       
 (defx862 x862-cons cons (seg vreg xfer y z)
@@ -5682,19 +5687,21 @@
 (defx862 x862-%ineg %ineg (seg vreg xfer n)
   (if (null vreg)
     (x862-form seg vreg xfer n)
-    (ensuring-node-target (target vreg)
-      (x862-one-targeted-reg-form seg n target)
-      (! negate-fixnum target)
-      (x862-check-fixnum-overflow seg target)
+    (progn
+      (ensuring-node-target (target vreg)
+        (x862-one-targeted-reg-form seg n target)
+        (! negate-fixnum target)
+        (x862-check-fixnum-overflow seg target))
       (^ ))))
 
 (defx862 x862-%%ineg %%ineg (seg vreg xfer n)
   (if (null vreg)
     (x862-form seg vreg xfer n)
-    (ensuring-node-target (target vreg)
-      (x862-one-targeted-reg-form seg n target)
-      (when vreg
-        (! negate-fixnum target))
+    (progn
+      (ensuring-node-target (target vreg)
+        (x862-one-targeted-reg-form seg n target)
+        (when vreg
+          (! negate-fixnum target)))
       (^))))
 
 (defx862 x862-characterp characterp (seg vreg xfer cc form)
@@ -5702,10 +5709,10 @@
 
 (pushnew (%nx1-operator struct-ref) *x862-operator-supports-push*)
 (defx862 x862-struct-ref struct-ref (seg vreg xfer struct offset)
-  (x862-misc-node-ref seg vreg xfer struct offset (nx-lookup-target-uvector-subtag :struct)))
+  (x862-misc-node-ref seg vreg xfer struct offset (unless *x862-reckless* (nx-lookup-target-uvector-subtag :struct))))
 
 (defx862 x862-struct-set struct-set (seg vreg xfer struct offset value)
-  (x862-misc-node-set seg vreg xfer struct offset value (nx-lookup-target-uvector-subtag :struct)))
+  (x862-misc-node-set seg vreg xfer struct offset value (unless *x862-reckless* (nx-lookup-target-uvector-subtag :struct))))
 
 (defx862 x862-istruct-typep istruct-typep (seg vreg xfer cc form type)
   (multiple-value-bind (cr-bit true-p) (acode-condition-to-x86-cr-bit cc)
@@ -5714,10 +5721,11 @@
       (regspec-crf-gpr-case 
        (vreg dest)
        (^ cr-bit true-p)
-       (ensuring-node-target (target dest)
-         (if (not true-p)
-           (setq cr-bit (logxor 1 cr-bit)))
-         (! cr-bit->boolean target cr-bit)
+       (progn
+         (ensuring-node-target (target dest)
+           (if (not true-p)
+             (setq cr-bit (logxor 1 cr-bit)))
+           (! cr-bit->boolean target cr-bit))
          (^))))))
 
 
@@ -5907,7 +5915,67 @@
   (multiple-value-bind (cr-bit true-p) (acode-condition-to-x86-cr-bit cc)
     (x862-compare seg vreg xfer form1 form2 cr-bit true-p)))
 
+(defx862 x862-numcmp numcmp (seg vreg xfer cc form1 form2)
+  (let* ((name (ecase (cadr cc)
+                 (:eq '=-2)
+                 (:ne '/=-2)
+                 (:lt '<-2)
+                 (:le '<=-2)
+                 (:gt '>-2)
+                 (:ge '>=-2))))
+    (if (or (x862-explicit-non-fixnum-type-p form1)
+            (x862-explicit-non-fixnum-type-p form2))
+      (x862-binary-builtin seg vreg xfer name form1 form2)
+      (x862-inline-numcmp seg vreg xfer cc name form1 form2))))
 
+(defun x862-inline-numcmp (seg vreg xfer cc name form1 form2)
+  (with-x86-local-vinsn-macros (seg vreg xfer)
+    (let* ((fix1 (acode-fixnum-form-p form1))
+           (fix2 (acode-fixnum-form-p form2))
+           (fixval (or fix1 fix2))
+           (fiximm (if fixval (<= (integer-length fixval)
+                                  (- 31 *x862-target-fixnum-shift*))))
+           (otherform (when fiximm (if fix1 form2 form1)))
+           (out-of-line (backend-get-next-label))
+           (done (backend-get-next-label)))
+      (if otherform
+        (x862-one-targeted-reg-form seg otherform ($ x8664::arg_y))
+        (x862-two-targeted-reg-forms seg form1 ($ x8664::arg_y) form2 ($ x8664::arg_z)))
+      (if otherform
+        (unless (acode-fixnum-form-p otherform)
+          (! branch-unless-arg-fixnum ($ x8664::arg_y) (aref *backend-labels* out-of-line)))
+        (if (acode-fixnum-form-p form1)
+          (! branch-unless-arg-fixnum ($ x8664::arg_z) (aref *backend-labels* out-of-line))
+          (if (acode-fixnum-form-p form2)
+            (! branch-unless-arg-fixnum ($ x8664::arg_y) (aref *backend-labels* out-of-line))  
+            (! branch-unless-both-args-fixnums ($ x8664::arg_y) ($ x8664::arg_z) (aref *backend-labels* out-of-line)))))
+      (if otherform
+        (if (zerop fixval)
+          (! compare-reg-to-zero ($ x8664::arg_y))
+          (! compare-s32-constant ($ x8664::arg_y) (ash fixval x8664::fixnumshift)))
+        (! compare ($ x8664::arg_y) ($ x8664::arg_z)))
+      (multiple-value-bind (cr-bit true-p) (acode-condition-to-x86-cr-bit cc)
+        (when otherform
+          (unless (or fix2 (eq cr-bit x86::x86-e-bits))
+            (setq cr-bit (x862-reverse-cr-bit cr-bit))))
+        (if (not true-p)
+          (setq cr-bit (logxor 1 cr-bit)))
+        (! cr-bit->boolean ($ x8664::arg_z) cr-bit)
+        (-> done)
+        (@ out-of-line)
+        (when otherform
+          (x862-lri seg ($ x8664::arg_z) (ash fixval x8664::fixnumshift))
+          (unless (or fix2 (eq cr-bit x86::x86-e-bits))
+            (! xchg-registers ($ x8664::arg_z) ($ x8664::arg_y))))
+        (let* ((index (arch::builtin-function-name-offset name))
+               (idx-subprim (x862-builtin-index-subprim index)))
+          (! call-subprim-2 ($ x8664::arg_z) idx-subprim ($ x8664::arg_y) ($ x8664::arg_z)))
+        (@ done)
+        (<- ($ x8664::arg_z))
+        (^)))))
+         
+        
+    
 
 (defx862 x862-%word-to-int %word-to-int (seg vreg xfer form)
   (if (null vreg)
@@ -6008,14 +6076,15 @@
             (! set-c-flag-if-constant-logbitp x86-bit reg))
           (multiple-value-bind (rbit rform) (x862-two-untargeted-reg-forms seg bitnum x8664::arg_y form x8664::arg_z)
             (! set-c-flag-if-variable-logbitp rbit rform)))
-    (regspec-crf-gpr-case 
-     (vreg dest)
-     (^ cr-bit true-p)
-     (ensuring-node-target (target dest)
-       (if (not true-p)
-         (setq cr-bit (logxor 1 cr-bit)))
-       (! cr-bit->boolean target cr-bit)
-       (^)))))))
+        (regspec-crf-gpr-case 
+         (vreg dest)
+         (^ cr-bit true-p)
+         (progn
+           (ensuring-node-target (target dest)
+             (if (not true-p)
+               (setq cr-bit (logxor 1 cr-bit)))
+             (! cr-bit->boolean target cr-bit))
+           (^)))))))
 
 
 (defx862 x862-uvref uvref (seg vreg xfer vector index)
@@ -6251,9 +6320,12 @@
     (and (not (subtypep type target-fixnum-type))
          (not (subtypep target-fixnum-type type)))))
 
-(defun x862-inline-add2 (seg vreg xfer form1 form2)
-  (with-x86-local-vinsn-macros (seg vreg xfer)
-    (x862-two-targeted-reg-forms seg form1 ($ x8664::arg_y) form2 ($ x8664::arg_z))
+(defun x862-inline-sub2 (seg vreg xfer form1 form2)
+  (let* ((v2 (acode-fixnum-form-p form2)))
+    (if (and v2 (not (eql v2 most-negative-fixnum)))
+      (x862-inline-add2 seg vreg xfer form1 (make-acode (%nx1-operator fixnum) (- v2)))
+      (with-x86-local-vinsn-macros (seg vreg xfer)
+        (x862-two-targeted-reg-forms seg form1 ($ x8664::arg_y) form2 ($ x8664::arg_z))
     (let* ((out-of-line (backend-get-next-label))
            (done (backend-get-next-label)))
       (ensuring-node-target (target vreg)
@@ -6262,12 +6334,51 @@
           (if (acode-fixnum-form-p form2)
             (! branch-unless-arg-fixnum ($ x8664::arg_y) (aref *backend-labels* out-of-line))  
             (! branch-unless-both-args-fixnums ($ x8664::arg_y) ($ x8664::arg_z) (aref *backend-labels* out-of-line))))
-        (! fixnum-add2 ($ x8664::arg_z) ($ x8664::arg_y))
+        (! fixnum-sub2 ($ x8664::arg_z) ($ x8664::arg_y) ($ x8664::arg_z))
         (x862-check-fixnum-overflow seg ($ x8664::arg_z) done)
         (@ out-of-line)
-        (! call-subprim-2 ($ x8664::arg_z) (subprim-name->offset '.SPbuiltin-plus) ($ x8664::arg_y) ($ x8664::arg_z))
+        (! call-subprim-2 ($ x8664::arg_z) (subprim-name->offset '.SPbuiltin-minus) ($ x8664::arg_y) ($ x8664::arg_z))
         (@ done)
-        (x862-copy-register seg target ($ x8664::arg_z))
+        (x862-copy-register seg target ($ x8664::arg_z)))
+      (^))))))
+
+(defun x862-inline-add2 (seg vreg xfer form1 form2)
+  (with-x86-local-vinsn-macros (seg vreg xfer)
+    (let* ((fix1 (acode-fixnum-form-p form1))
+           (fix2 (acode-fixnum-form-p form2))
+           (otherform (if (and fix1
+                               (typep (ash fix1 *x862-target-fixnum-shift*)
+                                      '(signed-byte 32)))
+                        form2
+                        (if (and fix2
+                                 (typep (ash fix2 *x862-target-fixnum-shift*)
+                                        '(signed-byte 32)))
+                          form1))))
+      (if otherform
+        (x862-one-targeted-reg-form seg otherform ($ x8664::arg_z))
+        (x862-two-targeted-reg-forms seg form1 ($ x8664::arg_y) form2 ($ x8664::arg_z)))
+      (let* ((out-of-line (backend-get-next-label))
+             (done (backend-get-next-label)))
+      
+        (ensuring-node-target (target vreg)
+          (if otherform
+            (unless (acode-fixnum-form-p otherform)
+              (! branch-unless-arg-fixnum ($ x8664::arg_z) (aref *backend-labels* out-of-line)))          
+            (if (acode-fixnum-form-p form1)
+              (! branch-unless-arg-fixnum ($ x8664::arg_z) (aref *backend-labels* out-of-line))
+              (if (acode-fixnum-form-p form2)
+                (! branch-unless-arg-fixnum ($ x8664::arg_y) (aref *backend-labels* out-of-line))  
+                (! branch-unless-both-args-fixnums ($ x8664::arg_y) ($ x8664::arg_z) (aref *backend-labels* out-of-line)))))
+          (if otherform
+            (! add-constant ($ x8664::arg_z) (ash (or fix1 fix2) *x862-target-fixnum-shift*))
+            (! fixnum-add2 ($ x8664::arg_z) ($ x8664::arg_y)))
+          (x862-check-fixnum-overflow seg ($ x8664::arg_z) done)
+          (@ out-of-line)
+          (if otherform
+            (x862-lri seg ($ x8664::arg_y) (ash (or fix1 fix2) *x862-target-fixnum-shift*)))
+          (! call-subprim-2 ($ x8664::arg_z) (subprim-name->offset '.SPbuiltin-plus) ($ x8664::arg_y) ($ x8664::arg_z))
+          (@ done)
+          (x862-copy-register seg target ($ x8664::arg_z)))
         (^)))))
            
 (defx862 x862-add2 add2 (seg vreg xfer form1 form2)
@@ -6331,7 +6442,10 @@
                              form1
                              form2
                              t)
-          (x862-binary-builtin seg vreg xfer '--2 form1 form2))))))
+          (if (or (x862-explicit-non-fixnum-type-p form1)
+                  (x862-explicit-non-fixnum-type-p form2))
+            (x862-binary-builtin seg vreg xfer '--2 form1 form2)
+            (x862-inline-sub2 seg vreg xfer form1 form2)))))))
 
 (defx862 x862-mul2 mul2 (seg vreg xfer form1 form2)
   (multiple-value-bind (form1 form2)
@@ -6411,8 +6525,8 @@
                 (x862-lri seg ($ x8664::arg_y) (ash fixval x8664::fixnumshift)))
               (! call-subprim-2 ($ x8664::arg_z) (subprim-name->offset '.SPbuiltin-logior) ($ x8664::arg_y) ($ x8664::arg_z))
               (@ done)
-              (x862-copy-register seg target ($ x8664::arg_z))
-              (^))))))))
+              (x862-copy-register seg target ($ x8664::arg_z)))
+            (^)))))))
 
 (defx862 x862-logior2 logior2 (seg vreg xfer form1 form2)
   (if (or (x862-explicit-non-fixnum-type-p form1)
@@ -6456,8 +6570,8 @@
                 (x862-lri seg ($ x8664::arg_y) (ash fixval x8664::fixnumshift)))
               (! call-subprim-2 ($ x8664::arg_z) (subprim-name->offset '.SPbuiltin-logand) ($ x8664::arg_y) ($ x8664::arg_z))
               (@ done)
-              (x862-copy-register seg target ($ x8664::arg_z))
-              (^))))))))
+              (x862-copy-register seg target ($ x8664::arg_z)))
+            (^)))))))
 
 (defx862 x862-logand2 logand2 (seg vreg xfer form1 form2)
 
@@ -6509,7 +6623,7 @@
                          form2
                          (if (and fix2
                                   (typep (ash fix2 *x862-target-fixnum-shift*)
-                                              '(signed-byte 32)))
+                                         '(signed-byte 32)))
                            form1))))
            (if (and fix1 fix2)
              (x862-lri seg vreg (ash (+ fix1 fix2) *x862-target-fixnum-shift*))
@@ -6518,14 +6632,13 @@
                  (if (zerop constant)
                    (x862-form seg vreg nil other)
                    (if overflow
-                   (ensuring-node-target (target vreg)
-                     (x862-one-targeted-reg-form seg other target)
-                     (unless (zerop constant)
+                     (ensuring-node-target (target vreg)
+                       (x862-one-targeted-reg-form seg other target)
                        (! add-constant target constant)
-                       (x862-check-fixnum-overflow seg target)))
-                   (ensuring-node-target (target vreg)
-                     (let* ((reg (x862-one-untargeted-reg-form seg other target)))
-                       (! add-constant3 target reg constant))))))
+                       (x862-check-fixnum-overflow seg target))
+                     (ensuring-node-target (target vreg)
+                       (let* ((reg (x862-one-untargeted-reg-form seg other target)))
+                         (! add-constant3 target reg constant))))))
                (if (not overflow)
                  (multiple-value-bind (r1 r2) (x862-two-untargeted-reg-forms seg form1 x8664::arg_y form2 x8664::arg_z)
                    ;; This isn't guaranteed to set the overflow flag,
@@ -6810,7 +6923,7 @@
                   (if (= (hard-regspec-class vreg) hard-reg-class-fpr)
                     (<- result)
                     (ensuring-node-target (target vreg)
-                      (<- result)))))
+                      (x862-copy-register seg target result)))))
               (^)))))))
   
   (defmacro defx862-sf-op (fname opname vinsn)
@@ -6834,7 +6947,7 @@
                   (if (= (hard-regspec-class vreg) hard-reg-class-fpr)
                     (<- result)
                     (ensuring-node-target (target vreg)
-                      (<- result)))))
+                      (x862-copy-register seg target result)))))
               (^)))))))
   )
 
@@ -7581,7 +7694,6 @@
   (when vreg    
     (ensuring-node-target (target vreg)
       (x862-lri seg target (target-arch-case
-                            
                             (:x8664 x8664::slot-unbound-marker)))))
   (^))
 
@@ -7589,7 +7701,6 @@
   (when vreg    
     (ensuring-node-target (target vreg)
       (x862-lri seg target (target-arch-case
-                            
                             (:x8664 x8664::illegal-marker)))))
   (^))
 
@@ -7934,11 +8045,11 @@
               ((eq resultspec :unsigned-doubleword)
                (ensuring-node-target (target vreg)
                  (! makeu64)
-                 (<- ($ x8664::arg_z))))
+                 (x862-copy-register seg target ($ x8664::arg_z))))
               ((eq resultspec :signed-doubleword)
                (ensuring-node-target (target vreg)
                  (! makes64)
-                 (<- ($ x8664::arg_z))))
+                 (x862-copy-register seg target ($ x8664::arg_z))))
               (t
                (case resultspec
                  (:signed-byte (! sign-extend-s8 x8664::imm0 x8664::imm0))
@@ -8136,8 +8247,8 @@
   (ensuring-node-target (target vreg)
     (let* ((reg (if (eq (hard-regspec-value target) x8664::arg_z) ($ x8664::arg_y) ($ x8664::arg_z))))
       (x862-one-targeted-reg-form seg arg reg)
-      (! eep.address target reg))
-    (^)))
+      (! eep.address target reg)))
+  (^))
 
 (defx862 x862-%natural+ %natural+ (seg vreg xfer x y)
   (if (null vreg)
