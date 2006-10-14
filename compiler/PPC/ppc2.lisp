@@ -5404,7 +5404,7 @@
         (! check-misc-bound i v))
       (with-node-temps (v) (temp)
         (! %slot-ref temp v i)
-        (<- temp))))
+        (ppc2-copy-register seg target temp))))
   (^))
   
 (defppc2 ppc2-%svref %svref (seg vreg xfer vector index)
@@ -5614,10 +5614,10 @@
   (ppc2-char-p seg vreg xfer cc form))
 
 (defppc2 ppc2-struct-ref struct-ref (seg vreg xfer struct offset)
-  (ppc2-misc-node-ref seg vreg xfer struct offset (nx-lookup-target-uvector-subtag :struct)))
+  (ppc2-misc-node-ref seg vreg xfer struct offset (unless *ppc2-reckless* (nx-lookup-target-uvector-subtag :struct))))
 
 (defppc2 ppc2-struct-set struct-set (seg vreg xfer struct offset value)
-  (ppc2-misc-node-set seg vreg xfer struct offset value (nx-lookup-target-uvector-subtag :struct)))
+  (ppc2-misc-node-set seg vreg xfer struct offset value (unless *ppc2-reckless* (nx-lookup-target-uvector-subtag :struct))))
 
 (defppc2 ppc2-istruct-typep istruct-typep (seg vreg xfer cc form type)
   (multiple-value-bind (cr-bit true-p) (acode-condition-to-ppc-cr-bit cc)
@@ -5805,8 +5805,70 @@
   (multiple-value-bind (cr-bit true-p) (acode-condition-to-ppc-cr-bit cc)
     (ppc2-compare seg vreg xfer form1 form2 cr-bit true-p)))
 
+(defppc2 ppc2-numcmp numcmp (seg vreg xfer cc form1 form2)
+  (let* ((name (ecase (cadr cc)
+                 (:eq '=-2)
+                 (:ne '/=-2)
+                 (:lt '<-2)
+                 (:le '<=-2)
+                 (:gt '>-2)
+                 (:ge '>=-2))))
+    (if (or (ppc2-explicit-non-fixnum-type-p form1)
+            (ppc2-explicit-non-fixnum-type-p form2))
+      (ppc2-binary-builtin seg vreg xfer name form1 form2)
+      (ppc2-inline-numcmp seg vreg xfer cc name form1 form2))))
 
-
+(defun ppc2-inline-numcmp (seg vreg xfer cc name form1 form2)
+  (with-ppc-local-vinsn-macros (seg vreg xfer)
+    (multiple-value-bind (cr-bit true-p) (acode-condition-to-ppc-cr-bit cc)
+      (let* ((otherform (and (eql cr-bit ppc::ppc-eq-bit)
+                             (if (eql (acode-fixnum-form-p form2) 0)
+                               form1
+                               (if (eql (acode-fixnum-form-p form1) 0)
+                                 form2)))))
+        (if otherform
+          (ppc2-one-targeted-reg-form seg otherform ($ ppc::arg_z))
+          (ppc2-two-targeted-reg-forms seg  form1 ($ ppc::arg_y) form2 ($ ppc::arg_z)))
+        (let* ((out-of-line (backend-get-next-label))
+               (done (backend-get-next-label)))
+          (if otherform
+            (unless (acode-fixnum-form-p otherform)
+              (! branch-unless-arg-fixnum ($ ppc::arg_z) (aref *backend-labels* out-of-line)))
+            (if (acode-fixnum-form-p form1)
+              (! branch-unless-arg-fixnum ($ ppc::arg_z) (aref *backend-labels* out-of-line))
+              (if (acode-fixnum-form-p form2)
+                (! branch-unless-arg-fixnum ($ ppc::arg_y) (aref *backend-labels* out-of-line))  
+                (! branch-unless-both-args-fixnums ($ ppc::arg_y) ($ ppc::arg_z) (aref *backend-labels* out-of-line)))))
+          (with-imm-target () (b31-reg :natural)
+            (if otherform
+              (if true-p
+                (! eq0->bit31 b31-reg ($ ppc::arg_z))
+                (! ne0->bit31 b31-reg ($ ppc::arg_z)))
+              (ecase cr-bit 
+                (#. ppc::ppc-eq-bit 
+                    (if true-p
+                      (! eq->bit31 b31-reg ($ ppc::arg_y) ($ ppc::arg_z))
+                      (! ne->bit31 b31-reg ($ ppc::arg_y) ($ ppc::arg_z))))
+                (#. ppc::ppc-lt-bit
+                    (if true-p
+                      (! lt->bit31 b31-reg ($ ppc::arg_y) ($ ppc::arg_z))
+                      (! ge->bit31 b31-reg ($ ppc::arg_y) ($ ppc::arg_z))))
+                (#. ppc::ppc-gt-bit
+                    (if true-p
+                      (! gt->bit31 b31-reg ($ ppc::arg_y) ($ ppc::arg_z))
+                      (! le->bit31 b31-reg ($ ppc::arg_y) ($ ppc::arg_z))))))
+            (! lowbit->truth ($ ppc::arg_z) b31-reg)
+            (-> done)
+            (@ out-of-line)
+            (if otherform
+              (ppc2-lri seg ($ ppc::arg_y) 0))
+            (let* ((index (arch::builtin-function-name-offset name))
+                   (idx-subprim (ppc2-builtin-index-subprim index)))
+              (! call-subprim-2 ($ ppc::arg_z) idx-subprim ($ ppc::arg_y) ($ ppc::arg_z)))
+            (@ done)
+            (<- ($ ppc::arg_z))
+            (^)))))))
+    
 (defppc2 ppc2-%word-to-int %word-to-int (seg vreg xfer form)
   (if (null vreg)
     (ppc2-form seg nil xfer form)
@@ -6158,8 +6220,30 @@
         (@ out-of-line)
         (! call-subprim-2 ($ ppc::arg_z) (subprim-name->offset '.SPbuiltin-plus) ($ ppc::arg_y) ($ ppc::arg_z))
         (@ done)
-        (ppc2-copy-register seg target ($ ppc::arg_z))
-        (^)))))
+        (ppc2-copy-register seg target ($ ppc::arg_z)))
+      (^))))
+
+(defun ppc2-inline-sub2 (seg vreg xfer form1 form2)
+  (with-ppc-local-vinsn-macros (seg vreg xfer)
+    (ppc2-two-targeted-reg-forms seg form1 ($ ppc::arg_y) form2 ($ ppc::arg_z))
+    (let* ((out-of-line (backend-get-next-label))
+           (done (backend-get-next-label)))
+      (ensuring-node-target (target vreg)
+        (if (acode-fixnum-form-p form1)
+          (! branch-unless-arg-fixnum ($ ppc::arg_z) (aref *backend-labels* out-of-line))
+          (if (acode-fixnum-form-p form2)
+            (! branch-unless-arg-fixnum ($ ppc::arg_y) (aref *backend-labels* out-of-line))  
+            (! branch-unless-both-args-fixnums ($ ppc::arg_y) ($ ppc::arg_z) (aref *backend-labels* out-of-line))))
+        (if *ppc2-open-code-inline*
+          (! fixnum-sub-overflow-inline-skip ($ ppc::arg_z) ($ ppc::arg_y) ($ ppc::arg_z) (aref *backend-labels* done))
+          (progn
+            (! fixnum-sub-overflow-ool ($ ppc::arg_y) ($ ppc::arg_z))
+            (-> done)))
+        (@ out-of-line)
+        (! call-subprim-2 ($ ppc::arg_z) (subprim-name->offset '.SPbuiltin-minus) ($ ppc::arg_y) ($ ppc::arg_z))
+        (@ done)
+        (ppc2-copy-register seg target ($ ppc::arg_z)))
+      (^))))
 
 ;;; Return T if form is declared to be something that couldn't be a fixnum.
 (defun ppc2-explicit-non-fixnum-type-p (form)
@@ -6232,7 +6316,10 @@
                              form1
                              form2
                              t)
-          (ppc2-binary-builtin seg vreg xfer '--2 form1 form2))))))
+          (if (or (ppc2-explicit-non-fixnum-type-p form1)
+                  (ppc2-explicit-non-fixnum-type-p form2))
+            (ppc2-binary-builtin seg vreg xfer '--2 form1 form2)
+            (ppc2-inline-sub2 seg vreg xfer form1 form2)))))))
 
 (defppc2 ppc2-mul2 mul2 (seg vreg xfer form1 form2)
   (multiple-value-bind (form1 form2)
@@ -6318,8 +6405,8 @@
               (ppc2-lri seg ($ ppc::arg_y) (ash fixval *ppc2-target-fixnum-shift*)))
             (! call-subprim-2 ($ ppc::arg_z) (subprim-name->offset '.SPbuiltin-logior) ($ ppc::arg_y) ($ ppc::arg_z))
             (@ done)
-            (ppc2-copy-register seg target ($ ppc::arg_z))
-            (^)))))))
+            (ppc2-copy-register seg target ($ ppc::arg_z)))
+          (^))))))
 
 (defppc2 ppc2-logior2 logior2 (seg vreg xfer form1 form2)
   (if (or (ppc2-explicit-non-fixnum-type-p form1)
@@ -6375,8 +6462,8 @@
             (ppc2-lri seg ($ ppc::arg_y) (ash fixval *ppc2-target-fixnum-shift*)))
             (! call-subprim-2 ($ ppc::arg_z) (subprim-name->offset '.SPbuiltin-logand) ($ ppc::arg_y) ($ ppc::arg_z))          
             (@ done)
-            (ppc2-copy-register seg target ($ ppc::arg_z))
-            (^)))))))
+            (ppc2-copy-register seg target ($ ppc::arg_z)))
+        (^))))))
 
 (defppc2 ppc2-logand2 logand2 (seg vreg xfer form1 form2)
   (if (or (ppc2-explicit-non-fixnum-type-p form1)
@@ -6705,7 +6792,7 @@
                  (with-fp-target (r1 r2) (result :double-float)
                    (! ,vinsn result r1 r2)
                    (ensuring-node-target (target vreg)
-                     (<- result))))
+                     (ppc2-copy-register seg target result))))
                (^)))))))
   
   (defmacro defppc2-sf-op (fname opname vinsn)
@@ -6722,7 +6809,7 @@
                  (with-fp-target (r1 r2) (result :single-float)
                    (! ,vinsn result r1 r2)
                    (ensuring-node-target (target vreg)
-                     (<- result))))
+                     (ppc2-copy-register seg target result))))
                (^)))))))
 )
 
@@ -7949,12 +8036,12 @@
              (ensuring-node-target
               (target vreg)
               (! makeu64)
-              (<- ($ ppc::arg_z))))
+              (ppc2-copy-register seg target ppc::arg_z)))
             ((eq resultspec :signed-doubleword)
              (ensuring-node-target
               (target vreg)
               (! makes64)
-              (<- ($ ppc::arg_z))))
+              (ppc2-copy-register seg target ppc::arg_z)))
             (t
              (<- (make-wired-lreg ppc::imm0
                                   :mode
@@ -8178,11 +8265,11 @@
               ((eq resultspec :unsigned-doubleword)
                (ensuring-node-target (target vreg)
                  (! makeu64)
-                 (<- ($ ppc::arg_z))))
+                 (ppc2-copy-register seg target ppc::arg_z)))
               ((eq resultspec :signed-doubleword)
                (ensuring-node-target (target vreg)
                  (! makes64)
-                 (<- ($ ppc::arg_z))))
+                 (ppc2-copy-register seg target ppc::arg_z)))
               (t
                (<- (make-wired-lreg ppc::imm0
                                     :mode
@@ -8237,12 +8324,12 @@
              (ensuring-node-target
               (target vreg)
               (! makeu64)
-              (<- ppc::arg_z)))
+              (ppc2-copy-register seg target ppc::arg_z)))
             ((eq resultspec :signed-doubleword)
              (ensuring-node-target
               (target vreg)
               (! makes64)
-              (<- ppc::arg_z)))
+              (ppc2-copy-register seg target ppc::arg_z)))
             (t
              (<- (set-regspec-mode ppc::imm0 (gpr-mode-name-value
                                               (case resultspec
@@ -8282,8 +8369,8 @@
   (ensuring-node-target (target vreg)
     (let* ((reg (if (eq (hard-regspec-value target) ppc::arg_z) ($ ppc::arg_y) ($ ppc::arg_z))))
       (ppc2-one-targeted-reg-form seg arg reg)
-      (! eep.address target reg))
-    (^)))
+      (! eep.address target reg)))
+  (^))
 
 (defppc2 ppc2-%natural+ %natural+ (seg vreg xfer x y)
   (if (null vreg)
