@@ -147,28 +147,28 @@
 
 ; no #. for cross compile
 (defvar *struct-ref-vector* 
-  (vector #'(lambda (x) (declare (optimize (safety 3))) (struct-ref x 0))
-          #'(lambda (x) (declare (optimize (safety 3))) (struct-ref x 1))
-          #'(lambda (x) (declare (optimize (safety 3))) (struct-ref x 2))
-          #'(lambda (x) (declare (optimize (safety 3))) (struct-ref x 3))
-          #'(lambda (x) (declare (optimize (safety 3))) (struct-ref x 4))
-          #'(lambda (x) (declare (optimize (safety 3))) (struct-ref x 5))
-          #'(lambda (x) (declare (optimize (safety 3))) (struct-ref x 6))
-          #'(lambda (x) (declare (optimize (safety 3))) (struct-ref x 7))
-          #'(lambda (x) (declare (optimize (safety 3))) (struct-ref x 8))
-          #'(lambda (x) (declare (optimize (safety 3))) (struct-ref x 9))))
+  (vector #'(lambda (x) (struct-ref x 0))
+          #'(lambda (x) (struct-ref x 1))
+          #'(lambda (x) (struct-ref x 2))
+          #'(lambda (x) (struct-ref x 3))
+          #'(lambda (x) (struct-ref x 4))
+          #'(lambda (x) (struct-ref x 5))
+          #'(lambda (x) (struct-ref x 6))
+          #'(lambda (x) (struct-ref x 7))
+          #'(lambda (x) (struct-ref x 8))
+          #'(lambda (x) (struct-ref x 9))))
 
 (defvar *svref-vector*
-  (vector #'(lambda (x) (declare (optimize (safety 3))) (svref x 0))
-          #'(lambda (x) (declare (optimize (safety 3))) (svref x 1))
-          #'(lambda (x) (declare (optimize (safety 3))) (svref x 2))
-          #'(lambda (x) (declare (optimize (safety 3))) (svref x 3))
-          #'(lambda (x) (declare (optimize (safety 3))) (svref x 4))
-          #'(lambda (x) (declare (optimize (safety 3))) (svref x 5))
-          #'(lambda (x) (declare (optimize (safety 3))) (svref x 6))
-          #'(lambda (x) (declare (optimize (safety 3))) (svref x 7))
-          #'(lambda (x) (declare (optimize (safety 3))) (svref x 8))
-          #'(lambda (x) (declare (optimize (safety 3))) (svref x 9))))
+  (vector #'(lambda (x) (svref x 0))
+          #'(lambda (x) (svref x 1))
+          #'(lambda (x) (svref x 2))
+          #'(lambda (x) (svref x 3))
+          #'(lambda (x) (svref x 4))
+          #'(lambda (x) (svref x 5))
+          #'(lambda (x) (svref x 6))
+          #'(lambda (x) (svref x 7))
+          #'(lambda (x) (svref x 8))
+          #'(lambda (x) (svref x 9))))
 
 
 ;;; too bad there isnt a way to suppress generating these darn
@@ -187,16 +187,16 @@
                     ,(symbol-function
                       (%svref '#(first second third fourth fifth
                                        sixth seventh eighth ninth tenth) offset)))
-             `(defun ,name (x) (declare (optimize (safety 3))) (nth ,offset x))))
+             `(defun ,name (x)  (nth ,offset x))))
           ((eq ref $defstruct-struct)
            (if (and (%i< offset 10) *defstruct-share-accessor-functions*)
              `(fset ',name , (%svref *struct-ref-vector* offset))
-             `(defun ,name (x) (declare (optimize (safety 3))) (struct-ref x ,offset))))
+             `(defun ,name (x)  (struct-ref x ,offset))))
           ((or (eq ref target::subtag-simple-vector)
                (eq ref $defstruct-simple-vector))
            (if (and (%i< offset 10) *defstruct-share-accessor-functions*)
              `(fset ',name ,(%svref *svref-vector* offset))
-             `(defun ,name (x) (declare (optimize (safety 3))) (svref x ,offset))))
+             `(defun ,name (x)  (svref x ,offset))))
           (t `(defun ,name (x) (uvref x ,offset)))))
 
 (defun defstruct-reftype (type)
