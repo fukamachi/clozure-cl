@@ -1,3 +1,10 @@
+2006-10-14 06:20  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: Do vector bounds-checking a
+	little differently.
+	
+	Add xchg-registers.
+
 2006-10-13 04:54  gb
 
 	* compiler/nx1.lisp: Use new NUMCMP operator.
