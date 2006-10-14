@@ -633,10 +633,10 @@
 				      ((idx :imm)
 				       (v :lisp))
 				      ((temp :u64)))
-  (movq (:@ x8664::misc-header-offset (:%q v)) (:%q temp))
-  (shrq (:$ub x8664::num-subtag-bits) (:%q temp))
-  (shlq (:$ub x8664::word-shift) (:%q temp))
-  (rcmpq (:%q idx) (:%q temp))
+  (movq (:%q idx) (:%q temp))
+  (shlq (:$ub (- x8664::num-subtag-bits x8664::fixnumshift)) (:%q temp))
+  (decb (:%b temp))
+  (rcmpq (:%q temp) (:@ x8664::misc-header-offset (:%q v)))
   (jb.pt :ok)
   (uuo-error-vector-bounds (:%q idx) (:%q v))
   :ok)
@@ -3986,6 +3986,11 @@
   (sarq (:$ub x8664::fixnumshift) (:%q unboxed))
   (cvtsi2sdq (:%q unboxed) (:%xmm f)))
 
+
+(define-x8664-vinsn xchg-registers (()
+                                    ((a t)
+                                     (b t)))
+  (xchgq (:%q a) (:%q b)))
 
 (queue-fixup
  (fixup-x86-vinsn-templates
