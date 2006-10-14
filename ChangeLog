@@ -1,3 +1,23 @@
+2006-10-14 06:30  gb
+
+	* lib/defstruct.lisp: Don't (DECLARE (OPTIMIZE (SAFETY 3))) in
+	generated DEFSTRUCT accessors.
+
+2006-10-14 06:27  gb
+
+	* compiler/X86/x862.lisp: Fix many cases of ENSURING-NODE-TARGET.
+	
+	Do the fixnum case of two-argument subtraction inline.
+	
+	Inline the fixnum case of two-argument numeric comparisons.
+	
+	STRUCT-REF avoids typechecking when reckless.
+
+2006-10-14 06:21  gb
+
+	* compiler/backend.lisp: It makes no sense to use the vinsn macros
+	<- and ^ inside ENSURING-NODE-TARGET, so make it check for that.
+
 2006-10-14 06:20  gb
 
 	* compiler/X86/X8664/x8664-vinsns.lisp: Do vector bounds-checking a
