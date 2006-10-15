@@ -287,6 +287,23 @@
 (defmethod open-stream-p ((stream stream))
   t)
 
+(defmethod stream-external-format ((x t))
+  (report-bad-arg x 'stream))
+
+(defmethod stream-external-format ((s stream))
+  nil)
+
+
+(defmethod (setf stream-external-format) (new (s t))
+  (check-type new 'external-format)
+  (report-bad-arg s 'stream))
+
+(defmethod (setf stream-external-format) (new (s t))
+  (check-type new 'external-format)
+  (stream-external-format s))
+
+
+    
 (defmethod stream-fresh-line ((stream output-stream))
   (terpri stream)
   t)
@@ -303,6 +320,7 @@
 
 (defmethod stream-clear-input ((x t))
   (report-bad-arg x 'stream))
+
 (defmethod stream-clear-input ((stream input-stream)) nil)
 
 (defmethod stream-listen ((stream input-stream))
@@ -382,7 +400,7 @@
   (read-char-without-translation-when-locked-function 'ioblock-no-char-input)
   (write-char-without-translation-when-locked-function 'iblock-no-char-output)
   (sharing nil)
-  (reserved0 nil)
+  (line-termination nil)
   (reserved1 nil)
   (reserved2 nil)
   (reserved3 nil))
@@ -1207,6 +1225,66 @@
   (with-ioblock-input-lock-grabbed (ioblock)
     (%ioblock-read-swapped-u16-encoded-char ioblock)))
 
+(declaim (inline %ioblock-read-u32-encoded-char))
+(defun %ioblock-read-u32-encoded-char (ioblock)
+  (declare (optimize (speed 3) (safety 0)))
+  (let* ((ch (ioblock-untyi-char ioblock)))
+    (if ch
+      (prog1 ch
+        (setf (ioblock-untyi-char ioblock) nil))
+      (let* ((1st-unit (%ioblock-read-u32-code-unit ioblock)))
+        (if (eq 1st-unit :eof)
+          1st-unit
+          (locally
+              (declare (type (unsigned-byte 16) 1st-unit))
+            (if (< 1st-unit
+                   (the (mod #x110000) (ioblock-literal-char-code-limit ioblock)))
+              (code-char 1st-unit)
+              (funcall (ioblock-decode-input-function ioblock)
+                       1st-unit
+                       #'%ioblock-read-u32-code-unit
+                       ioblock))))))))
+
+(defun %private-ioblock-read-u32-encoded-char (ioblock)
+  (declare (optimize (speed 3) (safety 0)))
+  (check-ioblock-owner ioblock)
+  (%ioblock-read-u32-encoded-char ioblock))
+
+(defun %locked-ioblock-read-u32-encoded-char (ioblock)
+  (declare (optimize (speed 3) (safety 0)))
+  (with-ioblock-input-lock-grabbed (ioblock)
+    (%ioblock-read-u32-encoded-char ioblock)))
+
+(declaim (inline %ioblock-read-swapped-u32-encoded-char))
+(defun %ioblock-read-swapped-u32-encoded-char (ioblock)
+  (declare (optimize (speed 3) (safety 0)))
+  (let* ((ch (ioblock-untyi-char ioblock)))
+    (if ch
+      (prog1 ch
+        (setf (ioblock-untyi-char ioblock) nil))
+      (let* ((1st-unit (%ioblock-read-swapped-u32-code-unit ioblock)))
+        (if (eq 1st-unit :eof)
+          1st-unit
+          (locally
+              (declare (type (unsigned-byte 16) 1st-unit))
+            (if (< 1st-unit
+                   (the (mod #x110000) (ioblock-literal-char-code-limit ioblock)))
+              (code-char 1st-unit)
+              (funcall (ioblock-decode-input-function ioblock)
+                       1st-unit
+                       #'%ioblock-read-swapped-u32-code-unit
+                       ioblock))))))))
+
+(defun %private-ioblock-read-swapped-u32-encoded-char (ioblock)
+  (declare (optimize (speed 3) (safety 0)))
+  (check-ioblock-owner ioblock)
+  (%ioblock-read-swapped-u32-encoded-char ioblock))
+
+(defun %locked-ioblock-read-swapped-u32-encoded-char (ioblock)
+  (declare (optimize (speed 3) (safety 0)))
+  (with-ioblock-input-lock-grabbed (ioblock)
+    (%ioblock-read-swapped-u32-encoded-char ioblock)))
+
 (declaim (inline %ioblock-tyi-no-hang))
 (defun %ioblock-tyi-no-hang (ioblock)
   (declare (optimize (speed 3) (safety 0)))
@@ -1481,6 +1559,8 @@
     (setf (aref vector idx) b0)
     (incf idx)
     (when (= idx limit)
+      (when (> idx count)
+        (setf (io-buffer-count buf) idx))
       (%ioblock-force-output ioblock nil)
       (setq idx 0 count 0))
     (setf (aref vector idx) b1)
@@ -1513,9 +1593,115 @@
     (setf (aref vector idx) b1)
     (incf idx)
     (when (= idx limit)
+      (when (> idx count)
+        (setf (io-buffer-count buf) idx))
       (%ioblock-force-output ioblock nil)
       (setq idx 0 count 0))
     (setf (aref vector idx) b0)
+    (incf idx)
+    (setf (io-buffer-idx buf) idx)
+    (when (> idx count)
+      (setf (io-buffer-count buf) idx))
+    (setf (ioblock-dirty ioblock) t)
+    element))
+
+(declaim (inline %ioblock-write-u32-code-unit))
+(defun %ioblock-write-u32-code-unit (ioblock element)
+  (declare (optimize (speed 3) (safety 0))
+           (type (unsigned-byte 16) element))
+  (let* ((buf (ioblock-outbuf ioblock))
+         (idx (io-buffer-idx buf))
+	 (count (io-buffer-count buf))
+         (limit (io-buffer-limit buf))
+         (vector (io-buffer-buffer buf))
+         (b0 #+big-endian-target (ldb (byte 8 24) element)
+             #+little-endian-target (ldb (byte 8 0) element))
+         (b1 #+big-endian-target (ldb (byte 8 16) element)
+             #+little-endian-target (ldb (byte 8 8) element))
+         (b2 #+big-endian-target (ldb (byte 8 8) element)
+             #+little-endian-target (ldb (byte 8 16) element))
+         (b3 #+big-endian-target (ldb (byte 8 0) element)
+             #+little-endian-target (ldb (byte 8 24) element)))
+    (declare (fixnum idx limit count)
+             (type (simple-array (unsigned-byte 8) (*)) vector)
+             (type (unsigned-byte 8) b0 b1 b2 b3))
+    (when (= idx limit)
+      (%ioblock-force-output ioblock nil)
+      (setq idx 0 count 0))
+    (setf (aref vector idx) b0)
+    (incf idx)
+    (when (= idx limit)
+      (when (> idx count)
+        (setf (io-buffer-count buf) idx))
+      (%ioblock-force-output ioblock nil)
+      (setq idx 0 count 0))
+    (setf (aref vector idx) b1)
+    (incf idx)
+    (when (= idx limit)
+      (when (> idx count)
+        (setf (io-buffer-count buf) idx))
+      (%ioblock-force-output ioblock nil)
+      (setq idx 0 count 0))
+    (setf (aref vector idx) b2)
+    (incf idx)
+    (when (= idx limit)
+      (when (> idx count)
+        (setf (io-buffer-count buf) idx))
+      (%ioblock-force-output ioblock nil)
+      (setq idx 0 count 0))
+    (setf (aref vector idx) b3)
+    (incf idx)
+    (setf (io-buffer-idx buf) idx)
+    (when (> idx count)
+      (setf (io-buffer-count buf) idx))
+    (setf (ioblock-dirty ioblock) t)
+    element))
+
+(declaim (inline %ioblock-write-swapped-u32-code-unit))
+(defun %ioblock-write-swapped-u32-code-unit (ioblock element)
+  (declare (optimize (speed 3) (safety 0))
+           (type (unsigned-byte 16) element))
+  (let* ((buf (ioblock-outbuf ioblock))
+         (idx (io-buffer-idx buf))
+	 (count (io-buffer-count buf))
+         (limit (io-buffer-limit buf))
+         (vector (io-buffer-buffer buf))
+         (b0 #+little-endian-target (ldb (byte 8 24) element)
+             #+big-endian-target (ldb (byte 8 0) element))
+         (b1 #+little-endian-target (ldb (byte 8 16) element)
+             #+big-endian-target (ldb (byte 8 8) element))
+         (b2 #+little-endian-target (ldb (byte 8 8) element)
+             #+big-endian-target (ldb (byte 8 16) element))
+         (b3 #+little-endian-target (ldb (byte 8 0) element)
+             #+big-endian-target (ldb (byte 8 24) element)))
+    (declare (fixnum idx limit count)
+             (type (simple-array (unsigned-byte 8) (*)) vector)
+             (type (unsigned-byte 8) b0 b1 b2 b3))
+    (when (= idx limit)
+      (%ioblock-force-output ioblock nil)
+      (setq idx 0 count 0))
+    (setf (aref vector idx) b0)
+    (incf idx)
+    (when (= idx limit)
+      (when (> idx count)
+        (setf (io-buffer-count buf) idx))
+      (%ioblock-force-output ioblock nil)
+      (setq idx 0 count 0))
+    (setf (aref vector idx) b1)
+    (incf idx)
+    (when (= idx limit)
+      (when (> idx count)
+        (setf (io-buffer-count buf) idx))
+      (%ioblock-force-output ioblock nil)
+      (setq idx 0 count 0))
+    (setf (aref vector idx) b2)
+    (incf idx)
+    (when (= idx limit)
+      (when (> idx count)
+        (setf (io-buffer-count buf) idx))
+      (%ioblock-force-output ioblock nil)
+      (setq idx 0 count 0))
+    (setf (aref vector idx) b3)
     (incf idx)
     (setf (io-buffer-idx buf) idx)
     (when (> idx count)
@@ -1716,17 +1902,14 @@
   (declare (optimize (speed 3) (safety 0)))
   (when (ioblock-pending-byte-order-mark ioblock)
     (setf (ioblock-pending-byte-order-mark ioblock) nil)
-    (funcall (ioblock-encode-output-function ioblock)
-             byte-order-mark
-             #'%ioblock-write-u16-code-unit
-             ioblock))
+    (%ioblock-write-u16-code-unit ioblock byte-order-mark))
   (if (eq char #\linefeed)
     (setf (ioblock-charpos ioblock) 0)
     (incf (ioblock-charpos ioblock)))
   (let* ((code (char-code char)))
     (declare (type (mod #x110000) code))
     (if (< code (the fixnum (ioblock-literal-char-code-limit ioblock)))
-      (%ioblock-write-u16-element ioblock code)
+      (%ioblock-write-u16-code-unit ioblock code)
       (funcall (ioblock-encode-output-function ioblock)
                char
                #'%ioblock-write-u16-code-unit
@@ -1816,6 +1999,105 @@
                (%ioblock-write-swapped-u16-code-unit ioblock code)
                (funcall encode-function char #'%ioblock-write-swapped-u16-code-unit ioblock)))))))
 
+
+(declaim (inline %ioblock-write-u32-encoded-char))
+(defun %ioblock-write-u32-encoded-char (ioblock char)
+  (declare (optimize (speed 3) (safety 0)))
+  (when (ioblock-pending-byte-order-mark ioblock)
+    (setf (ioblock-pending-byte-order-mark ioblock) nil)
+    (%ioblock-write-u32-code-unit ioblock byte-order-mark))
+  (if (eq char #\linefeed)
+    (setf (ioblock-charpos ioblock) 0)
+    (incf (ioblock-charpos ioblock)))
+  (let* ((code (char-code char)))
+    (declare (type (mod #x110000 code)))
+    (if (< code (the fixnum (ioblock-literal-char-code-limit ioblock)))
+      (%ioblock-write-u32-code-unit ioblock code)
+      (funcall (ioblock-encode-output-function ioblock)
+               code
+               #'%ioblock-write-u32-code-unit
+               ioblock))))
+
+(defun %private-ioblock-write-u32-encoded-char (ioblock char)
+  (declare (optimize (speed 3) (safety 0)))
+  (check-ioblock-owner ioblock)
+  (%ioblock-write-u32-encoded-char ioblock char))
+
+(defun %locked-ioblock-write-u32-encoded-char (ioblock char)
+  (declare (optimize (speed 3) (safety 0)))  
+  (with-ioblock-output-lock-grabbed (ioblock)
+    (%ioblock-write-u32-encoded-char ioblock char)))
+
+(defun %ioblock-write-u32-encoded-simple-string (ioblock string start-char num-chars)
+  (declare (fixnum start-char num-chars)
+           (simple-base-strng string)
+           (optimize (speed 3) (safety 0)))
+  (when (ioblock-pending-byte-order-mark ioblock)
+    (setf (ioblock-pending-byte-order-mark ioblock) nil)
+    (%ioblock-write-u32-code-unit ioblock byte-order-mark-char-code))
+  (do* ((i 0 (1+ i))
+        (col (ioblock-charpos ioblock))
+        (limit (ioblock-literal-char-code-limit ioblock))
+        (encode-function (ioblock-encode-output-function ioblock))
+        (start-char start-char (1+ start-char)))
+       ((= i num-chars) (setf (ioblock-charpos ioblock) col) num-chars)
+    (declare (fixnum i start-char limit))
+    (let* ((char (schar string start-char))
+           (code (char-code char)))
+      (declare (type (mod #x110000) code))
+      (if (eq char #\newline)
+        (setq col 0)
+        (incf col))
+      (if (< code limit)
+        (%ioblock-write-u32-code-unit ioblock code)
+        (funcall encode-function char #'%ioblock-write-u32-code-unit ioblock)))))
+
+
+(declaim (inline %ioblock-write-swapped-u32-encoded-char))
+(defun %ioblock-write-swapped-u32-encoded-char (ioblock char)
+  (declare (optimize (speed 3) (safety 0)))
+  (if (eq char #\linefeed)
+    (setf (ioblock-charpos ioblock) 0)
+    (incf (ioblock-charpos ioblock)))
+  (let* ((code (char-code char)))
+    (declare (type (mod #x110000 code)))
+    (if (< code (the fixnum (ioblock-literal-char-code-limit ioblock)))
+      (%ioblock-write-swapped-u32-code-unit ioblock code)
+      (funcall (ioblock-encode-output-function ioblock)
+               code
+               #'%ioblock-write-swapped-u32-code-unit
+               ioblock))))
+
+(defun %private-ioblock-write-swapped-u32-encoded-char (ioblock char)
+  (declare (optimize (speed 3) (safety 0)))
+  (check-ioblock-owner ioblock)
+  (%ioblock-write-swapped-u32-encoded-char ioblock char))
+
+(defun %locked-ioblock-write-swapped-u32-encoded-char (ioblock char)
+  (declare (optimize (speed 3) (safety 0)))  
+  (with-ioblock-output-lock-grabbed (ioblock)
+    (%ioblock-write-swapped-u32-encoded-char ioblock char)))
+
+(defun %ioblock-write-swapped-u32-encoded-simple-string (ioblock string start-char num-chars)
+  (declare (fixnum start-char num-chars)
+           (simple-base-strng string)
+           (optimize (speed 3) (safety 0)))
+  (do* ((i 0 (1+ i))
+        (col (ioblock-charpos ioblock))
+        (limit (ioblock-literal-char-code-limit ioblock))
+        (encode-function (ioblock-encode-output-function ioblock))
+        (start-char start-char (1+ start-char)))
+       ((= i num-chars) (setf (ioblock-charpos ioblock) col) num-chars)
+    (declare (fixnum i start-char limit))
+    (let* ((char (schar string start-char))
+           (code (char-code char)))
+      (declare (type (mod #x110000) code))
+      (if (eq char #\newline)
+        (setq col 0)
+        (incf col))
+      (if (< code limit)
+        (%ioblock-write-swapped-u32-code-unit ioblock code)
+        (funcall encode-function char #'%ioblock-write-swapped-u32-code-unit ioblock)))))
 
 (declaim (inline %ioblock-write-u8-byte))
 (defun %ioblock-write-u8-byte (ioblock byte)
@@ -1947,57 +2229,55 @@
 
 (defun %ioblock-unencoded-read-line (ioblock)
   (let* ((inbuf (ioblock-inbuf ioblock)))
-    (if (io-buffer-translate inbuf)
-      (%ioblock-encoded-read-line ioblock)
-      (let* ((string "")
-             (len 0)
-             (eof nil)
-             (buf (io-buffer-buffer inbuf))
-             (newline (char-code #\newline)))
-        (let* ((ch (ioblock-untyi-char ioblock)))
-          (when ch
-            (setf (ioblock-untyi-char ioblock) nil)
-            (if (eql ch #\newline)
-              (return-from %ioblock-unencoded-read-line 
-                (values string nil))
+    (let* ((string "")
+           (len 0)
+           (eof nil)
+           (buf (io-buffer-buffer inbuf))
+           (newline (char-code #\newline)))
+      (let* ((ch (ioblock-untyi-char ioblock)))
+        (when ch
+          (setf (ioblock-untyi-char ioblock) nil)
+          (if (eql ch #\newline)
+            (return-from %ioblock-unencoded-read-line 
+              (values string nil))
+            (progn
+              (setq string (make-string 1)
+                    len 1)
+              (setf (schar string 0) ch)))))
+      (loop
+        (let* ((more 0)
+               (idx (io-buffer-idx inbuf))
+               (count (io-buffer-count inbuf)))
+          (declare (fixnum idx count more))
+          (if (= idx count)
+            (if eof
+              (return (values string t))
               (progn
-                (setq string (make-string 1)
-                      len 1)
-                (setf (schar string 0) ch)))))
-        (loop
-          (let* ((more 0)
-                 (idx (io-buffer-idx inbuf))
-                 (count (io-buffer-count inbuf)))
-            (declare (fixnum idx count more))
-            (if (= idx count)
-              (if eof
-                (return (values string t))
-                (progn
-                  (setq eof t)
-                  (%ioblock-advance ioblock t)))
-              (progn
-                (setq eof nil)
-                (let* ((pos (position newline buf :start idx :end count)))
-                  (when pos
-                    (locally (declare (fixnum pos))
-                      (setf (io-buffer-idx inbuf) (the fixnum (1+ pos)))
-                      (setq more (- pos idx))
-                      (unless (zerop more)
-                        (setq string
-                              (%extend-vector
-                               0 string (the fixnum (+ len more)))))
-                      (%copy-u8-to-string
-                       buf idx string len more)
-                      (return (values string nil))))
-                  ;; No #\newline in the buffer.  Read everything that's
-                  ;; there into the string, and fill the buffer again.
-                  (setf (io-buffer-idx inbuf) count)
-                  (setq more (- count idx)
-                        string (%extend-vector
-                                0 string (the fixnum (+ len more))))
-                  (%copy-u8-to-string
-                   buf idx string len more)
-                  (incf len more))))))))))
+                (setq eof t)
+                (%ioblock-advance ioblock t)))
+            (progn
+              (setq eof nil)
+              (let* ((pos (position newline buf :start idx :end count)))
+                (when pos
+                  (locally (declare (fixnum pos))
+                    (setf (io-buffer-idx inbuf) (the fixnum (1+ pos)))
+                    (setq more (- pos idx))
+                    (unless (zerop more)
+                      (setq string
+                            (%extend-vector
+                             0 string (the fixnum (+ len more)))))
+                    (%copy-u8-to-string
+                     buf idx string len more)
+                    (return (values string nil))))
+                ;; No #\newline in the buffer.  Read everything that's
+                ;; there into the string, and fill the buffer again.
+                (setf (io-buffer-idx inbuf) count)
+                (setq more (- count idx)
+                      string (%extend-vector
+                              0 string (the fixnum (+ len more))))
+                (%copy-u8-to-string
+                 buf idx string len more)
+                (incf len more)))))))))
 
 ;;; There are lots of ways of doing better here, but in the most general
 ;;; case we can't tell (a) what a newline looks like in the buffer or (b)
@@ -2361,7 +2641,23 @@
                     (case sharing
                       (:private '%private-ioblock-read-swapped-u16-encoded-char)
                       (:lock '%locked-ioblock-read-swapped-u16-encoded-char)
-                      (t '%ioblock-read-swapped-u16-encoded-char))))))))
+                      (t '%ioblock-read-swapped-u16-encoded-char)))))
+                (32
+                 (if (character-encoding-native-endianness encoding)
+                   (progn
+                    (setf (ioblock-read-char-when-locked-function ioblock)
+                          #'%ioblock-read-u32-encoded-char)
+                    (case sharing
+                      (:private #'%private-ioblock-read-u32-encoded-char)
+                      (:lock #'%locked-ioblock-read-u32-encoded-char)
+                      (t #'%ioblock-read-u32-encoded-char)))
+                   (progn
+                     (setf (ioblock-read-char-when-locked-function ioblock)
+                           #'%ioblock-read-swapped-u32-encoded-char)
+                    (case sharing
+                      (:private '#'%private-ioblock-read-swapped-u16-encoded-char)
+                      (:lock #'%locked-ioblock-read-swapped-u32-encoded-char)
+                      (t #'%ioblock-read-swapped-u32-encoded-char))))))))
       (progn
         (setf (ioblock-peek-char-function ioblock) '%ioblock-peek-char)
         (setf (ioblock-read-char-function ioblock)
@@ -2527,14 +2823,34 @@
                      (case sharing
                        (:private '%private-ioblock-write-swapped-u16-encoded-char)
                        (:lock '%locked-ioblock-write-swapped-u16-encoded-char)
-                       (t '%ioblock-write-swapped-u16-encoded-char)))))))
+                       (t '%ioblock-write-swapped-u16-encoded-char)))))
+                (32
+                 (if (character-encoding-native-endianness encoding)
+                   (progn
+                     (setf (ioblock-write-char-when-locked-function ioblock)
+                           #'%ioblock-write-u32-encoded-char) 
+                     (case sharing
+                       (:private #'%private-ioblock-write-u32-encoded-char)
+                       (:lock #'%locked-ioblock-write-u32-encoded-char)
+                       (t #'%ioblock-write-u32-encoded-char)))
+                   (progn
+                     (setf (ioblock-write-char-when-locked-function ioblock)
+                           #'%ioblock-write-swapped-u32-encoded-char)
+                     (case sharing
+                       (:private #'%private-ioblock-write-swapped-u32-encoded-char)
+                       (:lock #'%locked-ioblock-write-swapped-u32-encoded-char)
+                       (t #'%ioblock-write-swapped-u32-encoded-char)))))))
         (setf (ioblock-write-simple-string-function ioblock)
               (ecase unit-size
                 (8 '%ioblock-write-u8-encoded-simple-string)
                 (16
                  (if (character-encoding-native-endianness encoding)
                    '%ioblock-write-u16-encoded-simple-string
-                   '%ioblock-write-swapped-u16-encoded-simple-string))))
+                   '%ioblock-write-swapped-u16-encoded-simple-string))
+                (32
+                 (if (character-encoding-native-endianness encoding)
+                   #'%ioblock-write-u32-encoded-simple-string
+                   #'%ioblock-write-swapped-u32-encoded-simple-string))))
         (when (character-encoding-use-byte-order-mark encoding)
           (setf (ioblock-pending-byte-order-mark ioblock) t)))
       (progn
@@ -2728,6 +3044,7 @@
                                 :limit insize))
           (when (eq sharing :lock)
             (setf (ioblock-inbuf-lock ioblock) (make-lock)))
+          (setf (ioblock-line-termination ioblock) line-termination)
           (setup-ioblock-input ioblock character-p element-type sharing encoding line-termination)
           (setf (ioblock-element-shift ioblock) (max 0 (ceiling (log  (/ in-size-in-octets insize) 2))))
           )))
@@ -2829,6 +3146,13 @@
                (case sharing
                  (:private '%private-ioblock-read-swapped-u16-encoded-char)
                  (:lock '%locked-ioblock-read-swapped-u16-encoded-char)
+                 (t '%ioblock-read-swapped-u16-encoded-char)))
+              (32
+               (setf (ioblock-read-char-when-locked-function ioblock)
+                     '%ioblock-read-swapped-u32-encoded-char)
+               (case sharing
+                 (:private '%private-ioblock-read-swapped-u32-encoded-char)
+                 (:lock '%locked-ioblock-read-swapped-u32-encoded-char)
                  (t '%ioblock-read-swapped-u16-encoded-char))))
             (when output-p
               (ecase unit-size
@@ -2840,7 +3164,16 @@
                    (:lock '%locked-ioblock-write-swapped-u16-encoded-char)
                    (t '%ioblock-write-swapped-u16-encoded-char))
                  (setf (ioblock-write-simple-string-function ioblock)
-                       '%ioblock-write-swapped-u8-encoded-simple-string))))))))))
+                       '%ioblock-write-swapped-u16-encoded-simple-string))
+                (32
+                 (setf (ioblock-write-char-when-locked-function ioblock)
+                       '%ioblock-write-swapped-u32-encoded-char)
+                 (case sharing
+                   (:private '%private-ioblock-write-swapped-u32-encoded-char)
+                   (:lock '%locked-ioblock-write-swapped-u32-encoded-char)
+                   (t '%ioblock-write-swapped-u32-encoded-char))
+                 (setf (ioblock-write-simple-string-function ioblock)
+                       '%ioblock-write-swapped-u32-encoded-simple-string))))))))))
 
 
 
@@ -2967,6 +3300,15 @@
 
 (defclass character-stream (stream)
     ())
+
+(defmethod stream-external-format ((s character-stream))
+  (make-external-format :character-encoding #+big-endian-target :utf32-be #+little-endian-target :utf32-le :line-termination :unix))
+
+
+(defmethod (setf stream-external-format) (new (s character-stream))
+  (check-type new 'external-format)
+  (stream-external-format s))
+
 
 (defclass fundamental-character-stream (fundamental-stream character-stream)
     ())
@@ -3136,6 +3478,14 @@
 (make-built-in-class 'basic-binary-output-stream 'basic-output-stream 'basic-binary-stream 'binary-output-stream)
 (make-built-in-class 'basic-binary-io-stream 'basic-binary-input-stream 'basic-binary-output-stream)
 
+
+(defun %ioblock-external-format (ioblock)
+  (let* ((encoding (or (ioblock-encoding ioblock)
+                       (get-character-encoding nil)))
+         (line-termination (or (ioblock-line-termination ioblock)
+                               :unix)))
+    (make-external-format :character-encoding (character-encoding-name encoding)
+                          :line-termination line-termination)))
 
 (defmethod input-stream-shared-resource ((s basic-input-stream))
   (getf (basic-stream.info s) :shared-resource))
@@ -4992,8 +5342,12 @@ are printed.")
   (let* ((stream (real-print-stream stream)))
     (stream-line-column stream)))        
 
-  
 
+(defmethod stream-external-format ((s basic-character-stream))
+  (%ioblock-external-format (stream-ioblock s t)))
+
+(defmethod stream-external-format ((s buffered-stream-mixin))
+  (%ioblock-external-format (stream-ioblock s t)))
 
 
 ; end of L1-streams.lisp
