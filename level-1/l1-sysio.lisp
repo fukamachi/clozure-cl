@@ -96,35 +96,48 @@ Because there's some risk that unsolicited newline translation could have
 undesirable consequences, the initial value of this variable in OpenMCL
 is :UNIX.")
 
-(defstruct external-format
-  (character-encoding :default)
-  (line-termination :default))
+(defstruct (external-format (:constructor %make-external-format)
+                            (:copier nil))
+  (character-encoding :default :read-only t)
+  (line-termination :default :read-only t))
+
+(defmethod print-object ((ef external-format) stream)
+  (print-unreadable-object (ef stream :type t :identity t)
+    (format stream "~s/~s" (external-format-character-encoding ef) (external-format-line-termination ef))))
+
+
+
+(defvar *external-formats* (make-hash-table :test #'equal))
+
+(defun make-external-format (&key (domain t)
+                                  (character-encoding :default)
+                                  (line-termination :default))
+  (if (eq line-termination :default)
+    (setq line-termination *default-line-termination*))
+  (unless (assq line-termination *canonical-line-termination-conventions*)
+                    (error "~S is not a known line-termination format." line-termination))
+  (if (eq character-encoding :default)
+    (setq character-encoding
+          (default-character-encoding domain)))
+  (unless (lookup-character-encoding character-encoding)
+    (error "~S is not the name of a known characer encoding."
+           character-encoding))
+  (let* ((pair (cons character-encoding line-termination)))
+    (declare (dynamic-extent pair))    
+    (or (gethash pair *external-formats*)
+        (setf (gethash (cons character-encoding line-termination) *external-formats*)
+              (%make-external-format :character-encoding character-encoding
+                                     :line-termination line-termination)))))
+
 
 
 (defun normalize-external-format (domain external-format)
   (cond ((listp external-format)
          (unless (plistp external-format)
            (error "External-format ~s is not a property list." external-format))
-         (normalize-external-format domain (apply #'make-external-format external-format)))
+         (normalize-external-format domain (apply #'make-external-format :domain domain  external-format)))
         ((typep external-format 'external-format)
-         (let* ((character-encoding (external-format-character-encoding external-format))
-                (line-termination (external-format-line-termination external-format)))
-           (when (or (eq character-encoding :default)
-                     (eq line-termination :default))
-             (setq external-format (copy-external-format external-format))
-             (if (eq line-termination :default)
-               (setf (external-format-line-termination external-format)
-                     (setq line-termination *default-line-termination*)))
-             (unless (assq line-termination *canonical-line-termination-conventions*)
-               (error "~S is not a known line-termination format." line-termination))
-             (if (eq character-encoding :default)
-               (setf (external-format-character-encoding external-format)
-                     (setq character-encoding
-                           (default-character-encoding domain))))
-             (unless (lookup-character-encoding character-encoding)
-               (error "~S is not the name of a known characer encoding."
-                      character-encoding)))
-           external-format))
+         external-format)
         ((eq external-format :default)
          (normalize-external-format domain nil))
         ((lookup-character-encoding external-format)
