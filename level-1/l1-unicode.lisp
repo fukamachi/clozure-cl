@@ -108,6 +108,9 @@
 (defconstant swapped-byte-order-mark-char-code (char-code swapped-byte-order-mark))
 
 
+(defmethod default-character-encoding ((domain t))
+  (character-encoding-name (get-character-encoding nil)))
+
 (defun decode-character-encoded-vector (encoding vector start-index noctets string)
   (setq encoding (ensure-character-encoding encoding))
   (unless (= (the (unsigned-byte 8) (typecode vector))
@@ -1690,7 +1693,8 @@ word and characters with larger codes can be encoded in a
 pair of 16-bit words.  The endianness of the encoded data is
 indicated by the endianness of a byte-order-mark character (#\u+feff)
 prepended to the data; in the absence of such a character on input,
-the data is assumed to be in big-endian order."    
+the data is assumed to be in big-endian order. Output is written
+in native byte-order with a leading byte-order mark."    
   :max-units-per-char 2
   :code-unit-size 16
   :native-endianness t                  ;not necessarily true.
@@ -1919,13 +1923,13 @@ the data is assumed to be in big-endian order."
 ;;; UCS-2, native byte order
 (define-character-encoding #+big-endian-target :ucs-2be #-big-endian-target :ucs-2le
   #+big-endian-target
-  "A 16-bit, variable-length encoding in which characters with
+  "A 16-bit, fixed-length encoding in which characters with
 CHAR-CODEs less than #x10000 can be encoded in a single 16-bit
-little-endian word. The encoded data is implicitly big-endian;
+big-endian word. The encoded data is implicitly big-endian;
 byte-order-mark characters are not interpreted on input or prepended
 to output."
   #+little-endian-target
-  "A 16-bit, variable-length encoding in which characters with
+  "A 16-bit, fixed-length encoding in which characters with
 CHAR-CODEs less than #x10000 can be encoded in a single 16-bit
 little-endian word. The encoded data is implicitly little-endian;
 byte-order-mark characters are not interpreted on input or prepended
@@ -2015,14 +2019,15 @@ to output."
 ;;; UCS-2, reversed byte order
 (define-character-encoding #+big-endian-target :ucs-2le #-big-endian-target :ucs-2be
   #+little-endian-target
-  "A 16-bit, variable-length encoding in which characters with
+  "A 16-bit, fixed-length encoding in which characters with
 CHAR-CODEs less than #x10000 can be encoded in a single 16-bit
-little-endian word. The encoded data is implicitly big-endian;
+big-endian word. The encoded data is implicitly big-endian;
 byte-order-mark characters are not interpreted on input or prepended
 to output."
   #+big-endian-target
-  "A 16-bit, variable-length encoding in which characters with
+  "A 16-bit, fixed-length encoding in which characters with
 CHAR-CODEs less than #x10000 can be encoded in a single 16-bit
+
 little-endian word. The encoded data is implicitly little-endian;
 byte-order-mark characters are not interpreted on input or prepended
 to output."
@@ -2087,7 +2092,7 @@ to output."
        (declare (fixnum i index))
        (let* ((1st-unit (%swap-u16 (%get-unsigned-word pointer index))))
          (declare (type (unsigned-byte 16) 1st-unit))
-         (setf (schar string i) (or (char-code 1st-unit) #\Replacement_Character))))))
+         (setf (schar string i) (or (code-char 1st-unit) #\Replacement_Character))))))
   :octets-in-string-function
   #'ucs-2-octets-in-string
   :length-of-vector-encoding-function
@@ -2110,7 +2115,7 @@ to output."
 
 (define-character-encoding :ucs-2
     "A 16-bit, fixed-length encoding in which characters with
-CHAR-CODEs less than #x10000 can be encoded in a single 16-bit words.
+CHAR-CODEs less than #x10000 can be encoded in a single 16-bit word.
 The endianness of the encoded data is indicated by the endianness of a
 byte-order-mark character (#\u+feff) prepended to the data; in the
 absence of such a character on input, the data is assumed to be in
@@ -2231,13 +2236,418 @@ big-endian order."
           (incf start 2)
           (decf noctets 2))
          (#.swapped-byte-order-mark-char-code
-          (incf start)
-          (decf noctets))))
+          (incf start 2)
+          (decf noctets 2))))
      (values (floor noctets 2) (+ start noctets))))
   :literal-char-code-limit #x10000
   :use-byte-order-mark
   #+big-endian-target :ucs-2le
   #+little-endian-target :ucs-2be
+  )
+
+
+(defun ucs-4-stream-encode (char write-function stream)
+  (let* ((code (char-code char)))
+    (declare (type (mod #x110000) code))
+    (funcall write-function stream code)
+    1))
+
+(defun ucs-4-stream-decode (1st-unit next-unit-function stream)
+  (declare (type (unsigned-byte 16) 1st-unit)
+           (ignore next-unit-function stream))
+  (code-char 1st-unit))
+
+
+(defun ucs-4-octets-in-string (string start end)
+  (declare (ignore string))
+  (if (>= end start)
+    (* 4 (- end start))
+    0))
+
+
+(declaim (inline %big-endian-u8-ref-u32 %little-endian-u8-ref-u32))
+(defun %big-endian-u8-ref-u32 (u8-vector idx)
+  (declare (type (simple-array (unsigned-byte 8) (*)) u8-vector)
+           (fixnum idx))
+  (logior (the (unsigned-byte 32) (ash (the (unsigned-byte 8) (aref u8-vector idx)) 24))
+          (the (unsigned-byte 24)
+            (logior
+             (ash (the (unsigned-byte 8) (aref u8-vector (the fixnum (1+ idx)))) 16)
+             (the (unsigned-byte 16)
+               (logior
+                (ash (the (unsigned-byte 8) (aref u8-vector (the fixnum (+ idx 2)))) 8)
+                (the (unsigned-byte 8) (aref u8-vector (the fixnum (+ idx 3))))))))))
+
+(defun %little-endian-u8-ref-u32 (u8-vector idx)
+  (declare (type (simple-array (unsigned-byte 8) (*)) u8-vector)
+           (fixnum idx))
+  (logior (the (unsigned-byte 32) (ash (the (unsigned-byte 8) (aref u8-vector (the fixnum (+ idx 3)))) 24))
+          (the (unsigned-byte 24)
+            (logior
+             (ash (the (unsigned-byte 8) (aref u8-vector (the fixnum (+ idx 2)))) 16)
+             (the (unsigned-byte 16)
+               (logior
+                (ash (the (unsigned-byte 8) (aref u8-vector (the fixnum (1+ idx)))) 8)
+                (the (unsigned-byte 8) (aref u8-vector (the fixnum idx)))))))))
+
+#+big-endian-target
+(progn
+(defmacro %native-u8-ref-u32 (vector idx)
+  `(%big-endian-u8-ref-u32 ,vector ,idx))
+
+(defmacro %reversed-u8-ref-u32 (vector idx)
+  `(%little-endian-u8-ref-u32 ,vector ,idx))
+)
+
+#+little-endian-target
+(progn
+(defmacro %native-u8-ref-u32 (vector idx)
+  `(%little-endian-u8-ref-u32 ,vector ,idx))
+
+(defmacro %reversed-u8-ref-u32 (vector idx)
+  `(%big-endian-u8-ref-u32 ,vector ,idx))
+)
+
+
+(declaim (inline (setf %big-endian-u8-ref-32) (setf %little-endian-u8-ref-u32)))
+(defun (setf %big-endian-u8-ref-u32) (val u8-vector idx)
+  (declare (type (unsigned-byte 32) val)
+           (type (simple-array (unsigned-byte 8) (*)) u8-vector)
+           (fixnum idx))
+  (setf (aref u8-vector idx) (ldb (byte 8 24) val)
+        (aref u8-vector (the fixnum (1+ idx))) (ldb (byte 8 16) val)
+        (aref u8-vector (the fixnum (+ idx 2))) (ldb (byte 8 8) val)
+        (aref u8-vector (the fixnum (+ idx 3))) (ldb (byte 8 0) val))
+  val)
+
+(defun (setf %little-endian-u8-ref-u32) (val u8-vector idx)
+  (declare (type (unsigned-byte 16) val)
+           (type (simple-array (unsigned-byte 8) (*)) u8-vector)
+           (fixnum idx))
+  (setf (aref u8-vector idx) (ldb (byte 8 0) val)
+        (aref u8-vector (the fixnum (1+ idx))) (ldb (byte 8 8) val)
+        (aref u8-vector (the fixnum (+ idx 2))) (ldb (byte 8 16) val)
+        (aref u8-vector (the fixnum (+ idx 3))) (ldb (byte 8 24) val))
+  val)
+
+
+;;; UTF-32/UCS-4, native byte order
+(define-character-encoding #+big-endian-target :utf32-be #-big-endian-target :utf32-le
+  #+big-endian-target
+  "A 32-bit, fixed-length encoding in which all Unicode characters
+encoded in a single 32-bit word. The encoded data is implicitly big-endian;
+byte-order-mark characters are not interpreted on input or prepended
+to output."
+  #+little-endian-target
+  "A 32-bit, fixed-length encoding in which all Unicode characters can
+encoded in a single 32-bit word. The encoded data is implicitly
+little-endian; byte-order-mark characters are not interpreted on input
+or prepended to output."
+  :aliases #+big-endian-target '(:ucs-4be) #+little-endian-target '(:ucs-4le)
+  :max-units-per-char 1
+  :code-unit-size 32
+  :native-endianness t
+  :stream-encode-function
+  #'ucs-4-stream-encode
+  :Stream-decode-function
+  #'ucs-4-stream-decode
+  :vector-encode-function
+  (nfunction
+   native-ucs-4-vector-encode
+   (lambda (string vector idx start end)
+     (declare (type (simple-array (unsigned-byte 8) (*)) vector)
+              (fixnum idx))
+     (do* ((i start (1+ i)))
+          ((>= i end) idx)
+       (let* ((char (schar string i))
+              (code (char-code char)))
+         (declare (type (mod #x110000) code))
+         (setf (%native-u8-ref-u32 vector idx) code)
+         (incf idx 4)))))
+  :vector-decode-function
+  (nfunction
+   native-ucs-4-vector-decode
+   (lambda (vector idx noctets string)
+     (declare (type (simple-array (unsigned-byte 8) (*)) vector)
+              (type index idx))
+     (do* ((i 0 (1+ i))
+           (end (+ idx noctets))
+           (index idx (+ 4 index)))
+          ((>= index end) index)
+       (declare (fixnum i len index))
+       (let* ((code (%native-u8-ref-u32 vector index)))
+         (declare (type (unsigned-byte 32) code))
+         (setf (schar string i)
+               (or (if (< code char-code-limit)
+                      (code-char code))
+                   #\Replacement_Character))))))
+  :memory-encode-function
+  (nfunction
+   native-ucs-4-memory-encode
+   (lambda (string pointer idx start end)
+     (declare (fixnum idx))
+     (do* ((i start (1+ i)))
+          ((>= i end) idx)
+       (let* ((code (char-code (schar string i))))
+         (declare (type (mod #x110000) code))
+         (setf (%get-unsigned-long pointer idx) code)
+         (incf idx 4)))))
+  :memory-decode-function
+  (nfunction
+   native-ucs-4-memory-decode
+   (lambda (pointer noctets idx string)
+     (declare (fixnum noctets idx))
+     (do* ((i 0 (1+ i))
+           (index idx (+ index 4)))
+          ((>= i noctets) index)
+       (declare (fixnum i index))
+       (let* ((1st-unit (%get-unsigned-long pointer index)))
+         (declare (type (unsigned-byte 32) 1st-unit))
+         (setf (schar string i) (or (if (< 1st-unit char-code-limit)
+                                      (code-char 1st-unit))
+                                    #\Replacement_Character))))))
+  :octets-in-string-function
+  #'ucs-4-octets-in-string
+  :length-of-vector-encoding-function
+  (nfunction
+   native-ucs-4-length-of-vector-encoding
+   (lambda (vector start end)
+     (declare (ignore vector))
+     (do* ((i start (1+ i))
+           (j (+ i 4) (+ i 4))
+           (nchars 0 (1+ nchars)))
+          ((> j end) (values nchars i)))))
+  :length-of-memory-encoding-function
+  (nfunction
+   native-ucs-4-length-of-memory-encoding
+   (lambda (pointer noctets start)
+     (declare (ignore pointer))
+     (values (floor noctets 4) (+ start noctets))))
+  :literal-char-code-limit #x110000
+  )
+
+;;; UTF-32/UCS-4, reversed byte order
+(define-character-encoding #+big-endian-target :utf32-le #-big-endian-target :utf32-be
+  #+little-endian-target
+  "A 32-bit, fixed-length encoding in which all Unicode characters
+encoded in a single 32-bit word. The encoded data is implicitly big-endian;
+byte-order-mark characters are not interpreted on input or prepended
+to output."
+  #+big-endian-target
+  "A 32-bit, fixed-length encoding in which all Unicode characters can
+encoded in a single 32-bit word. The encoded data is implicitly
+little-endian; byte-order-mark characters are not interpreted on input
+or prepended to output."
+  :aliases #+big-endian-target '(:ucs-4le) #+little-endian-target '(:ucs-4be)
+  :max-units-per-char 1
+  :code-unit-size 32
+  :native-endianness nil
+  :stream-encode-function
+  #'ucs-4-stream-encode
+  :Stream-decode-function
+  #'ucs-4-stream-decode
+  :vector-encode-function
+  (nfunction
+   native-ucs-4-vector-encode
+   (lambda (string vector idx start end)
+     (declare (type (simple-array (unsigned-byte 8) (*)) vector)
+              (fixnum idx))
+     (do* ((i start (1+ i)))
+          ((>= i end) idx)
+       (let* ((char (schar string i))
+              (code (char-code char)))
+         (declare (type (mod #x110000) code))
+         (setf (%reversed-u8-ref-u32 vector idx) code)
+         (incf idx 4)))))
+  :vector-decode-function
+  (nfunction
+   native-ucs-4-vector-decode
+   (lambda (vector idx noctets string)
+     (declare (type (simple-array (unsigned-byte 8) (*)) vector)
+              (type index idx))
+     (do* ((i 0 (1+ i))
+           (end (+ idx noctets))
+           (index idx (+ 4 index)))
+          ((>= index end) index)
+       (declare (fixnum i len index))
+       (let* ((code (%reversed-u8-ref-u32 vector index)))
+         (declare (type (unsigned-byte 32) code))
+         (setf (schar string i)
+               (or (if (< code char-code-limit)
+                     (code-char code))
+                   #\Replacement_Character))))))
+  :memory-encode-function
+  (nfunction
+   native-ucs-4-memory-encode
+   (lambda (string pointer idx start end)
+     (declare (fixnum idx))
+     (do* ((i start (1+ i)))
+          ((>= i end) idx)
+       (let* ((code (char-code (schar string i))))
+         (declare (type (mod #x110000) code))
+         (setf (%get-unsigned-long pointer idx) (%swap-u32 code))
+         (incf idx 4)))))
+  :memory-decode-function
+  (nfunction
+   reversed-ucs-4-memory-decode
+   (lambda (pointer noctets idx string)
+     (declare (fixnum noctets idx))
+     (do* ((i 0 (1+ i))
+           (index idx (+ index 4)))
+          ((>= i noctets) index)
+       (declare (fixnum i index))
+       (let* ((1st-unit (%swap-u32 (%get-unsigned-long pointer index))))
+         (declare (type (unsigned-byte 32) 1st-unit))
+         (setf (schar string i) (or (if (< 1st-unit char-code-limit)
+                                      (code-char 1st-unit))
+                                    #\Replacement_Character))))))
+
+  :octets-in-string-function
+  #'ucs-4-octets-in-string
+  :length-of-vector-encoding-function
+  (nfunction
+   reversed-ucs-4-length-of-vector-encoding
+   (lambda (vector start end)
+     (declare (ignore vector))
+     (do* ((i start (1+ i))
+           (j (+ i 4) (+ i 4))
+           (nchars 0 (1+ nchars)))
+          ((> j end) (values nchars i)))))
+  :length-of-memory-encoding-function
+  (nfunction
+   reversed-ucs-4-length-of-memory-encoding
+   (lambda (pointer noctets start)
+     (declare (ignore pointer))
+     (values (floor noctets 4) (+ start noctets))))
+  :literal-char-code-limit #x110000
+  )
+
+(define-character-encoding :utf-32
+    "A 32-bit, fixed-length encoding in which all Unicode characters can be encoded in a single 32-bit word.  The endianness of the encoded data is indicated by the endianness of a byte-order-mark character (#\u+feff) prepended to the data; in the absence of such a character on input, input data is assumed to be in big-endian order.  Output is written in native byte order with a leading byte-order mark."
+    
+  :aliases '(:utf-4)
+  :max-units-per-char 1
+  :code-unit-size 32
+  :native-endianness t                  ;not necessarily true.
+  :stream-encode-function
+  #+ucs-4-stream-encode
+  :stream-decode-function
+  #'ucs-4-stream-decode
+  :vector-encode-function
+  (nfunction
+   utf-32-vector-encode
+   (lambda (string vector idx start end)
+     (declare (type (simple-array (unsigned-byte 8) (*)) vector)
+              (fixnum idx))
+     (when (> end start)
+       (setf (%native-u8-ref-u32 vector idx) byte-order-mark-char-code)
+       (incf idx 4))
+     (do* ((i start (1+ i)))
+          ((>= i end) idx)
+       (let* ((char (schar string i))
+              (code (char-code char)))
+         (declare (type (mod #x110000) code))
+         (setf (%native-u8-ref-u32 vector idx) code)
+         (incf idx 4)))))
+  :vector-decode-function
+  (nfunction
+   utf-32-vector-decode 
+   (lambda (vector idx noctets string)
+     (declare (type (simple-array (unsigned-byte 8) (*)) vector)
+              (type index idx)
+              (fixnum noctets))
+     (let* ((swap (if (> noctets 3)
+                    (case (%native-u8-ref-u32 vector idx)
+                      (#.byte-order-mark-char-code
+                       (incf idx 4) (decf noctets 4) nil)
+                      (#.swapped-byte-order-mark-char-code
+                       (incf idx 4) (decf noctets 4) t)
+                       (t #+little-endian-target t)))))
+
+       (do* ((i 0 (1+ i))
+             (end (+ idx noctets))
+             (index idx (1+ index)))
+            ((>= index end) index)
+         (declare (fixnum i len index))
+         (let* ((1st-unit (if swap
+                            (%reversed-u8-ref-u32 vector index)
+                            (%native-u8-ref-u32 vector index))))
+             (declare (type (unsigned-byte 32) 1st-unit))
+             (setf (schar string i) (or (if (< 1st-unit char-code-limit)
+                                          (code-char 1st-unit))
+                                        #\Replacement_Character)))))))
+  :memory-encode-function
+  (nfunction
+   utf-32-memory-encode
+   (lambda (string pointer idx start end)
+     (declare (fixnum idx))
+     (when (> end start)
+       (setf (%get-unsigned-long pointer idx)
+             byte-order-mark-char-code)
+       (incf idx 4))
+     (do* ((i start (1+ i)))
+          ((>= i end) idx)
+       (let* ((code (char-code (schar string i))))
+         (declare (type (mod #x110000) code))
+         (setf (%get-unsigned-long pointer idx) code)
+         (incf idx 4)))))
+  :memory-decode-function
+  (nfunction
+   utf-32-memory-decode
+   (lambda (pointer noctets idx string)
+     (declare (fixnum noctets idx))
+     (let* ((swap (when (> noctets 3)
+                    (case (%get-unsigned-long pointer idx)
+                      (#.byte-order-mark-char-code
+                       (incf idx 4)
+                       (decf noctets 4)
+                       nil)
+                      (#.swapped-byte-order-mark-char-code
+                       (incf idx 4)
+                       (decf noctets 4)
+                       t)
+                      (t #+little-endian-target t)))))
+       (do* ((i 0 (1+ i))
+           (index idx (+ index 2)))
+          ((>= i noctets) index)
+       (declare (fixnum i index))
+       (let* ((1st-unit (%get-unsigned-long pointer index)))
+         (declare (type (unsigned-byte 32) 1st-unit))
+         (if swap (setq 1st-unit (%swap-u32 1st-unit)))
+         (setf (schar string i) (or (if (< 1st-unit char-code-limit)
+                                      (code-char 1st-unit))
+                                    #\Replacement_Character)))))))
+  :octets-in-string-function
+  #'(lambda (&rest args)
+      (declare (dynamic-extent args))
+      ;; Add four for the BOM.
+      (+ 4 (apply #'ucs-4-octets-in-string args)))
+  :length-of-vector-encoding-function
+  (nfunction
+   utf-32-length-of-vector-encoding
+   (lambda (vector start end)
+     (declare (ignore vector))
+     (do* ((i start (1+ i))
+           (j (+ i 2) (+ i 2))
+           (nchars 0 (1+ nchars)))
+          ((> j end) (values nchars i)))))
+  :length-of-memory-encoding-function
+  (nfunction
+   utf-32-length-of-memory-encoding
+   (lambda (pointer noctets start)
+     (when (> noctets 1)
+       (case (%get-unsigned-long pointer )
+         (#.byte-order-mark-char-code
+          (incf start 4)
+          (decf noctets 4))
+         (#.swapped-byte-order-mark-char-code
+          (incf start 4)
+          (decf noctets 4))))
+     (values (floor noctets 4) (+ start noctets))))
+  :literal-char-code-limit #x110000
+  :use-byte-order-mark
+  #+big-endian-target :utf-32le
+  #+little-endian-target :utf-32be
   )
 
 (defun describe-character-encoding (name)
