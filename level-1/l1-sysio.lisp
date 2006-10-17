@@ -204,6 +204,8 @@ is :UNIX.")
     (if (null newpos)
       curpos
       (progn
+        (unless (= newpos 0)
+          (setf (ioblock-pending-byte-order-mark file-ioblock) nil))
 	(if (and (>= newpos element-base)
 		 (<= newpos maxpos))
 	  ;; Backing up is easy.  Skipping forward (without flushing
@@ -246,6 +248,8 @@ is :UNIX.")
 	(1- curpos)
 	curpos)
       (let* ((incount (io-buffer-count outbuf)))
+        (unless (= newpos 0)
+          (setf (ioblock-pending-byte-order-mark file-ioblock) nil))        
 	(when (file-ioblock-untyi-char file-ioblock)
 	  (setf (file-ioblock-untyi-char file-ioblock) nil)
 	  (if (> curidx 0)
@@ -838,17 +842,9 @@ is :UNIX.")
                     (push fstream *open-file-streams*))
                   fstream)))))))))
 
-(defmethod stream-external-format ((s fundamental-file-stream))
-  (file-stream-external-format s))
 
-(defmethod stream-external-format ((s basic-file-stream))
-  (basic-file-stream.external-format s))
 
-(defmethod file-stream-external-format ((s basic-file-stream))
-  (basic-file-stream.external-format s))
 
-(defmethod (setf file-stream-external-format) (new (s basic-file-stream))
-  (setf (basic-file-stream.external-format s) new))
 
 
 (defmethod stream-external-format ((s broadcast-stream))
@@ -875,7 +871,30 @@ is :UNIX.")
 			 (eq 'base-char eltype)
 			 (subtypep eltype 'character))))
 	(error "~S is not a file stream capable of character output" stream))
-      (etypecase object
-	(character 1)
-	(string (length object))))))
+      (if (typep object 'character)
+        (setq object (make-string 1 :initial-element object))
+        (progn
+          (require-type object 'string)))
+      (let* ((start 0)
+             (end (length object)))
+        (multiple-value-bind (data offset) (array-data-and-offset object)
+          (unless (eq data object)
+            (setq object data)
+            (incf start offset)
+            (incf end offset)))
+        (let* ((external-format (stream-external-format stream))
+               (encoding (get-character-encoding (external-format-character-encoding external-format)))
+               (line-termination (external-format-line-termination external-format)))
+          (-
+           (+ (funcall (character-encoding-octets-in-string-function encoding)
+                       object
+                       start
+                       end)
+              (if (eq line-termination :crlf)
+                (* (count #\Newline object :start start :end end)
+                   (file-string-length stream #\Return))
+                0))
+           (if (eql (file-position stream) 0)
+             0
+             (length (character-encoding-bom-encoding encoding)))))))))
   
