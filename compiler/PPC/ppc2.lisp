@@ -6481,10 +6481,30 @@
   (ppc2-binary-builtin seg vreg xfer '/-2 form1 form2))
 
 (defppc2 ppc2-%aref1 %aref1 (seg vreg xfer v i)
-  (ppc2-binary-builtin seg vreg xfer '%aref1 v i))
+  (let* ((vtype (acode-form-type v t))
+         (atype (if vtype (specifier-type vtype)))
+         (keyword (if (and atype
+                           (not (array-ctype-complexp atype)))
+                    (funcall
+                        (arch::target-array-type-name-from-ctype-function
+                         (backend-target-arch *target-backend*))
+                        atype))))
+    (if keyword
+      (ppc2-vref  seg vreg xfer keyword v i (not *ppc2-reckless*))
+      (ppc2-binary-builtin seg vreg xfer '%aref1 v i))))
 
 (defppc2 ppc2-%aset1 aset1 (seg vreg xfer v i n)
-  (ppc2-ternary-builtin seg vreg xfer '%aset1 v i n))
+  (let* ((vtype (acode-form-type v t))
+         (atype (if vtype (specifier-type vtype)))
+         (keyword (if (and atype
+                           (not (array-ctype-complexp atype)))
+                    (funcall
+                        (arch::target-array-type-name-from-ctype-function
+                         (backend-target-arch *target-backend*))
+                        atype))))
+    (if keyword
+      (ppc2-vset seg vreg xfer keyword v i n (not *ppc2-reckless*))
+      (ppc2-ternary-builtin seg vreg xfer '%aset1 v i n))))
 
 (defppc2 ppc2-%i+ %i+ (seg vreg xfer form1 form2 &optional overflow)
   (cond ((null vreg) 
