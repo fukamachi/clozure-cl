@@ -1,3 +1,39 @@
+2006-10-17 14:02  gb
+
+	* level-1/l1-unicode.lisp: BOM-ENCODING.
+
+2006-10-17 14:02  gb
+
+	* level-1/l1-sysio.lisp: FILE-STRING-LENGTH actually does
+	something.
+	
+	Clear the pending-bom flag when seeking.
+
+2006-10-17 14:01  gb
+
+	* level-1/l1-streams.lisp: (SETF STREAM-EXTERNAL-FORMAT) for
+	ioblock-based character streams.
+
+2006-10-17 13:45  gb
+
+	* compiler/X86/: x862.lisp, X8664/x8664-vinsns.lisp: bind/unbind
+	*interrupt-level* inline.
+
+2006-10-17 13:44  gb
+
+	* compiler/X86/x86-disassemble.lisp: Act like ud2a takes a one-byte
+	immmediate operand (xuuo).
+
+2006-10-17 13:39  gb
+
+	* level-1/l1-streams.lisp, lib/streams.lisp: Disable interrupts
+	when necessary.
+
+2006-10-17 13:39  gb
+
+	* compiler/PPC/: ppc2.lisp, PPC32/ppc32-vinsns.lisp,
+	PPC64/ppc64-vinsns.lisp: bind/unbind *interrupt-level* inline.
+
 2006-10-15 17:51  gb
 
 	* level-1/l1-streams.lisp: Handle 32-bit character encodings.
