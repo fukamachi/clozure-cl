@@ -100,6 +100,9 @@
   ;; By what other MIME names is this encoding known ?
   (aliases nil)
   (documentation nil)
+  ;; What does a native byte-order-mark look like (as a sequence of octets)
+  ;; in this encoding ? (NIL if a BOM can't be encoded.)
+  (bom-encoding nil)
   )
 
 (defconstant byte-order-mark #\u+feff)
@@ -1231,6 +1234,7 @@ bytes."
              (return (values nchars i))
              (setq nchars (1+ nchars) i nexti))))))
     :literal-char-code-limit #x80
+    :bom-encoding #(#xef #xbb #xbf)
     )
 
 
@@ -1894,6 +1898,7 @@ in native byte-order with a leading byte-order mark."
   :use-byte-order-mark
   #+big-endian-target :utf-16le
   #+little-endian-target :utf-16be
+  :bom-encoding #+big-endian-target #(#xfe #xff) #+little-endian-target #(#xff fe)
   )
 
 
@@ -2648,6 +2653,8 @@ or prepended to output."
   :use-byte-order-mark
   #+big-endian-target :utf-32le
   #+little-endian-target :utf-32be
+  :bom-encoding #+big-endian-target #(#x00 #x00 #xfe #xff) #+little-endian-target #(#xff #xfe #x00 #x00)
+  
   )
 
 (defun describe-character-encoding (name)
