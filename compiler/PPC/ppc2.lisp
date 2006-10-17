@@ -3678,8 +3678,12 @@
                                      (eq (cadr value) sym)))))
       (cond ((eq sym '*interrupt-level*)
              (let* ((fixval (acode-fixnum-form-p value)))
-               (cond ((eql fixval 0) (! bind-interrupt-level-0))
-                     ((eql fixval -1) (! bind-interrupt-level-m1))
+               (cond ((eql fixval 0) (if *ppc2-open-code-inline*
+                                       (! bind-interrupt-level-0-inline)
+                                       (! bind-interrupt-level-0)))
+                     ((eql fixval -1) (if *ppc2-open-code-inline*
+                                        (! bind-interrupt-level-m1-inline)
+                                        (! bind-interrupt-level-m1)))
                      (t
                       (if ea-p 
                         (ppc2-store-ea seg value ppc::arg_z)
@@ -4905,7 +4909,9 @@
               (when (> n 0)
                 (! dpayback n)
                 (setq n 0))
-              (! unbind-interrupt-level))
+              (if *ppc2-open-code-inline*
+                (! unbind-interrupt-level-inline)
+                (! unbind-interrupt-level)))
             (nx-error "unknown payback token ~s" r)))))))
 
 (defun ppc2-spread-lambda-list (seg listform whole req opt rest keys 
