@@ -33,13 +33,15 @@
 
 (defun read-line (&optional input-stream (eof-error-p t) eof-value recursive-p)
   
-  (declare (ignore recursive-p))
+  (declare (ignore recursive-p)
+           (optimize (speed 3)))
   (let* ((input-stream (designated-input-stream input-stream)))
     (multiple-value-bind (string eof)
         (if (typep input-stream 'basic-stream)
           (let* ((ioblock (basic-stream-ioblock input-stream)))
-            (with-ioblock-input-locked (ioblock)
-              (funcall (ioblock-read-line-function ioblock) ioblock)))
+            (without-interrupts
+             (with-ioblock-input-locked (ioblock)
+               (funcall (ioblock-read-line-function ioblock) ioblock))))
           (stream-read-line input-stream))
       (if eof
 	(if (= (length string) 0)
@@ -54,12 +56,12 @@
            (optimize (speed 3) (space 0)))
   (setq input-stream (designated-input-stream input-stream))
   (if (typep input-stream 'basic-stream)
-    (let* ((ioblock (basic-stream.state input-stream)))
-      (if ioblock
-        (check-eof
-         (funcall (ioblock-read-char-function ioblock) ioblock)
-         input-stream eof-error-p eof-value)
-        (stream-is-closed input-stream)))
+    (let* ((ioblock (basic-stream-ioblock input-stream)))
+      (check-eof
+       (without-interrupts
+        (values
+         (funcall (ioblock-read-char-function ioblock) ioblock)))
+       input-stream eof-error-p eof-value))
     (check-eof (stream-read-char input-stream)
                input-stream
                eof-error-p
@@ -67,7 +69,18 @@
 
 (defun unread-char (char &optional input-stream)
   (let* ((input-stream (designated-input-stream input-stream)))
-    (stream-unread-char input-stream char)
+    (if (typep input-stream 'basic-stream)
+      (let* ((flags (basic-stream.flags input-stream)))
+        (declare (fixnum flags))
+        (if (= (the fixnum (logand flags (logior (ash 1 basic-stream-flag.open-input)
+                                                 (ash 1 basic-stream-flag.open-character))))
+               (logior (ash 1 basic-stream-flag.open-input)
+                                                 (ash 1 basic-stream-flag.open-character)))
+          (let* ((ioblock (basic-stream-ioblock input-stream)))
+            (without-interrupts
+             (%ioblock-untyi ioblock char)))
+          (stream-unread-char input-stream char)))
+      (stream-unread-char input-stream char))
     nil))
 
 (defun peek-char (&optional peek-type input-stream
@@ -95,14 +108,14 @@
   (check-eof (stream-read-char-no-hang input-stream) input-stream eof-error-p eof-value))
 
 (defun read-byte (stream &optional (eof-error-p t) eof-value)
+  (declare (optimize (speed 3) (space 0)))
   (if (typep stream 'basic-stream)
-    (let* ((ioblock (basic-stream.state stream)))
-      (if ioblock
-        (check-eof (funcall (ioblock-read-byte-function ioblock) ioblock)
-                   stream
-                   eof-error-p
-                   eof-value)
-        (stream-is-closed ioblock)))
+    (let* ((ioblock (basic-stream-ioblock stream)))
+      (check-eof (without-interrupts
+                  (values (funcall (ioblock-read-byte-function ioblock) ioblock)))
+                 stream
+                 eof-error-p
+                 eof-value))
     (check-eof
      (stream-read-byte stream)
      stream
@@ -128,10 +141,13 @@
   80)
 
 (defun write-byte (byte stream)
+  (declare (optimize (speed 3) (space 0)))
   "Write one byte, BYTE, to STREAM."
   (if (typep stream 'basic-stream)
     (let* ((ioblock (basic-stream-ioblock stream)))
-      (funcall (ioblock-write-byte-function ioblock) ioblock byte))
+      (without-interrupts
+       (values
+        (funcall (ioblock-write-byte-function ioblock) ioblock byte))))
     (stream-write-byte stream byte))
   byte)
 
