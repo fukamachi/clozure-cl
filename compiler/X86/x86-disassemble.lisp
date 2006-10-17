@@ -1165,7 +1165,7 @@
    (make-x86-dis "invd")
    (make-x86-dis "wbinvd")
    (make-x86-dis "(bad)")
-   (make-x86-dis "ud2a")
+   (make-x86-dis "ud2a" 'op-i +b-mode+)
    (make-x86-dis "(bad)")
    (make-x86-dis nil nil +use-groups+ nil 22)
    (make-x86-dis "femms")
