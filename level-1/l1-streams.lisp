@@ -44,6 +44,10 @@
 (defmethod stream-direction ((s stream))
   )
 
+(defmethod stream-domain ((s stream))
+  t)
+
+
 (defmethod stream-direction ((s input-stream))
   (if (typep s 'output-stream)
     :io
@@ -3121,12 +3125,8 @@
               (and
                (>= n min)
                (case (case unit-size
-                       (16 (logior (ash (aref buf 0) 8)
-                                   (aref buf 1)))
-                       (32 (logior (ash (aref buf 0) 24)
-                                   (ash (aref buf 1) 16)
-                                   (ash (aref buf 2) 8)
-                                   (aref buf 3))))
+                       (16 (%native-u8-ref-u16 buf 0))
+                       (32 (%native-u8-ref-u32 buf 0)))
                  (#.byte-order-mark-char-code
                   (setf (io-buffer-idx inbuf) min)
                   nil)
@@ -3451,6 +3451,10 @@
 
 (defclass file-stream (stream)
     ())
+
+(defmethod stream-domain ((s file-stream))
+  :file)
+
 
 
 ;;; "Basic" (non-extensible) streams.
@@ -4937,6 +4941,9 @@
              :unsigned-fullword))
 
 (defun unread-data-available-p (fd)
+  #+freebsd-target
+  (fd-input-available-p fd 0)
+  #-freebsd-target
   (rlet ((arg (* :char) (%null-ptr)))
     (when (zerop (syscall syscalls::ioctl fd #$FIONREAD arg))
       (let* ((avail (pref arg :long)))
@@ -5471,9 +5478,23 @@ are printed.")
   (let* ((stream (real-print-stream stream)))
     (stream-line-column stream)))        
 
+(defun (setf %ioblock-external-format) (ef ioblock)
+  (let* ((encoding (get-character-encoding (external-format-character-encoding ef)))
+         (line-termination (external-format-line-termination ef)))
+    (when (eq encoding (get-character-encoding nil))
+      (setq encoding nil))
+    (when (ioblock-inbuf ioblock)
+      (setup-ioblock-input ioblock t (ioblock-element-type ioblock) (ioblock-sharing ioblock) encoding line-termination))
+    (when (ioblock-outbuf ioblock)
+      (setup-ioblock-output ioblock t (ioblock-element-type ioblock) (ioblock-sharing ioblock) encoding line-termination))
+    ef))
 
 (defmethod stream-external-format ((s basic-character-stream))
   (%ioblock-external-format (stream-ioblock s t)))
+
+(defmethod (setf stream-external-format) (new (s basic-character-stream))
+  (setf (%ioblock-external-format (stream-ioblock s t))
+        (normalize-external-format (stream-domain s) new)))
 
 (defmethod stream-external-format ((s buffered-stream-mixin))
   (%ioblock-external-format (stream-ioblock s t)))
