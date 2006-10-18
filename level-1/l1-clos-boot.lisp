@@ -1136,7 +1136,9 @@ Generic-function's   : ~s~%" method (or (generic-function-name gf) gf) (flatten-
   (gethash name *type-kind-info*))
 
 (defun (setf info-type-kind) (val name)
-  (setf (gethash name *type-kind-info*) val))
+  (if val
+    (setf (gethash name *type-kind-info*) val)
+    (remhash name *type-kind-info*)))
 
 (defun missing-type-method (&rest foo)
   (error "Missing type method for ~S" foo))
@@ -1212,7 +1214,8 @@ Generic-function's   : ~s~%" method (or (generic-function-name gf) gf) (flatten-
   (clear-type-cache)
   (let ((cell (find-class-cell name class)))
     (when cell
-      (setf (info-type-kind name) :instance)
+      (if (eq name (%class.name class))
+        (setf (info-type-kind name) :instance))
       (setf (cdr (the cons cell)) class))
     class))
 
@@ -1249,32 +1252,34 @@ to replace that class with ~s" name old-class new-class)
 
 
 (queue-fixup
- (without-interrupts 
-  (defun set-find-class (name class)
-    (setq name (require-type name 'symbol))
-    (let ((cell (find-class-cell name class)))
-      (declare (type list cell))
-      (when *warn-if-redefine-kernel*
-        (let ((old-class (cdr cell)))
-	  (when old-class
-	    (check-setf-find-class-protected-class old-class class name))))
-      (when (null class)
-        (when cell
-          (setf (cdr cell) nil))
-        (return-from set-find-class nil))
-      (setq class (require-type class 'class))
-      (when (built-in-type-p name)
-        (unless (eq (cdr cell) class)
-          (error "Cannot redefine built-in type name ~S" name)))
-      (when (%deftype-expander name)
-        (cerror "set ~S anyway, removing the ~*~S definition"
-                "Cannot set ~S because type ~S is already defined by ~S"
-                `(find-class ',name) name 'deftype)
-        (%deftype name nil nil))
-      (setf (info-type-kind name) :instance)
-      (setf (cdr cell) class)))
-  ) ; end of without-interrupts
- ) ; end of queue-fixup
+ (defun set-find-class (name class)
+   (setq name (require-type name 'symbol))
+   (let ((cell (find-class-cell name class)))
+     (declare (type list cell))
+       (let ((old-class (cdr cell)))
+         (when old-class
+           (when (eq (%class.name old-class) name)
+             (setf (info-type-kind name) nil)
+             (clear-type-cache))
+           (when *warn-if-redefine-kernel*
+             (check-setf-find-class-protected-class old-class class name))))
+     (when (null class)
+       (when cell
+         (setf (cdr cell) nil))
+       (return-from set-find-class nil))
+     (setq class (require-type class 'class))
+     (when (built-in-type-p name)
+       (unless (eq (cdr cell) class)
+         (error "Cannot redefine built-in type name ~S" name)))
+     (when (eq (%class.name class) name)
+       (when (%deftype-expander name)
+         (cerror "set ~S anyway, removing the ~*~S definition"
+                 "Cannot set ~S because type ~S is already defined by ~S"
+                 `(find-class ',name) name 'deftype)
+         (%deftype name nil nil))
+       (setf (info-type-kind name) :instance))
+     (setf (cdr cell) class)))
+ )                                      ; end of queue-fixup
 
 
 
@@ -1506,11 +1511,16 @@ to replace that class with ~s" name old-class new-class)
 
 (defglobal *function-class* (make-built-in-class 'function))
 
+(defun alias-class (name class)
+  (setf (find-class name) class
+        (info-type-kind name) :instance)
+  class)
+
 ;;;Right now, all functions are compiled.
 
 
 (defglobal *compiled-function-class* *function-class*)
-(setf (find-class 'compiled-function) *compiled-function-class*)
+(alias-class 'compiled-function *compiled-function-class*)
 
 (defglobal *compiled-lexical-closure-class* 
   (make-standard-class 'compiled-lexical-closure *function-class*))
@@ -1651,8 +1661,8 @@ to replace that class with ~s" name old-class new-class)
   (defglobal *float-class* (make-built-in-class 'float (find-class 'real)))
   (defglobal *double-float-class* (make-built-in-class 'double-float (find-class 'float)))
   (defglobal *single-float-class*  (make-built-in-class 'single-float (find-class 'float)))
-  (setf (find-class 'short-float) *single-float-class*)
-  (setf (find-class 'long-float) *double-float-class*)
+  (alias-class 'short-float *single-float-class*)
+  (alias-class 'long-float *double-float-class*)
 
   (make-built-in-class 'rational (find-class 'real))
   (make-built-in-class 'ratio (find-class 'rational))
@@ -1670,12 +1680,9 @@ to replace that class with ~s" name old-class new-class)
 
   (make-built-in-class 'logical-pathname (find-class 'pathname))
   
-  (defglobal *base-char-class* (setf (find-class 'base-char) *character-class*))
+  (defglobal *base-char-class* (alias-class 'base-char *character-class*))
   (defglobal *standard-char-class* (make-built-in-class 'standard-char *base-char-class*))
   
-  #+who-needs-extended-char
-  (make-built-in-class 'extended-char *character-class*)
-
   (defglobal *keyword-class* (make-built-in-class 'keyword *symbol-class*))
   
   (make-built-in-class 'list (find-class 'sequence))
@@ -1699,12 +1706,12 @@ to replace that class with ~s" name old-class new-class)
   (progn
     (make-built-in-class 'double-float-vector *vector-class*)
     (make-built-in-class 'short-float-vector *vector-class*)
-    (setf (find-class 'long-float-vector) (find-class 'double-float-vector))
-    (setf (find-class 'single-float-vector) (find-class 'short-float-vector))
+    (alias-class 'long-float-vector (find-class 'double-float-vector))
+    (alias-class 'single-float-vector (find-class 'short-float-vector))
     (make-built-in-class 'simple-double-float-vector (find-class 'double-float-vector) (find-class 'simple-1d-array))
     (make-built-in-class 'simple-short-float-vector (find-class 'short-float-vector) (find-class 'simple-1d-array))
-    (setf (find-class 'simple-long-float-vector) (find-class 'simple-double-float-vector))
-    (setf (find-class 'simple-single-float-vector) (find-class 'simple-short-float-vector))
+    (alias-class 'simple-long-float-vector (find-class 'simple-double-float-vector))
+    (alias-class 'simple-single-float-vector (find-class 'simple-short-float-vector))
     )
 
   #+x8664-target
