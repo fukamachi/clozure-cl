@@ -1,3 +1,18 @@
+2006-10-17 19:15  gb
+
+	* compiler/PPC/PPC32/ppc32-arch.lisp,
+	compiler/PPC/PPC64/ppc64-arch.lisp,
+	compiler/X86/X8664/x8664-arch.lisp, examples/objc-runtime.lisp,
+	level-0/l0-misc.lisp, level-0/PPC/ppc-misc.lisp,
+	lisp-kernel/ppc-constants32.h, lisp-kernel/ppc-constants32.s,
+	lisp-kernel/ppc-constants64.h, lisp-kernel/ppc-constants64.s,
+	lisp-kernel/ppc-exceptions.c, lisp-kernel/x86-constants64.h,
+	lisp-kernel/x86-constants64.s: add safe-ref-address to tcr.
+	
+	Handle memory faults to safe-ref-addres on PPC (so far).
+	
+	Try using SAFE-GET-PTR in objc runtime (untested).
+
 2006-10-17 17:34  gb
 
 	* compiler/PPC/ppc2.lisp: ppc backend %aref1/%aset1: notice array
