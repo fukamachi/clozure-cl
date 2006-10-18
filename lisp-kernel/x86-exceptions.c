@@ -516,13 +516,24 @@ do_soft_stack_overflow(ExceptionInformation *xp, protected_area_ptr prot_area, B
 Boolean
 handle_fault(TCR *tcr, ExceptionInformation *xp, siginfo_t *info)
 {
+#ifdef FREEBSD
+  BytePtr addr = (BytePtr) xp->uc_mcontext.mc_addr;
+#else
   BytePtr addr = (BytePtr) info->si_addr;
-  protected_area *a = find_protected_area(addr);
-  protection_handler *handler;
+#endif
 
-  if (a) {
-    handler = protection_handlers[a->why];
-    return handler(xp, a, addr);
+  if (addr && (addr == tcr->safe_ref_address)) {
+    xpGPR(xp,Iimm0) = 0;
+    xpPC(xp) = xpGPR(xp,Ira0);
+    return true;
+  } else {
+    protected_area *a = find_protected_area(addr);
+    protection_handler *handler;
+
+    if (a) {
+      handler = protection_handlers[a->why];
+      return handler(xp, a, addr);
+    }
   }
   return false;
 }
@@ -759,6 +770,10 @@ handle_exception(int signum, siginfo_t *info, ExceptionInformation  *context, TC
     return handle_fault(tcr, context, info);
 #endif
     
+#if SIGSEGV != SIGNUM_FOR_INTN_TRAP
+  case SIGSEGV:
+    return handle_fault(tcr, context, info);
+#endif    
     
   default:
     return false;
