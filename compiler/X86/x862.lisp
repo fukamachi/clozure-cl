@@ -4382,7 +4382,7 @@
       (if (x86-constant-form-p uwf)
         (x862-branch seg (x862-cd-true xfer))
         (with-crf-target () crf
-          (let* ((ea (x862-lexical-reference-ea form)))
+          (let* ((ea (x862-lexical-reference-ea form nil)))
             (if (and ea (memory-spec-p ea))
               (x862-compare-ea-to-nil seg crf xfer ea x86::x86-e-bits nil)
               (x862-form seg crf xfer form))))))))
@@ -6830,7 +6830,7 @@
 
 (defx862 x862-not not (seg vreg xfer cc form)
   (multiple-value-bind (cr-bit true-p) (acode-condition-to-x86-cr-bit cc)
-    (let* ((ea (x862-lexical-reference-ea form)))
+    (let* ((ea (x862-lexical-reference-ea form nil)))
       (if (and ea (memory-spec-p ea))
         (x862-compare-ea-to-nil
          seg
