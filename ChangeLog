@@ -1,3 +1,32 @@
+2006-10-18 08:04  gb
+
+	* level-1/version.lisp: Bump.  Binaries later today ?
+
+2006-10-18 07:38  gb
+
+	* level-1/l1-clos-boot.lisp: The post-bootstrapping version of
+	(SETF FIND-CLASS) only introduces (or removes) a type name if the
+	class becomes (or ceases to be) a properly named class.
+	
+	The pre-bootstrapping version handles simpler cases of that; use
+	ALIAS-CLASS to register some early class names as type names.
+
+2006-10-18 07:36  gb
+
+	* level-1/l1-clos.lisp: (SETF CLASS-NAME) can affect the type
+	system, since only symbols which name properly-named classes are
+	type specifiers.  Changing the name of a class can either introduce
+	or remove a properly-named class.
+	
+	Classes that have the kernel-p attribute shouldn't have their names
+	changed casually.
+
+2006-10-18 07:33  gb
+
+	* level-1/l1-sockets.lisp: Accept an :EXTERNAL-FORMAT argument to
+	MAKE-SOCKET, pass it down to whatever function actually creates a
+	stream socket.
+
 2006-10-18 02:12  gb
 
 	* compiler/X86/x862.lisp: Allow closed-over addresses in
