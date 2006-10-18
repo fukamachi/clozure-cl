@@ -1,3 +1,8 @@
+2006-10-17 17:34  gb
+
+	* compiler/PPC/ppc2.lisp: ppc backend %aref1/%aset1: notice array
+	type in acode.
+
 2006-10-17 14:02  gb
 
 	* level-1/l1-unicode.lisp: BOM-ENCODING.
