@@ -1,3 +1,35 @@
+2006-10-18 02:12  gb
+
+	* compiler/X86/x862.lisp: Allow closed-over addresses in
+	conditional-form, NOT.
+
+2006-10-18 01:43  gb
+
+	* lisp-kernel/x86-exceptions.c: handle_fault() checks for
+	safe_ref_addres.
+
+2006-10-18 01:43  gb
+
+	* level-0/X86/x86-misc.lisp: %safe-get-ptr for x8664.
+
+2006-10-18 01:41  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: Compare stack
+	addresses/vcells to nil.
+
+2006-10-18 01:41  gb
+
+	* compiler/X86/x862.lisp: Stuff for comparing memory (stack)
+	addresses to NIL.
+	
+	Mark arg_z and rcx/nargs as being in use when restoring interrupt
+	level inline.
+
+2006-10-18 01:39  gb
+
+	* compiler/X86/x86-disassemble.lisp: We've had UUO-ERROR-UNBOUND
+	for a few months now.  The disassembler is always the last to know.
+
 2006-10-17 19:15  gb
 
 	* compiler/PPC/PPC32/ppc32-arch.lisp,
