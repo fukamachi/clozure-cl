@@ -590,13 +590,14 @@ the socket is not connected."))
 		    type connect remote-host remote-port eol format
 		    keepalive reuse-address nodelay broadcast linger
 		    local-port local-host backlog class out-of-band-inline
-		    local-filename remote-filename sharing basic)
+		    local-filename remote-filename sharing basic
+                    external-format)
   "Create and return a new socket."
   (declare (dynamic-extent keys))
   (declare (ignore type connect remote-host remote-port eol format
 		   keepalive reuse-address nodelay broadcast linger
 		   local-port local-host backlog class out-of-band-inline
-		   local-filename remote-filename sharing basic))
+		   local-filename remote-filename sharing basic external-format))
   (ecase address-family
     ((:file) (apply #'make-file-socket keys))
     ((nil :internet) (apply #'make-ip-socket keys))))
@@ -669,55 +670,60 @@ the socket is not connected."))
   
 (defun make-tcp-stream-socket (fd &key remote-host
 				  remote-port
-				  eol
 				  format
 				  (class 'tcp-stream)
                                   (basic t)
+                                  external-format
 				  &allow-other-keys)
   (inet-connect fd
 		(host-as-inet-host remote-host)
 		(port-as-inet-port remote-port "tcp"))
-  (make-tcp-stream fd :format format :eol eol :class class :basic basic))
+  (make-tcp-stream fd :format format :external-format external-format :class class :basic basic))
 
 (defun make-file-stream-socket (fd &key remote-filename
-                                   eol
+                                   external-format
                                    format
                                    (class 'file-socket-stream)
                                    (basic t)
                                    &allow-other-keys)
   (file-socket-connect fd remote-filename)
-  (make-file-socket-stream fd :format format :eol eol :class class :basic basic))
+  (make-file-socket-stream fd :format format :external-format external-format :class class :basic basic))
 
 
-(defun make-tcp-stream (fd &key format eol (class 'tcp-stream) sharing (basic t) &allow-other-keys)
-  (declare (ignore eol))		;???
-  (let ((element-type (ecase format
-			((nil :text) 'character)
-			((:binary :bivalent) '(unsigned-byte 8)))))
-    ;; TODO: check out fd-stream-advance, -listen, -eofp, -force-output, -close
-    ;; See if should specialize any of 'em.
-    (make-fd-stream fd
-		    :class class
-		    :direction :io
-		    :element-type element-type
-                    :sharing sharing
-                    :character-p t
-                    :basic basic)))
+(defun make-tcp-stream (fd &key format external-format (class 'tcp-stream) sharing (basic t) &allow-other-keys)
+  (let* ((external-format (normalize-external-format :socket external-format)))
+    (let ((element-type (ecase format
+                          ((nil :text) 'character)
+                          ((:binary :bivalent) '(unsigned-byte 8)))))
+      ;; TODO: check out fd-stream-advance, -listen, -eofp, -force-output, -close
+      ;; See if should specialize any of 'em.
+      (make-fd-stream fd
+                      :class class
+                      :direction :io
+                      :element-type element-type
+                      :sharing sharing
+                      :character-p t
+                      :encoding (external-format-character-encoding external-format)
+                      :line-termination (external-format-line-termination external-format)
+                      :basic basic))))
 
-(defun make-file-socket-stream (fd &key format eol (class 'file-socket-stream)  sharing basic &allow-other-keys)
-  (declare (ignore eol))		;???
-  (let ((element-type (ecase format
-			((nil :text) 'character)
-			((:binary :bivalent) '(unsigned-byte 8)))))
-    ;; TODO: check out fd-stream-advance, -listen, -eofp, -force-output, -close
-    ;; See if should specialize any of 'em.
-    (make-fd-stream fd
-		    :class class
-		    :direction :io
-		    :element-type element-type
-                    :sharing sharing
-                    :character-p t
-                    :basic basic)))
+(defun make-file-socket-stream (fd &key format external-format (class 'file-socket-stream)  sharing basic &allow-other-keys)
+  (let* ((external-format (normalize-external-format :socket external-format)))
+  
+    (let ((element-type (ecase format
+                          ((nil :text) 'character)
+                          ((:binary :bivalent) '(unsigned-byte 8)))))
+      ;; TODO: check out fd-stream-advance, -listen, -eofp, -force-output, -close
+      ;; See if should specialize any of 'em.
+      (make-fd-stream fd
+                      :class class
+                      :direction :io
+                      :element-type element-type
+                      :encoding (external-format-character-encoding external-format)
+                      :line-termination (external-format-line-termination external-format)
+                      :sharing sharing
+                      :character-p t
+                      :basic basic))))
 
 (defun make-tcp-listener-socket (fd &rest keys &key backlog &allow-other-keys)
   (socket-call nil "listen" (c_listen fd (or backlog 5)))
