@@ -1609,6 +1609,27 @@ governs whether DEFCLASS makes that distinction or not.")
 
 
 (defmethod (setf class-name) (new (class class))
+  (check-type new symbol)
+  (when (and (standard-instance-p class)
+             (%class.kernel-p class)
+             (not (eq new (%class.name class)))
+             *warn-if-redefine-kernel*)
+    (cerror "Change the name of ~s to ~s."
+            "The class ~s may be a critical part of the system;
+changing its name to ~s may have serious consequences." class new))
+  (let* ((old-name (class-name class)))
+    (if (eq (find-class old-name nil) class)
+      (progn
+        (setf (info-type-kind old-name) nil)
+        (clear-type-cache))))
+  (when (eq (find-class new nil) class)
+    (when (%deftype-expander new)
+      (cerror "Change the name of ~S anyway, removing the DEFTYPE definition."
+              "Changing the name of ~S to ~S would conflict with the type defined by DEFTYPE."
+              class new)
+      (%deftype new nil nil))
+    (setf (info-type-kind new) :instance)
+    (clear-type-cache))
   (reinitialize-instance class :name new)
   new)
 
