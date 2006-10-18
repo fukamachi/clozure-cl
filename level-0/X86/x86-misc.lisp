@@ -700,4 +700,18 @@
   (uuo-error-debug-trap-with-string)
   (single-value-return))
 
+(defx86lapfunction %safe-get-ptr ((src arg_y) (dest arg_z))
+  (check-nargs 2)
+  (save-simple-frame)
+  (macptr-ptr src imm0)
+  (leaq (@ (:^ done) (% fn)) (% ra0))
+  (movq (% imm0) (@ (% :rcontext) x8664::tcr.safe-ref-address))
+  (movq (@ (% imm0)) (% imm0))
+  (jmp done)
+  (:tra done)
+  (movq ($ 0) (@ (% :rcontext) x8664::tcr.safe-ref-address))
+  (movq (% imm0) (@ x8664::macptr.address (% dest)))
+  (restore-simple-frame)
+  (single-value-return))
+
 ;;; end of x86-misc.lisp
