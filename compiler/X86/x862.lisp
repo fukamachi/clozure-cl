@@ -887,13 +887,11 @@
              (lcell (pop lcells))
              (splcell (pop splcells))
              (reg (x862-assign-register-var var))
-             (sp-reg ($ x8664::arg_z))
              (regloadedlabel (if reg (backend-get-next-label))))
         (unless (nx-null initform)
-          (x862-stack-to-register seg (x862-vloc-ea spvloc) sp-reg)
           (let ((skipinitlabel (backend-get-next-label)))
             (with-crf-target () crf
-              (x862-compare-register-to-nil seg crf (x862-make-compound-cd 0 skipinitlabel) sp-reg  x86::x86-e-bits t))
+              (x862-compare-ea-to-nil seg crf (x862-make-compound-cd 0 skipinitlabel) (x862-vloc-ea spvloc)  x86::x86-e-bits t))
             (if reg
               (x862-form seg reg regloadedlabel initform)
               (x862-register-to-stack seg (x862-one-untargeted-reg-form seg initform ($ x8664::arg_z)) (x862-vloc-ea vloc)))
@@ -920,13 +918,11 @@
              (regloadedlabel (if reg (backend-get-next-label)))
              (var-lcell (pop lcells))
              (sp-lcell (pop lcells))
-             (sp-reg ($ x8664::arg_z))
              (sploc (%i+ vloc *x862-target-node-size*)))
         (unless (nx-null initform)
-          (x862-stack-to-register seg (x862-vloc-ea sploc) sp-reg)
           (let ((skipinitlabel (backend-get-next-label)))
             (with-crf-target () crf
-              (x862-compare-register-to-nil seg crf (x862-make-compound-cd 0 skipinitlabel) sp-reg  x86::x86-e-bits t))
+              (x862-compare-ea-to-nil seg crf (x862-make-compound-cd 0 skipinitlabel) (x862-vloc-ea sploc)  x86::x86-e-bits t))
             (if reg
               (x862-form seg reg regloadedlabel initform)
               (x862-register-to-stack seg (x862-one-untargeted-reg-form seg initform ($ x8664::arg_z)) (x862-vloc-ea vloc)))
@@ -1039,13 +1035,11 @@
              (spvar (pop spvars))
              (spvloc (%i+ vloc *x862-target-node-size*))
              (var-lcell (pop lcells))
-             (sp-reg ($ x8664::arg_z))
              (sp-lcell (pop lcells)))
         (unless (nx-null initform)
-          (x862-stack-to-register seg (x862-vloc-ea spvloc) sp-reg)
           (let ((skipinitlabel (backend-get-next-label)))
             (with-crf-target () crf
-              (x862-compare-register-to-nil seg crf (x862-make-compound-cd 0 skipinitlabel) sp-reg x86::x86-e-bits t))
+              (x862-compare-ea-to-nil seg crf (x862-make-compound-cd 0 skipinitlabel) (x862-vloc-ea spvloc) x86::x86-e-bits t))
             (x862-register-to-stack seg (x862-one-untargeted-reg-form seg initform ($ x8664::arg_z)) (x862-vloc-ea vloc))
             (@ skipinitlabel)))
         (x862-bind-structured-var seg var vloc var-lcell context)
@@ -3167,6 +3161,24 @@
          (! cr-bit->boolean target cr-bit))
        (^))))))
 
+(defun x862-compare-ea-to-nil (seg vreg xfer ea cr-bit true-p)
+  (with-x86-local-vinsn-macros (seg vreg xfer)
+    (when vreg
+      (if (addrspec-vcell-p ea)
+        (with-node-target () temp
+          (x862-stack-to-register seg ea temp)
+          (! compare-value-cell-to-nil temp))
+        (! compare-vframe-offset-to-nil (memspec-frame-address-offset ea) *x862-vstack*))
+      (regspec-crf-gpr-case 
+       (vreg dest)
+       (^ cr-bit true-p)
+       (progn
+       (ensuring-node-target (target dest)
+         (if (not true-p)
+           (setq cr-bit (logxor 1 cr-bit)))
+         (! cr-bit->boolean target cr-bit))
+       (^))))))
+
 (defun x862-cr-bit-for-unsigned-comparison (cr-bit)
   (ecase cr-bit
     (#.x86::x86-e-bits #.x86::x86-e-bits)
@@ -4370,7 +4382,10 @@
       (if (x86-constant-form-p uwf)
         (x862-branch seg (x862-cd-true xfer))
         (with-crf-target () crf
-          (x862-form seg crf xfer form))))))
+          (let* ((ea (x862-lexical-reference-ea form)))
+            (if (and ea (memory-spec-p ea))
+              (x862-compare-ea-to-nil seg crf xfer ea x86::x86-e-bits nil)
+              (x862-form seg crf xfer form))))))))
 
       
 (defun x862-branch (seg xfer &optional cr-bit true-p)
@@ -4809,7 +4824,8 @@
                 (! dpayback n)
                 (setq n 0))
               (if *x862-open-code-inline*
-                (! unbind-interrupt-level-inline)
+                (let* ((*available-backend-node-temps* (bitclr x8664::arg_z (bitclr x8664::rcx *available-backend-node-temps*))))
+                  (! unbind-interrupt-level-inline))
                 (! unbind-interrupt-level)))
             (nx-error "unknown payback token ~s" r)))))))
 
@@ -6814,13 +6830,22 @@
 
 (defx862 x862-not not (seg vreg xfer cc form)
   (multiple-value-bind (cr-bit true-p) (acode-condition-to-x86-cr-bit cc)
-  (x862-compare-register-to-nil
-   seg 
-   vreg 
-   xfer
-   (x862-one-untargeted-reg-form seg form x8664::arg_z) 
-   cr-bit
-   true-p)))
+    (let* ((ea (x862-lexical-reference-ea form)))
+      (if (and ea (memory-spec-p ea))
+        (x862-compare-ea-to-nil
+         seg
+         vreg
+         xfer
+         ea
+         cr-bit
+         true-p)
+        (x862-compare-register-to-nil
+         seg 
+         vreg 
+         xfer
+         (x862-one-untargeted-reg-form seg form x8664::arg_z) 
+         cr-bit
+         true-p)))))
 
 
 (defx862 x862-%alloc-misc %make-uvector (seg vreg xfer element-count st &optional initval)
