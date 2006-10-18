@@ -426,9 +426,9 @@
 (define-x8664-vinsn (vpush-fixnum :push :node :vsp)
     (()
      ((const :s32const)))
-  ((:and  (:pred < const 128) (:pred > const 127))
+  ((:and  (:pred < const 128) (:pred >= const -128))
    (pushq (:$b const)))
-  ((:not (:and  (:pred < const 128) (:pred > const 127)))
+  ((:not (:and  (:pred < const 128) (:pred >= const -128)))
    (pushq (:$l const))))
 
 
@@ -438,6 +438,15 @@
 				  (cur-vsp :u16const)))
   (movq (:@ (:apply - (:apply + frame-offset x8664::word-size-in-bytes)) (:%q x8664::rbp)) (:%q dest)))
 
+(define-x8664-vinsn compare-vframe-offset-to-nil (()
+                                                  ((frame-offset :u16const)
+                                                   (cur-vsp :u16const)))
+  (cmpb (:$b x8664::fulltag-nil) (:@ (:apply - (:apply + frame-offset x8664::word-size-in-bytes)) (:%q x8664::rbp))))
+
+
+(define-x8664-vinsn compare-value-cell-to-nil (()
+                                               ((vcell :lisp)))
+  (cmpb (:$b x8664::fulltag-nil) (:@ x8664::value-cell.value (:%q vcell))))
 
 (define-x8664-vinsn lcell-load (((dest :lisp))
 				((cell :lcell)
@@ -1698,7 +1707,7 @@
   (movq (:@ (:%seg :rcontext) x8664::tcr.db-link) (:%q link))
   (movq (:@ x8664::interrupt-level-binding-index (:%q tlb)) (:%q curval))
   (testq (:%q curval) (:%q curval))
-  (movq (:@ 8 #|binding.val|# (:%q link)) (:%q oldval))
+  (movq (:@ 16 #|binding.val|# (:%q link)) (:%q oldval))
   (movq (:@ #|binding.link|# (:%q link)) (:%q link))
   (movq (:%q oldval) (:@ x8664::interrupt-level-binding-index (:%q tlb)))
   (movq (:%q link) (:@ (:%seg :rcontext) x8664::tcr.db-link))
