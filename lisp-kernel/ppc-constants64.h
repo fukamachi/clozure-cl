@@ -442,6 +442,7 @@ typedef struct tcr {
   natural tlb_limit;
   LispObj* tlb_pointer;
   natural shutdown_count;
+  void *safe_ref_address;
 } TCR;
 
 #define t_offset -(sizeof(lispsymbol))

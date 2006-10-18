@@ -854,6 +854,12 @@ handle_protection_violation(ExceptionInformation *xp, siginfo_t *info)
   extern Boolean touch_page(void *);
   extern void touch_page_end(void);
 
+  if (addr && (addr == tcr->safe_ref_address)) {
+    adjust_exception_pc(xp,4);
+    xpGPR(xp,imm0) = 0;
+    return 0;
+  }
+
   if (xpPC(xp) == (pc)touch_page) {
     xpGPR(xp,imm0) = 0;
     xpPC(xp) = (pc)touch_page_end;

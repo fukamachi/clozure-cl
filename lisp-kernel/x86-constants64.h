@@ -501,6 +501,7 @@ typedef struct tcr {
   LispObj* tlb_pointer;
   natural shutdown_count;
   LispObj* next_tsp;
+  void *safe_ref_address;
 } TCR;
 
 #define t_offset (t_value-nil_value)

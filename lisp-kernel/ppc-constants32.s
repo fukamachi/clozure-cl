@@ -590,6 +590,7 @@ TCR_BIAS = 0
          _node(tlb_limit)
          _node(tlb_pointer)     /* Consider using tcr+N as tlb_pointer */
 	 _node(shutdown_count)
+         _node(safe_ref_address)
 	_ends
 
 TCR_FLAG_BIT_FOREIGN = fixnum_shift

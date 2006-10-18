@@ -531,6 +531,7 @@
   tlb-limit
   tlb-pointer
   shutdown-count
+  safe-ref-address
 )
 
 (defconstant interrupt-level-binding-index (ash 1 fixnumshift))

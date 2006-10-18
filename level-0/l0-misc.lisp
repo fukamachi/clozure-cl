@@ -627,3 +627,10 @@
     (when (%try-read-lock-rwlock lock)
       (return lock))
     (%nanosleep 0 *ns-per-tick*)))
+
+(defun safe-get-ptr (p &optional dest)
+  (if (null dest)
+    (setq dest (%null-ptr))
+    (check-type dest macptr))
+  (without-interrupts                   ;reentrancy
+   (%safe-get-ptr p dest)))

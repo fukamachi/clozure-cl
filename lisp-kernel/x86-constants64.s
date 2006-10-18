@@ -731,6 +731,7 @@ TCR_BIAS = 0
          _node(tlb_pointer)     /* Consider using tcr+N as tlb_pointer   */
 	 _node(shutdown_count)
          _node(next_tsp)
+         _node(safe_ref_address)
 	_ends
 
 

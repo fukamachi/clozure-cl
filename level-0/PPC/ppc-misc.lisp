@@ -978,4 +978,14 @@
   (la arg_z target::t-offset arg_z)
   (blr))
 
+
+;;; Should be called with interrupts disabled.
+(defppclapfunction %safe-get-ptr ((src arg_y) (dest arg_z))
+  (check-nargs 2)
+  (macptr-ptr imm0 arg_z)
+  (str imm0 target::tcr.safe-ref-address target::rcontext)
+  (ldr imm0 0 imm0)                     ; may fault
+  (str imm0 target::macptr.address dest)
+  (blr))
+  
 ; end of ppc-misc.lisp

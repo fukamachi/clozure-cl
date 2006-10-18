@@ -1447,18 +1447,15 @@ argument lisp string."
 
 
 (defun %objc-instance-class-index (p)
-  #+apple-objc
-  (if (or (with-macptrs ((zone (#_malloc_zone_from_ptr p)))
-	    (not (%null-ptr-p zone)))
-          (pointer-in-cfstring-section-p p))
-    (with-macptrs ((parent (pref p :objc_object.isa)))
+  (if (with-macptrs (q)
+        (safe-get-ptr p q)
+        (not (%null-ptr-p q)))
+    (with-macptrs ((parent #+apple-objc (pref p :objc_object.isa)
+                           #+gnu-objc (pref p :objc_object.class_pointer)))
       (or
        (objc-class-id parent)
        (objc-private-class-id parent))))
-  #+gnu-objc
-  (with-macptrs ((parent (pref p :objc_object.class_pointer)))
-    (objc-class-id-parent))
-  )
+
 
 ;;; If an instance, return (values :INSTANCE <class>)
 ;;; If a class, return (values :CLASS <class>).

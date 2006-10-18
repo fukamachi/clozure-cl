@@ -462,6 +462,7 @@ typedef struct tcr {
   unsigned tlb_limit;
   LispObj *tlb_pointer;
   unsigned shutdown_count;
+  void *safe_ref_address;
 } TCR;
 
 /* 
