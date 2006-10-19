@@ -55,7 +55,7 @@
 
 
 
-(defun %cstr-pointer (string pointer)
+(defun %cstr-pointer (string pointer &optional (nul-terminated t))
   (multiple-value-bind (s o n) (dereference-base-string string)
     (declare (fixnum o n))
     (do* ((i 0 (1+ i))
@@ -63,8 +63,13 @@
          ((= i n))
       (declare (fixnum i o))
       (setf (%get-unsigned-byte pointer i)
-            (logand #xff (char-code (schar s o)))))
-    (setf (%get-byte pointer n) 0))
+            (let* ((code (char-code (schar s o))))
+              (declare (type (mod #x110000) code))
+              (if (< code 256)
+                code
+                (char-code #\Sub)))))
+    (when nul-terminated
+      (setf (%get-byte pointer n) 0)))
   nil)
 
 (defun %cstr-segment-pointer (string pointer start end)
