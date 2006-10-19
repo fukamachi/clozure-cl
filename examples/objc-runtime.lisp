@@ -1454,7 +1454,7 @@ argument lisp string."
                            #+gnu-objc (pref p :objc_object.class_pointer)))
       (or
        (objc-class-id parent)
-       (objc-private-class-id parent))))
+       (objc-private-class-id parent)))))
 
 
 ;;; If an instance, return (values :INSTANCE <class>)
