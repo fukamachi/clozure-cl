@@ -377,11 +377,11 @@
 	       (let* ((chars (hi::line-chars line))
 		      (len (length chars)))
 		 (unless (zerop len)
-		   (%copy-ivector-to-ptr chars 0 bytes pos len)
+                   (%cstr-pointer chars (%inc-ptr bytes pos) nil)
 		   (incf pos len))
 		 (when next
-		   (setf (%get-byte bytes pos) (char-code #\return))
 		   (when cp/m-p
+                     (setf (%get-byte bytes pos) (char-code #\return))
 		     (incf pos)
 		   (setf (%get-byte bytes pos) (char-code #\linefeed))  
 		   (incf pos))))))))))))

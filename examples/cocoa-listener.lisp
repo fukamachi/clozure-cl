@@ -112,9 +112,8 @@
 	   (document (send self 'document))
 	   (data-length (send (the ns:ns-data data) 'length))
 	   (buffer (hemlock-document-buffer document))
-	   (string (make-string data-length))
+	   (string (%str-from-ptr (send data 'bytes) data-length))
 	   (fh filehandle))
-      (%copy-ptr-to-ivector (send data 'bytes) 0 string 0 data-length)
       (enqueue-buffer-operation
        buffer
        #'(lambda ()
@@ -154,7 +153,7 @@
                                          :with-length len) 'autorelease))
          (bytes (send data 'mutable-bytes)))
     (declare (type ns:ns-file-handle filehandle))
-    (%copy-ivector-to-ptr string 0 bytes 0 len)
+    (%cstr-pointer string bytes nil)
     (send filehandle :write-data data)
     (send filehandle 'synchronize-file)))
 
