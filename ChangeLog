@@ -1,3 +1,17 @@
+2006-10-19 13:48  gb
+
+	* level-0/PPC/ppc-misc.lisp: Reference the source argument - not
+	arg_z - in %safe-get-ptr.
+
+2006-10-19 13:22  gb
+
+	* level-0/l0-aprims.lisp: %CSTR-POINTER: make #\Nul termination
+	optional, use #\Sub char-code as replaement char.
+
+2006-10-19 13:21  gb
+
+	* examples/objc-runtime.lisp: Missing close paren.
+
 2006-10-19 13:19  gb
 
 	* examples/: cocoa-editor.lisp, cocoa-listener.lisp: Careful BLTing
