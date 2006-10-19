@@ -1,3 +1,12 @@
+2006-10-19 13:19  gb
+
+	* examples/: cocoa-editor.lisp, cocoa-listener.lisp: Careful BLTing
+	strings to/from foreign memory.
+
+2006-10-19 13:18  gb
+
+	* compiler/PPC/PPC32/ppc32-vinsns.lisp: Typos in UNBOX-S8.
+
 2006-10-18 08:04  gb
 
 	* level-1/version.lisp: Bump.  Binaries later today ?
