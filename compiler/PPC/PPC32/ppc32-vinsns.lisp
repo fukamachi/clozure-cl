@@ -1177,12 +1177,12 @@
                               ((crf :crf)))
   (slwi dest src (- ppc32::nbits-in-word (+ 8 ppc32::fixnumshift)))
   (srawi dest dest (- ppc32::nbits-in-word 8))
-  (slwi dest src ppc32::fixnumshift)
+  (slwi dest dest ppc32::fixnumshift)
   (cmpw crf dest src)
   (srawi dest src ppc32::fixnumshift)
   (beq+ crf :got-it)
   :bad
-  (uuo_interr arch::error-object-not-signed-byte-16 src)
+  (uuo_interr arch::error-object-not-signed-byte-8 src)
   :got-it)
 
 (define-ppc32-vinsn unbox-base-char (((dest :u32))
