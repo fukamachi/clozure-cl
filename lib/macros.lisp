@@ -1363,10 +1363,11 @@ string bounded by start and end. BODY is executed as an implicit progn."
 		   (t
 		    `(make-string-input-stream ,string ,(or start 0) ,end)))))
       ,@decls
-      (multiple-value-prog1 (unwind-protect
-                                 (progn ,@forms)
-                              (close ,var))
-        ,@(if index `((setf ,index (string-input-stream-index ,var))))))))
+      (unwind-protect
+           (multiple-value-prog1
+               (progn ,@forms)
+             ,@(if index `((setf ,index (string-input-stream-index ,var)))))
+        (close ,var)))))
 
 (defmacro with-output-to-string ((var &optional string &key (element-type 'base-char element-type-p))
                                  &body body 
