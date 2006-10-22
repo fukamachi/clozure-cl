@@ -1165,7 +1165,7 @@
 
 (defun %locked-ioblock-read-u8-encoded-char (ioblock)
   (declare (optimize (speed 3) (safety 0)))
-m  (with-ioblock-input-lock-grabbed (ioblock)
+  (with-ioblock-input-lock-grabbed (ioblock)
     (%ioblock-read-u8-encoded-char ioblock)))
 
 (declaim (inline %ioblock-read-u16-encoded-char))
