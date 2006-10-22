@@ -39,9 +39,8 @@
     (multiple-value-bind (string eof)
         (if (typep input-stream 'basic-stream)
           (let* ((ioblock (basic-stream-ioblock input-stream)))
-            (without-interrupts
-             (with-ioblock-input-locked (ioblock)
-               (funcall (ioblock-read-line-function ioblock) ioblock))))
+            (with-ioblock-input-locked (ioblock)
+               (funcall (ioblock-read-line-function ioblock) ioblock)))
           (stream-read-line input-stream))
       (if eof
 	(if (= (length string) 0)
@@ -58,9 +57,7 @@
   (if (typep input-stream 'basic-stream)
     (let* ((ioblock (basic-stream-ioblock input-stream)))
       (check-eof
-       (without-interrupts
-        (values
-         (funcall (ioblock-read-char-function ioblock) ioblock)))
+       (funcall (ioblock-read-char-function ioblock) ioblock)
        input-stream eof-error-p eof-value))
     (check-eof (stream-read-char input-stream)
                input-stream
@@ -70,16 +67,8 @@
 (defun unread-char (char &optional input-stream)
   (let* ((input-stream (designated-input-stream input-stream)))
     (if (typep input-stream 'basic-stream)
-      (let* ((flags (basic-stream.flags input-stream)))
-        (declare (fixnum flags))
-        (if (= (the fixnum (logand flags (logior (ash 1 basic-stream-flag.open-input)
-                                                 (ash 1 basic-stream-flag.open-character))))
-               (logior (ash 1 basic-stream-flag.open-input)
-                                                 (ash 1 basic-stream-flag.open-character)))
-          (let* ((ioblock (basic-stream-ioblock input-stream)))
-            (without-interrupts
-             (%ioblock-untyi ioblock char)))
-          (stream-unread-char input-stream char)))
+      (let* ((ioblock (basic-stream-ioblock input-stream)))
+        (funcall (ioblock-unread-char-function ioblock) ioblock char))
       (stream-unread-char input-stream char))
     nil))
 
@@ -111,8 +100,7 @@
   (declare (optimize (speed 3) (space 0)))
   (if (typep stream 'basic-stream)
     (let* ((ioblock (basic-stream-ioblock stream)))
-      (check-eof (without-interrupts
-                  (values (funcall (ioblock-read-byte-function ioblock) ioblock)))
+      (check-eof (funcall (ioblock-read-byte-function ioblock) ioblock)
                  stream
                  eof-error-p
                  eof-value))
@@ -145,9 +133,7 @@
   "Write one byte, BYTE, to STREAM."
   (if (typep stream 'basic-stream)
     (let* ((ioblock (basic-stream-ioblock stream)))
-      (without-interrupts
-       (values
-        (funcall (ioblock-write-byte-function ioblock) ioblock byte))))
+      (funcall (ioblock-write-byte-function ioblock) ioblock byte))
     (stream-write-byte stream byte))
   byte)
 
