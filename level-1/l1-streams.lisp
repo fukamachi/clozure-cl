@@ -474,20 +474,19 @@
 (defun %bivalent-ioblock-read-u8-byte (ioblock)
   (declare (optimize (speed 3) (safety 0)))
   (if (ioblock-untyi-char ioblock)
-    (prog1 (%char-code (ioblock-untyi-char ioblock))
-      (setf (ioblock-untyi-char ioblock) nil))
-    (let* ((buf (ioblock-inbuf ioblock))
-	   (idx (io-buffer-idx buf))
-	   (limit (io-buffer-count buf)))
-      (declare (fixnum idx limit))
-      (when (= idx limit)
-	(unless (%ioblock-advance ioblock t)
-	  (return-from %bivalent-ioblock-read-u8-byte :eof))
-	(setq idx (io-buffer-idx buf)
-	      limit (io-buffer-count buf)))
-      (setf (io-buffer-idx buf) (the fixnum (1+ idx)))
-      (aref (the (simple-array (unsigned-byte 8) (*))
-              (io-buffer-buffer buf)) idx))))
+    (setf (ioblock-untyi-char ioblock) nil))
+  (let* ((buf (ioblock-inbuf ioblock))
+         (idx (io-buffer-idx buf))
+         (limit (io-buffer-count buf)))
+    (declare (fixnum idx limit))
+    (when (= idx limit)
+      (unless (%ioblock-advance ioblock t)
+        (return-from %bivalent-ioblock-read-u8-byte :eof))
+      (setq idx (io-buffer-idx buf)
+            limit (io-buffer-count buf)))
+    (setf (io-buffer-idx buf) (the fixnum (1+ idx)))
+    (aref (the (simple-array (unsigned-byte 8) (*))
+              (io-buffer-buffer buf)) idx)))
 
 
 (declaim (inline %ioblock-read-u8-byte))
@@ -1166,7 +1165,7 @@
 
 (defun %locked-ioblock-read-u8-encoded-char (ioblock)
   (declare (optimize (speed 3) (safety 0)))
-  (with-ioblock-input-locked (ioblock)
+m  (with-ioblock-input-lock-grabbed (ioblock)
     (%ioblock-read-u8-encoded-char ioblock)))
 
 (declaim (inline %ioblock-read-u16-encoded-char))
@@ -3696,11 +3695,11 @@
     (call-next-method)
     (let* ((ioblock (basic-stream-ioblock stream)))
       (with-ioblock-input-locked (ioblock)
-      (locally (declare (optimize (speed 3)))
-        (without-interrupts
-         (values
-          (funcall (ioblock-character-read-vector-function ioblock)
-                   ioblock vector start end))))))))
+        (locally (declare (optimize (speed 3)))
+          (without-interrupts
+           (values
+            (funcall (ioblock-character-read-vector-function ioblock)
+                     ioblock vector start end))))))))
 
 (defmethod stream-read-line ((stream basic-character-input-stream))
   (let* ((ioblock (basic-stream-ioblock stream)))
@@ -4514,7 +4513,7 @@
   char)
 
 (defmethod stream-read-byte ((stream buffered-binary-input-stream-mixin))
-  (with-stream-ioblock-input (ioblock stream :speedy t)
+  (let* ((ioblock (stream-ioblock stream t)))
     (locally (declare (optimize (speed 3)))
       (without-interrupts
        (values
@@ -4522,11 +4521,10 @@
 
 (defmethod stream-read-byte ((stream basic-binary-input-stream))
   (let* ((ioblock (basic-stream-ioblock stream)))
-    (with-ioblock-input-locked (ioblock)
-      (locally (declare (optimize (speed 3)))
-        (without-interrupts
-         (values
-          (funcall (ioblock-read-byte-function ioblock) ioblock)))))))
+    (locally (declare (optimize (speed 3)))
+      (without-interrupts
+       (values
+        (funcall (ioblock-read-byte-function ioblock) ioblock))))))
 
 (defmethod stream-eofp ((stream buffered-input-stream-mixin))
   (with-stream-ioblock-input (ioblock stream :speedy t)
