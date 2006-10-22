@@ -1,3 +1,25 @@
+2006-10-21 18:46  gb
+
+	* level-1/l1-streams.lisp: Typo.
+
+2006-10-21 18:41  gb
+
+	* lisp-kernel/x86-exceptions.c: Initialize (zero, usually) more
+	fields in pseudo sigcontexts.
+
+2006-10-21 18:40  gb
+
+	* level-1/l1-streams.lisp: Mostly locking changes (don't lock
+	twice, etc.)
+
+2006-10-21 18:35  gb
+
+	* level-0/l0-array.lisp, level-0/l0-init.lisp,
+	level-0/l0-pred.lisp, level-0/l0-utils.lisp,
+	level-0/PPC/ppc-array.lisp, level-0/PPC/ppc-symbol.lisp,
+	level-0/X86/x86-symbol.lisp, level-1/l1-aprims.lisp,
+	lib/sequences.lisp: Remove vestival #+target-8-bit-chars stuff.
+
 2006-10-21 16:45  gb
 
 	* level-1/l1-unicode.lisp: New! Improved! Now with more iso-8859
