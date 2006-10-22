@@ -7,11 +7,11 @@ x/x $arg0-12
 end
 
 define lisp_string32
-x/s ($arg0-2)
+call print_lisp_object($arg0)
 end
 
 define lisp_string64
-x/s (($arg0)-4)
+call print_lisp_object($arg0)
 end
 
 define pname32
