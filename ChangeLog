@@ -1,3 +1,37 @@
+2006-10-22 08:02  gb
+
+	* compiler/PPC/ppc2.lisp: MULTIPLE-VALUE-PROG1: treat the first
+	form like a PROGN if there are no other forms.
+
+2006-10-22 08:01  gb
+
+	* level-1/l1-streams.lisp: Don't disable interrupts when calling
+	ioblock functions.
+	
+	New string-stream implementation.  Better ...
+
+2006-10-22 07:59  gb
+
+	* lib/macros.lisp: If WITH-OUTPUT-TO-STRING gets the string, do so
+	before the stream closes.
+
+2006-10-22 07:59  gb
+
+	* lib/pprint.lisp: Don't assume that string output stream strings
+	have a fill-pointer; use STREAM-POSITION instead.
+
+2006-10-22 07:57  gb
+
+	* lib/streams.lisp: Don't disable interrupts when calling ioblock
+	functions, after all.
+	
+	Go through (new) ioblock-unread-char-function.
+
+2006-10-22 07:55  gb
+
+	* lisp-kernel/darwinppc/.gdbinit: Stop trying to print strings via
+	x/s
+
 2006-10-21 18:46  gb
 
 	* level-1/l1-streams.lisp: Typo.
