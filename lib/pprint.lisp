@@ -727,7 +727,7 @@
   (setf (xp-qright xp) #.(- queue-entry-size))
   (setf (xp-prefix-stack-ptr xp) #.(- prefix-stack-entry-size))
   (let ((s (xp-string-stream xp)))
-    (when s (setf (fill-pointer (string-stream-string s)) 0)))
+    (when s (stream-position s 0)))
   xp)
 
 ;The char-mode stuff is a bit tricky.
@@ -1022,7 +1022,7 @@
       (xp-base-stream xp))
      ((= lc 0)
       (if  (null (xp-string-stream xp))
-        (setf (xp-string-stream xp) (make-string-output-stream :element-type 'base-char)) ; ??
+        (setf (xp-string-stream xp) (make-string-output-stream))
         (xp-string-stream xp))))))
   
 
