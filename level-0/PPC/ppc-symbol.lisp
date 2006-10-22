@@ -143,14 +143,8 @@
     @loop
     (cmpri cr1 len '1)
     (subi len len '1)
-    #+target-8-bit-chars
-    (progn
-      (lbzx nextw str offset)
-      (addi offset offset 1))
-    #-target-8-bit-chars
-    (progn
-      (lwzx nextw str offset)
-      (addi offset offset 4))
+    (lwzx nextw str offset)
+    (addi offset offset 4)
     (rotlwi accum accum 5)
     (xor accum accum nextw)
     (bne cr1 @loop)

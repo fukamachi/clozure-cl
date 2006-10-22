@@ -33,12 +33,9 @@
   (assert (and (< ppc32::max-32-bit-ivector-subtag
                   ppc32::max-8-bit-ivector-subtag
                   ppc32::max-16-bit-ivector-subtag)
-               (eql ppc32::max-32-bit-ivector-subtag #+target-8-bit-chars 199
-                    #-target-8-bit-chars ppc32::subtag-simple-base-string)
+               (eql ppc32::max-32-bit-ivector-subtag ppc32::subtag-simple-base-string)
                (eql ppc32::max-16-bit-ivector-subtag ppc32::subtag-s16-vector)
-               (eql ppc32::max-8-bit-ivector-subtag
-                    #-target-8-bit-chars 223
-                    #+target-8-bit-chars ppc32::subtag-simple-base-string))))
+               (eql ppc32::max-8-bit-ivector-subtag 223))))
 
 #+ppc32-target
 (defppclapfunction %init-misc ((val arg_y)
@@ -296,11 +293,9 @@
   (ld imm0 ppc64::double-float.value val)
   (b @set-64)
   @32
-  #-target-8-bit-chars
   (cmpdi cr3 imm2 ppc64::subtag-simple-base-string)
   (cmpdi cr2 imm2 ppc64::subtag-s32-vector)
   (cmpdi cr0 imm2 ppc64::subtag-single-float-vector)
-  #-target-8-bit-chars
   (beq cr3 @char32)
   (beq cr2 @s32)
   (bne cr0 @u32)
@@ -343,11 +338,7 @@
   (beq+ cr0 @set-16)
   (b @bad)
   @8
-  #+target-8-bit-chars
-  (cmpdi cr2 imm2 ppc64::subtag-simple-base-string)
   (cmpdi cr0 imm2 ppc64::subtag-s8-vector)
-  #+target-8-bit-chars
-  (beq cr2 @char8)
   (beq cr0 @s8)
   (extract-unsigned-byte-bits. imm0 val 8)
   (unbox-fixnum imm0 val)

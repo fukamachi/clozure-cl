@@ -59,10 +59,10 @@
      (unsigned-byte 32)
      (signed-byte 32)
      fixnum
-     #-target-8-bit-chars character #+target-8-bit-chars unused
+     character
      (unsigned-byte 8)
      (signed-byte 8)
-     #+target-8-bit-chars character #-target-8-bit-chars unused
+     unused
      (unsigned-byte 16)
      (signed-byte 16)
      double-float
@@ -90,9 +90,9 @@
      unused
      unused
      double-float
-     #+target-8-bit-chars character #-target-8-bit-chars unused
      unused
-     #-target-8-bit-chars character #+target-8-bit-chars unused
+     unused
+     character
      unused
      unused
      unused
@@ -119,7 +119,7 @@
     unused
     (signed-byte 16)
     (unsigned-byte 16)
-    #+target-8-bit-chars character #-target-8-bit-chars unused
+    character
     (signed-byte 8)
     (unsigned-byte 8)
     bit
@@ -140,7 +140,7 @@
     unused
     unused
     unused
-    #-target-8-bit-chars character #+target-8-bit-chars unused
+    character
     (signed-byte 32)
     (unsigned-byte 32)
     single-float))
@@ -408,8 +408,7 @@
     ;; All other cases can be handled with %COPY-IVECTOR-TO-IVECTOR,
     ;; which knows how to handle overlap
     ((#.target::subtag-s8-vector
-      #.target::subtag-u8-vector
-      #+target-8-bit-chars #.target::subtag-simple-base-string)
+      #.target::subtag-u8-vector)
      (%copy-ivector-to-ivector source
                                source-start
                                target
@@ -425,7 +424,7 @@
     ((#.target::subtag-s32-vector
       #.target::subtag-u32-vector
       #.target::subtag-single-float-vector
-      #-target-8-bit-chars #.target::subtag-simple-base-string
+      #.target::subtag-simple-base-string
       #+32-bit-target #.target::subtag-fixnum-vector)
      (%copy-ivector-to-ivector source
                                (the fixnum (* source-start 4))
@@ -470,7 +469,7 @@ minimum number of elements to add if it must be extended."
             (%err-disp $XMALADJUST vector))
           (let* ((new-size (max
                             (+ len (the fixnum (or extension
-                                                  (the fixnum (1+ (ash (the fixnum len) -1))))))
+                                                  len)))
                             4))
                  (typecode (typecode data))
                  (new-vector (%alloc-misc new-size typecode)))

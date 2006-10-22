@@ -449,12 +449,10 @@
     simple-unsigned-long-vector         ; 21
     simple-signed-long-vector           ; 22
     simple-fixnum-vector                ; 23
-    #+target-8-bit-chars bogus
-    #-target-8-bit-chars simple-base-string ; 24
+    simple-base-string                  ; 24
     simple-unsigned-byte-vector         ; 25
     simple-signed-byte-vector           ; 26
-    #+target-8-bit-chars simple-base-string ; 27
-    #-target-8-bit-chars bogus
+    bogus                               ; 27
     simple-unsigned-word-vector         ; 28
     simple-signed-word-vector           ; 29
     simple-double-float-vector          ; 30
@@ -562,9 +560,9 @@
     bogus
     bogus
     simple-double-float-vector
-    #+target-8-bit-chars simple-base-string #-target-8-bit-chars bogus
     bogus
-    #-target-8-bit-chars simple-base-string #+target-8-bit-chars bogus
+    bogus
+    simple-base-string
     bogus
     bogus
     bogus
@@ -740,7 +738,7 @@
     bogus
     simple-signed-word-vector
     simple-unsigned-word-vector
-    #+target-8-bit-chars simple-base-string #-target-8-bit-chars bogus
+    bogus
     simple-signed-byte-vector
     simple-unsigned-byte-vector
     bit-vector))
@@ -758,7 +756,7 @@
     bogus
     bogus
     bogus
-    #-target-8-bit-chars simple-base-string #+target-8-bit-chars bogus
+    simple-base-string
     simple-signed-long-vector
     simple-unsigned-long-vector
     single-float-vector))
