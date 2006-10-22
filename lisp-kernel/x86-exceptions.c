@@ -1928,6 +1928,11 @@ setup_signal_frame(mach_port_t thread,
   info->si_signo = signum;
   pseudosigcontext->uc_onstack = 0;
   pseudosigcontext->uc_sigmask = (sigset_t) 0;
+  pseudosigcontext->uc_stack.ss_sp = 0;
+  pseudosigcontext->uc_stack.ss_size = 0;
+  pseudosigcontext->uc_stack.ss_flags = 0;
+  pseudosigcontext->uc_link = NULL;
+  pseudosigcontext->uc_mcsize = sizeof(*UC_MCONTEXT(pseudosigcontext));
   tcr->pending_exception_context = pseudosigcontext;
   tcr->valence = TCR_STATE_EXCEPTION_WAIT;
   
