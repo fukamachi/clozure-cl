@@ -405,7 +405,7 @@
   (write-char-without-translation-when-locked-function 'iblock-no-char-output)
   (sharing nil)
   (line-termination nil)
-  (reserved1 nil)
+  (unread-char-function 'ioblock-no-char-input)
   (reserved2 nil)
   (reserved3 nil))
 
@@ -2611,6 +2611,7 @@
 (defun setup-ioblock-input (ioblock character-p element-type sharing encoding line-termination)
   (setf (ioblock-sharing ioblock) sharing)
   (when character-p
+    (setf (ioblock-unread-char-function ioblock) '%ioblock-untyi)
     (if encoding
       (let* ((unit-size (character-encoding-code-unit-size encoding)))
         (setf (ioblock-peek-char-function ioblock) '%encoded-ioblock-peek-char)
@@ -3641,52 +3642,39 @@
 
 (defmethod stream-read-char ((s basic-character-input-stream))
   (let* ((ioblock (basic-stream-ioblock s)))
-    (declare (optimize (speed 3)))
-    (without-interrupts
-     (values
-      (funcall (ioblock-read-char-function ioblock) ioblock)))))
+    (funcall (ioblock-read-char-function ioblock) ioblock)))
 
 
 (defmethod stream-read-char-no-hang ((stream basic-character-input-stream))
   (let* ((ioblock (basic-stream-ioblock stream)))
     (with-ioblock-input-locked (ioblock)
-      (locally (declare (optimize (speed 3)))
-        (without-interrupts
-         (values
-          (%ioblock-tyi-no-hang ioblock)))))))
+      (values
+          (%ioblock-tyi-no-hang ioblock)))))
        
 (defmethod stream-peek-char ((stream basic-character-input-stream))
   (let* ((ioblock (basic-stream-ioblock stream)))
     (with-ioblock-input-locked (ioblock)
-      (locally (declare (optimize (speed 3)))
-        (without-interrupts
-         (values
-          (%ioblock-peek-char ioblock)))))))
+      (values
+       (funcall (ioblock-peek-char-function ioblock) ioblock)))))
 
 (defmethod stream-clear-input ((stream basic-character-input-stream))
   (let* ((ioblock (basic-stream-ioblock stream)))
     (with-ioblock-input-locked (ioblock)
-      (locally (declare (optimize (speed 3)))
-        (without-interrupts
-         (values
-          (%ioblock-clear-input ioblock)))))))
+      (values
+        (%ioblock-clear-input ioblock)))))
 
 (defmethod stream-unread-char ((s basic-character-input-stream) char)
   (let* ((ioblock (basic-stream-ioblock s)))
     (with-ioblock-input-locked (ioblock)
-      (locally (declare (optimize (speed 3)))
-        (without-interrupts
-         (values
-          (%ioblock-untyi ioblock char)))))))
+      (values
+       (funcall (ioblock-unread-char-function ioblock) ioblock char)))))
 
 (defmethod stream-read-ivector ((s basic-character-input-stream)
 				iv start nb)
   (let* ((ioblock (basic-stream-ioblock s)))
     (with-ioblock-input-locked (ioblock)
-      (locally (declare (optimize (speed 3)))
-        (without-interrupts
-         (values
-          (%ioblock-character-in-ivect ioblock iv start nb)))))))
+      (values
+       (%ioblock-character-in-ivect ioblock iv start nb)))))
 
 (defmethod stream-read-vector ((stream basic-character-input-stream)
 			       vector start end)
@@ -3695,19 +3683,15 @@
     (call-next-method)
     (let* ((ioblock (basic-stream-ioblock stream)))
       (with-ioblock-input-locked (ioblock)
-        (locally (declare (optimize (speed 3)))
-          (without-interrupts
-           (values
-            (funcall (ioblock-character-read-vector-function ioblock)
-                     ioblock vector start end))))))))
+        (values
+         (funcall (ioblock-character-read-vector-function ioblock)
+                  ioblock vector start end))))))
 
 (defmethod stream-read-line ((stream basic-character-input-stream))
   (let* ((ioblock (basic-stream-ioblock stream)))
     (with-ioblock-input-locked (ioblock)
-      (locally (declare (optimize (speed 3)))
-        (without-interrupts
-         (values
-          (funcall (ioblock-read-line-function ioblock) ioblock)))))))
+      (values
+       (funcall (ioblock-read-line-function ioblock) ioblock)))))
 
                              
 ;;; Synonym streams.
@@ -4090,36 +4074,73 @@
 
 
 ;;; String streams.
-(defclass string-stream (fundamental-character-stream)
-    ((string :initarg :string :initform nil :reader %string-stream-string)))
-
-(defmethod string-stream-string ((s string-stream))
-  (or (%string-stream-string s)
-      (values (stream-is-closed s))))
-
-(defmethod open-stream-p ((s string-stream))
-  (not (null (%string-stream-string s))))
-
-(defmethod close  ((s string-stream) &key abort)
-  (declare (ignore abort))
-  (when (slot-value s 'string)
-    (setf (slot-value s 'string) nil)
-    t))
+(make-built-in-class 'string-stream 'basic-character-stream)
 
 (defmethod print-object ((s string-stream) out)
   (print-unreadable-object (s out :type t :identity t)
     (unless (open-stream-p s)  (format out " ~s" :closed))))
 
-(defclass string-output-stream (string-stream fundamental-character-output-stream)
-    ((column :initform 0 :accessor %stream-column)))
+(defstruct (string-stream-ioblock (:include ioblock))
+  string)
 
-(defmethod stream-write-char ((s string-output-stream) c)
-  (if (eq c #\newline)
-    (setf (%stream-column s) 0)
-    (incf (%stream-column s)))
-  (vector-push-extend c (string-stream-string s)))
+(defstruct (string-output-stream-ioblock (:include string-stream-ioblock))
+  (index 0))
 
-(defmethod stream-position ((s string-output-stream) &optional newpos)
+(defglobal *string-output-stream-class* (make-built-in-class 'string-output-stream 'string-stream 'basic-character-output-stream))
+
+(defglobal *fill-pointer-string-output-stream-class* (make-built-in-class 'fill-pointer-string-output-stream 'string-output-stream))
+
+(defun %%make-string-output-stream (class string write-char-function write-string-function)
+  (let* ((stream (allocate-basic-stream class)))
+    (initialize-basic-stream stream :element-type 'character)
+    (let* ((ioblock (make-string-output-stream-ioblock
+                     :stream stream
+                     :device nil
+                     :string string
+                     :element-type 'character
+                     :write-char-function write-char-function
+                     :write-char-when-locked-function write-char-function
+                     :write-simple-string-function write-string-function
+                     :force-output-function #'false
+                     :close-function #'false)))
+      (setf (basic-stream.state stream) ioblock)
+      stream)))
+
+(declaim (inline %string-push-extend))
+(defun %string-push-extend (char string)
+  (let* ((fill (%svref string target::vectorH.logsize-cell))
+         (size (%svref string target::vectorH.physsize-cell)))
+    (declare (fixnum fill size))
+    (if (< fill size)
+      (multiple-value-bind (data offset) (array-data-and-offset string)
+        (declare (simple-string data) (fixnum offset))
+        (setf (schar data (the fixnum (+ offset fill))) char
+              (%svref string target::vectorH.logsize-cell) (the fixnum (1+ fill))))
+      (vector-push-extend char string))))
+              
+
+(defun fill-pointer-string-output-stream-ioblock-write-char (ioblock char)
+  ;; can do better (maybe much better) than VECTOR-PUSH-EXTEND here.
+  (if (eql char #\Newline)
+    (setf (ioblock-charpos ioblock) 0)
+    (incf (ioblock-charpos ioblock)))
+  (%string-push-extend char (string-stream-ioblock-string ioblock)))
+
+(defmethod stream-force-output ((stream string-output-stream)) nil)
+
+(defun fill-pointer-string-output-stream-ioblock-write-simple-string (ioblock string start-char num-chars)
+  (let* ((end (+ start-char num-chars))
+         (nlpos (position #\Newline string :start start-char :end end :from-end t)))
+    (if nlpos
+      (setf (ioblock-charpos ioblock) (- end nlpos))
+      (incf (ioblock-charpos ioblock) num-chars))
+    (let* ((out (string-stream-ioblock-string ioblock)))
+      (do* ((n 0 (1+ n))
+            (i start-char (1+ i)))
+           ((= n num-chars) num-chars)
+        (%string-push-extend (schar string i) out)))))
+
+(defmethod stream-position ((s fill-pointer-string-output-stream) &optional newpos)
   (let* ((string (string-stream-string s)))
     (if newpos
       (setf (fill-pointer string) newpos)
@@ -4131,17 +4152,75 @@
   (unless newlen
     (array-total-size (string-stream-string s))))
 
-(defmethod stream-line-column ((s string-output-stream))
-  (%stream-column s))
-
-(defmethod stream-set-column ((s string-output-stream) new)
-  (setf (%stream-column s) new))
-
+;;; This creates a FILL-POINTER-STRING-OUTPUT-STREAM.
 (defun %make-string-output-stream (string)
   (unless (and (typep string 'string)
                (array-has-fill-pointer-p string))
     (error "~S must be a string with a fill pointer."))
-  (make-instance 'string-output-stream :string  string))
+  (%%make-string-output-stream *fill-pointer-string-output-stream-class* string 'fill-pointer-string-output-stream-ioblock-write-char 'fill-pointer-string-output-stream-ioblock-write-simple-string))
+
+(defun string-output-stream-ioblock-write-char (ioblock char)
+  (let* ((string (string-output-stream-ioblock-string ioblock))
+         (index (string-output-stream-ioblock-index ioblock))
+         (len (length string)))
+    (declare (simple-string string)
+             (fixnum index len))
+  (if (eql char #\Newline)
+    (setf (ioblock-charpos ioblock) 0)
+    (incf (ioblock-charpos ioblock)))
+  (if (= index len)
+      (let* ((newlen (+ len len))      ;non-zero !
+             (new (make-string newlen)))
+        (%copy-ivector-to-ivector string 0 new 0 (the fixnum (ash len 2)))
+        (setq string new)
+        (setf (string-output-stream-ioblock-string ioblock) new)))
+    (setf (string-output-stream-ioblock-index ioblock) (the fixnum (1+ index))
+          (schar string index) char)))
+
+(defun string-output-stream-ioblock-write-simple-string (ioblock string start-char num-chars)
+  (declare (simple-string string)
+           (fixnum start-char num-chars))
+  (let* ((out (string-output-stream-ioblock-string ioblock))
+         (index (string-output-stream-ioblock-index ioblock))
+         (len (length out))
+         (need (+ index num-chars)))
+    (declare (simple-string out)
+             (fixnum index len need))
+    (if (< len need)
+      (let* ((newlen (+ need need))
+             (new (make-string newlen)))
+        (declare (fixnum newlen))
+        (%copy-ivector-to-ivector out 0 new 0 (the fixnum (ash len 2)))
+        (setq out new)
+        (setf (string-output-stream-ioblock-string ioblock) new)))
+    (%copy-ivector-to-ivector string
+                              (the fixnum (ash start-char 2))
+                              out
+                              (the fixnum (ash index 2))
+                              (the fixnum (ash num-chars 2)))
+    (setf (string-output-stream-ioblock-index ioblock) need)
+    (let* ((end (+ start-char num-chars))
+           (nlpos (position #\newline string :start start-char :end end :from-end t)))
+      (declare (fixnum end))
+      (if nlpos
+        (setf (ioblock-charpos ioblock) (the fixnum (- end (the fixnum nlpos))))
+        (incf (ioblock-charpos ioblock) num-chars)))
+    num-chars))
+
+(defmethod stream-position ((stream string-output-stream) &optional newpos)
+  (let* ((ioblock (basic-stream-ioblock stream)))
+    (if (null newpos)
+      (string-output-stream-ioblock-index ioblock)
+      (if (and (typep newpos 'fixnum)
+               (>= (the fixnum newpos) 0)
+               (<= (the fixnum newpos) (length (string-output-stream-ioblock-string ioblock))))
+        (setf (string-output-stream-ioblock-index ioblock) newpos)))))
+
+(defun make-simple-string-output-stream ()
+  (%%make-string-output-stream *string-output-stream-class*
+                               (make-string 10)
+                               'string-output-stream-ioblock-write-char
+                               'string-output-stream-ioblock-write-simple-string))
 
 (defun make-string-output-stream (&key (element-type 'character element-type-p))
   "Return an output stream which will accumulate all output given it for
@@ -4152,164 +4231,258 @@
     (unless (subtypep element-type 'character)
       (error "~S argument ~S is not a subtype of ~S."
              :element-type element-type 'character)))
-  (make-instance 'string-output-stream
-                 :string (make-array 10 :element-type 'base-char
-                                     :fill-pointer 0
-                                     :adjustable t)))
+  (make-simple-string-output-stream))
+
 
 ;;;"Bounded" string output streams.
-(defclass truncating-string-stream (string-output-stream)
-    ((truncated :initform nil)))
+(defglobal *truncating-string-output-stream-class* (make-built-in-class 'truncating-string-stream 'string-output-stream))
+
+(defun truncating-string-output-stream-ioblock-write-char (ioblock char)
+  (let* ((stream (ioblock-stream ioblock))
+         (string (string-output-stream-ioblock-string ioblock))
+         (index (string-output-stream-ioblock-index ioblock)))
+    (declare (fixnum index) (simple-string string))
+    (if (< index (the fixnum (length string)))
+      (progn
+        (setf (schar string index) char
+              (string-output-stream-ioblock-index ioblock) (the fixnum (1+ index)))
+        (if (eql char #\Newline)
+          (setf (ioblock-charpos ioblock) 0)
+          (incf (ioblock-charpos ioblock))))
+      (setf (getf (basic-stream.info stream) :truncated) t))))
+
+(defun truncating-string-output-stream-ioblock-write-simple-string (ioblock string start-char num-chars)
+  (let* ((stream (ioblock-stream ioblock)))
+  (do* ((n 0 (1+ n))
+        (i start-char (1+ i)))
+       ((= n num-chars) num-chars)
+    (truncating-string-output-stream-ioblock-write-char ioblock (schar string i))
+    (if (getf (basic-stream.info stream) :truncated)
+      (return n)))))
+
+(defun truncating-string-output-stream-truncated-p (stream)
+  (getf (basic-stream.info stream) :truncated))
 
 (defun make-truncating-string-stream (len)
-  (make-instance 'truncating-string-stream
-		 :string (make-array len
+  (%%make-string-output-stream *truncating-string-output-stream-class*
+                               (make-array len
 				     :element-type 'character
 				     :fill-pointer 0
-				     :adjustable nil)))
-
-(defmethod stream-write-char ((s truncating-string-stream) char)
-  (or (vector-push char (string-stream-string s))
-      (setf (slot-value s 'truncated) t))
-  char)
-
-(defmethod stream-write-string ((stream truncating-string-stream)
-				string &optional (start 0) end)
-  (setq end (check-sequence-bounds string start end))
-  (locally (declare (fixnum start end))
-    (multiple-value-bind (vect offset) (array-data-and-offset string)
-      (declare (fixnum offset))
-      (unless (zerop offset)
-	(incf start offset)
-	(incf end offset))
-      (do* ((v (string-stream-string stream))
-	    (i start (1+ i)))
-	   ((= i end) string)
-	(declare (fixnum i))
-	(if (slot-value stream 'truncated)
-	  (return string)
-	  (or (vector-push (schar vect i) v)
-	      (progn
-		(setf (slot-value stream 'truncated) t)
-		(return string))))))))
+				     :adjustable nil)
+                               'truncating-string-output-stream-ioblock-write-char
+                               'truncating-string-output-stream-ioblock-write-simple-string))
+                               
 
 ;;;One way to indent on newlines:
 
-(defclass indenting-string-output-stream (string-output-stream)
-    ((prefixchar :initform nil :initarg :prefixchar)
-     (indent :initform nil :initarg :indent :accessor indenting-string-output-stream-indent)))
+(defglobal *indenting-string-output-stream-class* (make-built-in-class 'indenting-string-output-stream 'string-output-stream))
 
-(defun make-indenting-string-output-stream (prefixchar indent)
-  (make-instance 'indenting-string-output-stream
-   :string (make-array 10
-		     :element-type 'character
-		     :fill-pointer 0
-		     :adjustable t)
-   :prefixchar prefixchar
-   :indent indent))
 
-(defmethod stream-write-char ((s indenting-string-output-stream) c)
-  (call-next-method)
-  (when (eq c #\newline)
-    (let* ((indent (slot-value s 'indent))
-           (prefixchar (slot-value s 'prefixchar))
-           (prefixlen 0))
+
+(defun indenting-string-stream-ioblock-write-char (ioblock c)
+  (string-output-stream-ioblock-write-char ioblock c)
+  (if (eql c #\newline)
+    (let* ((stream (ioblock-stream ioblock))
+           (info (basic-stream.info stream))
+           (indent (getf info 'indent))
+           (prefixlen 0)
+           (prefixchar (getf info 'prefixchar)))
       (when prefixchar
         (if (typep prefixchar 'character)
           (progn
             (setq prefixlen 1)
-            (call-next-method s prefixchar))
+            (string-output-stream-ioblock-write-char ioblock prefixchar))
           (dotimes (i (setq prefixlen (length prefixchar)))
-            (call-next-method s (schar prefixchar i)))))
+            (string-output-stream-ioblock-write-char ioblock (schar prefixchar i)))))
       (when indent
         (dotimes (i (the fixnum (- indent prefixlen)))
-          (call-next-method s #\Space)))))
+          (string-output-stream-ioblock-write-char ioblock #\Space)))))
   c)
 
+(defun indenting-string-stream-ioblock-write-simple-string (ioblock string start-char num-chars)
+  (do* ((n 0 (1+ n))
+        (i start-char (1+ i)))
+       ((= n num-chars) num-chars)
+    (indenting-string-stream-ioblock-write-char ioblock (schar string i))))
+
+(defun make-indenting-string-output-stream (prefixchar indent)
+  (let* ((stream (%%make-string-output-stream
+                   *indenting-string-output-stream-class*
+                  (make-string 10)
+                  'indenting-string-stream-ioblock-write-char
+                  'indenting-string-stream-ioblock-write-simple-string)))
+    (setf (getf (basic-stream.info stream) 'indent) indent
+          (getf (basic-stream.info stream) 'prefixchar) prefixchar)
+    stream))
+
+(defun (setf indenting-string-output-stream-indent) (new stream)
+  (if (and (typep stream 'basic-stream)
+           (eq (basic-stream.class stream) *indenting-string-output-stream-class*))
+    (setf (getf (basic-stream.info stream) 'indent) new)
+    (report-bad-arg stream 'indenting-string-output-stream)))
+
+
 (defun get-output-stream-string (s)
-  (unless (typep s 'string-output-stream)
-    (report-bad-arg s 'string-output-stream))
-  (let* ((string (string-stream-string s)))
-    (prog1 (ensure-simple-string string)
-      (setf (fill-pointer string) 0))))
+  (let* ((class (if (typep s 'basic-stream) (basic-stream.class s))))
+    (or (eq class *string-output-stream-class*)
+        (eq class *truncating-string-output-stream-class*)
+        (eq class *indenting-string-output-stream-class*)
+        (eq class *fill-pointer-string-output-stream-class*)
+        (report-bad-arg s 'string-output-stream))
+    (let* ((ioblock (basic-stream-ioblock s))
+           (string (string-stream-ioblock-string ioblock)))
+      (if (eq class *fill-pointer-string-output-stream-class*)
+        (prog1 (ensure-simple-string string)
+          (setf (fill-pointer string) 0))
+        (let* ((index (string-output-stream-ioblock-index ioblock))
+               (result (make-string index)))
+          (declare (fixnum index))
+          (%copy-ivector-to-ivector string 0 result 0 (the fixnum (ash index 2)))
+          (setf (string-output-stream-ioblock-index ioblock) 0)
+          result)))))
 
 ;;; String input streams.
-(defclass string-input-stream (string-stream fundamental-character-input-stream)
-    ((start :initform 0 :initarg :start :accessor string-input-stream-start)
-     (index :initarg :index :accessor string-input-stream-index)
-     (end :initarg :end :accessor string-input-stream-end)))
+(defglobal *string-input-stream-class* (make-built-in-class 'string-input-stream 'string-stream 'basic-character-input-stream))
 
-(defmethod stream-read-char ((s string-input-stream))
-  (let* ((string (string-stream-string s))
-         (idx (string-input-stream-index s))
-         (end (string-input-stream-end s)))
-    (declare (fixnum idx end))
+(defstruct (string-input-stream-ioblock (:include string-stream-ioblock))
+  (start 0)
+  index
+  end
+  (offset 0))
+
+
+
+(defun string-input-stream-index (s)
+  (if (and (typep s 'basic-stream)
+           (eq *string-input-stream-class* (basic-stream.class s)))
+    (let* ((ioblock (basic-stream-ioblock s)))
+      (- (string-input-stream-ioblock-index ioblock)
+         (string-input-stream-ioblock-offset ioblock)))
+    (report-bad-arg s 'string-input-stream)))
+
+
+
+(defun string-input-stream-ioblock-read-char (ioblock)
+  (let* ((string (string-stream-ioblock-string ioblock))
+         (idx (string-input-stream-ioblock-index ioblock))
+         (end (string-input-stream-ioblock-end ioblock)))
+    (declare (fixnum idx end)
+             (simple-string string))
     (if (< idx end)
-      (prog1 (char string idx) (setf (string-input-stream-index s) (1+ idx)))
+      (progn (setf (string-input-stream-ioblock-index ioblock)
+                   (the fixnum (1+ idx)))
+             (schar string idx))
       :eof)))
 
-(defmethod stream-peek-char ((s string-input-stream))
-  (let* ((string (string-stream-string s))
-         (idx (string-input-stream-index s))
-         (end (string-input-stream-end s)))
-    (declare (fixnum idx end))
+(defun string-input-stream-ioblock-read-line (ioblock)
+  (let* ((string (string-stream-ioblock-string ioblock))
+         (idx (string-input-stream-ioblock-index ioblock))
+         (end (string-input-stream-ioblock-end ioblock)))
+    (declare (fixnum idx end)
+             (simple-string string))
+    (if (>= idx end)
+      (values "" t)
+      (let* ((pos (position #\Newline string :start idx :end end)))
+        (if pos
+          (locally (declare (type index pos))
+            (let* ((new (make-string (the fixnum (- pos idx)))))
+              (declare (simple-base-string new))
+              (setf (string-input-stream-ioblock-index ioblock)
+                    (the fixnum (1+ pos)))
+              (do* ((src idx (1+ src))
+                    (dest 0 (1+ dest)))
+                   ((= src pos) (values new nil))
+                (declare (fixnum src dest))
+                (setf (schar new dest) (schar string src)))))
+          (let* ((new (make-string (the fixnum (- end idx)))))
+            (declare (simple-base-string new))
+              (setf (string-input-stream-ioblock-index ioblock) end)
+              (do* ((src idx (1+ src))
+                    (dest 0 (1+ dest)))
+                   ((= src end) (values new t))
+                (declare (fixnum src dest))
+                (setf (schar new dest) (schar string src)))))))))
+
+
+(defun string-input-stream-ioblock-peek-char (ioblock)
+  (let* ((string (string-stream-ioblock-string ioblock))
+         (idx (string-input-stream-ioblock-index ioblock))
+         (end (string-input-stream-ioblock-end ioblock)))
+    (declare (fixnum idx end)
+             (simple-string string))
     (if (< idx end)
-      (char string idx)
+      (schar string idx)
       :eof)))
 
-(defmethod stream-unread-char ((s string-input-stream) c)
-  (let* ((data (string-stream-string s))
-	 (idx (string-input-stream-index s))
-	 (start (string-input-stream-start s)))
-    (declare (fixnum idx start))
+(defun string-input-stream-ioblock-unread-char (ioblock char)
+  (let* ((string (string-stream-ioblock-string ioblock))
+         (idx (string-input-stream-ioblock-index ioblock))
+         (start (string-input-stream-ioblock-start ioblock)))
+    (declare (fixnum idx start)
+             (simple-string string))
     (unless (> idx start)
-      (error "Nothing has been read from ~s yet." s))
+      (error "Nothing has been read from ~s yet." (ioblock-stream ioblock)))
     (decf idx)
-    (unless (eq c (char data idx))
-      (error "~a was not the last character read from ~s" c s))
-    (setf (string-input-stream-index s) idx)
-    c))
-
-
-
+    (unless (eq char (schar string idx))
+      (error "~a was not the last character read from ~s" char (ioblock-stream ioblock)))
+    (setf (string-input-stream-ioblock-index ioblock) idx)
+    char))
+  
+  
 (defmethod stream-eofp ((s string-input-stream))
-  (let* ((idx (string-input-stream-index s))
-	 (end (string-input-stream-end s)))
+  (let* ((ioblock (basic-stream-ioblock s))
+         (idx (string-input-stream-ioblock-index ioblock))
+         (end (string-input-stream-ioblock-end ioblock)))
     (declare (fixnum idx end))
     (>= idx end)))
 
 (defmethod stream-listen ((s string-input-stream))
-  (let* ((idx (string-input-stream-index s))
-	 (end (string-input-stream-end s)))
+  (let* ((ioblock (basic-stream-ioblock s))
+         (idx (string-input-stream-ioblock-index ioblock))
+         (end (string-input-stream-ioblock-end ioblock)))
     (declare (fixnum idx end))
     (< idx end)))
 
-
-
-(defmethod stream-position ((s string-input-stream) &optional newpos)
-  (let* ((start (string-input-stream-start s))
-	 (end (string-input-stream-end s))
-	 (len (- end start)))
-    (declare (fixnum start end len))
-    (if newpos
-      (if (and (>= newpos 0) (<= newpos len))
-	(setf (string-input-stream-index s) (+ start newpos)))
-      (- (string-input-stream-index s) start))))
-
-(defmethod stream-length ((s string-input-stream) &optional newlen)
-  (unless newlen
-    (- (string-input-stream-end s) (string-input-stream-start s))))
 
 (defun make-string-input-stream (string &optional (start 0)
                                         (end nil))
   "Return an input stream which will supply the characters of STRING between
   START and END in order."
   (setq end (check-sequence-bounds string start end))
-  (make-instance 'string-input-stream
-		 :string string
-		 :start start
-		 :index start
-		 :end end))
+  (multiple-value-bind (data offset) (array-data-and-offset string)
+    (unless (typep data 'simple-base-string)
+      (report-bad-arg string 'string))
+    (incf start offset)
+    (incf end offset)
+    (let* ((stream (make-basic-stream-instance
+                    *string-input-stream-class*
+                    :element-type 'character))
+           (ioblock (make-string-input-stream-ioblock
+                     :stream stream
+                     :device nil
+                     :string data
+                     :start start
+                     :index start
+                     :end end
+                     :read-char-function 'string-input-stream-ioblock-read-char
+                     :read-char-when-locked-function 'string-input-stream-ioblock-read-char
+                     :peek-char-function 'string-input-stream-ioblock-peek-char
+                     :character-read-vector-function 'generic-character-read-vector
+                     :close-function #'false
+                     :unread-char-function 'string-input-stream-ioblock-unread-char
+                     :read-line-function 'string-input-stream-ioblock-read-line
+                     )))
+      (setf (basic-stream.state stream) ioblock)
+      stream)))
+
+(defun string-stream-string (s)
+  (let* ((class (if (typep s 'basic-stream) (basic-stream.class s))))
+    (or (eq class *string-output-stream-class*)
+        (eq class *truncating-string-output-stream-class*)
+        (eq class *indenting-string-output-stream-class*)
+        (report-bad-arg s 'string-output-stream)))
+  (string-stream-ioblock-string (basic-stream-ioblock s)))
+
 
 
 ;;; A mixin to be used with FUNDAMENTAL-STREAMs that want to use ioblocks
@@ -4404,10 +4577,7 @@
   (declare (ignore abort))
   (let* ((ioblock (stream-ioblock stream nil)))
     (when ioblock
-      (locally (declare (optimize (speed 3)))
-        (without-interrupts
-         (values
-          (%ioblock-close ioblock)))))))
+      (%ioblock-close ioblock))))
 
 (defmethod close :before ((stream buffered-output-stream-mixin) &key abort)
   (unless abort
@@ -4423,10 +4593,7 @@
   (declare (ignore abort))
   (let* ((ioblock (basic-stream.state stream)))
     (when ioblock
-      (locally (declare (optimize (speed 3)))
-        (without-interrupts
-         (values
-          (%ioblock-close ioblock)))))))
+      (%ioblock-close ioblock))))
 
 
 (defmethod open-stream-p ((stream basic-stream))
@@ -4481,57 +4648,39 @@
 
 (defmethod stream-read-char ((stream buffered-character-input-stream-mixin))
   (let* ((ioblock (stream-ioblock stream t)))
-    (locally (declare (optimize (speed 3)))
-      (without-interrupts
-       (values
-        (funcall (ioblock-read-char-function ioblock) ioblock))))))
+    (funcall (ioblock-read-char-function ioblock) ioblock)))
 
 (defmethod stream-read-char-no-hang ((stream buffered-character-input-stream-mixin))
   (with-stream-ioblock-input (ioblock stream :speedy t)
-    (locally (declare (optimize (speed 3)))
-      (without-interrupts
-       (values
-        (%ioblock-tyi-no-hang ioblock))))))
+    (%ioblock-tyi-no-hang ioblock)))
 
 (defmethod stream-peek-char ((stream buffered-character-input-stream-mixin))
   (with-stream-ioblock-input (ioblock stream :speedy t)
-    (locally (declare (optimize (speed 3)))
-      (without-interrupts
-       (values
-        (%ioblock-peek-char ioblock))))))
+    (values
+        (%ioblock-peek-char ioblock))))
 
 (defmethod stream-clear-input ((stream buffered-input-stream-mixin))
   (with-stream-ioblock-input (ioblock stream :speedy t)
-    (locally (declare (optimize (speed 3)))
-      (without-interrupts
-       (values
-        (%ioblock-clear-input ioblock))))))
+    (values
+     (%ioblock-clear-input ioblock))))
 
 (defmethod stream-unread-char ((stream buffered-character-input-stream-mixin) char)
   (with-stream-ioblock-input (ioblock stream :speedy t)
-    (%ioblock-untyi ioblock char))
+    (funcall (ioblock-unread-char-function ioblock) ioblock char))
   char)
 
 (defmethod stream-read-byte ((stream buffered-binary-input-stream-mixin))
   (let* ((ioblock (stream-ioblock stream t)))
-    (locally (declare (optimize (speed 3)))
-      (without-interrupts
-       (values
-        (funcall (ioblock-read-byte-function ioblock) ioblock))))))
+    (funcall (ioblock-read-byte-function ioblock) ioblock)))
 
 (defmethod stream-read-byte ((stream basic-binary-input-stream))
   (let* ((ioblock (basic-stream-ioblock stream)))
-    (locally (declare (optimize (speed 3)))
-      (without-interrupts
-       (values
-        (funcall (ioblock-read-byte-function ioblock) ioblock))))))
+    (funcall (ioblock-read-byte-function ioblock) ioblock)))
 
 (defmethod stream-eofp ((stream buffered-input-stream-mixin))
   (with-stream-ioblock-input (ioblock stream :speedy t)
-    (locally (declare (optimize (speed 3)))
-      (without-interrupts
-       (values
-        (%ioblock-eofp ioblock))))))
+    (values
+     (%ioblock-eofp ioblock))))
 
 (defmethod stream-eofp ((stream basic-input-stream))
   (let* ((ioblock (basic-stream-ioblock stream)))
@@ -4540,65 +4689,43 @@
 
 (defmethod stream-listen ((stream buffered-input-stream-mixin))
   (with-stream-ioblock-input (ioblock stream :speedy t)
-    (locally (declare (optimize (speed 3)))
-      (without-interrupts
-       (values
-        (%ioblock-listen ioblock))))))
+    (values
+     (%ioblock-listen ioblock))))
 
 (defmethod stream-listen ((stream basic-input-stream))
   (let* ((ioblock (basic-stream-ioblock stream)))
     (with-ioblock-input-locked (ioblock)
-      (locally (declare (optimize (speed 3)))
-        (without-interrupts
-         (values
-          (%ioblock-listen ioblock)))))))
+      (values
+       (%ioblock-listen ioblock)))))
 
 
 (defmethod stream-write-byte ((stream buffered-binary-output-stream-mixin)
                               byte)
   (let* ((ioblock (stream-ioblock stream t)))
-    (locally (declare (optimize (speed 3)))
-      (without-interrupts
-       (values
-        (funcall (ioblock-write-byte-function ioblock) ioblock byte))))))
+    (funcall (ioblock-write-byte-function ioblock) ioblock byte)))
 
 (defmethod stream-write-byte ((stream basic-binary-output-stream) byte)
   (let* ((ioblock (basic-stream-ioblock stream)))
-    (locally (declare (optimize (speed 3)))
-      (without-interrupts
-       (values
-        (funcall (ioblock-write-byte-function ioblock) ioblock byte))))))
+    (funcall (ioblock-write-byte-function ioblock) ioblock byte)))
 
 (defmethod stream-write-char ((stream buffered-character-output-stream-mixin) char)
   (let* ((ioblock (stream-ioblock stream t)))
-    (locally (declare (optimize (speed 3)))
-      (without-interrupts
-       (values
-        (funcall (ioblock-write-char-function ioblock) ioblock char))))))
+    (funcall (ioblock-write-char-function ioblock) ioblock char)))
 
 (defmethod stream-write-char ((stream basic-character-output-stream) char)
   (let* ((ioblock (basic-stream-ioblock stream)))
-    (locally (declare (optimize (speed 3)))
-      (without-interrupts
-       (values
-        (funcall (ioblock-write-char-function ioblock) ioblock char))))))
+    (funcall (ioblock-write-char-function ioblock) ioblock char)))
 
 
 (defmethod stream-clear-output ((stream buffered-output-stream-mixin))
   (with-stream-ioblock-output (ioblock stream :speedy t)
-    (locally (declare (optimize (speed 3)))
-      (without-interrupts
-       (values
-        (%ioblock-clear-output ioblock)))))
+    (%ioblock-clear-output ioblock))
   nil)
 
 (defmethod stream-clear-output ((stream basic-output-stream))
   (let* ((ioblock (basic-stream-ioblock stream)))
     (with-ioblock-output-locked (ioblock)
-      (locally (declare (optimize (speed 3)))
-        (without-interrupts
-         (values
-          (%ioblock-clear-output ioblock)))))
+      (%ioblock-clear-output ioblock))
     nil))
 
 (defmethod stream-line-column ((stream buffered-character-output-stream-mixin))
@@ -4623,53 +4750,35 @@
 
 (defmethod stream-force-output ((stream buffered-output-stream-mixin))
   (with-stream-ioblock-output (ioblock stream :speedy t)
-    (locally (declare (optimize (speed 3)))
-      (without-interrupts
-       (values
-        (%ioblock-force-output ioblock nil))))
+    (%ioblock-force-output ioblock nil)
     nil))
 
 (defmethod stream-force-output ((stream basic-output-stream))
   (let* ((ioblock (basic-stream-ioblock stream)))
     (with-ioblock-output-locked (ioblock)
-      (locally (declare (optimize (speed 3)))
-        (without-interrupts
-         (values
-          (%ioblock-force-output ioblock nil))))
+      (%ioblock-force-output ioblock nil)
       nil)))
 
 (defmethod maybe-stream-force-output ((stream buffered-output-stream-mixin))
   (with-stream-ioblock-output-maybe (ioblock stream :speedy t)
-    (locally (declare (optimize (speed 3)))
-      (without-interrupts
-       (values
-        (%ioblock-force-output ioblock nil))))
+    (%ioblock-force-output ioblock nil)
     nil))
 
 (defmethod maybe-stream-force-output ((stream basic-output-stream))
   (let* ((ioblock (basic-stream-ioblock stream)))
     (with-ioblock-output-locked-maybe (ioblock)
-      (locally (declare (optimize (speed 3)))
-        (without-interrupts
-         (values
-          (%ioblock-force-output ioblock nil))))
+      (%ioblock-force-output ioblock nil)
       nil)))
 
 (defmethod stream-finish-output ((stream buffered-output-stream-mixin))
   (with-stream-ioblock-output (ioblock stream :speedy t)
-    (locally (declare (optimize (speed 3)))
-      (without-interrupts
-       (values
-        (%ioblock-force-output ioblock t))))
+    (%ioblock-force-output ioblock t)
     nil))
 
 (defmethod stream-finish-output ((stream basic-output-stream))
   (let* ((ioblock (basic-stream-ioblock stream)))
     (with-ioblock-output-locked (ioblock)
-      (locally (declare (optimize (speed 3)))
-        (without-interrupts
-         (values
-          (%ioblock-force-output ioblock t))))
+      (%ioblock-force-output ioblock t)
       nil)))
 
 
@@ -4680,11 +4789,8 @@
   (with-stream-ioblock-output (ioblock stream :speedy t)
     (if (and (typep string 'simple-string)
 	     (not start-p))
-      (locally (declare (optimize (speed 3)))
-        (without-interrupts
-         (values
-          (funcall (ioblock-write-simple-string-function ioblock)
-                   ioblock string 0 (length string)))))
+      (funcall (ioblock-write-simple-string-function ioblock)
+                   ioblock string 0 (length string))
       (progn
         (setq end (check-sequence-bounds string start end))
         (locally (declare (fixnum start end))
@@ -4695,11 +4801,8 @@
             (unless (eql 0 offset)
               (incf start offset)
               (incf end offset))
-            (locally (declare (optimize (speed 3)))
-              (without-interrupts
-               (values
-                (funcall (ioblock-write-simple-string-function ioblock)
-                         ioblock arr start (the fixnum (- end start)))))))))))
+            (funcall (ioblock-write-simple-string-function ioblock)
+                     ioblock arr start (the fixnum (- end start))))))))
   string)
 
 (defmethod stream-write-string ((stream basic-character-output-stream)
@@ -4709,11 +4812,9 @@
     (with-ioblock-output-locked (ioblock) 
       (if (and (typep string 'simple-string)
                (not start-p))
-        (locally (declare (optimize (speed 3)))
-          (without-interrupts
-           (values
-            (funcall (ioblock-write-simple-string-function ioblock)
-                     ioblock string 0 (length string)))))
+        (values
+         (funcall (ioblock-write-simple-string-function ioblock)
+                  ioblock string 0 (length string)))
         (progn
           (setq end (check-sequence-bounds string start end))
           (locally (declare (fixnum start end))
@@ -4724,47 +4825,37 @@
               (unless (eql 0 offset)
                 (incf start offset)
                 (incf end offset))
-              (locally (declare (optimize (speed 3)))
-                (without-interrupts
-                 (values
+              (values
                   (funcall (ioblock-write-simple-string-function ioblock)
-                           ioblock arr start (the fixnum (- end start))))))))))))
+                           ioblock arr start (the fixnum (- end start))))))))))
   string)
 
 
 (defmethod stream-write-ivector ((s buffered-output-stream-mixin)
 				 iv start length)
   (with-stream-ioblock-output (ioblock s :speedy t)
-    (locally (declare (optimize (speed 3)))
-      (without-interrupts
-       (values    
-        (%ioblock-out-ivect ioblock iv start length))))))
+    (values    
+        (%ioblock-out-ivect ioblock iv start length))))
 
 (defmethod stream-write-ivector ((s basic-output-stream)
 				 iv start length)
   (let* ((ioblock (basic-stream-ioblock s)))
     (with-ioblock-output-locked (ioblock)
-      (locally (declare (optimize (speed 3)))
-        (without-interrupts
-         (values
-          (%ioblock-out-ivect ioblock iv start length)))))))
+      (values
+          (%ioblock-out-ivect ioblock iv start length)))))
 
 
 (defmethod stream-read-ivector ((s buffered-character-input-stream-mixin)
 				iv start nb)
   (with-stream-ioblock-input (ioblock s :speedy t)
-    (locally (declare (optimize (speed 3)))
-      (without-interrupts
-       (values
-        (%ioblock-character-in-ivect ioblock iv start nb))))))
+    (values
+     (%ioblock-character-in-ivect ioblock iv start nb))))
 
 (defmethod stream-read-ivector ((s buffered-binary-input-stream-mixin)
 				iv start nb)
   (with-stream-ioblock-input (ioblock s :speedy t)
-    (locally (declare (optimize (speed 3)))
-      (without-interrupts
-       (values
-        (%ioblock-binary-in-ivect ioblock iv start nb))))))
+    (values
+     (%ioblock-binary-in-ivect ioblock iv start nb))))
 
 
 (defmethod stream-write-vector ((stream buffered-character-output-stream-mixin)
@@ -4775,11 +4866,9 @@
     (with-stream-ioblock-output (ioblock stream :speedy t)
       (let* ((total (- end start)))
 	(declare (fixnum total))
-        (locally (declare (optimize (speed 3)))
-          (without-interrupts
-           (values
+        (values
             (funcall (ioblock-write-simple-string-function ioblock)
-                     ioblock vector start total))))))))
+                     ioblock vector start total))))))
 
 (defmethod stream-write-vector ((stream basic-character-output-stream)
 				vector start end)
@@ -4790,108 +4879,104 @@
            (total (- end start)))
       (declare (fixnum total))
       (with-ioblock-output-locked (ioblock)
-        (locally (declare (optimize (speed 3)))
-          (without-interrupts
-           (values
+        (values
             (funcall (ioblock-write-simple-string-function ioblock)
-                     ioblock vector start total))))))))
+                     ioblock vector start total))))))
 
 (defmethod stream-write-vector ((stream buffered-binary-output-stream-mixin)
 				vector start end)
   (declare (fixnum start end))
   (with-stream-ioblock-output (ioblock stream :speedy t)
-    (without-interrupts
-     (let* ((out (ioblock-outbuf ioblock))
-            (buf (io-buffer-buffer out))
-            (written 0)
-            (limit (io-buffer-limit out))
-            (total (- end start))
-            (buftype (typecode buf)))
-       (declare (fixnum buftype written total limit))
-       (if (not (= (the fixnum (typecode vector)) buftype))
-         (do* ((i start (1+ i))
-               (wbf (ioblock-write-byte-function ioblock)))
-              ((= i end))
-           (let ((byte (uvref vector i)))
-             (funcall wbf ioblock byte)))
-         (do* ((pos start (+ pos written))
-               (left total (- left written)))
-              ((= left 0))
-           (declare (fixnum pos left))
-           (setf (ioblock-dirty ioblock) t)
-           (let* ((index (io-buffer-idx out))
-                  (count (io-buffer-count out))
-                  (avail (- limit index)))
-             (declare (fixnum index avail count))
-             (cond
-               ((= (setq written avail) 0)
-                (%ioblock-force-output ioblock nil))
-               (t
-                (if (> written left)
-                  (setq written left))
-                (%copy-ivector-to-ivector
-                 vector
-                 (ioblock-elements-to-octets ioblock pos)
-                 buf
-                 (ioblock-elements-to-octets ioblock index)
-                 (ioblock-elements-to-octets ioblock written))
-                (setf (ioblock-dirty ioblock) t)
-                (incf index written)
-                (if (> index count)
-                  (setf (io-buffer-count out) index))
-                (setf (io-buffer-idx out) index)
-                (if (= index  limit)
-                  (%ioblock-force-output ioblock nil)))))))))))
+    (let* ((out (ioblock-outbuf ioblock))
+           (buf (io-buffer-buffer out))
+           (written 0)
+           (limit (io-buffer-limit out))
+           (total (- end start))
+           (buftype (typecode buf)))
+      (declare (fixnum buftype written total limit))
+      (if (not (= (the fixnum (typecode vector)) buftype))
+        (do* ((i start (1+ i))
+              (wbf (ioblock-write-byte-function ioblock)))
+             ((= i end))
+          (let ((byte (uvref vector i)))
+            (funcall wbf ioblock byte)))
+        (do* ((pos start (+ pos written))
+              (left total (- left written)))
+             ((= left 0))
+          (declare (fixnum pos left))
+          (setf (ioblock-dirty ioblock) t)
+          (let* ((index (io-buffer-idx out))
+                 (count (io-buffer-count out))
+                 (avail (- limit index)))
+            (declare (fixnum index avail count))
+            (cond
+              ((= (setq written avail) 0)
+               (%ioblock-force-output ioblock nil))
+              (t
+               (if (> written left)
+                 (setq written left))
+               (%copy-ivector-to-ivector
+                vector
+                (ioblock-elements-to-octets ioblock pos)
+                buf
+                (ioblock-elements-to-octets ioblock index)
+                (ioblock-elements-to-octets ioblock written))
+               (setf (ioblock-dirty ioblock) t)
+               (incf index written)
+               (if (> index count)
+                 (setf (io-buffer-count out) index))
+               (setf (io-buffer-idx out) index)
+               (if (= index  limit)
+                 (%ioblock-force-output ioblock nil))))))))))
 
 (defmethod stream-write-vector ((stream basic-binary-output-stream)
 				vector start end)
   (declare (fixnum start end))
   (let* ((ioblock (basic-stream-ioblock stream)))
     (with-ioblock-output-locked (ioblock)
-      (without-interrupts
-       (let* ((out (ioblock-outbuf ioblock))
-              (buf (io-buffer-buffer out))
-              (written 0)
-              (limit (io-buffer-limit out))
-              (total (- end start))
-              (buftype (typecode buf)))
-         (declare (fixnum buftype written total limit))
-         (if (not (= (the fixnum (typecode vector)) buftype))
-           (do* ((i start (1+ i))
-                 (wbf (ioblock-write-byte-function ioblock)))
-                ((= i end))
-             (let ((byte (uvref vector i)))
-               (when (characterp byte)
-                 (setq byte (char-code byte)))
-               (funcall wbf ioblock byte)))
-           (do* ((pos start (+ pos written))
-                 (left total (- left written)))
-                ((= left 0))
-             (declare (fixnum pos left))
-             (setf (ioblock-dirty ioblock) t)
-             (let* ((index (io-buffer-idx out))
-                    (count (io-buffer-count out))
-                    (avail (- limit index)))
-               (declare (fixnum index avail count))
-               (cond
-                 ((= (setq written avail) 0)
-                  (%ioblock-force-output ioblock nil))
-                 (t
-                  (if (> written left)
-                    (setq written left))
-                  (%copy-ivector-to-ivector
-                   vector
-                   (ioblock-elements-to-octets ioblock pos)
-                   buf
-                   (ioblock-elements-to-octets ioblock index)
-                   (ioblock-elements-to-octets ioblock written))
-                  (setf (ioblock-dirty ioblock) t)
-                  (incf index written)
-                  (if (> index count)
-                    (setf (io-buffer-count out) index))
-                  (setf (io-buffer-idx out) index)
-                  (if (= index  limit)
-                    (%ioblock-force-output ioblock nil))))))))))))
+      (let* ((out (ioblock-outbuf ioblock))
+             (buf (io-buffer-buffer out))
+             (written 0)
+             (limit (io-buffer-limit out))
+             (total (- end start))
+             (buftype (typecode buf)))
+        (declare (fixnum buftype written total limit))
+        (if (not (= (the fixnum (typecode vector)) buftype))
+          (do* ((i start (1+ i))
+                (wbf (ioblock-write-byte-function ioblock)))
+               ((= i end))
+            (let ((byte (uvref vector i)))
+              (when (characterp byte)
+                (setq byte (char-code byte)))
+              (funcall wbf ioblock byte)))
+          (do* ((pos start (+ pos written))
+                (left total (- left written)))
+               ((= left 0))
+            (declare (fixnum pos left))
+            (setf (ioblock-dirty ioblock) t)
+            (let* ((index (io-buffer-idx out))
+                   (count (io-buffer-count out))
+                   (avail (- limit index)))
+              (declare (fixnum index avail count))
+              (cond
+                ((= (setq written avail) 0)
+                 (%ioblock-force-output ioblock nil))
+                (t
+                 (if (> written left)
+                   (setq written left))
+                 (%copy-ivector-to-ivector
+                  vector
+                  (ioblock-elements-to-octets ioblock pos)
+                  buf
+                  (ioblock-elements-to-octets ioblock index)
+                  (ioblock-elements-to-octets ioblock written))
+                 (setf (ioblock-dirty ioblock) t)
+                 (incf index written)
+                 (if (> index count)
+                   (setf (io-buffer-count out) index))
+                 (setf (io-buffer-idx out) index)
+                 (if (= index  limit)
+                   (%ioblock-force-output ioblock nil)))))))))))
 
 
 
@@ -4902,10 +4987,8 @@
     (call-next-method)
     (let* ((ioblock (basic-stream-ioblock stream)))
       (with-ioblock-input-locked (ioblock)
-        (locally (declare (optimize (speed 3)))
-          (without-interrupts
-           (values
-            (%ioblock-binary-read-vector ioblock vector start end))))))))
+        (values
+            (%ioblock-binary-read-vector ioblock vector start end))))))
 
 (defmethod stream-read-vector ((stream buffered-character-input-stream-mixin)
 			       vector start end)
@@ -4913,11 +4996,9 @@
   (if (not (typep vector 'simple-base-string))
     (call-next-method)
     (with-stream-ioblock-input (ioblock stream :speedy t)
-        (locally (declare (optimize (speed 3)))
-          (without-interrupts
-           (values
-            (funcall (ioblock-character-read-vector-function ioblock)
-                     ioblock vector start end)))))))
+      (values
+       (funcall (ioblock-character-read-vector-function ioblock)
+                ioblock vector start end)))))
 
 
 
@@ -4927,10 +5008,8 @@
   (if (typep vector 'simple-base-string)
     (call-next-method)
     (with-stream-ioblock-input (ioblock stream :speedy t)
-        (locally (declare (optimize (speed 3)))
-          (without-interrupts
-           (values
-            (%ioblock-binary-read-vector ioblock vector start end)))))))
+      (values
+       (%ioblock-binary-read-vector ioblock vector start end)))))
 
 
 
