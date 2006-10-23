@@ -1,3 +1,25 @@
+2006-10-23 05:40  gb
+
+	* level-1/l1-streams.lisp: Optimize write-string on string streams
+	a little.
+
+2006-10-23 05:26  gb
+
+	* lib/macros.lisp: WITH-OUTPUT-TO-STRING: don't expand into code
+	which evaluates the string form twice; don't do whatever was being
+	done to default the element type of the string stream.
+
+2006-10-23 05:24  gb
+
+	* compiler/optimizers.lisp: MAKE-STRING-OUTPUT-STREAM: skip some
+	keyword/subtype checking if element-type not provided.	(Could also
+	skip it if it's explicit and obviously OK.)
+
+2006-10-23 05:22  gb
+
+	* level-0/X86/x86-misc.lisp: %HEAP-BYTES-ALLOCATED: don't add
+	"current" allocation if nothing's reserved.
+
 2006-10-23 05:19  gb
 
 	* lisp-kernel/x86-exceptions.c: In handle_alloc_trap(), fix call to
