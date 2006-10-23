@@ -299,11 +299,11 @@
 
 
 (defmethod (setf stream-external-format) (new (s t))
-  (check-type new 'external-format)
+  (normalize-external-format (stream-domain s) new)
   (report-bad-arg s 'stream))
 
 (defmethod (setf stream-external-format) (new (s t))
-  (check-type new 'external-format)
+  (normalize-external-format (stream-domain s) new)
   (stream-external-format s))
 
 
@@ -4079,6 +4079,9 @@
 (defmethod print-object ((s string-stream) out)
   (print-unreadable-object (s out :type t :identity t)
     (unless (open-stream-p s)  (format out " ~s" :closed))))
+
+
+                 
 
 (defstruct (string-stream-ioblock (:include ioblock))
   string)
