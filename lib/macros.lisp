@@ -3228,8 +3228,7 @@ to be at least partially steppable."
     `(let* ((,lock (locally (declare (optimize (speed 3) (safety 0)))
                                   (ioblock-inbuf-lock ,ioblock))))
       (if ,lock
-        (with-ioblock-lock-grabbed ((locally (declare (optimize (speed 3) (safety 0)))
-                                  (ioblock-inbuf-lock ,ioblock)))
+        (with-lock-grabbed (,lock)
           ,@body)
         (progn
           (check-ioblock-owner ,ioblock)
@@ -3238,10 +3237,9 @@ to be at least partially steppable."
 (defmacro with-ioblock-output-locked ((ioblock) &body body)
   (let* ((lock (gensym)))
     `(let* ((,lock (locally (declare (optimize (speed 3) (safety 0)))
-                                  (ioblock-inbuf-lock ,ioblock))))
+                                  (ioblock-outbuf-lock ,ioblock))))
       (if ,lock
-        (with-ioblock-lock-grabbed ((locally (declare (optimize (speed 3) (safety 0)))
-                                  (ioblock-outbuf-lock ,ioblock)))
+        (with-lock-grabbed (,lock)
           ,@body)
         (progn
           (check-ioblock-owner ,ioblock)
@@ -3252,10 +3250,9 @@ to be at least partially steppable."
 (defmacro with-ioblock-output-locked-maybe ((ioblock) &body body)
   (let* ((lock (gensym)))
     `(let* ((,lock (locally (declare (optimize (speed 3) (safety 0)))
-                                  (ioblock-inbuf-lock ,ioblock))))
+                                  (ioblock-outbuf-lock ,ioblock))))
       (if ,lock
-        (with-ioblock-lock-grabbed-maybe ((locally (declare (optimize (speed 3) (safety 0)))
-                                            (ioblock-outbuf-lock ,ioblock)))
+        (with-lock-grabbed-maybe (,lock)
           ,@body)
         (progn
           (check-ioblock-owner ,ioblock)
