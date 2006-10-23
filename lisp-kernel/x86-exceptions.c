@@ -243,7 +243,7 @@ handle_alloc_trap(ExceptionInformation *xp, TCR *tcr)
   }
   bytes_needed = disp+allocptr_tag;
 
-  update_bytes_allocated(tcr,((BytePtr)(cur_allocptr-disp)));
+  update_bytes_allocated(tcr,((BytePtr)(cur_allocptr+disp)));
   if (allocate_object(xp, bytes_needed, disp, tcr)) {
     return true;
   }
