@@ -4179,7 +4179,8 @@
 
 (defun string-output-stream-ioblock-write-simple-string (ioblock string start-char num-chars)
   (declare (simple-string string)
-           (fixnum start-char num-chars))
+           (fixnum start-char num-chars)
+           (optimize (speed 3) (safety 0)))
   (let* ((out (string-output-stream-ioblock-string ioblock))
          (index (string-output-stream-ioblock-index ioblock))
          (len (length out))
@@ -4189,23 +4190,26 @@
     (if (< len need)
       (let* ((newlen (+ need need))
              (new (make-string newlen)))
-        (declare (fixnum newlen))
-        (%copy-ivector-to-ivector out 0 new 0 (the fixnum (ash len 2)))
+        (declare (fixnum newlen) (simple-string new))
+        (dotimes (i len)
+          (setf (schar new i) (schar out i)))
         (setq out new)
         (setf (string-output-stream-ioblock-string ioblock) new)))
-    (%copy-ivector-to-ivector string
-                              (the fixnum (ash start-char 2))
-                              out
-                              (the fixnum (ash index 2))
-                              (the fixnum (ash num-chars 2)))
-    (setf (string-output-stream-ioblock-index ioblock) need)
-    (let* ((end (+ start-char num-chars))
-           (nlpos (position #\newline string :start start-char :end end :from-end t)))
-      (declare (fixnum end))
-      (if nlpos
-        (setf (ioblock-charpos ioblock) (the fixnum (- end (the fixnum nlpos))))
-        (incf (ioblock-charpos ioblock) num-chars)))
-    num-chars))
+    (do* ((src start-char (1+ src))
+          (dest index (1+ dest))
+          (nlpos nil)
+          (end (+ start-char num-chars)))
+         ((= src end)
+          (setf (string-output-stream-ioblock-index ioblock) need)
+          (if nlpos
+            (setf (ioblock-charpos ioblock) (the fixnum (- end (the fixnum nlpos))))
+            (incf (ioblock-charpos ioblock) num-chars))
+          num-chars)
+      (let* ((char (schar string src)))
+        (if (eql char #\Newline)
+          (setq nlpos src))
+        (setf (schar out dest) char)))))
+
 
 (defmethod stream-position ((stream string-output-stream) &optional newpos)
   (let* ((ioblock (basic-stream-ioblock stream)))
@@ -5342,9 +5346,7 @@
               
 
 
-(defresource *string-output-stream-pool*
-  :constructor (make-string-output-stream)
-  :initializer 'stream-clear-output)
+
 
 ;;;File streams.
 
