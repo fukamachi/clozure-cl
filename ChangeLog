@@ -1,3 +1,16 @@
+2006-10-23 08:27  gb
+
+	* level-1/version.lisp: Bump; binaries today, honest.
+
+2006-10-23 08:27  gb
+
+	* level-1/l1-streams.lisp: freelist string-output-stream-ioblocks.
+
+2006-10-23 08:26  gb
+
+	* lib/macros.lisp: Some/most/all of the WITH-IOBLOCK-OUTPUT-LOCKED
+	macros were checking for the presence of an input lock ...
+
 2006-10-23 05:40  gb
 
 	* level-1/l1-streams.lisp: Optimize write-string on string streams
