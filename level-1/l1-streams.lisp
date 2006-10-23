@@ -4090,10 +4090,38 @@
 
 (defglobal *fill-pointer-string-output-stream-class* (make-built-in-class 'fill-pointer-string-output-stream 'string-output-stream))
 
+(def-standard-initial-binding %string-output-stream-ioblocks% (%cons-pool nil))
+
+;;; Should only be used for a stream whose class is exactly
+;;; *string-output-stream-class* 
+(defun %close-string-output-stream (stream ioblock)
+  (when (eq (basic-stream.class stream)
+            *string-output-stream-class*)
+    (without-interrupts
+     (setf (ioblock-stream ioblock) (pool.data %string-output-stream-ioblocks%)
+           (pool.data %string-output-stream-ioblocks%) ioblock))))
+
+(defun create-string-output-stream-ioblock (&rest keys &key stream &allow-other-keys)
+  (declare (dynamic-extent keys))
+  (let* ((recycled (and stream
+                        (eq (basic-stream.class stream)
+                            *string-output-stream-class*)
+                        (without-interrupts
+                         (let* ((data (pool.data %string-output-stream-ioblocks%)))
+                           (when data
+                             (setf (pool.data %string-output-stream-ioblocks%)
+                                   (ioblock-stream data)
+                                   (ioblock-stream data) stream
+                                   (string-output-stream-ioblock-index data) 0))
+                           data)))))
+    (or recycled (apply #'make-string-output-stream-ioblock keys))))
+                        
+
+
 (defun %%make-string-output-stream (class string write-char-function write-string-function)
   (let* ((stream (allocate-basic-stream class)))
     (initialize-basic-stream stream :element-type 'character)
-    (let* ((ioblock (make-string-output-stream-ioblock
+    (let* ((ioblock (create-string-output-stream-ioblock
                      :stream stream
                      :device nil
                      :string string
@@ -4102,7 +4130,7 @@
                      :write-char-when-locked-function write-char-function
                      :write-simple-string-function write-string-function
                      :force-output-function #'false
-                     :close-function #'false)))
+                     :close-function #'%close-string-output-stream)))
       (setf (basic-stream.state stream) ioblock)
       stream)))
 
@@ -4222,7 +4250,7 @@
 
 (defun make-simple-string-output-stream ()
   (%%make-string-output-stream *string-output-stream-class*
-                               (make-string 10)
+                               (make-string 40)
                                'string-output-stream-ioblock-write-char
                                'string-output-stream-ioblock-write-simple-string))
 
