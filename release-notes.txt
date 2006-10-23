@@ -1,3 +1,275 @@
+OpenMCL 1.1-pre-060923
+- There's now a port of OpenMCL to FreeBSD/amd64; it claims to be
+  of beta quality.  (The problems that made it too unstable
+  to release as of a few months ago have been fixed;  I stil run
+  into occasional FreeBSD-specific issues, and some such issues
+  may remain.)
+- CHAR-CODE-LIMIT is now #x110000, which means that all Unicode
+  characters can be directly represented.  There is one CHARACTER
+  type (all CHARACTERs are BASE-CHARs) and one string type (all
+  STRINGs are BASE-STRINGs.)  This change (and some other changes
+  in the compiler and runtime) made the heap images a few MB larger
+  than in previous versions.
+- As of Unicode 5.0, only about 100,000 of 1114112./#x110000 CHAR-CODEs
+  are actually defined; the function CODE-CHAR knows that certain
+  ranges of code values (notably #xd800-#xddff) will never be valid
+  character codes and will return NIL for arguments in that range,
+  but may return a non-NIL value (an undefined/non-standard CHARACTER
+  object) for other unassigned code values.
+- The :EXTERNAL-FORMAT argument to OPEN/LOAD/COMPILE-FILE has been
+  extended to allow the stream's character encoding scheme (as well
+  as line-termination conventions) to be specified; see more
+  details below.  MAKE-SOCKET has been extended to allow an
+  :EXTERNAL-FORMAT argument with similar semantics.
+- Strings of the form "u+xxxx" - where "x" is a sequence of one
+  or more hex digits- can be used as as character names to denote
+  the character whose code is the value of the string of hex digits. 
+  (The +  character is actually optional, so  #\u+0020, #\U0020, and
+  #\U+20 all refer to the #\Space character.)  Characters with codes
+  in the range #xa0-#x7ff (IIRC) also have symbolic names (the
+  names from the Unicode standard with spaces replaced with underscores),
+  so #\Greek_Capital_Letter_Epsilon can be used to refer to the character
+  whose CHAR-CODE is #x395.
+- The line-termination convention popularized with the CP/M operating
+  system (and used in its descendants) - e.g., CRLF - is now supported,
+  as is the use of Unicode #\Line_Separator (#\u+2028).
+- About 15-20 character encoding schemes are defined (so far); these
+  include UTF-8/16/32 and the big-endian/little-endian variants of
+  the latter two and ISO-8859-* 8-bit encodings.  (There is not
+  yet any support for traditional (non-Unicode) ways of externally
+  encoding characters used in Asian languages, support for legacy
+  MacOS encodings, legacy Windows/DOS/IBM encodings, ...)  It's hoped
+  that the existing infrastructure will handle most (if not all) of
+  what's missing; that may not be the case for "stateful" encodings
+  (where the way that a given character is encoded/decoded depend
+  on context, like the value of the preceding/following character.)
+- There isn't yet any support for Unicode-aware collation (CHAR>
+  and related CL functions just compare character codes, which
+  can give meaningless results for non-STANDARD-CHARs), case-inversion,
+  or normalization/denormalization.  There's generally good support
+  for this sort of thing in OS-provided libraries (e.g., CoreFoundation
+  on MacOSX), and it's not yet clear whether it'd be best to duplicate
+  that in lisp or leverage library support.
+- Unicode-aware FFI functions and macros are still in a sort of
+  embryonic state if they're there at all; things like WITH-CSTRs
+  continue to exist (and continue to assume an 8-bit character
+  encoding.)
+- Characters that can't be represented in a fixed-width 8-bit
+  character encoding are replaced with #\Sub (= (code-char 26) =
+  ^Z) on output, so if you do something like:
+
+? (format t "~a" #\u+20a0)
+
+  you might see a #\Sub character (however that's displayed on
+  the terminal device/Emacs buffer) or a Euro currency sign or
+  practically anything else (depending on how lisp is configured
+  to encode output to *TERMINAL-IO* and on how the terminal/Emacs
+  is configured to decode its input.
+
+  On output to streams with character encodings that can encode
+  the full range of Unicode - and on input from any stream -
+  "unencodable characters" are represented using the Unicode
+  #\Replacement_Character (= #\U+fffd); the presence of such a
+  character usually indicates that something got lost in translation
+  (data wasn't encoded properly or there was a bug in the decoding
+  process.)
+- Streams encoded in schemes which use more than one octet per code unit
+  (UTF-16, UTF-32, ...) and whose endianness is not explicit will be 
+  written with a leading byte-order-mark character on (new) output and
+  will expect a BOM on input; if a BOM is missing from input data,
+  that data will be assumed to have been serialized in big-endian order.
+  Streams encoded in variants of these schemes whose endianness is
+  explicit (UTF-16BE, UCS-4LE, ...) will not have byte-order-marks written
+  on output or expected on input.  (UTF-8 streams might also contain
+  encoded byte-order-marks; even though UTF-8 uses a single octet per
+  code unit - and possibly more than one code unit per character - this
+  convention is sometimes used to advertise that the stream is UTF-8-
+  encoded.  The current implementation doesn't skip over/ignore leading
+  BOMs on UTF8-encoded input, but it probably should.)
+
+  If the preceding paragraph made little sense, a shorter version is
+  that sometimes the endianness of encoded data matters and there
+  are conventions for expressing the endianness of encoded data; I
+  think that OpenMCL gets it mostly right, but (even if that's true)
+  the real world may be messier.
+- By default, OpenMCL uses ISO-8859-1 encoding for *TERMINAL-IO*
+  and for all streams whose EXTERNAL-FORMAT isn't explicitly specified.
+  (ISO-8859-1 just covers the first 256 Unicode code points, where
+  the first 128 code points are equivalent to US-ASCII.)  That should
+  be pretty much equivalent to what previous versions (that only
+  supported 8-bit characters) did, but it may not be optimal for 
+  users working in a particular locale.  The default for *TERMINAL-IO*
+  can be set via a command-line argument (see below) and this setting
+  persists across calls to SAVE-APPLICATION, but it's not clear that
+  there's a good way of setting it automatically (e.g., by checking
+  the POSIX "locale" settings on startup.)  Thing like POSIX locales
+  aren't always set correctly (even if they're set correctly for
+  the shell/terminal, they may not be set correctly when running
+  under Emacs ...) and in general, *TERMINAL-IO*'s notion of the
+  character encoding it's using and the "terminal device"/Emacs subprocess's
+  notion need to agree (and fonts need to contain glyphs for the
+  right set of characters) in order for everything to "work".  Using
+  ISO-8859-1 as the default seemed to increase the likelyhood that
+  most things would work even if things aren't quite set up ideally
+  (since no character translation occurs for 8-bit characters in
+  ISO-8859-1.)
+- In non-Unicode-related news: the rewrite of OpenMCL's stream code
+  that was started a few months ago should now be complete (no more
+  "missing method for BASIC-STREAM" errors, or at least there shouldn't
+  be any.)
+- I haven't done anything with the Cocoa bridge/demos lately, besides
+  a little bit of smoke-testing.
+
+Some implementation/usage details:
+
+Character encodings.
+
+CHARACTER-ENCODINGs are objects (structures) that're named by keywords
+(:ISO-8859-1, :UTF-8, etc.).  The structures contain attributes of
+the encoding and functions used to encode/decode external data, but
+unless you're trying to define or debug an encoding there's little
+reason to know much about the CHARACTER-ENCODING objects and it's
+generally desirable (and sometimes necessary) to refer to the encoding
+via its name.
+
+Most encodings have "aliases"; the encoding named :ISO-8859-1 can
+also be referred to by the names :LATIN1 and :IBM819, among others.
+Where possible, the keywordized name of an encoding is equivalent
+to the preferred MIME charset name (and the aliases are all registered
+IANA charset names.)
+
+NIL is an alias for the :ISO-8859-1 encoding; it's treated a little
+specially by the I/O system.
+
+The function CCL:DESCRIBE-CHARACTER-ENCODINGS will write descriptions
+of all defined character encodings to *terminal-io*; these descriptions
+include the names of the encoding's aliases and a doc string which
+briefly describes each encoding's properties and intended use.
+
+Line-termination conventions.
+
+As noted in the <=1.0 documentation, the keywords :UNIX, :MACOS, and
+:INFERRED can be used to denote a stream's line-termination conventions.
+(:INFERRED is only useful for FILE-STREAMs that're open for :INPUT or
+:IO.)  In this release, the keyword :CR can also be used to indicate
+that a stream uses #\Return characters for line-termination (equivalent
+to :MACOS), the keyword :UNICODE denotes that the stream uses Unicode
+#\Line_Separator characters to terminate lines, and the keywords :CRLF,
+:CP/M, :MSDOS, :DOS, and :WINDOWS all indicate that lines are terminated
+via a #\Return #\Linefeed sequence.
+
+In some contexts (when specifying EXTERNAL-FORMATs), the keyword :DEFAULT
+can also be used; in this case, it's equivalent to specifying the value
+of the variable CCL:*DEFAULT-LINE-TERMINATION*.  The initial value of
+this variable is :UNIX.
+
+Note that the set of keywords used to denote CHARACTER-ENCODINGs and
+the set of keywords used to denote line-termination conventions is
+disjoint: a keyword denotes at most a character encoding or a line
+termination convention, but never both.
+
+External-formats.
+
+EXTERNAL-FORMATs are also objects (structures) with two read-only
+fields that can be accessed via the functions EXTERNAL-FORMAT-LINE-TERMINATION
+and EXTERNAL-FORMAT-CHARACTER-ENCODING; the values of these fields are
+line-termination-convention-names and character-encoding names as described
+above.
+
+An EXTERNAL-FORMAT object via the function MAKE-EXTERNAL-FORMAT:
+
+MAKE-EXTERNAL-FORMAT &key domain character-encoding line-termination
+
+(Despite the function's name, it doesn't necessarily create a new,
+unique EXTERNAL-FORMAT object: two calls to MAKE-EXTERNAL-FORMAT
+with the same arguments made in the same dynamic environment will
+return the same (eq) object.)
+
+Both the :LINE-TERMINATION and :CHARACTER-ENCODING arguments default
+to :DEFAULT; if :LINE-TERMINATION is specified as or defaults to
+:DEFAULT, the value of CCL:*DEFAULT-LINE-TERMINATION* is used to
+provide a concrete value. 
+
+When the :CHARACTER-ENCODING argument is specifed as/defaults to
+:DEFAULT, the concrete character encoding name that's actually used
+depends on the value of the :DOMAIN argument to MAKE-EXTERNAL-FORMAT.
+The :DOMAIN-ARGUMENT's value can be practically anything; when it's
+the keyword :FILE and the :CHARACTER-ENCODING argument's value is
+:DEFAULT, the concrete character encoding name that's used will be
+the value of the variable CCL:*DEFAULT-FILE-CHARACTER-ENCODING*; the
+initial value of this variable is NIL (which is an alias for :ISO-8859-1);
+if the value of the :DOMAIN argument is anything else, :ISO-8859-1 is
+also used (but there's no way to override this.)  The intent is that
+other values of the DOMAIN argument - notably :SOCKET - could be
+used to provide defaults for other classes of streams, but this
+isn't yet implemented.
+
+The result of a call to MAKE-EXTERNAL-FORMAT can be used as the value
+of the :EXTERNAL-FORMAT argument to OPEN, LOAD, COMPILE-FILE, and
+MAKE-SOCKET; it's also possible to use a few shorthand constructs
+in these contexts.
+
+* if ARG is unspecified or specified as :DEFAULT, the value of the
+  variable CCL:*DEFAULT-EXTERNAL-FORMAT* is used.  Since the value
+  of this variable has historically been used to name a default
+  line-termination convention, this case effectively falls into
+  the next one:
+* if ARG is a keyword which names a concrete line-termination convention,
+  an EXTERNAL-FORMAT equivalent to the result of calling
+  (MAKE-EXTERNAL-FORMAT :line-termination ARG)
+   will be used
+* if ARG is a keyword which names a character encoding, an EXTERNAL-FORMAT
+  equvalent to the result of calling 
+  (MAKE-EXTERNAL-FORMAT :character-encoding ARG)
+  will be used
+* if ARG is a list, the result of (APPLY #'MAKE-CHARACTER-ENCODING ARG)
+  will be used
+
+STREAM-EXTERNAL-FORMAT.
+The CL function STREAM-EXTERNAL-FORMAT - which is portably defined
+on FILE-STREAMs - can be applied to any open stream in this release
+and will return an EXTERNAL-FORMAT object when applied to an open
+CHARACTER-STREAM. For open CHARACTER-STREAMs (other than STRING-STREAMs),
+SETF can be used with STREAM-EXTERNAL-FORMAT to change the stream's
+character encoding, line-termination, or both.
+
+(I'm not sure if all of the (SETF STREAM-EXTERNAL-FORMAT) methods
+that're implemented accept "shorthand" designators for EXTERNAL-FORMAT
+objects; they probably should, but there may be some inconsistencies
+there.)
+
+Note that the effect or doing something like:
+
+(let* ((s (open "foo" ... :external-format :utf-8)))
+  ...
+  (unread-char ch s)
+  (eetf (stream-external-format s) :us-ascii)
+  (read-char s))
+
+might or might not be what was intended.  The current behavior is
+that the call to READ-CHAR will return the previously unread character
+CH, which might surprise any code which assumes that the READ-CHAR
+will return something encodable in 7 or 8 bits.  Since functions
+like READ may call UNREAD-CHAR "behind your back", it may or may
+not be obvious that this has even occurred; the best approach to
+dealing with this issue might be to avoid using READ or explicit
+calls to UNREAD-CHAR when processing content encoded in multiple
+external formats.
+
+There's a similar issue with "bivalent" streams (sockets) which
+can do both character and binary I/O with an :ELEMENT-TYPE of
+(UNSIGNED-BYTE 8).  Historically, the sequence:
+
+   (unread-char ch s)
+   (read-byte s)
+
+caused the READ-BYTE to return (CHAR-CODE CH); that made sense
+when everything was implicitly encoded as :ISO-8859-1, but may not
+make any sense anymore.  (The only thing that seems to make sense
+in that case is to clear the unread character and read the next
+octet; that's implemented in some cases but I don't think that
+things are always handled consistently.)
+
 OpenMCL 1.1-pre-069826
 - There's an (alpha-quality, maybe) port to x86-64 Darwin (e.g., the
   Mac Pro.)  Some known problems include:
