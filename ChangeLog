@@ -1,3 +1,23 @@
+2006-10-23 17:03  gb
+
+	* release-notes.txt: Updated; almost ready to go (still a
+	WITH-OUTPUT-TO-STRING/PPRINT (?) bug).
+
+2006-10-23 16:43  gb
+
+	* level-1/l1-sysio.lisp: NORMALIZE-EXTERNAL-FORMAT: use
+	*DEFAULT-EXTERNAL-FORMAT* value for :DEFAULT.
+
+2006-10-23 16:42  gb
+
+	* level-1/l1-streams.lisp: Use NORMALIZE-EXTERNAL-FORMAT in (SETF
+	STREAM-EXTERNAL-FORMAT) methods.
+
+2006-10-23 16:41  gb
+
+	* lib/ccl-export-syms.lisp: Export some unicode/external-format
+	stuff.
+
 2006-10-23 08:27  gb
 
 	* level-1/version.lisp: Bump; binaries today, honest.
