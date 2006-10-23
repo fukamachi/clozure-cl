@@ -1376,12 +1376,14 @@ string bounded by start and end. BODY is executed as an implicit progn."
 may send results to this stream, and then close the stream.  BODY is
 executed as an implicit progn with VAR bound to an output string stream.
 All output to that string stream is saved in a string."
-  (let ((e-type (gensym "e-type")))
+  (let ((string-var (gensym "string")))
     (multiple-value-bind (forms decls) (parse-body body env nil)
-      `(let* ((,e-type ,(if element-type-p element-type `'base-char))
-              (,var (if ,string
+      `(let* ((,string-var ,string)
+              (,var (if ,string-var
                         (%make-string-output-stream ,string)
-                        (make-string-output-stream :element-type ,e-type))))
+                      ,@(if element-type-p
+                            `((make-string-output-stream :element-type ',element-type))
+                            `((make-string-output-stream))))))
          ,@decls
          (unwind-protect
               (progn
