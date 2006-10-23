@@ -1600,6 +1600,12 @@
           call)))
     call))
 
+(define-compiler-macro make-string-output-stream (&whole whole &rest keys)
+  (if (null keys)
+    '(make-simple-string-output-stream)
+    whole))
+
+
 (define-compiler-macro sbit (&environment env &whole call v &optional sub0 &rest others)
   (if (and sub0 (null others))
     `(aref (the simple-bit-vector ,v) ,sub0)
