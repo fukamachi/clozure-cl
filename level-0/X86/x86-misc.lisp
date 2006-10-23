@@ -175,9 +175,11 @@
     (single-value-return)))
 
 (defx86lapfunction %heap-bytes-allocated ()
-  (movq (@ (% :rcontext) x8664::tcr.last-allocptr) (% temp0))
   (movq (@ (% :rcontext) x8664::tcr.save-allocptr) (% temp1))
+  (movq (@ (% :rcontext) x8664::tcr.last-allocptr) (% temp0))
+  (cmpq ($ -16) (% temp1))
   (movq (@ (% :rcontext) x8664::tcr.total-bytes-allocated) (% imm0))
+  (jz @go)
   (movq (% temp0) (% temp2))
   (subq (% temp1) (% temp0))
   (testq (% temp2) (% temp2))
