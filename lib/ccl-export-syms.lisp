@@ -264,6 +264,7 @@
      *.fasl-pathname*
      *pathname-translations-pathname*
      *default-external-format*
+     *default-line-termination*
      fasl-concatenate
      event-ticks
      set-event-ticks
@@ -582,6 +583,21 @@
 
      getenv
      setenv
+
+     external-format
+     make-external-format
+     external-format-character-encoding
+     external-format-line-termination
+     character-encoding
+     define-character-encoding
+     describe-character-encoding
+     describe-character-encodings
+     get-character-encoding
+     lookup-character-encoding
+     *terminal-character-encoding-name*
+     *default-file-character-encoding*
+     *default-character-encoding*
+                                      
      ) "CCL"
    )
   )
