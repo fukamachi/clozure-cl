@@ -1,9 +1,28 @@
-OpenMCL 1.1-pre-060923
+OpenMCL 1.1-pre-061024
+- The FASL version changed (old FASL files won't work with this
+  lisp version), as did the version information which tries to
+  keep the kernel in sync with heap images.
+- Linux users: it's possible (depending on the distribution that
+  you use) that the lisp kernel will claim to depend on newer
+  versions of some shared libraries than the versions that you
+  have installed.  This is mostly just an artifact of the GNU
+  linker, which adds version information to dependent library
+  references even though no strong dependency exists.  If you
+  run into this, you should be able to simply cd to the appropriate
+  build directory under ccl/lisp-kernel and do a "make".
 - There's now a port of OpenMCL to FreeBSD/amd64; it claims to be
   of beta quality.  (The problems that made it too unstable
   to release as of a few months ago have been fixed;  I stil run
   into occasional FreeBSD-specific issues, and some such issues
   may remain.)
+- The Darwin X8664 port is a bit more stable (no longer generates
+  obscure "Trace/BKPT trap" exits or spurious-looking FP exceptions.)
+  I'd never want to pass up a chance to speak ill of Mach, but both
+  of these bugs seemed to be OpenMCL problems rather than Mach kernel
+  problems, as I'd previously more-or-less assumed.
+- I generally don't use SLIME with OpenMCL, but limited testing
+  with the 2006-04-20 verson of SLIME seems to indicate that no
+  changes to SLIME are necessary to work with this version.
 - CHAR-CODE-LIMIT is now #x110000, which means that all Unicode
   characters can be directly represented.  There is one CHARACTER
   type (all CHARACTERs are BASE-CHARs) and one string type (all
@@ -197,17 +216,19 @@ The :DOMAIN-ARGUMENT's value can be practically anything; when it's
 the keyword :FILE and the :CHARACTER-ENCODING argument's value is
 :DEFAULT, the concrete character encoding name that's used will be
 the value of the variable CCL:*DEFAULT-FILE-CHARACTER-ENCODING*; the
-initial value of this variable is NIL (which is an alias for :ISO-8859-1);
-if the value of the :DOMAIN argument is anything else, :ISO-8859-1 is
-also used (but there's no way to override this.)  The intent is that
-other values of the DOMAIN argument - notably :SOCKET - could be
-used to provide defaults for other classes of streams, but this
-isn't yet implemented.
+initial value of this variable is NIL (which is an alias for :ISO-8859-1).
+If the value of the :DOMAIN argument is :SOCKET and the :CHARACTER-ENCODING
+argument's value is :DEFAULT, the value of 
+CCL:*DEFAULT-SOCKET-CHARACTER-ENCODING* is used as a concrete character
+encoding name.  The initial value of CCL:*DEFAULT-SOCKET-CHARACTER-ENCODING*
+is NIL, again denoting the :ISO-8859-1 encoding.
+If the value of the :DOMAIN argument is anything else, :ISO-8859-1 is
+also used (but there's no way to override this.)  
 
 The result of a call to MAKE-EXTERNAL-FORMAT can be used as the value
 of the :EXTERNAL-FORMAT argument to OPEN, LOAD, COMPILE-FILE, and
 MAKE-SOCKET; it's also possible to use a few shorthand constructs
-in these contexts.
+in these contexts:
 
 * if ARG is unspecified or specified as :DEFAULT, the value of the
   variable CCL:*DEFAULT-EXTERNAL-FORMAT* is used.  Since the value
@@ -222,8 +243,13 @@ in these contexts.
   equvalent to the result of calling 
   (MAKE-EXTERNAL-FORMAT :character-encoding ARG)
   will be used
-* if ARG is a list, the result of (APPLY #'MAKE-CHARACTER-ENCODING ARG)
+* if ARG is a list, the result of (APPLY #'MAKE-EXTERNAL-FORMAT ARG)
   will be used
+
+(When MAKE-EXTERNAL-FORMAT is called to create an EXTERNAL-FORMAT
+object from one of these shorthand designators, the value of the
+:DOMAIN keyword argument is :FILE for OPEN,LOAD, and COMPILE-FILE
+and :SOCKET for MAKE-SOCKET.)
 
 STREAM-EXTERNAL-FORMAT.
 The CL function STREAM-EXTERNAL-FORMAT - which is portably defined
@@ -233,10 +259,11 @@ CHARACTER-STREAM. For open CHARACTER-STREAMs (other than STRING-STREAMs),
 SETF can be used with STREAM-EXTERNAL-FORMAT to change the stream's
 character encoding, line-termination, or both.
 
-(I'm not sure if all of the (SETF STREAM-EXTERNAL-FORMAT) methods
-that're implemented accept "shorthand" designators for EXTERNAL-FORMAT
-objects; they probably should, but there may be some inconsistencies
-there.)
+If a "shorthand" external-format designator is used in a call to
+(SETF STREAM-EXTERNAL-FORMAT), the "domain" used to construct an
+EXTERNAL-FORMAT is derived from the class of the stream in the
+obvious way (:FILE for FILE-STREAMs, :SOCKET for ... well, for
+sockets ...)
 
 Note that the effect or doing something like:
 
@@ -270,6 +297,37 @@ in that case is to clear the unread character and read the next
 octet; that's implemented in some cases but I don't think that
 things are always handled consistently.)
 
+Command-line argument for specifying the character encoding to
+be used for *TERMINAL-IO*.
+
+Shortly after a saved lisp image starts up, it creates the standard
+CL streams (like *STANDARD-OUTPUT*, *TERMINAL-IO*, *QUERY-IO*, etc.);
+most of these streams are usually SYNONYM-STREAMS which reference
+the TWO-WAY-STREAM *TERMINAL-IO*, which is itself comprised of
+a pair of CHARACTER-STREAMs.  The character encoding used for
+any CHARACTER-STREAMs created during this process is the one
+named by the value of the variable CCL:*TERMINAL-CHARACTER-ENCODING-NAME*;
+this value is initially NIL.
+
+The -K or --terminal-encoding command-line argument can be used to
+set the value of this variable (the argument is processed before the
+standard streams are created.)  The string which is the value of
+the -K/--terminal-encoding argument is uppercased and interned in
+the KEYWORD package; if an encoding named by that keyword exists,
+CCL:*TERMINAL-CHARACTER-ENCODING-NAME* is set to the name of that
+encoding.  For example:
+
+shell> openmcl -K utf-8
+
+will have the effect of making the standard CL streams use :UTF-8
+as their character encoding.
+
+(It's probably possible - but a bit awkward - to use (SETF EXTERNAL-FORMAT)
+from one's init file or --eval arguments or similar to change existing
+streams' character encodings; the hard/awkward parts of doing so include
+the difficulty of determining which standard streams are "real" character
+streams and which are aliases/composite streams.)
+
 OpenMCL 1.1-pre-069826
 - There's an (alpha-quality, maybe) port to x86-64 Darwin (e.g., the
   Mac Pro.)  Some known problems include:
@@ -279,7 +337,7 @@ OpenMCL 1.1-pre-069826
     seems to be timing-dependent and (very generally) seems to
     involve the Mach exception thread not recognizing an exception
     used to effect exception return.  Sometimes, this shows up
-    a (:SIGNALED 5) error when REBUILD-CCL runs the lisp to
+    as a (:SIGNALED 5) error when REBUILD-CCL runs the lisp to
     create a new image.
 
   * some math library primitives (#_asin, for one) generate
