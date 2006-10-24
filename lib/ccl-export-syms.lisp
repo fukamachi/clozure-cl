@@ -596,7 +596,7 @@
      lookup-character-encoding
      *terminal-character-encoding-name*
      *default-file-character-encoding*
-     *default-character-encoding*
+     *default-socket-character-encoding*
                                       
      ) "CCL"
    )
