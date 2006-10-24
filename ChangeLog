@@ -1,3 +1,29 @@
+2006-10-24 01:05  gb
+
+	* release-notes.txt: Change the date, add/change some content.
+
+2006-10-24 01:05  gb
+
+	* lib/macros.lisp: Reference the (bound) STREAM-VAR argument - not
+	STREAM - in the expansion of WITH-OUTPUT-TO-STRING.
+
+2006-10-24 00:56  gb
+
+	* lib/ccl-export-syms.lisp: Reference the (bound) STREAM-VAR
+	argument - not STREAM - in the expansion of WITH-OUTPUT-TO-STRING.
+
+2006-10-24 00:55  gb
+
+	* level-1/l1-streams.lisp: When recycling
+	string-output-stream-ioblocks, set the IOBLOCK-CHARPOS to 0. 
+	(Failure to do this can screw up the pretty-printer, among other
+	things.)
+
+2006-10-24 00:52  gb
+
+	* level-1/l1-sockets.lisp: DEFAULT-CHARACTER-ENCODING for :SOCKET,
+	*DEFAULT-SOCKET-CHARACTER-ENCODING*.
+
 2006-10-23 17:03  gb
 
 	* release-notes.txt: Updated; almost ready to go (still a
