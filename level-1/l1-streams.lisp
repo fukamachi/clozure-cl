@@ -4115,6 +4115,7 @@
                              (setf (pool.data %string-output-stream-ioblocks%)
                                    (ioblock-stream data)
                                    (ioblock-stream data) stream
+                                   (ioblock-charpos data) 0
                                    (string-output-stream-ioblock-index data) 0))
                            data)))))
     (or recycled (apply #'make-string-output-stream-ioblock keys))))
