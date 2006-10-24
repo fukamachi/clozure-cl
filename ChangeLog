@@ -1,3 +1,8 @@
+2006-10-24 01:29  gb
+
+	* lisp-kernel/x86-spentry64.s: Fix :ALLOW-OTHER-KEYS check in
+	_SPdestbind1 (still used in inlining, sometimes.)
+
 2006-10-24 01:05  gb
 
 	* release-notes.txt: Change the date, add/change some content.
