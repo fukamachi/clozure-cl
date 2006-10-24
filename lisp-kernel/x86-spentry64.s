@@ -2880,7 +2880,7 @@ local_label(req_loop):
 	__(jne local_label(req_loop))
 local_label(opt):	
 	__(movw %nargs,%imm0_w)
-	__(shrl $8,%imm0_l)
+	__(shrw $8,%imm0_w)
 	__(je local_label(rest_keys))
 	__(btl $initopt_bit,%nargs_l)
 	__(jc local_label(opt_supp))
@@ -3000,7 +3000,7 @@ local_label(match_test):
 	__(jne local_label(match_keys_loop))
 	__(subl $1,%imm0_l)
 	__(btsl $seen_aok_bit,%nargs_l)
-	__(jnc local_label(match_keys_loop))
+	__(jc local_label(match_keys_loop))
 	/* First time we've seen :allow-other-keys.  Maybe set aok_bit.   */
 	__(compare_reg_to_nil(%save3))
 	__(je local_label(match_keys_loop))
