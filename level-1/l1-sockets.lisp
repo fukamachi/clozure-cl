@@ -77,7 +77,11 @@
   (defmacro NTOHL (x) `(%bswap32 ,x))
   (defmacro NTOHS (x) `(%bswap16 ,x)))
 
+(defparameter *default-socket-character-encoding*
+  nil)
 
+(defmethod default-character-encoding ((domain (eql :socket)))
+  *default-socket-character-encoding*)
   
 
 ;;; On some (hypothetical) little-endian platform, we might want to
