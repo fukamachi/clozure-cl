@@ -1,3 +1,7 @@
+2006-10-27 17:49  gb
+
+	* darwin-x86-headers64/libc/C/: .cvsignore, populate.sh: New file.
+
 2006-10-25 20:36  gb
 
 	* level-1/l1-streams.lisp: %BIVALENT-IOBLOCK-READ-U8-BYTE (and
