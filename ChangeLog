@@ -1,3 +1,10 @@
+2006-10-30 00:24  gb
+
+	* level-0/l0-bignum64.lisp: Enable the destructive version of
+	%BIGNUM-BIGNUM-GCD; conditionalize it for 64-bit targets and
+	provide/fix supporting functions.  Seems to work on ppc64; needs
+	testing on x8664.
+
 2006-10-27 17:49  gb
 
 	* darwin-x86-headers64/libc/C/: .cvsignore, populate.sh: New file.
