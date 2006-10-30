@@ -1797,7 +1797,10 @@
         (logand mask (ash integer (- position)))))))
 
 
-#+(or safe-but-slow 64-bit-target)
+#+safe-but-slow
+;;; This is basically the same algorithm as the "destructive"
+;;; version below; while it may be more readable, it's often
+;;; slower and conses too much to be at all viable.
 (defun %bignum-bignum-gcd (u v)
   (setq u (abs u) v (abs v))
   (do* ((g 1 (ash g 1)))
@@ -1812,7 +1815,10 @@
 		       (setq u temp)))))))
     (setq u (ash u -1) v (ash v -1))))
 
-#-(or safe-but-slow 64-bit-target)
+
+
+
+#-safe-but-slow
 (progn
 (defun %positive-bignum-bignum-gcd (u0 v0)
   (let* ((u-len (%bignum-length u0))
@@ -1856,25 +1862,16 @@
 	(let* ((shift (min u-trailing-0-bits
 			   v-trailing-0-bits)))
 	  (loop
-	      (let* ((fix-u (and (= u-len 1)
-				 (let* ((hi-u (bignum-ref-hi u 0)))
-				   (declare (fixnum hi-u))
-				   (= hi-u (the fixnum
-					     (logand hi-u (ash most-positive-fixnum -16)))))
-				 (uvref u 0)))
-		     (fix-v (and (= v-len 1)
-				 (let* ((hi-v (bignum-ref-hi v 0)))
-				   (declare (fixnum hi-v))
-				   (= hi-v (the fixnum
-					     (logand hi-v (ash most-positive-fixnum -16)))))
-				 (uvref v 0))))
+	      (let* ((fix-u (and (<= u-len 2)
+                                 (%maybe-fixnum-from-one-or-two-digit-bignum u)))
+		     (fix-v (and (<= v-len 2)
+                                 (%maybe-fixnum-from-one-or-two-digit-bignum v))))
 		(if fix-v
 		  (if fix-u
 		    (return (ash (%fixnum-gcd fix-u fix-v) shift))
 		    (return (ash (bignum-fixnum-gcd u fix-v) shift)))
 		  (if fix-u
 		    (return (ash (bignum-fixnum-gcd v fix-u) shift)))))
-	      
 	      (let* ((signum (if (> u-len v-len)
 			       1
 			       (if (< u-len v-len)
@@ -1930,6 +1927,28 @@
   (with-negated-bignum-buffers u v %positive-bignum-bignum-gcd))
 )
 
+
+;;; nbits can't be zero here.
+(defun bignum-shift-right-loop-1 (nbits result source len idx)
+  (declare (type bignum-type result source)
+           (type (mod 32) nbits)
+           (type bignum-index idx len))
+  (let* ((rbits (logand 31 (the (mod 32) (- 32 nbits)))))
+    (declare (type (mod 32) rbits))
+    (dotimes (j len)
+      (let* ((x (bignum-ref source idx)))
+        (declare (type bignum-element-type x))
+        (setq x (%ilsr nbits x))
+        (incf idx)
+        (let* ((y (bignum-ref source idx)))
+          (declare (type bignum-element-type y))
+          (setq y (%ilsl rbits y))
+          (setf (bignum-ref result j)
+                (%logior x y)))))
+    (setf (bignum-ref result len)
+          (%ilsr nbits (bignum-ref source idx)))
+    idx))
+    
 
 (defun %logcount (bignum idx)
   (%ilogcount (bignum-ref bignum idx)))
@@ -1993,7 +2012,7 @@
         (setf (bignum-ref res i) result-digit
               carry carry-out)))))
 
-(defun %bignum-count-trailing-zerop-bits (bignum)
+(defun %bignum-count-trailing-zero-bits (bignum)
   (let* ((count 0))
     (dotimes (i (%bignum-length bignum))
       (let* ((digit (bignum-ref bignum i)))
@@ -2001,8 +2020,7 @@
         (if (zerop digit)
           (incf count 32)
           (progn
-            (do* ((bit 31 (1- bit)))
-                 ((zerop bit))
+            (dotimes (bit 32)
               (declare (type (mod 32) bit))
               (if (logbitp bit digit)
                 (return)
