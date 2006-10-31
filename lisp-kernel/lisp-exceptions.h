@@ -44,7 +44,7 @@ OSStatus
 lisp_Debugger(ExceptionInformation *, siginfo_t *, int, char *, ...);
 
 OSStatus
-handle_protection_violation(ExceptionInformation *, siginfo_t *);
+handle_protection_violation(ExceptionInformation *, siginfo_t *, TCR *);
 
 protected_area_ptr 
 new_protected_area(BytePtr, BytePtr, lisp_protection_kind, natural, Boolean);
