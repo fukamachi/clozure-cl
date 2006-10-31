@@ -845,14 +845,19 @@ is_write_fault(ExceptionInformation *xp, siginfo_t *info)
 }
 
 OSStatus
-handle_protection_violation(ExceptionInformation *xp, siginfo_t *info)
+handle_protection_violation(ExceptionInformation *xp, siginfo_t *info, TCR *tcr)
 {
   BytePtr addr;
   protected_area_ptr area;
   protection_handler *handler;
-  TCR *tcr = TCR_FROM_TSD(xpGPR(xp, rcontext));
   extern Boolean touch_page(void *);
   extern void touch_page_end(void);
+
+  if (info) {
+    addr = (BytePtr)(info->si_addr);
+  } else {
+    addr = (BytePtr) ((natural) (xpDAR(xp)));
+  }
 
   if (addr && (addr == tcr->safe_ref_address)) {
     adjust_exception_pc(xp,4);
@@ -870,11 +875,6 @@ handle_protection_violation(ExceptionInformation *xp, siginfo_t *info)
     return -1;
   }
 
-  if (info) {
-    addr = (BytePtr)(info->si_addr);
-  } else {
-    addr = (BytePtr) ((natural) (xpDAR(xp)));
-  }
   area = find_protected_area(addr);
 
   if (area == NULL) {		/* Don't know why this fault happened. */
@@ -1174,7 +1174,7 @@ PMCL_exception_handler(int xnum,
     status = handle_alloc_trap(xp, tcr);
   } else if ((xnum == SIGSEGV) ||
 	     (xnum == SIGBUS)) {
-    status = handle_protection_violation(xp, info);
+    status = handle_protection_violation(xp, info, tcr);
   } else if (xnum == SIGFPE) {
     status = handle_sigfpe(xp, tcr);
   } else if ((xnum == SIGILL) || (xnum == SIGTRAP)) {
