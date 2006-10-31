@@ -1,3 +1,13 @@
+2006-10-30 20:40  gb
+
+	* lib/defstruct.lisp: DEFSTRUCT-REF-TRANSFORM for typed vector
+	expands into something more useful.
+
+2006-10-30 20:39  gb
+
+	* lisp-kernel/ppc-spentry.s: Fix ppc32
+	misc_ref_double_float_vector.
+
 2006-10-30 00:24  gb
 
 	* level-0/l0-bignum64.lisp: Enable the destructive version of
