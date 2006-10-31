@@ -2714,15 +2714,12 @@ local_label(misc_ref_u32):
 	 __(ldrx(imm0,arg_y,imm0))
          __(b _SPmakeu32)
 local_label(misc_ref_double_float_vector):      
-         __(addi imm0,arg_z,arg_z)
-	 __(addi imm0,arg_z,misc_dfloat_offset)
-	 __(la imm1,4(imm0))
-	 __(ldrx(imm0,arg_y,imm0))
-	 __(ldrx(imm1,arg_y,imm1))
+         __(slwi imm0,arg_z,1)
+	 __(la imm0,misc_dfloat_offset(imm0))
+         __(lfdx f0,arg_y,imm0)
 	 __(li imm2,double_float_header)
 	 __(Misc_Alloc_Fixed(arg_z,imm2,double_float.size))
-	 __(str(imm0,double_float.value(arg_z)))
-	 __(str(imm1,double_float.value+4(arg_z)))
+	 __(stfd f0,double_float.value(arg_z))
 	 __(blr)
 local_label(misc_ref_bit_vector):       
 	 __(extrwi imm1,arg_z,5,32-(fixnumshift+5))	/* imm1 = bitnum  */
