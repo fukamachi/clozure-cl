@@ -16,13 +16,13 @@
 
 (in-package "CCL")
 
-; Defstruct.lisp
+;;; Defstruct.lisp
 
 (eval-when (eval compile)
   (require 'defstruct-macros)
 )
 
-;(require 'hash)
+
 
 (defvar %structure-refs% (make-hash-table :test #'eq))
 (defvar %defstructs% (make-hash-table :test #'eq))
@@ -123,7 +123,7 @@
                     (return-from sd-refname-pos-in-included-struct
                       (ssd-offset slot))))))))))))
 
-; return stuff for defstruct to compile
+;;; return stuff for defstruct to compile
 (defun %defstruct-compile (sd refnames)
   (let ((stuff))    
     (dolist (slot (sd-slots sd))
@@ -235,17 +235,20 @@
                      `(struct-ref ,@args ,offset))
                     ((eq ref target::subtag-simple-vector)
                      `(svref ,@args ,offset))
+                    (ref
+                     `(aref (the (simple-array ,(element-subtype-type ref) (*))
+                                 ,@args) ,offset))
                     (t `(uvref ,@args ,offset)))))
         (if (eq type 't)
           accessor
           `(the ,type ,accessor))))
     `(structure-typep ,@args ',predicate-or-type-and-refinfo)))
 
-; Should probably remove the constructor, copier, and predicate as
-; well. Can't remove the inline proclamations for the refnames,
-; as the user may have explicitly said this. Questionable - but surely
-; must delete the inline definitions.
-; Doesn't remove the copier because we don't know for sure what it's name is
+;;; Should probably remove the constructor, copier, and predicate as
+;;; well. Can't remove the inline proclamations for the refnames,
+;;; as the user may have explicitly said this. Questionable - but surely
+;;; must delete the inline definitions.
+;;; Doesn't remove the copier because we don't know for sure what it's name is
 (defmethod change-class ((from structure-class)
 			 (to class)
 			  &rest initargs &key &allow-other-keys)
@@ -256,7 +259,8 @@
       (remhash class-name %defstructs%)))
   (%change-class from to initargs))
 
-; if redefining a structure as another structure or redefining a structure as a class
+;;; if redefining a structure as another structure or redefining a
+;;; structure as a class
 (defun remove-structure-defs (class-name)
   (let ((sd (gethash class-name %defstructs%)))
     (when sd
