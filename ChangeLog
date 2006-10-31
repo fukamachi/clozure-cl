@@ -1,3 +1,18 @@
+2006-10-31 03:39  gb
+
+	* level-0/l0-io.lisp: You must be reading the OLD rule book
+	(Leopard and #$EINTR).
+
+2006-10-31 03:21  gb
+
+	* lisp-kernel/ppc-exceptions.c: handle_protection_violation: pass
+	the tcr.  Initialize "addr" before testing it ...
+
+2006-10-31 03:21  gb
+
+	* lisp-kernel/lisp-exceptions.h: handle_protection_violation: pass
+	the tcr.
+
 2006-10-30 20:40  gb
 
 	* lib/defstruct.lisp: DEFSTRUCT-REF-TRANSFORM for typed vector
