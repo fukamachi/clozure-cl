@@ -35,7 +35,10 @@
   (syscall syscalls::write fd buf nbytes))
 
 (defun fd-read (fd buf nbytes)
-  (syscall syscalls::read fd buf nbytes))
+  (loop
+    (let* ((n  (syscall syscalls::read fd buf nbytes)))
+      (unless (eql n (- #$EINTR)) (return n)))))
+
 
 (defun fd-open (path flags &optional (create-mode #o666))
   (with-cstrs ((p path))
