@@ -1,3 +1,7 @@
+2006-11-01 11:40  gb
+
+	* lisp-kernel/errors.s: Some new constants; more to check in later.
+
 2006-10-31 03:39  gb
 
 	* level-0/l0-io.lisp: You must be reading the OLD rule book
