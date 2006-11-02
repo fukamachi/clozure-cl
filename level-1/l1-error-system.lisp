@@ -981,6 +981,21 @@
     (simple-array double-float (* *))
     (simple-array single-float (* *))
     (mod #x110000)
+    (array * (* *))                     ;2d array
+    (array * (* *))                     ;3d array
+    (array bit)
+    (array (signed-byte 8))
+    (array (unsigned-byte 8))
+    (array (signed-byte 16))
+    (array (unsigned-byte 16))
+    (array (signed-byte 32))
+    (array (unsigned-byte 32))
+    (array (signed-byte 64))
+    (array (unsigned-byte 64))
+    (array fixnum)
+    (array single-float)
+    (array double-float)
+    (array character)
 ))
 
 
