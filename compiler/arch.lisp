@@ -37,9 +37,8 @@
 
 
 
-;; Error numbers, as used in UU0s and such.
-;; These match "ccl:pmcl;errors.h" & "ccl:pmcl;errors.s"
-
+;;; Error numbers, as used in UU0s and such.
+;;; These match constants defined in the kernel sources.
 (defconstant error-reg-regnum 0)        ; "real" error number is in RB field of UU0.
                                         ; Currently only used for :errchk in emulated traps
                                         ; The errchk macro should expand into a check-trap-error vinsn, too.
@@ -106,6 +105,21 @@
   simple-array-double-float-2d
   simple-array-single-float-2d
   mod-char-code-limit
+  array-2d
+  array-3d
+  array_bit
+  array_s8
+  array_u8
+  array_s16
+  array_u16
+  array_s32
+  array_u32
+  array_s64
+  array_u64
+  array_fixnum
+  array_single_float
+  array_double_float
+  array_char
   )
 
 
