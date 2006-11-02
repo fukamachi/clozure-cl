@@ -1,3 +1,11 @@
+2006-11-02 09:43  gb
+
+	* level-1/l1-error-system.lisp: Move along, nothing to see here.
+
+2006-11-02 09:37  gb
+
+	* compiler/arch.lisp: New error constants; work in progress ...
+
 2006-11-01 11:40  gb
 
 	* lisp-kernel/errors.s: Some new constants; more to check in later.
