@@ -53,7 +53,7 @@
 (defconstant error-cant-take-cdr 9)
 (defconstant error-cant-call 17)        ; Attempt to funcall something that is not a symbol or function.
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (defconstant error-type-error 64)
+  (defconstant error-type-error 128)
 )
 
 (defconstant error-fpu-exception-double 1024)   ; FPU exception, binary double-float op
@@ -61,7 +61,7 @@
 
 (defconstant error-memory-full 2048)
 
-;; These are now supposed to match (mod 64) the %type-error-typespecs%
+;; These are now supposed to match (mod ERROR-TYPE-ERROR) the %type-error-typespecs%
 ;; array that %err-disp looks at.
 (ccl::defenum (:start  error-type-error :prefix "ERROR-OBJECT-NOT-")
   array
@@ -107,20 +107,51 @@
   mod-char-code-limit
   array-2d
   array-3d
-  array_bit
-  array_s8
-  array_u8
-  array_s16
-  array_u16
-  array_s32
-  array_u32
-  array_s64
-  array_u64
-  array_fixnum
-  array_single_float
-  array_double_float
-  array_char
+  array-t
+  array-bit
+  array-s8
+  array-u8
+  array-s16
+  array-u16
+  array-s32
+  array-u32
+  array-s64
+  array-u64
+  array-fixnum
+  array-single-float
+  array-double-float
+  array-char
+  array-t-2d
+  array-bit-2d
+  array-s8-2d
+  array-u8-2d
+  array-s16-2d
+  array-u16-2d
+  array-s32-2d
+  array-u32-2d
+  array-s64-2d
+  array-u64-2d
+  array-fixnum-2d
+  array-single-float-2d
+  array-double-float-2d
+  array-char-2d
+  simple-array-t-2d
+  simple-array-bit-2d
+  simple-array-s8-2d
+  simple-array-u8-2d
+  simple-array-s16-2d
+  simple-array-u16-2d
+  simple-array-s32-2d
+  simple-array-u32-2d
+  simple-array-s64-2d
+  simple-array-u64-2d
+  simple-array-fixnum-2d
+  simple-array-char-2d
+  ;; Sentinel
+  unused-max-type-error
   )
+
+(assert (<= error-object-not-unused-max-type-error (* 2 error-type-error)))
 
 
 
