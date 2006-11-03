@@ -1112,7 +1112,7 @@
                           :word-shift 3
                           :code-vector-prefix nil
                           :gvector-types '(:ratio :complex :symbol :function
-                                           :catch-frame :structure :istruct
+                                           :catch-frame :struct :istruct
                                            :pool :population :hash-vector
                                            :package :value-cell :instance
                                            :lock :slot-vector
