@@ -385,7 +385,7 @@
 (defmacro sc (op sa lk) `(op ,op (dpb ,sa (byte 1 1) (logand ,lk 1))))
 (defconstant $sc-mask (sc -1 -1 -1))
 
-;; A UUO is an unimplemented instruction that the PMCL exception handler
+;; A UUO is an unimplemented instruction that the exception handler
 ;; decodes and emulates. The major opcode and low three bits are clear;
 ;; bit 3 is set.
 
@@ -597,8 +597,8 @@
    #.(ppc-opcode uuo_intcerr (uuo 12) $uuo-mask ($ppc) $uuo-errnum $rb)
    #.(ppc-opcode uuo_interr2 (uuo 13) $uuo-mask ($ppc) $uuo-small-errnum $ra $rb)
    #.(ppc-opcode uuo_intcerr2 (uuo 14) $uuo-mask ($ppc) $uuo-small-errnum $ra $rb)
-; We'll clearly need more; add a few "anonymous" ones for now so that
-; other opcode's opcode numbers stay constant.
+   ;; We'll clearly need more; add a few "anonymous" ones for now so that
+   ;; other opcode's opcode numbers stay constant.
    #.(ppc-opcode uuo_fpuXbinop (uuo 22) $uuo-mask ($ppc) $frt $fra $frb)
 
    #.(ppc-opcode tdlgti (opto 2 $tolgt) $opto-mask ($ppc $b64) $ra $si)
