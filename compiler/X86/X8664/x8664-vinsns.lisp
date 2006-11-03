@@ -201,7 +201,7 @@
 				    ((val :u64)
 				     (v :lisp)
 				     (idx :u32const)))
-  (movq (:%q val) (:@ idx (:%q v))))
+  (movq (:%q val) (:@ (:apply + x8664::misc-data-offset (:apply ash idx 3)) (:%q v))))
 
 (define-x8664-vinsn misc-set-s64 (()
                                   ((val :s64)
@@ -3802,6 +3802,26 @@
                                           (amt :u8const)))
   (shrq (:$ub amt) (:%q dest)))
 
+(define-x8664-vinsn trap-unless-simple-array-2 (()
+                                                ((object :lisp)
+                                                 (expected-flags :u32const)
+                                                 (type-error :u8const))
+                                                ((tag :u8)))
+  
+  (movb (:%b object) (:%b tag))
+  (andb (:$b x8664::tagmask) (:%b tag))
+  (cmpb (:$b x8664::tag-misc) (:%b tag))
+  (jne :bad)
+  (cmpb (:$b x8664::subtag-arrayH) (:@ x8664::misc-subtag-offset (:%q object)))
+  (jne :bad)
+  (cmpq (:$b (ash 2 x8664::fixnumshift)) (:@ x8664::arrayH.rank (:%q object)))
+  (jne :bad)
+  (cmpq (:$l (:apply ash expected-flags x8664::fixnumshift)) (:@ x8664::arrayH.flags (:%q object)))
+  (je.pt :good)
+  :bad
+  (uuo-error-reg-not-type (:%q object) (:$ub type-error))
+  :good)
+  
 (define-x8664-vinsn trap-unless-array-header (()
                                               ((object :lisp))
                                               ((tag :u8)))
@@ -4005,17 +4025,14 @@
   (sarq (:$ub x8664::fixnumshift) (:%q dest)))
 
 
-(define-x8664-vinsn 2d-unscaled-index (((dest :u64))
-				       ((array :lisp)
-					(i :imm)
-					(j :imm)
-					(dim1 :u64)))
-  ((:not (:pred =
-                (:apply %hard-regspec-value dim1)
-                (:apply %hard-regspec-value dest)))
-   (movq (:% dim1) (:% dest)))
-  (imulq (:%q i) (:%q dest))
-  (addq (:%q j) (:%q dest)))
+(define-x8664-vinsn 2d-unscaled-index (((dest :imm)
+                                        (dim1 :u64))
+				       ((dim1 :u64)
+                                        (i :imm)
+					(j :imm)))
+
+  (imulq (:%q i) (:%q dim1))
+  (leaq (:@ (:%q j) (:%q dim1)) (:%q dest)))
 
 (define-x8664-vinsn branch-unless-both-args-fixnums (()
                                                      ((a :lisp)
