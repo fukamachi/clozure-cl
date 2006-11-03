@@ -421,7 +421,16 @@ define_subtag(function_boundary_marker,fulltag_imm_1,15)
 	 _node(displacement)
 	 _node(flags)
 	_endstructf	
-	
+
+	_structf(arrayH)
+	 _node(rank)
+	 _node(physsize)
+	 _node(data_vector)
+	 _node(displacement)
+	 _node(flags)
+	 _struct_label(dim0)        
+	_endstructf	
+        	
         
 	_struct(c_frame,0)	/* PowerOpen ABI C stack frame   */
 	 _node(backlink)
