@@ -6549,12 +6549,79 @@ _spentry(unbind_interrupt_level)
         __(mr nargs,imm2)
         __(blr)
 
-/* Trap into the kernel debugger if any unused subprim is called                  */
-_spentry(unused_0)
-        __(b _SPbreakpoint)
-	
-_spentry(unused_1)
-        __(b _SPbreakpoint)
+/* arg_x = array, arg_y = i, arg_z = j. Typecheck everything.
+   We don't know whether the array is alleged to be simple or
+   not, and don't know anythng about the element type.  */
+_spentry(aref2)
+        __(extract_typecode(imm2,arg_x))
+        __(trap_unless_lisptag_equal(arg_y,tag_fixnum,imm0))
+        __(cmpri(cr2,imm2,subtag_arrayH))
+        __(trap_unless_lisptag_equal(arg_z,tag_fixnum,imm0))
+        __(bne cr2,1f)
+        __(ldr(imm1,arrayH.rank(arg_x)))
+        __(cmpri(imm1,2<<fixnumshift))
+        __(bne 1f)
+        /* It's a 2-dimensional array.  Check bounds */
+        __(ldr(imm0,arrayH.dim0(arg_x)))
+        __(trlge(arg_y,imm0))
+        __(ldr(imm0,arrayH.dim0+node_size(arg_x)))
+        __(trlge(arg_z,imm0))
+        __(unbox_fixnum(imm0,imm0))
+        __ifdef([PPC64])
+         __(mulld arg_y,arg_y,imm0)
+        __else
+         __(mullw arg_y,arg_y,imm0)
+        __endif
+        __(add arg_z,arg_z,arg_y)
+        /* arg_z is now row-major-index; get data vector and
+           add in possible offset */
+        __(mr arg_y,arg_x)
+0:      __(ldr(arg_y,arrayH.data_vector(arg_y)))
+        __(extract_subtag(imm1,arg_y))
+        __(cmpri(imm1,subtag_vectorH))
+        __(bgt local_label(misc_ref_common))
+        __(ldr(imm0,arrayH.displacement(arg_x)))
+        __(mr arg_x,arg_y)
+        __(add arg_z,arg_z,imm0)
+        __(b 0b)
+1:              
+        __(uuo_interr(error_object_not_array_2d,arg_x))        
+
+/* As for aref2 above, but temp = array, arg_x = i, arg_y = j, arg_z = newval */
+_spentry(aset2)
+        __(extract_typecode(imm2,temp0))
+        __(trap_unless_lisptag_equal(arg_x,tag_fixnum,imm0))
+        __(cmpri(cr2,imm2,subtag_arrayH))
+        __(trap_unless_lisptag_equal(arg_y,tag_fixnum,imm0))
+        __(bne cr2,1f)
+        __(ldr(imm1,arrayH.rank(temp0)))
+        __(cmpri(imm1,2<<fixnumshift))
+        __(bne 1f)
+        /* It's a 2-dimensional array.  Check bounds */
+        __(ldr(imm0,arrayH.dim0(temp0)))
+        __(trlge(arg_x,imm0))
+        __(ldr(imm0,arrayH.dim0+node_size(temp0)))
+        __(trlge(arg_y,imm0))
+        __(unbox_fixnum(imm0,imm0))
+        __ifdef([PPC64])
+         __(mulld arg_x,arg_x,imm0)
+        __else
+         __(mullw arg_x,arg_x,imm0)
+        __endif
+        __(add arg_y,arg_y,arg_x)
+        /* arg_y is now row-major-index; get data vector and
+           add in possible offset */
+        __(mr arg_x,temp0)
+0:      __(ldr(arg_x,arrayH.data_vector(arg_x)))
+        __(extract_subtag(imm1,arg_x))
+        __(cmpri(imm1,subtag_vectorH))
+        __(bgt local_label(misc_set_common))
+        __(ldr(imm0,arrayH.displacement(temp0)))
+        __(mr temp0,arg_x)
+        __(add arg_y,arg_y,imm0)
+        __(b 0b)
+1:              
+        __(uuo_interr(error_object_not_array_2d,temp0))        
                 
 _spentry(unused_2)
          __(b _SPbreakpoint)
