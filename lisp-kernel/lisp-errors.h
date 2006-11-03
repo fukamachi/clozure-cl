@@ -40,47 +40,93 @@
 #define error_too_many_values 7
 #define error_cant_call 17
 
-#define error_type_error 64
-#define type_error(n) (error_type_error+(n))
+#define error_type_error 128
 
-#define error_object_not_array type_error(0)
-#define error_object_not_bignum type_error(1)
-#define error_object_not_fixnum type_error(2)
-#define error_object_not_character type_error(3)
-#define error_object_not_integer type_error(4)
-#define error_object_not_list type_error(5)
-#define error_object_not_number type_error(6)
-#define error_object_not_sequence type_error(7)
-#define error_object_not_simple_string type_error(8)
-#define error_object_not_simple_vector type_error(9)
-#define error_object_not_string type_error(10)
-#define error_object_not_symbol type_error(11)
-#define error_object_not_macptr type_error(12)
-#define error_object_not_real type_error(13)
-#define error_object_not_cons type_error(14)
-#define error_object_not_unsigned_byte type_error(15)
-#define error_object_not_radix type_error(16)
-#define error_object_not_float type_error(17)
-#define error_object_not_rational type_error(18)
-#define error_object_not_ratio type_error(19)
-#define error_object_not_short_float type_error(20)
-#define error_object_not_double_float type_error(21)
-#define error_object_not_complex type_error(22)
-#define error_object_not_vector type_error(23)
-#define error_object_not_simple_base_string type_error(24)
-#define error_object_not_function type_error(25)
-#define error_object_not_unsigned_byte_16 type_error(26)
-#define error_object_not_unsigned_byte_8 type_error(27)
-#define error_object_not_unsigned_byte_32 type_error(28)
-#define error_object_not_signed_byte_32 type_error(29)
-#define error_object_not_signed_byte_16 type_error(30)
-#define error_object_not_signed_byte_8 type_error(31)
-#define error_object_not_base_character type_error(32)
-#define error_object_not_bit type_error(33)
-#define error_object_not_unsigned_byte_24 type_error(34)
-#define error_object_not_u64 type_error(35)
-#define error_object_not_s64 type_error(36)
-#define error_object_not_unsigned_byte_56 type_error(37)
+typedef enum {
+  error_object_not_array = error_type_error,
+  error_object_not_bignum,
+  error_object_not_fixnum,
+  error_object_not_character,
+  error_object_not_integer,
+  error_object_not_list,
+  error_object_not_number,
+  error_object_not_sequence,
+  error_object_not_simple_string,
+  error_object_not_simple_vector,
+  error_object_not_string,
+  error_object_not_symbol,
+  error_object_not_macptr,
+  error_object_not_real,
+  error_object_not_cons,
+  error_object_not_unsigned_byte,
+  error_object_not_radix,
+  error_object_not_float,
+  error_object_not_rational,
+  error_object_not_ratio,
+  error_object_not_short_float,
+  error_object_not_double_float,
+  error_object_not_complex,
+  error_object_not_vector,
+  error_object_not_simple_base_string,
+  error_object_not_function,
+  error_object_not_unsigned_byte_16,
+  error_object_not_unsigned_byte_8,
+  error_object_not_unsigned_byte_32,
+  error_object_not_signed_byte_32,
+  error_object_not_signed_byte_16,
+  error_object_not_signed_byte_8,	
+  error_object_not_base_character,
+  error_object_not_bit,
+  error_object_not_unsigned_byte_24,
+  error_object_not_u64,
+  error_object_not_s64,
+  error_object_not_unsigned_byte_56,
+  error_object_not_simple_array_double_float_2d,
+  error_object_not_simple_array_single_float_2d,
+  error_object_not_mod_char_code_limit,
+  error_object_not_array_2d,
+  error_object_not_array_3d,
+  error_object_not_array_t,
+  error_object_not_array_bit,
+  error_object_not_array_s8,
+  error_object_not_array_u8,
+  error_object_not_array_s16,
+  error_object_not_array_u16,
+  error_object_not_array_s32,
+  error_object_not_array_u32,
+  error_object_not_array_s64,
+  error_object_not_array_u64,
+  error_object_not_array_fixnum,
+  error_object_not_array_single_float,
+  error_object_not_array_double_float,
+  error_object_not_array_char,
+  error_object_not_array_t_2d,
+  error_object_not_array_bit_2d,
+  error_object_not_array_s8_2d,
+  error_object_not_array_u8_2d,
+  error_object_not_array_s16_2d,
+  error_object_not_array_u16_2d,
+  error_object_not_array_s32_2d,
+  error_object_not_array_u32_2d,
+  error_object_not_array_s64_2d,
+  error_object_not_array_u64_2d,
+  error_object_not_array_fixnum_2d,
+  error_object_not_array_single_float_2d,
+  error_object_not_array_double_float_2d,
+  error_object_not_array_char_2d,
+  error_object_not_simple_array_t_2d,
+  error_object_not_simple_array_bit_2d,
+  error_object_not_simple_array_s8_2d,
+  error_object_not_simple_array_u8_2d,
+  error_object_not_simple_array_s16_2d,
+  error_object_not_simple_array_u16_2d,
+  error_object_not_simple_array_s32_2d,
+  error_object_not_simple_array_u32_2d,
+  error_object_not_simple_array_s64_2d,
+  error_object_not_simple_array_u64_2d,
+  error_object_not_simple_array_fixnum_2d,
+  error_object_not_simple_array_char_2d
+} type_error;
 
 #define error_FPU_exception_double 1024
 #define error_FPU_exception_short 1025
