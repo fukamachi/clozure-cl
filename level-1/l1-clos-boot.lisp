@@ -664,7 +664,7 @@
         (set-gf-arg-info gf :lambda-list lambda-list)))
     (setf (fdefinition function-name) gf))
 
-(defun canonicalize-specializers (specializers)
+(defun canonicalize-specializers (specializers &optional (copy t))
   (flet ((canonicalize-specializer (spec)
            (if (specializer-p spec)
              spec
@@ -676,7 +676,11 @@
                         (null (cddr spec)))
                  (intern-eql-specializer (cadr spec))
                  (error "Unknown specializer form ~s" spec))))))
-    (mapcar #'canonicalize-specializer specializers)))
+    (if (and (not copy)
+             (dolist (s specializers t)
+               (unless (specializer-p s) (return nil))))
+      specializers
+      (mapcar #'canonicalize-specializer specializers))))
 
 (defun ensure-method (name specializers &rest keys &key (documentation nil doc-p) qualifiers
                            &allow-other-keys)
@@ -2296,7 +2300,7 @@ to replace that class with ~s" name old-class new-class)
 	    (q (%method-qualifiers m))
 	    s)
 	(when (equal q method-qualifiers)
-	  (dolist (spec specializers #|(canonicalize-specializers specializers)|#
+	  (dolist (spec (canonicalize-specializers specializers nil)
 		   (if (null ss)
 		     (return-from find-method m)
 		     (err)))
