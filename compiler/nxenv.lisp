@@ -184,7 +184,7 @@
      (%rplaca . #.(logior operator-single-valued-mask operator-acode-subforms-mask))
      (%rplacd . #.(logior operator-single-valued-mask operator-acode-subforms-mask))
      (cons . #.(logior operator-assignment-free-mask operator-single-valued-mask operator-acode-subforms-mask))
-     (aref2 . #.(logior operator-acode-subforms-mask operator-assignment-free-mask operator-single-valued-mask))
+     (simple-typed-aref2 . #.(logior operator-acode-subforms-mask operator-assignment-free-mask operator-single-valued-mask))
      (setq-free . #.(logior operator-single-valued-mask operator-acode-subforms-mask))
      (prog1 . 0)
      (catch . 0)
@@ -406,7 +406,8 @@
      (require-s32 . #.(logior operator-single-valued-mask operator-acode-subforms-mask))
      (require-u32 . #.(logior operator-single-valued-mask operator-acode-subforms-mask))
      (require-s64 . #.(logior operator-single-valued-mask operator-acode-subforms-mask))
-     (require-u64 . #.(logior operator-single-valued-mask operator-acode-subforms-mask)))))
+     (require-u64 . #.(logior operator-single-valued-mask operator-acode-subforms-mask))
+     (general-aref2 .  #.(logior operator-acode-subforms-mask operator-assignment-free-mask operator-single-valued-mask)))))
 
 (defmacro %nx1-operator (sym)
   (let ((op (assq sym *next-nx-operators*)))
