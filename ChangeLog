@@ -1,3 +1,25 @@
+2006-11-03 15:19  gb
+
+	* compiler/PPC/ppc-arch.lisp: New .SParef2, .SPaset2 subprims.
+
+2006-11-03 15:18  gb
+
+	* compiler/PPC/ppc-asm.lisp: Comments/indentation.
+
+2006-11-03 15:17  gb
+
+	* level-1/ppc-error-signal.lisp: Change decoding/handlng of
+	type-error UUOs.
+
+2006-11-03 15:16  gb
+
+	* lisp-kernel/: ppc-spentry.s, ppc-spjump.s: .SParef2, .SPaset2.
+
+2006-11-03 15:16  gb
+
+	* lisp-kernel/: ppc-constants32.s, ppc-constants64.s: Define arrayH
+	(array-header) layout.
+
 2006-11-03 13:46  gb
 
 	* level-1/l1-clos-boot.lisp: CANONICALIZE-SPECIALIZERS optionally
