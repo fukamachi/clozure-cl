@@ -249,6 +249,14 @@ max_1_bit_constant_index = ((0x7fff + misc_data_offset)<<5)
 	 _node(flags)
 	_endstructf	
 	
+        _structf(arrayH)
+         _node(rank)
+         _node(physsize)
+         _node(data_vector)
+         _node(displacement)
+         _node(flags)
+         _struct_label(dim0)
+        _endstructf
         
 	_struct(c_frame,0)	/* PowerOpen ABI C stack frame */
 	 _node(backlink)
