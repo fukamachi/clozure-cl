@@ -1,3 +1,80 @@
+2006-11-03 12:53  gb
+
+	* lisp-kernel/x86-uuo.s: uuo_error_array_bounds, such as it is.
+
+2006-11-03 12:52  gb
+
+	* lisp-kernel/: x86-spentry64.s, x86-spjump64.s: SParef2, .SPaset2.
+	 More to come ...
+
+2006-11-03 12:52  gb
+
+	* lisp-kernel/x86-constants64.s: Define array-header layout.
+
+2006-11-03 12:51  gb
+
+	* lisp-kernel/: errors.s, lisp-errors.h: New type-error uuo
+	encodings, new type-error constants.
+
+2006-11-03 12:50  gb
+
+	* level-1/x86-error-signal.lisp: New range/encoding of type-error
+	traps.
+
+2006-11-03 12:49  gb
+
+	* level-1/l1-utils.lisp: (temporary) mechanism to avoid
+	constant-redefinition CERRORs.
+
+2006-11-03 12:48  gb
+
+	* level-1/l1-error-system.lisp: New %type-error-typespecs%.
+
+2006-11-03 12:47  gb
+
+	* level-0/l0-pred.lisp: array--header -> array-header.
+
+2006-11-03 12:47  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: Fix misc-set-c-u64 braino;
+	add/change some 2d array stuff.
+
+2006-11-03 12:43  gb
+
+	* compiler/X86/X8664/x8664-arch.lisp: Define .SParef2/.SPaset2
+	subprims; seem to be much (>5x) faster than the lisp/lap versions
+	(though we can generally be faster still when we know the
+	element-type and/or know whether the array is simple or explicitly
+	displaced.)
+
+2006-11-03 12:41  gb
+
+	* compiler/X86/x862.lisp: Change handling of 2d-aref; lots of
+	related changes.
+	
+	Split the code which handles bounds/type-checking in vref out from
+	the code which actually does the reference, so that the latter can
+	be used in multidimensional cases.
+	
+	Need to do this on PPC as well; need to do more (%aset2, 3d cases,
+	general case.)
+
+2006-11-03 12:38  gb
+
+	* compiler/nx1.lisp: Change handling of 2d-aref.
+
+2006-11-03 12:37  gb
+
+	* compiler/nxenv.lisp: aref2 -> simple-typed-aref2, add
+	general-aref2.	More changes to come (and this may affect
+	compilation on PPC until some PPC compiler changes are
+	made/checked-in.)
+
+2006-11-03 12:35  gb
+
+	* compiler/arch.lisp: type-errors (as encoded in UUOs) are now in
+	the range 128-255, rather than 64-127; more are defined.
+
 2006-11-02 09:43  gb
 
 	* level-1/l1-error-system.lisp: Move along, nothing to see here.
