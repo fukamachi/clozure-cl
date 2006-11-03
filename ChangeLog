@@ -1,3 +1,25 @@
+2006-11-03 13:46  gb
+
+	* level-1/l1-clos-boot.lisp: CANONICALIZE-SPECIALIZERS optionally
+	returns its argument if all members are SPECIALIZERS.
+	
+	Use CANONICALIZE-SPECIALIZERS to canonicalize FIND-METHOD
+	arguments, for the benefit of people who haven't read the MOP spec
+	or who don't realize that the MOP defines some things differently
+	from CLHS.
+
+2006-11-03 13:38  gb
+
+	* compiler/X86/x862.lisp: Consistently use :struct (not :structure)
+	to refer to primitive structure type.
+	
+	Fix array-ctype-dimensions check in %aref1, add it to %aset1.
+
+2006-11-03 13:37  gb
+
+	* compiler/X86/X8664/x8664-arch.lisp: Ensure that :STRUCT (not
+	:STRUCTURE) is on target-gvector-types.
+
 2006-11-03 12:53  gb
 
 	* lisp-kernel/x86-uuo.s: uuo_error_array_bounds, such as it is.
