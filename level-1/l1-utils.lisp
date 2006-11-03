@@ -558,6 +558,8 @@
 (defun undefine-constant (var)
   (%set-sym-global-value var (%unbound-marker-8)))
 
+(defparameter *cerror-on-constant-redefinition* t)
+
 (defun define-constant (var value)
   (block nil
     (if (constant-symbol-p var)
@@ -567,9 +569,10 @@
 	    (return)
 	    ;; This should really be a cell error, allow options other than
 	    ;; redefining (such as don't redefine and continue)...
-	    (cerror "Redefine ~S to have new value ~*~s"
-		    "Constant ~S is already defined with a different value (~s)"
-		    var old-value value)))))
+            (when *cerror-on-constant-redefinition*
+              (cerror "Redefine ~S to have new value ~*~s"
+                      "Constant ~S is already defined with a different value (~s)"
+                      var old-value value))))))
     (%symbol-bits var 
                   (%ilogior (%ilsl $sym_bit_special 1) (%ilsl $sym_bit_const 1)
                             (%symbol-bits var)))
