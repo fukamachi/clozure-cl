@@ -93,3 +93,8 @@ define([uuo_error_vector_bounds],[
 	.byte ($1<<4)|($2)
 ])	
 
+define([uuo_error_array_bounds],[
+	int [$]0xcb
+	.byte ($1<<4)|($2)
+])	
+
