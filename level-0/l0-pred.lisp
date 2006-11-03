@@ -698,7 +698,7 @@
     slot-vector
     lisp-thread
     function-vector                                        ;8
-    array--header
+    array-header
     bogus
     bogus
     bogus
