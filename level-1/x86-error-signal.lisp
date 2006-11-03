@@ -97,7 +97,7 @@
                 (list (encoded-gpr-lisp
                        xp
                        (ldb (byte 4 0) op1))
-                      (logand op2 63))
+                      (logandc2 op2 arch::error-type-error))
                 frame-ptr))
               ((= op1 #xc0)
                (%error 'too-few-arguments
@@ -137,7 +137,7 @@
               ((= op1 #xc7)
                (handle-udf-call xp frame-ptr)
                (setq skip 0))
-              ((= op1 #xc8)
+              ((or (= op1 #xc8) (= op1 #xcb))
                (setq skip 3)
                (%error (%rsc-string $xarroob)
                        (list (encoded-gpr-lisp xp (ldb (byte 4 4) op2))
