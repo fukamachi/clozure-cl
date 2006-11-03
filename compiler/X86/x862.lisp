@@ -6521,7 +6521,9 @@
          (ctype (if vtype (specifier-type vtype)))
          (atype (if (array-ctype-p ctype) ctype))
          (keyword (if (and atype
-                           (= 1 (length (array-ctype-dimensions atype)))
+                           (let* ((dims (array-ctype-dimensions atype)))
+                             (or (atom dims)
+                                 (= (length dims) 1)))
                            (not (array-ctype-complexp atype)))
                     (funcall
                         (arch::target-array-type-name-from-ctype-function
@@ -6536,6 +6538,9 @@
   (let* ((vtype (acode-form-type v t))
          (atype (if vtype (specifier-type vtype)))
          (keyword (if (and atype
+                           (let* ((dims (array-ctype-dimensions atype)))
+                             (or (atom dims)
+                                 (= (length dims) 1)))
                            (not (array-ctype-complexp atype)))
                     (funcall
                         (arch::target-array-type-name-from-ctype-function
