@@ -37,7 +37,7 @@
 			    ((logtest errnum arch::error-type-error)
 			     (funcall err-fn 
 				      #.(car (rassoc 'type-error *kernel-simple-error-classes*))
-				      (list rb-value (logandc2 errnum arch::error-type-error)
+				      (list rb-value (logandc2 errnum arch::error-type-error))
 				      frame-ptr))
 			    ((eql errnum arch::error-udf)
 			     (funcall err-fn $xfunbnd (list rb-value) frame-ptr))
