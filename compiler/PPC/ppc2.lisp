@@ -5091,14 +5091,14 @@
 (defun ppc2-fixed-call-builtin (seg vreg xfer name subprim)
   (with-ppc-local-vinsn-macros (seg vreg xfer)
     (let* ((index (arch::builtin-function-name-offset name))
-           (idx-subprim (ppc2-builtin-index-subprim index))
+           (idx-subprim (if index (ppc2-builtin-index-subprim index)))
            (tail-p (ppc2-tailcallok xfer)))
       (when tail-p
         (ppc2-restore-nvrs seg *ppc2-register-restore-ea* *ppc2-register-restore-count*)
         (ppc2-restore-full-lisp-context seg))
       (if idx-subprim
         (setq subprim idx-subprim)
-        (! lri ($ ppc::imm0) (ash index *ppc2-target-fixnum-shift*)))
+        (if index (! lri ($ ppc::imm0) (ash index *ppc2-target-fixnum-shift*))))
       (if tail-p
         (! jump-subprim subprim)
         (progn
@@ -7461,33 +7461,17 @@
   (destructuring-bind (op n0 n1) (acode-unwrapped-form form)
     (ppc2-use-operator op seg vreg xfer n0 n1 *nx-t*)))
 
-(defppc2 ppc2-%aref2 aref2 (seg vreg xfer typename arr i j &optional dim0 dim1)
-  (if (null vreg)
-    (progn
-      (ppc2-form seg nil nil arr)
-      (ppc2-form seg nil nil i)
-      (ppc2-form seg nil xfer j)))
-  (let* ((type-keyword (ppc2-immediate-operand typename))
-         (fixtype (nx-lookup-target-uvector-subtag type-keyword ))
-         (safe (unless *ppc2-reckless* fixtype))
-         (dim0 (acode-fixnum-form-p dim0))
-         (dim1 (acode-fixnum-form-p dim1)))
-    (case type-keyword
-      (:double-float-vector
-       (if (= (hard-regspec-class vreg) hard-reg-class-fpr)
-         (ppc2-aref2 seg vreg xfer arr i j safe type-keyword dim0 dim1)
-         (with-fp-target () (target :double-float)
-           (ppc2-aref2 seg target nil arr i j safe type-keyword dim0 dim1)
-           (<- target)
-           (^))))
-      (:single-float-vector
-       (if (= (hard-regspec-class vreg) hard-reg-class-fpr)
-         (ppc2-aref2 seg vreg xfer arr i j safe fixtype dim0 dim1)
-         (with-fp-target () (target :single-float)
-           (ppc2-aref2 seg target nil arr i j safe type-keyword dim0 dim1)
-           (<- target)
-           (^))))
-      (t (error "Bug: shouldn't have tried to open-code %AREF2 call.")))))
+(eval-when (:compile-toplevel)
+  (warn "fix ppc2-%aref2"))
+
+(defppc2 ppc2-%aref2 simple-typed-aref2 (seg vreg xfer typename arr i j &optional dim0 dim1)
+  (declare (ignore typename dim0 dim1))
+  (ppc2-three-targeted-reg-forms seg arr ($ ppc::arg_x) i ($ ppc::arg_y) j ($ ppc::arg_z))
+  (ppc2-fixed-call-builtin seg vreg xfer nil (subprim-name->offset '.SParef2)))
+
+(defppc2 ppc2-general-aref2 general-aref2 (seg vreg xfer arr i j)
+  (ppc2-three-targeted-reg-forms seg arr ($ ppc::arg_x) i ($ ppc::arg_y) j ($ ppc::arg_z))
+  (ppc2-fixed-call-builtin seg vreg xfer nil (subprim-name->offset '.SParef2)))
 
 (defppc2 ppc2-%aset2 aset2 (seg vreg xfer typename arr i j new &optional dim0 dim1)
   (let* ((type-keyword (ppc2-immediate-operand typename))
