@@ -1,3 +1,20 @@
+2006-11-03 23:10  gb
+
+	* level-1/ppc-error-signal.lisp: fix parens.
+
+2006-11-03 23:09  gb
+
+	* compiler/PPC/: PPC32/ppc32-arch.lisp, PPC64/ppc64-arch.lisp: arch
+	gvector types contains :struct, not :structure.
+
+2006-11-03 23:08  gb
+
+	* compiler/PPC/ppc2.lisp: aref2: new operator name(s), always call
+	subprim.
+	
+	ppc2-fixed-call-builtin: (tail-)call subprims even if they aren't
+	in the builtin functions table.
+
 2006-11-03 15:19  gb
 
 	* compiler/PPC/ppc-arch.lisp: New .SParef2, .SPaset2 subprims.
