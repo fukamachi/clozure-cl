@@ -1,3 +1,7 @@
+2006-11-04 00:05  gb
+
+	* level-1/version.lisp: Bump.
+
 2006-11-03 23:10  gb
 
 	* level-1/ppc-error-signal.lisp: fix parens.
