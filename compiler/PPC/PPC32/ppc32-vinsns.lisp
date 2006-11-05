@@ -85,6 +85,7 @@
                                    ())
   (lwzx dest v scaled-idx))
 
+
 (define-ppc32-vinsn misc-ref-c-u32  (((dest :u32))
                                      ((v :lisp)
                                       (idx :u32const))
@@ -311,24 +312,14 @@
           (- ppc32::least-significant-bit ppc32::fixnumshift))
   (twlge idx temp))
 
-(define-ppc32-vinsn 2d-unscaled-index (((dest :u32))
-                                       ((array :lisp)
+(define-ppc32-vinsn 2d-unscaled-index (((dest :imm)
+                                        (dim1 :u32))
+				       ((dim1 :u32)
                                         (i :imm)
-                                        (j :imm)
-                                        (dim1 :u32)))
-  (mullw dest i dim1)
-  (add dest dest j))
+					(j :imm)))
+  (mullw dim1 i dim1)
+  (add dest dim1 j))
 
-
-
-(define-ppc32-vinsn 2d-32-scaled-index (((dest :u32))
-                                        ((array :lisp)
-                                         (i :imm)
-                                         (j :imm)
-                                         (dim1 :u32)))
-  (mullw dest i dim1)
-  (add dest dest j)
-  (la dest ppc32::misc-data-offset dest))
 
 (define-ppc32-vinsn 2d-dim1 (((dest :u32))
                              ((header :lisp)))
@@ -2745,6 +2736,36 @@
                                           (count :u8const)))
   (rlwinm dest src (:apply - 32 count) count 31))
 
+
+(define-ppc32-vinsn trap-unless-simple-array-2 (()
+                                                ((object :lisp)
+                                                 (expected-flags :u32const)
+                                                 (type-error :u8const))
+                                                ((tag :u8)
+                                                 (flags :u32)
+                                                 (crf :crf)))
+  (clrlwi tag object (- ppc32::nbits-in-word ppc32::nlisptagbits))
+  (cmpwi crf tag ppc32::tag-misc)
+  (bne crf :bad)
+  (lbz tag ppc32::misc-subtag-offset object)
+  (cmpwi crf tag ppc32::subtag-arrayH)
+  (bne crf :bad) 
+  (lwz tag ppc32::arrayH.rank object)
+  (cmpwi crf tag (ash 2 ppc32::fixnumshift))
+  (lis tag (:apply ldb (byte 16 16) (:apply ash expected-flags ppc32::fixnumshift)))
+       
+  (lwz flags ppc32::arrayH.flags object)
+  (ori tag tag (:apply ldb (byte 16 0) (:apply ash expected-flags ppc32::fixnumshift)))
+  (bne crf :bad)
+  (cmpw crf tag flags)
+  (beq crf :good)
+  :bad
+  (uuo_interr type-error object)
+  :good)
+  
+  
+  
+  
 (define-ppc32-vinsn sign-extend-halfword (((dest :imm))
                                           ((src :imm)))
   (slwi dest src (- 16 ppc32::fixnumshift))
@@ -3113,12 +3134,10 @@
 (define-ppc32-vinsn load-double-float-constant
     (((dest :double-float))
      ((high t)
-      (low t))
-     ((align :u32)))
-  (clrrwi align ppc::sp 3)
-  (stw high -8 align)
-  (stw low -4 align)
-  (lfd dest -8 align ))
+      (low t)))
+  (stw high -8 ppc::sp)
+  (stw low -4 ppc::sp)
+  (lfd dest -8 ppc::sp ))
 
 (define-ppc32-vinsn load-single-float-constant
     (((dest :single-float))

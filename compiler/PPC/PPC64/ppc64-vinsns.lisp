@@ -352,13 +352,13 @@
   (sldi temp temp ppc64::fixnumshift)
   (tdlge idx temp))
 
-(define-ppc64-vinsn 2d-unscaled-index (((dest :u64))
-				       ((array :lisp)
-					(i :imm)
-					(j :imm)
-					(dim1 :u64)))
-  (mulld dest i dim1)
-  (add dest dest j))
+(define-ppc64-vinsn 2d-unscaled-index (((dest :imm)
+                                        (dim1 :u32))
+				       ((dim1 :u32)
+                                        (i :imm)
+					(j :imm)))
+  (mulld dim1 i dim1)
+  (add dest dim1 j))
 
 
 
@@ -408,6 +408,32 @@
   (ori xreg xreg (:apply ldb (byte 16 0) (:apply ash expected ppc64::fixnumshift)))
   (ld flags ppc64::arrayH.flags header)
   (td 27 flags xreg))
+
+
+(define-ppc64-vinsn trap-unless-simple-array-2 (()
+                                               ((object :lisp)
+                                                (expected-flags :u64const)
+                                                (type-error :u8const))
+                                               ((tag :u8)
+                                                (flags :u64)
+                                                (crf :crf)))
+  (clrldi tag object (- ppc64::nbits-in-word ppc64::ntagbits))
+  (cmpdi crf tag ppc64::fulltag-misc)
+  (bne crf :bad)
+  (lbz tag ppc64::misc-subtag-offset object)
+  (cmpdi crf tag ppc64::subtag-arrayH)
+  (bne crf :bad) 
+  (ld tag ppc64::arrayH.rank object)
+  (cmpdi crf tag (ash 2 ppc64::fixnumshift))
+  (lis tag (:apply ldb (byte 16 16) (:apply ash expected-flags ppc64::fixnumshift)))
+  (ld flags ppc64::arrayH.flags object)
+  (ori tag tag (:apply ldb (byte 16 0) (:apply ash expected-flags ppc64::fixnumshift)))
+  (bne crf :bad)
+  (cmpd crf tag flags)
+  (beq crf :good)
+  :bad
+  (uuo_interr type-error object)
+  :good)
 
   
 (define-ppc64-vinsn node-slot-ref  (((dest :lisp))
