@@ -228,7 +228,17 @@
     (dotimes (i (ash (the fixnum (+ (length result) 63)) -6) result)
       (funcall f i b1 b2 result))))
 
-       
+(defx86lapfunction %aref2 ((array arg_x) (i arg_y) (j arg_z))
+  (check-nargs 3)
+  (jmp-subprim .SParef2))
+
+(defx86lapfunction %aset2 ((array 0) (i arg_x) (j arg_y) (newval arg_z))
+  (check-nargs 4)
+  (pop (% temp0))
+  (discard-reserved-frame)
+  (jmp-subprim .SPaset2))
+
+
 
 
 
