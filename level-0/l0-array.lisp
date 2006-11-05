@@ -575,33 +575,9 @@ minimum number of elements to add if it must be extended."
                     (declare (fixnum offset))
                     (uvref data (the fixnum (+ offset rmi)))))))))))))
 
-(defun %2d-array-index (a x y)
-  (let* ((dim0 (%svref a target::arrayH.dim0-cell))
-         (dim1 (%svref a (1+ target::arrayH.dim0-cell))))
-      (declare (fixnum dim0 dim1))
-      (unless (and (typep x 'fixnum)
-                   (>= (the fixnum x) 0)
-                   (< (the fixnum x) dim0))
-        (%err-disp $XARROOB x a))
-      (unless (and (typep y 'fixnum)
-                   (>= (the fixnum y) 0)
-                   (< (the fixnum y) dim1))
-        (%err-disp $XARROOB y a))
-       (the fixnum (+ (the fixnum y) (the fixnum (* dim1 (the fixnum x)))))))
 
-(defun %aref2 (a x y)
-  (let* ((a-type (typecode a)))
-    (declare (fixnum a-type))
-    (unless (>= a-type target::subtag-arrayH)
-      (report-bad-arg a 'array))
-    (unless (and (= a-type target::subtag-arrayH)
-                 (= (the fixnum (%svref a target::arrayH.rank-cell)) 2))
-      (%err-disp $XNDIMS a 2))
-    (let* ((rmi (%2d-array-index a x y)))
-      (declare (fixnum rmi))
-      (multiple-value-bind (data offset) (%array-header-data-and-offset a)
-        (declare (fixnum offset))
-        (uvref data (the fixnum (+ rmi offset)))))))
+
+
 
 (defun aset (a &lexpr subs&val)
   (let* ((count (%lexpr-count subs&val))
@@ -629,19 +605,7 @@ minimum number of elements to add if it must be extended."
                       (multiple-value-bind (data offset) (%array-header-data-and-offset a)
                         (setf (uvref data (the fixnum (+ offset rmi))) val)))))))))))))
 
-(defun %aset2 (a x y new)
-  (let* ((a-type (typecode a)))
-    (declare (fixnum a-type))
-    (unless (>= a-type target::subtag-arrayH)
-      (report-bad-arg a 'array))
-    (unless (and (= a-type target::subtag-arrayH)
-                 (= (the fixnum (%svref a target::arrayH.rank-cell)) 2))
-      (%err-disp $XNDIMS a 2))
-    (let* ((rmi (%2d-array-index a x y)))
-      (declare (fixnum rmi))
-      (multiple-value-bind (data offset) (%array-header-data-and-offset a)
-        (declare (fixnum offset))
-        (setf (uvref data (the fixnum (+ rmi offset))) new)))))
+
 
 (defun schar (s i)
   "SCHAR returns the character object at an indexed position in a string
