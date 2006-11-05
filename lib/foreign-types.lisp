@@ -1313,7 +1313,16 @@ result-type-specifer is :VOID or NIL"
     (let* ((addr (eep.address eep))
 	   (container (eep.container eep)))
       (if addr
-	(format out " (#x~8,'0x) " (logand #xffffffff (ash addr 2)))
+        #+ppc-target
+        (progn
+          #+32-bit-target
+          (format out " (#x~8,'0x) " (logand #xffffffff (ash addr 2)))
+          #+64-bit-target
+          (format out " (#x~16,'0x) " (if (typep addr 'integer)
+                                        (logand #xffffffffffffffff (ash addr 2))
+                                        (%ptr-to-int addr))))
+        #+x8664-target
+        (format out " (#x~16,'0x) " addr)
 	(format out " {unresolved} "))
       (when (and container (or (not (typep container 'macptr))
 				    (not (%null-ptr-p container))))
