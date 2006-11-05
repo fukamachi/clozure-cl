@@ -6576,13 +6576,12 @@ _spentry(aref2)
         /* arg_z is now row-major-index; get data vector and
            add in possible offset */
         __(mr arg_y,arg_x)
-0:      __(ldr(arg_y,arrayH.data_vector(arg_y)))
+0:      __(ldr(imm0,arrayH.displacement(arg_y)))
+        __(ldr(arg_y,arrayH.data_vector(arg_y)))
         __(extract_subtag(imm1,arg_y))
         __(cmpri(imm1,subtag_vectorH))
-        __(bgt local_label(misc_ref_common))
-        __(ldr(imm0,arrayH.displacement(arg_x)))
-        __(mr arg_x,arg_y)
         __(add arg_z,arg_z,imm0)
+        __(bgt local_label(misc_ref_common))
         __(b 0b)
 1:              
         __(uuo_interr(error_object_not_array_2d,arg_x))        
@@ -6612,13 +6611,12 @@ _spentry(aset2)
         /* arg_y is now row-major-index; get data vector and
            add in possible offset */
         __(mr arg_x,temp0)
-0:      __(ldr(arg_x,arrayH.data_vector(arg_x)))
+0:      __(ldr(imm0,arrayH.displacement(arg_x)))
+        __(ldr(arg_x,arrayH.data_vector(arg_x)))
         __(extract_subtag(imm1,arg_x))
         __(cmpri(imm1,subtag_vectorH))
-        __(bgt local_label(misc_set_common))
-        __(ldr(imm0,arrayH.displacement(temp0)))
-        __(mr temp0,arg_x)
         __(add arg_y,arg_y,imm0)
+        __(bgt local_label(misc_set_common))
         __(b 0b)
 1:              
         __(uuo_interr(error_object_not_array_2d,temp0))        
