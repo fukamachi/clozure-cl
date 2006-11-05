@@ -716,4 +716,21 @@
   (restore-simple-frame)
   (single-value-return))
 
+(defx86lapfunction %valid-remaining-timespec-time-p ((seconds arg_y) (ptr arg_z))
+  (macptr-ptr arg_z imm0)
+  (unbox-fixnum seconds imm1)
+  (movl ($ x8664::nil-value) (% arg_z.l))
+  (cmpq ($ 0) (@ (% imm0)))
+  (jl @done)
+  (cmpq (% imm1) (% imm0))
+  (ja @done)
+  (cmpq ($ 1000000000) (@ 8 (% imm0)))
+  (jae @done)
+  (movq (@ (% imm0)) (% imm1))
+  (orq (@ 8 (% imm0)) (% imm1))
+  (jz @done)
+  (movl ($ x8664::t-value) (% arg_z.l))
+  @done
+  (single-value-return))
+
 ;;; end of x86-misc.lisp
