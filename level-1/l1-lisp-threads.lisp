@@ -51,10 +51,9 @@
           (declare (type (signed-byte 32) result))
           (if (and (< result 0)
                    (eql (%get-errno) (- #$EINTR))
-                   (not (and (eql (pref bptr :timespec.tv_sec) 0)
-                             (eql (pref bptr :timespec.tv_nsec) 0))))
-		(psetq aptr bptr bptr aptr)
-		(return)))))))
+                   (%valid-remaining-timespec-time-p seconds bptr))
+            (psetq aptr bptr bptr aptr)
+            (return)))))))
 
 
 (defun timeval->ticks (tv)
