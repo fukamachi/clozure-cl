@@ -823,6 +823,14 @@
   (blr))
 
 
+(defppclapfunction %aref2 ((array arg_x) (i arg_y) (j arg_z))
+  (check-nargs 3)
+  (ba .SParef2))
 
+
+(defppclapfunction %aset2 ((array 0) (i arg_x) (j arg_y) (newval arg_z))
+  (check-nargs 4)
+  (vpop temp0)
+  (ba .SPaset2))
   
 
