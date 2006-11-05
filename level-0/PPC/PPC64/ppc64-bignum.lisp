@@ -207,7 +207,12 @@
   (blr))
 
 (defppclapfunction macptr->fixnum ((ptr arg_z))
-  (macptr-ptr arg_z ptr)
+  (macptr-ptr imm0 ptr)
+  (andi. imm1 imm0 7)
+  (li arg_z nil)
+  (bne @done)
+  (mr arg_z imm0)
+  @done
   (blr))
 
 (defppclapfunction fix-digit-logand ((fix arg_x) (big arg_y) (dest arg_z)) ; index 0
