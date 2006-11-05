@@ -451,10 +451,15 @@ the operating system."
 
 
 
-;;; An "entry" is a fixnum (the low 2 bits are clear) which represents
-;;; a 32-bit, word-aligned address.  This should probably only be used
-;;; for function entrypoints, since it treats a return value of 0 as
-;;; invalid.
+;;; An "entry" can be fixnum (the low 2 bits are clear) which represents
+;;; a (32-bit word)-aligned address.  That convention covers all
+;;; function addresses on ppc32 and works for addresses that are
+;;; 0 mod 8 on PPC64, but can't work for things that're byte-aligned
+;;; (x8664 and other non-RISC platforms.)
+;;; For PPC64, we may have to cons up a macptr if people use broken
+;;; linkers.  (There are usually cache advantages to aligning ppc
+;;; function addresses on at least a 16-byte boundary, but some
+;;; linkers don't quite get the concept ...)
 
 (defun foreign-symbol-entry (name &optional (handle *rtld-default*))
   "Try to resolve the address of the foreign symbol name. If successful,
@@ -468,7 +473,7 @@ return a fixnum representation of that address, else return NIL."
 			     :address n
 			     :address))
       (unless (%null-ptr-p addr)	; No function can have address 0
-	(macptr->fixnum addr)))
+	(or (macptr->fixnum addr) (%inc-ptr addr 0))))
     #+x8664-target
     (let* ((addr (ff-call (%kernel-import target::kernel-import-FindSymbol)
                           :address handle
