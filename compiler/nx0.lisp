@@ -557,6 +557,22 @@ function to the indicated name is true.")
       (nx-error "Subtag ~s not native on target ~s"
                 subtag (backend-target-arch-name *target-backend*))))
 
+(defun nx-error-for-simple-2d-array-type (type-keyword)
+  (ecase type-keyword
+    (:simple-vector arch::error-object-not-simple-array-t-2d)
+    (:simple-string arch::error-object-not-simple-array-char-2d)
+    (:bit-vector arch::error-object-not-simple-array-bit-2d)
+    (:unsigned-8-bit-vector arch::error-object-not-simple-array-u8-2d)
+    (:signed-8-bit-vector arch::error-object-not-simple-array-s8-2d)
+    (:unsigned-16-bit-vector arch::error-object-not-simple-array-u16-2d)
+    (:signed-16-bit-vector arch::error-object-not-simple-array-s16-2d)
+    (:unsigned-32-bit-vector arch::error-object-not-simple-array-u32-2d)
+    (:signed-32-bit-vector arch::error-object-not-simple-array-s32-2d)
+    (:unsigned-64-bit-vector arch::error-object-not-simple-array-u64-2d)
+    (:signed-64-bit-vector arch::error-object-not-simple-array-s64-2d)
+    (:double-float-vector arch::error-object-not-simple-array-double-float-2d)
+    (:single-float-vector arch::error-object-not-simple-array-double-float-2d)))
+
 (defun acode-s16-constant-p (x)
   (setq x (acode-unwrapped-form x))
   (if (acode-p x)
