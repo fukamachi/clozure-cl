@@ -1,3 +1,82 @@
+2006-11-05 07:55  gb
+
+	* level-0/X86/x86-misc.lisp: %VALID-REMAINING-TIMESPEC-TIME-P for
+	x86-64, as well.
+
+2006-11-05 07:52  gb
+
+	* level-0/X86/x86-array.lisp: %AREF2, %ASET2 in x8664 lap.
+
+2006-11-05 07:50  gb
+
+	* lisp-kernel/x86-spentry64.s: pre-add displacement in .SParef2,
+	.SPaset2.
+
+2006-11-05 07:48  gb
+
+	* lisp-kernel/ppc-spentry.s: .SParef2, .SPaset2: since we aren't
+	testing simple-array-ness, add the (possibly 0) displacement from
+	the header before handling the simple aref of the data vector.
+
+2006-11-05 07:47  gb
+
+	* lib/foreign-types.lisp: PRINT-OBJECT method for EEPS: handle
+	pointers on PPC(64), print 64-bit addresses on 64-bit platforms.
+
+2006-11-05 07:46  gb
+
+	* level-1/version.lisp: Bump; new binaries soon.
+
+2006-11-05 07:46  gb
+
+	* level-1/l1-lisp-threads.lisp: %NANOSLEEP calls
+	%VALID-REMAINING-TIMESPEC-TIME-P, which is better than sleeping for
+	4G seconds after an EINTR on Leopard.
+
+2006-11-05 07:44  gb
+
+	* level-0/PPC/PPC64/ppc64-bignum.lisp: MACPTR->FIXNUM returns NIL
+	if any non-fixnum bits would be set in the result.  (Should
+	probably make this true on all platforms; for PPC64, it's important
+	for foreign function addresses that're ... suboptimally aligned.)
+
+2006-11-05 07:42  gb
+
+	* level-0/PPC/ppc-misc.lisp: Try to detect the case where
+	%NANOSLEEP's second (by reference) argument contains garbage after
+	an EINTR.  (The L word, again.)
+
+2006-11-05 07:41  gb
+
+	* level-0/PPC/ppc-array.lisp: %AREF2, %ASET2: in LAP, just call
+	into the kernel.
+
+2006-11-05 07:40  gb
+
+	* level-0/l0-cfm-support.lisp: Some platforms (the L-word) generate
+	ppc64 functions whose addresses are not 0 mod 8, so (a) make
+	MACPTR->FIXNUM return NIL if an address isn't representable as a
+	fixnum and (b) make FOREIGN-SYMBOL-ENTRY return an address if it
+	can't return a fixnum on PPC (really just affects PPC64.)
+
+2006-11-05 07:37  gb
+
+	* level-0/l0-array.lisp: %aref2, %aset2: call into kernel.
+
+2006-11-05 07:36  gb
+
+	* compiler/PPC/: PPC32/ppc32-vinsns.lisp, PPC64/ppc64-vinsns.lisp:
+	2d aref support/changes.
+
+2006-11-05 07:36  gb
+
+	* compiler/PPC/ppc2.lisp: Get the PPC2 backend caught up with the
+	x8664 wrt 2d aref.  Stll a ways to go.
+
+2006-11-05 07:35  gb
+
+	* compiler/nx0.lisp: NX-ERROR-FOR-SIMPLE-2D-ARRAY-TYPE.
+
 2006-11-04 00:05  gb
 
 	* level-1/version.lisp: Bump.
