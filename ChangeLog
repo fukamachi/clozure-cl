@@ -1,3 +1,7 @@
+2006-11-05 20:41  gb
+
+	* compiler/X86/x862.lisp: 2d array error lookup -> nx.
+
 2006-11-05 07:55  gb
 
 	* level-0/X86/x86-misc.lisp: %VALID-REMAINING-TIMESPEC-TIME-P for
