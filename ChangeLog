@@ -1,3 +1,13 @@
+2006-11-05 22:09  gb
+
+	* level-1/x86-trap-support.lisp: Try to work around
+	incompatibilites in Tiger/Leopard headers.
+
+2006-11-05 22:08  gb
+
+	* level-1/l1-sockets.lisp: LOOKUP-PORT: use the macro HTONS, since
+	the foreign function may not exist.
+
 2006-11-05 20:41  gb
 
 	* compiler/X86/x862.lisp: 2d array error lookup -> nx.
