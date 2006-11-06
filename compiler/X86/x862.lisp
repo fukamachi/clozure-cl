@@ -1694,21 +1694,6 @@
                      (! misc-set-single-float target v idx-reg)))))))))))
   target)
 
-(defun x862-error-for-simple-2d-array-type (type-keyword)
-  (ecase type-keyword
-    (:simple-vector arch::error-object-not-simple-array-t-2d)
-    (:simple-string arch::error-object-not-simple-array-char-2d)
-    (:bit-vector arch::error-object-not-simple-array-bit-2d)
-    (:unsigned-8-bit-vector arch::error-object-not-simple-array-u8-2d)
-    (:signed-8-bit-vector arch::error-object-not-simple-array-s8-2d)
-    (:unsigned-16-bit-vector arch::error-object-not-simple-array-u16-2d)
-    (:signed-16-bit-vector arch::error-object-not-simple-array-s16-2d)
-    (:unsigned-32-bit-vector arch::error-object-not-simple-array-u32-2d)
-    (:signed-32-bit-vector arch::error-object-not-simple-array-s32-2d)
-    (:unsigned-64-bit-vector arch::error-object-not-simple-array-u64-2d)
-    (:signed-64-bit-vector arch::error-object-not-simple-array-s64-2d)
-    (:double-float-vector arch::error-object-not-simple-array-double-float-2d)
-    (:single-float-vector arch::error-object-not-simple-array-double-float-2d)))
   
 (defun x862-aref2 (seg vreg xfer array i j safe typekeyword &optional dim0 dim1)
   (with-x86-local-vinsn-macros (seg vreg xfer)
@@ -1737,7 +1722,7 @@
              src
              (dpb safe target::arrayH.flags-cell-subtag-byte
                   (ash 1 $arh_simple_bit))
-             (x862-error-for-simple-2d-array-type typekeyword)))
+             (nx-error-for-simple-2d-array-type typekeyword)))
         (unless i-known-fixnum
           (! trap-unless-fixnum unscaled-i))
         (unless j-known-fixnum
