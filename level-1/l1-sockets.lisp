@@ -916,7 +916,7 @@ you need to read responses after sending an end-of-file signal."))
   "Find the port number for the specified port and protocol."
   (if (fixnump port)
     port
-    (#+ppc-target progn #-ppc-target #_ntohs (port-as-inet-port port proto))))
+    (ntohs (port-as-inet-port port proto))))
 
 ;; Accepts host as specified by user, returns host number in network byte
 ;; order.
