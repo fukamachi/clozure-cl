@@ -1,3 +1,34 @@
+2006-11-06 22:07  gb
+
+	* compiler/nx0.lisp: nx-error-for-simple-2d-array-type: forgot the
+	:fixnum-vector case.
+
+2006-11-06 22:04  gb
+
+	* compiler/PPC/ppc2.lisp: Handle vector assignment differently;
+	handle (setf (aref ...)) of simple 2d-arrays inline if the type is
+	known/declared.
+
+2006-11-06 22:02  gb
+
+	* compiler/PPC/: PPC32/ppc32-vinsns.lisp, PPC64/ppc64-vinsns.lisp:
+	Add vinsns for misc-set-s* and variants. (Identical to the unsigned
+	versions, but it helps not to have to remember which are
+	implemented and which aren't.)
+
+2006-11-06 22:01  gb
+
+	* compiler/nxenv.lisp: general-aset2, simple-typed-aset2.
+
+2006-11-06 22:00  gb
+
+	* compiler/nx1.lisp: New %ASET2 handling.
+
+2006-11-06 21:59  gb
+
+	* compiler/nx0.lisp: ACODE-FORM-TYPE: use var-inittype if var is
+	never assigned to.
+
 2006-11-05 22:09  gb
 
 	* level-1/x86-trap-support.lisp: Try to work around
