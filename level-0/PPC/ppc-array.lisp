@@ -827,10 +827,21 @@
   (check-nargs 3)
   (ba .SParef2))
 
+(defppclapfunction %aref3 ((array 0) (i arg_x) (j arg_y) (k arg_z))
+  (check-nargs 4)
+  (vpop temp0)
+  (ba .SParef3))
+
 
 (defppclapfunction %aset2 ((array 0) (i arg_x) (j arg_y) (newval arg_z))
   (check-nargs 4)
   (vpop temp0)
   (ba .SPaset2))
+
+(defppclapfunction %aset3 ((array #.target::node-size) (i 0) (j arg_x) (k arg_y)  (newval arg_z))
+  (check-nargs 5)
+  (vpop temp0)
+  (vpop temp1)
+  (ba .SPaset3))
   
 
