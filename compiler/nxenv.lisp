@@ -232,7 +232,7 @@
      (vector . #.(logior operator-assignment-free-mask operator-single-valued-mask))
      (%immediate-inc-ptr . #.(logior operator-returns-address-mask operator-single-valued-mask))
      (2d-simple-aref . 0)
-     (2d-simple-aset . 0)
+     (general-aset2 . #.(logior operator-acode-subforms-mask operator-single-valued-mask))
      (%new-ptr . 0)
      (%schar . #.(logior operator-single-valued-mask operator-acode-subforms-mask operator-side-effect-free-mask))
      (%set-schar . #.(logior operator-single-valued-mask operator-acode-subforms-mask))	;??
@@ -263,7 +263,7 @@
      (symbol-name . #.(logior operator-assignment-free-mask operator-acode-subforms-mask operator-side-effect-free-mask))
      (memq . #.(logior operator-assignment-free-mask operator-acode-subforms-mask operator-side-effect-free-mask))
      (assq . #.(logior operator-assignment-free-mask operator-acode-subforms-mask operator-side-effect-free-mask))
-     (aset2 . #.(logior operator-acode-subforms-mask operator-single-valued-mask))
+     (simple-typed-aset2 . #.(logior operator-acode-subforms-mask operator-single-valued-mask))
      (consp . #.(logior operator-cc-invertable-mask operator-assignment-free-mask operator-acode-subforms-mask operator-side-effect-free-mask operator-boolean-mask))
      (aset1 . #.(logior operator-acode-subforms-mask))
      (syscall . 0)
