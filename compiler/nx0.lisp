@@ -435,8 +435,10 @@ function to the indicated name is true.")
                     (%cadr form))
                   (if (eq op (%nx1-operator lexical-reference))
                     (let* ((var (cadr form))
-                           (punted (logbitp $vbitpunted (nx-var-bits var))))
-                      (if punted
+                           (bits (nx-var-bits var))
+                           (punted (logbitp $vbitpunted bits)))
+                      (if (or punted
+                              (eql 0 (%ilogand $vsetqmask bits)))
                         (var-inittype var)))
                     (if (eq op (%nx1-operator %aref1))
                       (let* ((atype (acode-form-type (cadr form) t))
