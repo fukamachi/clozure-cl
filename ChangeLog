@@ -1,3 +1,22 @@
+2006-11-07 10:28  gb
+
+	* lisp-kernel/: x86-spentry64.s, x86-spjump64.s: .SParef3,
+	.SPaset3.
+
+2006-11-07 10:27  gb
+
+	* level-0/PPC/ppc-array.lisp: %ref3, %aset3.
+
+2006-11-07 10:26  gb
+
+	* lisp-kernel/ppc-spentry.s, lisp-kernel/ppc-spjump.s,
+	compiler/PPC/ppc-arch.lisp: .SPref3, .SPaset3.
+
+2006-11-07 10:26  gb
+
+	* lisp-kernel/ppc-macros.s: Define mullr, which expands into one of
+	mullw/mulld.
+
 2006-11-07 04:12  gb
 
 	* compiler/PPC/ppc2.lisp: :signed-64-bit-vector is signed ...
