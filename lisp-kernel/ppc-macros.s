@@ -131,6 +131,9 @@ ifdef([PPC64],[
         define([alloc_trap],[
         tdlt allocptr,allocbase
         ])
+        define([mullr],[
+        mulld $@
+        ])
 ],[
         define([clrrri],[
         clrrwi $@
@@ -221,6 +224,9 @@ ifdef([PPC64],[
         ])
         define([alloc_trap],[
         twllt allocptr,allocbase
+        ])
+        define([mullr],[
+        mullw $@
         ])
 ])
 
