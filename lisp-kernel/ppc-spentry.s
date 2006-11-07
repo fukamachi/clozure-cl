@@ -6567,11 +6567,7 @@ _spentry(aref2)
         __(ldr(imm0,arrayH.dim0+node_size(arg_x)))
         __(trlge(arg_z,imm0))
         __(unbox_fixnum(imm0,imm0))
-        __ifdef([PPC64])
-         __(mulld arg_y,arg_y,imm0)
-        __else
-         __(mullw arg_y,arg_y,imm0)
-        __endif
+        __(mullr(arg_y,arg_y,imm0))
         __(add arg_z,arg_z,arg_y)
         /* arg_z is now row-major-index; get data vector and
            add in possible offset */
@@ -6584,7 +6580,46 @@ _spentry(aref2)
         __(bgt local_label(misc_ref_common))
         __(b 0b)
 1:              
-        __(uuo_interr(error_object_not_array_2d,arg_x))        
+        __(uuo_interr(error_object_not_array_2d,arg_x))
+
+/* temp0 = array, arg_x = i, arg_y = j, arg_z = k */
+_spentry(aref3)
+        __(extract_typecode(imm2,temp0))
+        __(trap_unless_lisptag_equal(arg_x,tag_fixnum,imm0))
+        __(cmpri(cr2,imm2,subtag_arrayH))
+        __(trap_unless_lisptag_equal(arg_y,tag_fixnum,imm0))
+        __(bne cr2,1f)
+        __(ldr(imm1,arrayH.rank(temp0)))
+        __(trap_unless_lisptag_equal(arg_z,tag_fixnum,imm0))
+        __(cmpri(imm1,3<<fixnumshift))
+        __(bne 1f)
+        /* It's a 3-dimensional array.  Check bounds */
+        __(ldr(imm2,arrayH.dim0+(node_size*2)(temp0)))
+        __(ldr(imm1,arrayH.dim0+node_size(temp0)))
+        __(ldr(imm0,arrayH.dim0(temp0)))
+        __(trlge(arg_z,imm2))
+        __(unbox_fixnum(imm2,imm2))
+        __(trlge(arg_y,imm1))
+        __(unbox_fixnum(imm1,imm1))
+        __(trlge(arg_x,imm0))
+        __(mullr(arg_y,arg_y,imm2))
+        __(mullr(imm1,imm2,imm1))
+        __(mullr(arg_x,imm1,arg_x))
+        __(add arg_z,arg_z,arg_y)
+        __(add arg_z,arg_z,arg_x)
+        __(mr arg_y,temp0)
+0:      __(ldr(arg_x,arrayH.displacement(arg_y)))
+        __(ldr(arg_y,arrayH.data_vector(arg_y)))
+        __(extract_subtag(imm1,arg_y))
+        __(cmpri(imm1,subtag_vectorH))
+        __(add arg_z,arg_x,arg_z)
+        __(bgt local_label(misc_ref_common))
+        __(b 0b)
+1:              
+        __(uuo_interr(error_object_not_array_3d,temp0))
+
+        
+        
 
 /* As for aref2 above, but temp = array, arg_x = i, arg_y = j, arg_z = newval */
 _spentry(aset2)
@@ -6602,11 +6637,7 @@ _spentry(aset2)
         __(ldr(imm0,arrayH.dim0+node_size(temp0)))
         __(trlge(arg_y,imm0))
         __(unbox_fixnum(imm0,imm0))
-        __ifdef([PPC64])
-         __(mulld arg_x,arg_x,imm0)
-        __else
-         __(mullw arg_x,arg_x,imm0)
-        __endif
+        __(mullr(arg_x,arg_x,imm0))
         __(add arg_y,arg_y,arg_x)
         /* arg_y is now row-major-index; get data vector and
            add in possible offset */
@@ -6621,11 +6652,43 @@ _spentry(aset2)
 1:              
         __(uuo_interr(error_object_not_array_2d,temp0))        
                 
-_spentry(unused_2)
-         __(b _SPbreakpoint)
-        
-_spentry(unused_3)
-         __(b _SPbreakpoint)
+/* temp1 = array, temp0 = i, arg_x = j, arg_y = k, arg_z = new */        
+_spentry(aset3)
+        __(extract_typecode(imm2,temp1))
+        __(trap_unless_lisptag_equal(temp0,tag_fixnum,imm0))
+        __(cmpri(cr2,imm2,subtag_arrayH))
+        __(trap_unless_lisptag_equal(arg_x,tag_fixnum,imm0))
+        __(bne cr2,1f)
+        __(ldr(imm1,arrayH.rank(temp1)))
+        __(trap_unless_lisptag_equal(arg_y,tag_fixnum,imm0))
+        __(cmpri(imm1,3<<fixnumshift))
+        __(bne 1f)
+        /* It's a 3-dimensional array.  Check bounds */
+        __(ldr(imm2,arrayH.dim0+(node_size*2)(temp1)))
+        __(ldr(imm1,arrayH.dim0+node_size(temp1)))
+        __(ldr(imm0,arrayH.dim0(temp1)))
+        __(trlge(arg_y,imm2))
+        __(unbox_fixnum(imm2,imm2))
+        __(trlge(arg_x,imm1))
+        __(unbox_fixnum(imm1,imm1))
+        __(trlge(temp0,imm0))
+        __(mullr(arg_x,arg_x,imm2))
+        __(mullr(imm1,imm2,imm1))
+        __(mullr(temp0,imm1,temp0))
+        __(add arg_y,arg_y,arg_x)
+        __(add arg_y,arg_y,temp0)
+        __(mr arg_x,temp1)
+0:      __(ldr(temp0,arrayH.displacement(arg_x)))
+        __(ldr(arg_x,arrayH.data_vector(arg_x)))
+        __(extract_subtag(imm1,arg_x))
+        __(cmpri(imm1,subtag_vectorH))
+        __(add arg_y,arg_y,temp0)
+        __(bgt local_label(misc_set_common))
+        __(b 0b)
+1:              
+        __(uuo_interr(error_object_not_array_3d,temp1))
+
+
         
 _spentry(unused_4)
          __(b _SPbreakpoint)
