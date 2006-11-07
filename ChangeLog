@@ -1,3 +1,7 @@
+2006-11-07 04:12  gb
+
+	* compiler/PPC/ppc2.lisp: :signed-64-bit-vector is signed ...
+
 2006-11-06 22:07  gb
 
 	* compiler/nx0.lisp: nx-error-for-simple-2d-array-type: forgot the
