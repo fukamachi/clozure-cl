@@ -117,6 +117,12 @@
                                    (scaled-idx :u32)))
   (stwx val v scaled-idx))
 
+(define-ppc32-vinsn misc-set-s32 (()
+                                  ((val :s32)
+                                   (v :lisp)
+                                   (scaled-idx :u32)))
+  (stwx val v scaled-idx))
+
                               
 (define-ppc32-vinsn misc-ref-single-float  (((dest :single-float))
 					    ((v :lisp)
@@ -201,6 +207,18 @@
                                      ())
   (lha dest (:apply + ppc32::misc-data-offset (:apply ash idx 1)) v))
 
+
+(define-ppc32-vinsn misc-set-c-s16  (((val :s16))
+                                     ((v :lisp)
+                                      (idx :u32const))
+                                     ())
+  (sth val (:apply + ppc32::misc-data-offset (:apply ash idx 1)) v))
+
+(define-ppc32-vinsn misc-set-s16 (((val :s16))
+                                  ((v :lisp)
+                                   (scaled-idx :s32)))
+  (sthx val v scaled-idx))
+
 (define-ppc32-vinsn misc-ref-u8  (((dest :u8))
                                   ((v :lisp)
                                    (scaled-idx :u32))
@@ -239,6 +257,17 @@
   (lbz dest (:apply + ppc32::misc-data-offset idx) v)
   (extsb dest dest))
 
+(define-ppc32-vinsn misc-set-c-s8  (((val :s8))
+                                    ((v :lisp)
+                                     (idx :u32const))
+                                    ())
+  (stb val (:apply + ppc32::misc-data-offset idx) v))
+
+(define-ppc32-vinsn misc-set-s8  (((val :s8))
+                                  ((v :lisp)
+                                   (scaled-idx :u32))
+                                  ())
+  (stbx val v scaled-idx))
 
 (define-ppc32-vinsn misc-ref-c-bit (((dest :u8))
                                     ((v :lisp)
