@@ -1314,7 +1314,7 @@
              (is-16-bit (member type-keyword (arch::target-16-bit-ivector-types arch)))
              (is-32-bit (member type-keyword (arch::target-32-bit-ivector-types arch)))
              (is-64-bit (member type-keyword (arch::target-64-bit-ivector-types arch)))
-             (is-signed (member type-keyword '(:signed-8-bit-vector :signed-16-bit-vector :signed-32-bit-vector :fixnum-vector)))
+             (is-signed (member type-keyword '(:signed-8-bit-vector :signed-16-bit-vector :signed-32-bit-vector :signed-64-bit-vector :fixnum-vector)))
              (vreg-class (hard-regspec-class vreg))
              (vreg-mode
               (if (or (eql vreg-class hard-reg-class-gpr)
@@ -1674,7 +1674,7 @@
          (is-16-bit (member type-keyword (arch::target-16-bit-ivector-types arch)))
          (is-32-bit (member type-keyword (arch::target-32-bit-ivector-types arch)))
          (is-64-bit (member type-keyword (arch::target-64-bit-ivector-types arch)))
-         (is-signed (member type-keyword '(:signed-8-bit-vector :signed-16-bit-vector :signed-32-bit-vector :fixnum-vector)))
+         (is-signed (member type-keyword '(:signed-8-bit-vector :signed-16-bit-vector :signed-32-bit-vector :signed-64-bit-vector :fixnum-vector)))
          (vreg-class (if vreg (hard-regspec-class vreg)))
          (vreg-mode (if (or (eql vreg-class hard-reg-class-gpr)
                             (eql vreg-class hard-reg-class-fpr))
@@ -1771,7 +1771,7 @@
            (is-16-bit (member type-keyword (arch::target-16-bit-ivector-types arch)))
            (is-32-bit (member type-keyword (arch::target-32-bit-ivector-types arch)))
            (is-64-bit (member type-keyword (arch::target-64-bit-ivector-types arch)))
-           (is-signed (member type-keyword '(:signed-8-bit-vector :signed-16-bit-vector :signed-32-bit-vector :fixnum-vector)))
+           (is-signed (member type-keyword '(:signed-8-bit-vector :signed-16-bit-vector :signed-32-bit-vector :signed-64-bit-vector :fixnum-vector)))
            (result-is-node-gpr (and (eql (hard-regspec-class result-reg)
                                          hard-reg-class-gpr)
                                     (eql (get-regspec-mode result-reg)
@@ -1869,7 +1869,7 @@
            (is-16-bit (member type-keyword (arch::target-16-bit-ivector-types arch)))
            (is-32-bit (member type-keyword (arch::target-32-bit-ivector-types arch)))
            (is-64-bit (member type-keyword (arch::target-64-bit-ivector-types arch)))
-           (is-signed (member type-keyword '(:signed-8-bit-vector :signed-16-bit-vector :signed-32-bit-vector :fixnum-vector))))
+           (is-signed (member type-keyword '(:signed-8-bit-vector :signed-16-bit-vector :signed-32-bit-vector :signed-64-bit-vector :fixnum-vector))))
       (cond ((and is-node node-value-needs-memoization)
              (unless (and (eql (hard-regspec-value src) ppc::arg_x)
                           (eql (hard-regspec-value unscaled-idx) ppc::arg_y)
@@ -2007,30 +2007,30 @@
       (let* ((src ($ ppc::arg_x))
              (unscaled-idx ($ ppc::arg_y))
              (result-reg ($ ppc::arg_z)))
-      (cond (needs-memoization
-             (ppc2-three-targeted-reg-forms seg
-                                            vector src
-                                            index unscaled-idx
-                                            value result-reg))
-            (t
-             (setq result-reg (ppc2-target-reg-for-aset vreg type-keyword))
-             (ppc2-three-targeted-reg-forms seg
-                                            vector src
-                                            index unscaled-idx
-                                            value result-reg)))
-      (when safe
-        (let* ((*available-backend-imm-temps* *available-backend-imm-temps*)
-               (value (if (eql (hard-regspec-class result-reg)
-                               hard-reg-class-gpr)
-                        (hard-regspec-value result-reg))))
-          (when (and value (logbitp value *available-backend-imm-temps*))
-            (setq *available-backend-imm-temps* (bitclr value *available-backend-imm-temps*)))
-          (if (typep safe 'fixnum)
-            (! trap-unless-typecode= src safe))
-          (unless index-known-fixnum
-            (! trap-unless-fixnum unscaled-idx))
-          (! check-misc-bound unscaled-idx src)))
-      (ppc2-vset1 seg vreg xfer type-keyword src unscaled-idx index-known-fixnum result-reg (ppc2-unboxed-reg-for-aset seg type-keyword result-reg safe constval) constval needs-memoization)))))
+        (cond (needs-memoization
+               (ppc2-three-targeted-reg-forms seg
+                                              vector src
+                                              index unscaled-idx
+                                              value result-reg))
+              (t
+               (setq result-reg (ppc2-target-reg-for-aset vreg type-keyword))
+               (ppc2-three-targeted-reg-forms seg
+                                              vector src
+                                              index unscaled-idx
+                                              value result-reg)))
+        (when safe
+          (let* ((*available-backend-imm-temps* *available-backend-imm-temps*)
+                 (value (if (eql (hard-regspec-class result-reg)
+                                 hard-reg-class-gpr)
+                          (hard-regspec-value result-reg))))
+            (when (and value (logbitp value *available-backend-imm-temps*))
+              (setq *available-backend-imm-temps* (bitclr value *available-backend-imm-temps*)))
+            (if (typep safe 'fixnum)
+              (! trap-unless-typecode= src safe))
+            (unless index-known-fixnum
+              (! trap-unless-fixnum unscaled-idx))
+            (! check-misc-bound unscaled-idx src)))
+        (ppc2-vset1 seg vreg xfer type-keyword src unscaled-idx index-known-fixnum result-reg (ppc2-unboxed-reg-for-aset seg type-keyword result-reg safe constval) constval needs-memoization)))))
 
 
 (defun ppc2-tail-call-alias (immref sym &optional arglist)
