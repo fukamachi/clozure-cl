@@ -857,25 +857,34 @@
        (nx1-treat-as-call whole)))
             
 (defnx1 nx1-%aset2 ((%aset2)) (&whole whole &environment env arr i j new)
-  (let* ((subtype
-	  (cond ((nx-form-typep arr '(simple-array double-float (* *)) env)
-		 :double-float-vector)
-                ((nx-form-typep arr '(simple-array single-float (* *)) env)
-		 :single-float-vector))))
-    (if subtype
-       (let* ((ctype (specifier-type (nx-form-type arr env)))
-	      (dims (array-ctype-dimensions ctype))
-	      (dim0 (car dims))
-	      (dim1 (cadr dims)))
-	(make-acode (%nx1-operator aset2)
-		    (nx1-form subtype)
-		    (nx1-form arr)
-		    (nx1-form i)
-		    (nx1-form j)
-		    (nx1-form new)
-		    (nx1-form dim0)
-		    (nx1-form dim1)))
-	(nx1-treat-as-call whole))))
+  (let* ((arch (backend-target-arch *target-backend*))
+         (ctype (specifier-type (nx-form-type arr env)))
+         (atype (if (csubtypep ctype (specifier-type '(array * (* *)))) ctype))
+         (simple-atype (if (and atype
+                                (csubtypep atype (specifier-type '(simple-array * (* *)))))
+                         atype))
+         (type-keyword (if atype
+                         (funcall
+                          (arch::target-array-type-name-from-ctype-function arch)
+                          atype))))
+
+    (if (and type-keyword simple-atype)
+      (let* ((dims (array-ctype-dimensions atype))
+             (dim0 (car dims))
+             (dim1 (cadr dims)))
+        (make-acode (%nx1-operator simple-typed-aset2)
+                    (nx1-form type-keyword)
+                    (nx1-form arr)
+                    (nx1-form i)
+                    (nx1-form j)
+                    (nx1-form new)
+                    (nx1-form (if (typep dim0 'fixnum) dim0))
+                    (nx1-form (if (typep dim1 'fixnum) dim1))))
+            (make-acode (%nx1-operator general-aset2)
+                  (nx1-form arr)
+                  (nx1-form i)
+                  (nx1-form j)
+                  (nx1-form new)))))
 
 (defnx1 nx1-prog1 (prog1 multiple-value-prog1) (save &body args 
                                                      &aux (l (list (nx1-form save))))
