@@ -965,12 +965,14 @@ Which one name refers to depends on foreign-type-spec in the obvious manner."
 (defun parse-foreign-record-fields (result fields)
   (declare (type foreign-record-type result)
 	   (type list fields))
-  (let ((total-bits 0)
-	(overall-alignment 1)
-	(parsed-fields nil)
-	#+poweropen-target
-	(first-field-p t)
-	(alt-alignment (foreign-record-type-alt-align result)))
+  (let* ((total-bits 0)
+         (overall-alignment 1)
+         (parsed-fields nil)
+         (first-field-p t)
+         (alt-alignment (foreign-record-type-alt-align result))
+         (attributes (ftd-attributes *target-ftd*))
+         (poweropen-alignment (getf attributes :poweropen-alignment)))
+          
     (dolist (field fields)
       (destructuring-bind (var type &optional bits) field
 	(declare (ignore bits))
@@ -979,14 +981,13 @@ Which one name refers to depends on foreign-type-spec in the obvious manner."
 	       (natural-alignment (foreign-type-alignment field-type))
 	       (alignment (if alt-alignment
 			    (min natural-alignment alt-alignment)
-			    #+poweropen-target
-			    (if first-field-p
-			      (progn
-				(setq first-field-p nil)
-				natural-alignment)
-			      (min 32 natural-alignment))
-			    #-poweropen-target
-			    natural-alignment))
+			    (if poweropen-alignment
+                              (if first-field-p
+                                (progn
+                                  (setq first-field-p nil)
+                                  natural-alignment)
+                                (min 32 natural-alignment))
+                              natural-alignment)))
 	       (parsed-field
 		(make-foreign-record-field :type field-type
 					   :name var)))
