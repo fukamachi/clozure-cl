@@ -417,7 +417,8 @@
                '(:signed-char t
                  :struct-by-value t
                  :prepend-underscores t
-                 :bits-per-word  32)
+                 :bits-per-word  32
+                 :poweropen-alignment t)
                #+linuxppc-target
                '(:bits-per-word 32))))
     (install-standard-foreign-types ftd)
