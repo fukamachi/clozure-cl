@@ -1568,7 +1568,9 @@
          (useful (unless (or (eq type *) (eq type t))
                    type)))  
     (if (= 2 (length subscripts))
-      (setq call `(%aref2 ,a ,(car subscripts) ,(cadr subscripts))))
+      (setq call `(%aref2 ,a ,@subscripts))
+      (if (= 3 (length subscripts))
+        (setq call `(%aref3 ,a ,@subscripts))))
     (if useful
       `(the ,useful ,call)
       call)))
@@ -1576,8 +1578,10 @@
 
 (define-compiler-macro aset (&whole call a &rest subs&val)
   (if (= 3 (length subs&val))
-    `(%aset2 ,a ,(car subs&val) ,(cadr subs&val) ,(caddr subs&val))
-    call))
+    `(%aset2 ,a ,@subs&val)
+    (if (= 4 (length subs&val))
+      `(%aset3 ,a ,@subs&val)
+      call)))
 
 
 (define-compiler-macro make-sequence (&whole call &environment env typespec len &rest keys &key initial-element)
