@@ -1,3 +1,33 @@
+2006-11-08 12:50  gb
+
+	* level-1/x86-trap-support.lisp: In darwin Fake Structures For
+	Leopard nonsense: define the stack context struct separately, make
+	the ucontext stack field an instance of it.  (Not -sure- if that
+	was necessary, but :poweropen-target was accidentally on *FEATURES*
+	and foreign struct layout was using read-time condtionalization to
+	decide whether or not to use brain-dead structure-alignment rules
+	leftover from AIX/PowerOpen.
+
+2006-11-08 12:46  gb
+
+	* lisp-kernel/x86-spentry64.s: Fix comment ("/*", not "/%" ...).
+
+2006-11-08 12:40  gb
+
+	* compiler/optimizers.lisp: Try to infer/insert the array type when
+	compiler-macroexpanding MAKE-ARRAY calls.
+
+2006-11-08 12:39  gb
+
+	* compiler/PPC/PPC32/ppc32-backend.lisp: DarwinPPC32 FTD follows
+	:poweropen-alignment rules.
+
+2006-11-08 12:38  gb
+
+	* lib/foreign-types.lisp: parse-foreign-record-fields: conformance
+	to poweropen structure layout rules should be an attribute of the
+	FTD, not done via read-time conditionalization.
+
 2006-11-08 05:15  gb
 
 	* level-1/version.lisp: Bump.
