@@ -559,21 +559,23 @@ minimum number of elements to add if it must be extended."
       (%aref1 a (%lexpr-ref subs n 0))
       (if (= n 2)
         (%aref2 a (%lexpr-ref subs n 0) (%lexpr-ref subs n 1))
-        (let* ((typecode (typecode a)))
-          (declare (fixnum typecode))
-          (if (>= typecode target::min-vector-subtag)
-            (%err-disp $XNDIMS a n)
-            (if (< typecode target::min-array-subtag)
-              (report-bad-arg a 'array)
-              ;;  This typecode is Just Right ...
-              (progn
-                (unless (= (the fixnum (%svref a target::arrayH.rank-cell)) n)
-                  (%err-disp $XNDIMS a n))
-                (let* ((rmi (%array-index a subs n)))
-                  (declare (fixnum rmi))
-                  (multiple-value-bind (data offset) (%array-header-data-and-offset a)
-                    (declare (fixnum offset))
-                    (uvref data (the fixnum (+ offset rmi)))))))))))))
+        (if (= n 3)
+          (%aref3 a (%lexpr-ref subs n 0) (%lexpr-ref subs n 1) (%lexpr-ref subs n 2))
+          (let* ((typecode (typecode a)))
+            (declare (fixnum typecode))
+            (if (>= typecode target::min-vector-subtag)
+              (%err-disp $XNDIMS a n)
+              (if (< typecode target::min-array-subtag)
+                (report-bad-arg a 'array)
+                ;;  This typecode is Just Right ...
+                (progn
+                  (unless (= (the fixnum (%svref a target::arrayH.rank-cell)) n)
+                    (%err-disp $XNDIMS a n))
+                  (let* ((rmi (%array-index a subs n)))
+                    (declare (fixnum rmi))
+                    (multiple-value-bind (data offset) (%array-header-data-and-offset a)
+                      (declare (fixnum offset))
+                      (uvref data (the fixnum (+ offset rmi))))))))))))))
 
 
 
@@ -590,20 +592,22 @@ minimum number of elements to add if it must be extended."
           (%aset1 a (%lexpr-ref subs&val count 0) val)
           (if (= nsubs 2)
             (%aset2 a (%lexpr-ref subs&val count 0) (%lexpr-ref subs&val count 1) val)
-            (let* ((typecode (typecode a)))
-              (declare (fixnum typecode))
-              (if (>= typecode target::min-vector-subtag)
-                (%err-disp $XNDIMS a nsubs)
-                (if (< typecode target::min-array-subtag)
-                  (report-bad-arg a 'array)
-                  ;  This typecode is Just Right ...
-                  (progn
-                    (unless (= (the fixnum (%svref a target::arrayH.rank-cell)) nsubs)
-                      (%err-disp $XNDIMS a nsubs))
-                    (let* ((rmi (%array-index a subs&val nsubs)))
-                      (declare (fixnum rmi))
-                      (multiple-value-bind (data offset) (%array-header-data-and-offset a)
-                        (setf (uvref data (the fixnum (+ offset rmi))) val)))))))))))))
+            (if (= nsubs 3)
+              (%aset3 a (%lexpr-ref subs&val count 0) (%lexpr-ref subs&val count 1) (%lexpr-ref subs&val count 2) val)
+              (let* ((typecode (typecode a)))
+                (declare (fixnum typecode))
+                (if (>= typecode target::min-vector-subtag)
+                  (%err-disp $XNDIMS a nsubs)
+                  (if (< typecode target::min-array-subtag)
+                    (report-bad-arg a 'array)
+                                        ;  This typecode is Just Right ...
+                    (progn
+                      (unless (= (the fixnum (%svref a target::arrayH.rank-cell)) nsubs)
+                        (%err-disp $XNDIMS a nsubs))
+                      (let* ((rmi (%array-index a subs&val nsubs)))
+                        (declare (fixnum rmi))
+                        (multiple-value-bind (data offset) (%array-header-data-and-offset a)
+                          (setf (uvref data (the fixnum (+ offset rmi))) val))))))))))))))
 
 
 
