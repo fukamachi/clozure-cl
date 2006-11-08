@@ -1496,7 +1496,7 @@
                       (if index-known-fixnum
                         (ppc2-absolute-natural seg idx-reg nil (+ (arch::target-misc-data-offset arch) (ash index-known-fixnum 3)))
                         (! scale-64bit-misc-index idx-reg unscaled-idx))
-                      (! misc-ref-u64  src idx-reg)))
+                      (! misc-ref-u64  temp src idx-reg)))
                   (unless temp-is-vreg
                     (ensuring-node-target (target vreg)
                       (! u64->integer target temp))))))))
