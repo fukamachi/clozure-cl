@@ -1,3 +1,29 @@
+2006-11-07 21:10  gb
+
+	* compiler/optimizers.lisp: Transform three-argument AREF->%AREF3,
+	ASET->%ASET3.
+
+2006-11-07 20:40  gb
+
+	* compiler/X86/x862.lisp: Implement %aset2 in the x8664 backend.
+
+2006-11-07 20:39  gb
+
+	* level-0/X86/x86-array.lisp: %aref3, %aset3.
+
+2006-11-07 20:38  gb
+
+	* level-0/l0-array.lisp: Use %aref2,%aref3.
+
+2006-11-07 20:37  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: More (often redundant)
+	vector-store vinsns.
+
+2006-11-07 20:37  gb
+
+	* compiler/X86/X8664/x8664-arch.lisp: .SParef3, .SPaset3.
+
 2006-11-07 10:28  gb
 
 	* lisp-kernel/: x86-spentry64.s, x86-spjump64.s: .SParef3,
