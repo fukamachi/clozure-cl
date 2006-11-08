@@ -585,6 +585,45 @@
                 (backend-target-arch *target-backend*))
                ctype))))
 
+(defun infer-array-type (dims element-type element-type-p displaced-to-p fill-pointer-p adjustable-p env)
+  (let* ((ctype (make-array-ctype :complexp (or displaced-to-p fill-pointer-p adjustable-p))))
+    (if (quoted-form-p dims)
+      (let* ((dims (nx-unquote dims)))
+        (if (listp dims)
+          (progn
+            (unless (every #'fixnump dims)
+              (warn "Funky-looking array dimensions ~s in MAKE-ARRAY call" dims))
+            (setf (array-ctype-dimensions ctype) dims))
+          (progn
+            (unless (typep dims 'fixnum)
+              (warn "Funky-looking array dimensions ~s in MAKE-ARRAY call" dims))
+            (setf (array-ctype-dimensions ctype) (list dims)))))
+      (if (atom dims)
+        (if (nx-form-typep dims 'fixnum env)
+          (setf (array-ctype-dimensions ctype)
+                (if (typep (setq dims (nx-transform dims env)) 'fixnum)
+                  (list dims)
+                  (list '*)))
+          (setf (array-ctype-dimensions ctype) '*))
+        (if (eq (car dims) 'list)
+          (setf (array-ctype-dimensions ctype)
+                (mapcar #'(lambda (d)
+                            (if (typep (setq d (nx-transform d env)) 'fixnum)
+                              d
+                              '*))
+                        (cdr dims)))
+          ;; Wimp out
+          (setf (array-ctype-dimensions ctype)
+                '*))))
+    (let* ((element-type (specifier-type (if element-type-p element-type t))))
+      (setf (array-ctype-element-type ctype) element-type)
+      (if (typep element-type 'unknown-ctype)
+        (setf (array-ctype-specialized-element-type ctype) *wild-type*)
+        (specialize-array-type ctype)))
+    (type-specifier ctype)))
+
+      
+      
 (define-compiler-macro make-array (&whole call &environment env dims &rest keys)
   (if (constant-keywords-p keys)
     (destructuring-bind (&key (element-type t element-type-p)
@@ -594,44 +633,50 @@
                               (fill-pointer () fill-pointer-p)
                               (initial-element () initial-element-p)
                               (initial-contents () initial-contents-p)) 
-                        keys
-      (declare (ignore-if-unused element-type element-type-p
-                                 displaced-to displaced-to-p
-                                 displaced-index-offset displaced-index-offset-p
-                                 adjustable adjustable-p
-                                 fill-pointer fill-pointer-p
-                                 initial-element initial-element-p
-                                 initial-contents initial-contents-p))
-      (cond ((and initial-element-p initial-contents-p)
-             (nx1-whine 'illegal-arguments call)
-             call)
-            (displaced-to-p
-             (if (or initial-element-p initial-contents-p element-type-p)
-               (comp-make-array-1 dims keys)
-               (comp-make-displaced-array dims keys)))
-            ((or displaced-index-offset-p 
-                 (not (constantp element-type))
-                 (null (setq element-type (target-element-type-type-keyword
-                                           (eval element-type)))))
-             (comp-make-array-1 dims keys))
-            ((and (typep element-type 'keyword) 
-                  (nx-form-typep dims 'fixnum env) 
-                  (null (or adjustable fill-pointer initial-contents 
-                            initial-contents-p))) 
-             (if 
-               (or (null initial-element-p) 
-                   (cond ((eql element-type :double-float-vector) 
-                          (eql initial-element 0.0d0)) 
-                         ((eql element-type :single-float-vector) 
-                          (eql initial-element 0.0s0)) 
-                         ((eql element-type :simple-string) 
-                          (eql initial-element #\Null))
-                         (t (eql initial-element 0))))
-               `(allocate-typed-vector ,element-type ,dims) 
-               `(allocate-typed-vector ,element-type ,dims ,initial-element))) 
-	     (t ;Should do more here
-             (comp-make-uarray dims keys (type-keyword-code element-type)))))
-    call))
+        keys
+      (declare (ignorable element-type element-type-p
+                          displaced-to displaced-to-p
+                          displaced-index-offset displaced-index-offset-p
+                          adjustable adjustable-p
+                          fill-pointer fill-pointer-p
+                          initial-element initial-element-p
+                          initial-contents initial-contents-p))
+      (let* ((element-type-keyword nil)
+             (expansion 
+              (cond ((and initial-element-p initial-contents-p)
+                     (nx1-whine 'illegal-arguments call)
+                     call)
+                    (displaced-to-p
+                     (if (or initial-element-p initial-contents-p element-type-p)
+                       (comp-make-array-1 dims keys)
+                       (comp-make-displaced-array dims keys)))
+                    ((or displaced-index-offset-p 
+                         (not (constantp element-type))
+                         (null (setq element-type-keyword
+                                     (target-element-type-type-keyword
+                                      (eval element-type)))))
+                     (comp-make-array-1 dims keys))
+                    ((and (typep element-type-keyword 'keyword) 
+                          (nx-form-typep dims 'fixnum env) 
+                          (null (or adjustable fill-pointer initial-contents 
+                                    initial-contents-p))) 
+                     (if 
+                       (or (null initial-element-p) 
+                           (cond ((eql element-type-keyword :double-float-vector) 
+                                  (eql initial-element 0.0d0)) 
+                                 ((eql element-type-keyword :single-float-vector) 
+                                  (eql initial-element 0.0s0)) 
+                                 ((eql element-type :simple-string) 
+                                  (eql initial-element #\Null))
+                                 (t (eql initial-element 0))))
+                       `(allocate-typed-vector ,element-type-keyword ,dims) 
+                       `(allocate-typed-vector ,element-type-keyword ,dims ,initial-element))) 
+                    (t                        ;Should do more here
+                     (comp-make-uarray dims keys (type-keyword-code element-type-keyword)))))
+             (type (infer-array-type dims element-type element-type-p displaced-to-p fill-pointer-p adjustable-p env)))
+        `(the ,type ,expansion)))
+        
+        call))
 
 (defun comp-make-displaced-array (dims keys)
   (let* ((call-list (make-list 4 :initial-element nil))
