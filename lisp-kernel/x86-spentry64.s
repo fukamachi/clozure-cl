@@ -4436,7 +4436,7 @@ _spentry(aset2)
         __(jmp 6b)
 _endsubp(aset2)
 
-/% temp1 = array, %temp0 = i, %arg_x = j, %arg_y = k, %arg_y = newval. */
+/* temp1 = array, %temp0 = i, %arg_x = j, %arg_y = k, %arg_y = newval. */
 
 _spentry(aset3)
         __(testb $fixnummask,%temp0_b)
