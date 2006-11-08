@@ -1,3 +1,14 @@
+2006-11-08 05:15  gb
+
+	* level-1/version.lisp: Bump.
+
+2006-11-08 05:15  gb
+
+	* level-1/l1-streams.lisp: Some bivalent/binary fixes.
+	
+	TODO: get rid of "bivalent" streams, but allow switching some
+	streams (sockets) between "character mode" and "binary mode".
+
 2006-11-08 02:39  gb
 
 	* compiler/PPC/ppc2.lisp: Typo in misc-ref-u64 vinsn emit.
