@@ -1,3 +1,7 @@
+2006-11-08 02:39  gb
+
+	* compiler/PPC/ppc2.lisp: Typo in misc-ref-u64 vinsn emit.
+
 2006-11-07 21:10  gb
 
 	* compiler/optimizers.lisp: Transform three-argument AREF->%AREF3,
