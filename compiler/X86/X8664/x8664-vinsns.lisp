@@ -83,6 +83,13 @@
 				   ())
   (movq (:%q val) (:@ x8664::misc-data-offset (:%q  v) (:%q unscaled-idx))))
 
+(define-x8664-vinsn misc-set-immediate-node (()
+                                             ((val :s32const)
+                                              (v :lisp)
+                                              (unscaled-idx :imm))
+                                             ())
+  (movq (:$l val) (:@ x8664::misc-data-offset (:%q  v) (:%q unscaled-idx))))
+
 
 (define-x8664-vinsn misc-set-double-float (()
 				   ((val :double-float)
@@ -197,17 +204,35 @@
                                    (idx :u64)))
   (movq (:%q val) (:@ x8664::misc-data-offset (:%q v) (:%q idx))))
 
+(define-x8664-vinsn misc-set-immediate-u64 (()
+                                            ((val :u32const)
+                                             (v :lisp)
+                                             (idx :u64)))
+  (movq (:$l val) (:@ x8664::misc-data-offset (:%q v) (:%q idx))))
+
 (define-x8664-vinsn misc-set-c-u64 (()
 				    ((val :u64)
 				     (v :lisp)
 				     (idx :u32const)))
   (movq (:%q val) (:@ (:apply + x8664::misc-data-offset (:apply ash idx 3)) (:%q v))))
 
+(define-x8664-vinsn misc-set-immediate-c-u64 (()
+                                              ((val :u32const)
+                                               (v :lisp)
+                                               (idx :u32const)))
+  (movq (:$l val) (:@ (:apply + x8664::misc-data-offset (:apply ash idx 3)) (:%q v))))
+
 (define-x8664-vinsn misc-set-s64 (()
                                   ((val :s64)
                                    (v :lisp)
                                    (scaled-idx :imm)))
   (movq (:%q val) (:@ x8664::misc-data-offset  (:%q v) (:%q scaled-idx))))
+
+(define-x8664-vinsn misc-set-immediate-s64 (()
+                                            ((val :s32const)
+                                             (v :lisp)
+                                             (scaled-idx :imm)))
+  (movq (:$l val) (:@ x8664::misc-data-offset  (:%q v) (:%q scaled-idx))))
 
 
 (define-x8664-vinsn misc-set-c-s64 (()
@@ -216,12 +241,24 @@
 				     (idx :s32const)))
   (movq (:%q val) (:@ (:apply + x8664::misc-data-offset (:apply ash idx 3)) (:%q v))))
 
+(define-x8664-vinsn misc-set-immediate-c-s64 (()
+                                              ((val :s32const)
+                                               (v :lisp)
+                                               (idx :s32const)))
+  (movq (:$l val) (:@ (:apply + x8664::misc-data-offset (:apply ash idx 3)) (:%q v))))
+
 
 (define-x8664-vinsn misc-set-c-node (()
 				    ((val :lisp)
 				     (v :lisp)
 				     (idx :s32const)))
   (movq (:%q val) (:@ (:apply + x8664::misc-data-offset (:apply ash idx 3)) (:%q v))))
+
+(define-x8664-vinsn misc-set-immediate-c-node (()
+                                               ((val :s32const)
+                                                (v :lisp)
+                                                (idx :s32const)))
+  (movq (:$l val) (:@ (:apply + x8664::misc-data-offset (:apply ash idx 3)) (:%q v))))
 
 (define-x8664-vinsn set-closure-forward-reference (()
                                                    ((val :lisp)
@@ -2263,6 +2300,18 @@
   ((:not (:pred = index 0))
    (movsbq (:@ index (:%q src)) (:%q dest))))
 
+(define-x8664-vinsn misc-set-c-s8  (((val :s8))
+				    ((v :lisp)
+				     (idx :u32const))
+				    ())
+  (movb (:%b val) (:@ (:apply + x8664::misc-data-offset idx) (:%q v))))
+
+(define-x8664-vinsn misc-set-s8  (((val :s8))
+				  ((v :lisp)
+				   (scaled-idx :s64))
+				  ())
+  (movb (:%b val) (:@ x8664::misc-data-offset (:%q v) (:%q scaled-idx))))
+
 (define-x8664-vinsn mem-ref-s8 (((dest :s8))
 				((src :address)
 				 (index :s32)))
@@ -2333,6 +2382,21 @@
                                    ())
   (movw (:%w val) (:@ x8664::misc-data-offset (:%q v) (:%q scaled-idx))))
 
+(define-x8664-vinsn misc-set-c-s16  (()
+                                    ((val :s16)
+                                     (v :lisp)
+                                     (idx :s32const))
+                                    ())
+  (movw (:%w val) (:@ (:apply + x8664::misc-data-offset (:apply * 2 idx)) (:%q v))))
+
+
+(define-x8664-vinsn misc-set-s16  (()
+                                   ((val :s16)
+                                    (v :lisp)
+                                    (scaled-idx :s64))
+                                   ())
+  (movw (:%w val) (:@ x8664::misc-data-offset (:%q v) (:%q scaled-idx))))
+
 (define-x8664-vinsn misc-set-c-u32  (()
 				     ((val :u32)
                                       (v :lisp)
@@ -2342,6 +2406,20 @@
 
 (define-x8664-vinsn misc-set-u32  (()
                                    ((val :u32)
+                                    (v :lisp)
+                                    (scaled-idx :s64))
+                                   ())
+  (movl (:%l val) (:@ x8664::misc-data-offset (:%q v) (:%q scaled-idx))))
+
+(define-x8664-vinsn misc-set-c-s32  (()
+				     ((val :s32)
+                                      (v :lisp)
+				      (idx :u32const)) ; sic
+				     ())
+  (movl (:%l val) (:@ (:apply + x8664::misc-data-offset (:apply ash idx 2)) (:%q v))))
+
+(define-x8664-vinsn misc-set-s32  (()
+                                   ((val :s32)
                                     (v :lisp)
                                     (scaled-idx :s64))
                                    ())
