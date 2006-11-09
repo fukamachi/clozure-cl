@@ -84,6 +84,14 @@
   (:metaclass ns:+ns-object)
   )
 
+
+;;; Listener documents are never (or always) ediited.  Don't cause their
+;;; close boxes to be highlighted.
+(define-objc-method ((:void :set-document-edited (:<BOOL> edited))
+                     hemlock-listener-window-controller)
+  (declare (ignore edited)))
+ 
+
 (define-objc-method ((:id :init-with-window w)
 		     hemlock-listener-window-controller)
   (let* ((self (send-super :init-with-window w)))
