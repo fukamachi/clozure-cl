@@ -1,3 +1,18 @@
+2006-11-09 05:37  gb
+
+	* compiler/nx0.lisp: Map array-type keywords to 3d-array type
+	errors.
+
+2006-11-09 05:37  gb
+
+	* compiler/nxenv.lisp: Operators for 3d array access.
+
+2006-11-09 05:36  gb
+
+	* compiler/arch.lisp, level-1/l1-error-system.lisp,
+	lisp-kernel/errors.s, lisp-kernel/lisp-errors.h: Type-errors for 3d
+	array types.
+
 2006-11-08 12:50  gb
 
 	* level-1/x86-trap-support.lisp: In darwin Fake Structures For
