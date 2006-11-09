@@ -1,3 +1,36 @@
+2006-11-09 15:50  gb
+
+	* lisp-kernel/pmcl-kernel.c: Use #_ _exit for fatal termination.
+	
+	Try to run lisp code after #_exit via lazarus(); this is for some
+	cases of SAVE-APPLICATION (e.g., in the Cocoa GUI).
+	
+	The environment in which The Undead code runs is a little funky,
+	especially on PPC.  There might be GC implications (cstack will
+	contain call history as of the point when #_exit called atexit
+	handlers, vstack & tstack are emptied in lazarus()).  We should
+	barely run any code in this environment, but we will GC a time or
+	two ...
+
+2006-11-09 15:45  gb
+
+	* lisp-kernel/ppc-exceptions.c: Use _exit afer save-application.
+
+2006-11-09 15:43  gb
+
+	* examples/: cocoa-window.lisp, cocoa.lisp: Change the quit
+	protocol.
+
+2006-11-09 15:42  gb
+
+	* examples/cocoa-listener.lisp: :set-document-edited for listener
+	"documents" is a no-op.
+
+2006-11-09 15:39  gb
+
+	* compiler/PPC/: ppc2.lisp, PPC32/ppc32-vinsns.lisp,
+	PPC64/ppc64-vinsns.lisp: 3d-array accessor stuff for PPC as well.
+
 2006-11-09 12:50  gb
 
 	* compiler/X86/x862.lisp: Always check that array-ctype's
