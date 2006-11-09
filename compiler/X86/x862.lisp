@@ -7725,12 +7725,15 @@
          (ctype (if atype0 (specifier-type atype0)))
          (atype (if (array-ctype-p ctype) ctype))
          (keyword (and atype
-                           (= 2 (length (array-ctype-dimensions atype)))
-                           (not (array-ctype-complexp atype))
-                           (funcall
-                            (arch::target-array-type-name-from-ctype-function
-                             (backend-target-arch *target-backend*))
-                            atype))))
+                       (let* ((dims (array-ctype-dimensions atype)))
+                         (and (typep dims 'list)
+                              
+                              (= 2 (length dims))))
+                       (not (array-ctype-complexp atype))
+                       (funcall
+                        (arch::target-array-type-name-from-ctype-function
+                         (backend-target-arch *target-backend*))
+                        atype))))
     (cond (keyword
            (let* ((dims (array-ctype-dimensions atype))
                   (dim0 (car dims))
@@ -7814,12 +7817,14 @@
          (ctype (if atype0 (specifier-type atype0)))
          (atype (if (array-ctype-p ctype) ctype))
          (keyword (and atype
-                           (= 2 (length (array-ctype-dimensions atype)))
-                           (not (array-ctype-complexp atype))
-                           (funcall
-                            (arch::target-array-type-name-from-ctype-function
-                             (backend-target-arch *target-backend*))
-                            atype))))
+                       (let* ((dims (array-ctype-dimensions atype)))
+                         (and (type dims 'list)
+                              (= 2 (length dims))))
+                       (not (array-ctype-complexp atype))
+                       (funcall
+                        (arch::target-array-type-name-from-ctype-function
+                         (backend-target-arch *target-backend*))
+                        atype))))
     (cond (keyword
            (let* ((dims (array-ctype-dimensions atype))
                   (dim0 (car dims))
@@ -7884,7 +7889,7 @@
                                          k ($ x8664::arg_y)
                                          new ($ x8664::arg_z))
            (x862-pop-register seg ($ x8664::temp1))
-           (x862-fixed-call-builtin seg vreg xfer nil (subprim-name->offset '.SParef3))))))
+           (x862-fixed-call-builtin seg vreg xfer nil (subprim-name->offset '.SPaset3))))))
 
 
 (defx862 x862-%aset2 simple-typed-aset2 (seg vreg xfer typename arr i j new &optional dim0 dim1)
@@ -7894,6 +7899,16 @@
          (dim0 (acode-fixnum-form-p dim0))
          (dim1 (acode-fixnum-form-p dim1)))
     (x862-aset2 seg vreg xfer arr i j new safe type-keyword dim0 dim1)))
+
+
+(defx862 x862-%aset3 simple-typed-aset3 (seg vreg xfer typename arr i j k new &optional dim0 dim1 dim2)
+  (let* ((type-keyword (x862-immediate-operand typename))
+         (fixtype (nx-lookup-target-uvector-subtag type-keyword))
+         (safe (unless *x862-reckless* fixtype))
+         (dim0 (acode-fixnum-form-p dim0))
+         (dim1 (acode-fixnum-form-p dim1))
+         (dim2 (acode-fixnum-form-p dim2)))
+    (x862-aset3 seg vreg xfer arr i j k new safe type-keyword dim0 dim1 dim2)))
 
 (defx862 x862-%typed-uvref %typed-uvref (seg vreg xfer subtag uvector index)
   (let* ((type-keyword
