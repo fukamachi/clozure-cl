@@ -851,7 +851,7 @@ Fatal(StringPtr param0, StringPtr param1)
     fatal_spare_ptr = NULL;
   }
   fprintf(stderr, "Fatal error: %s\n%s\n", param0, param1);
-  exit(-1);
+  _exit(-1);
 }
 
 OSErr application_load_err = noErr;
@@ -1180,7 +1180,7 @@ void
 terminate_lisp()
 {
   kill(main_thread_pid, SIGKILL);
-  exit(-1);
+  _exit(-1);
 }
 
 #ifdef DARWIN
@@ -1324,6 +1324,22 @@ check_x86_cpu()
   return false;
 }
 #endif
+
+void
+lazarus()
+{
+  TCR *tcr = get_tcr(false);
+  if (tcr) {
+    tcr->vs_area->active = tcr->vs_area->high - node_size;
+    tcr->save_vsp = (LispObj *)(tcr->vs_area->active);
+    tcr->ts_area->active = tcr->ts_area->high;
+    tcr->save_tsp = (LispObj *)(tcr->ts_area->active);
+    tcr->catch_top = 0;
+    tcr->db_link = 0;
+    tcr->xframe = 0;
+    start_lisp(tcr, 0);
+  }
+}
   
 main(int argc, char *argv[], char *envp[], void *aux)
 {
@@ -1523,8 +1539,9 @@ main(int argc, char *argv[], char *envp[], void *aux)
 #ifndef DISABLE_EGC
   egc_control(true, NULL);
 #endif
+  atexit(lazarus);
   start_lisp(TCR_TO_TSD(tcr), 0);
-  exit(0);
+  _exit(0);
 }
 
 area *
