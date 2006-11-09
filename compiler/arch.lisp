@@ -147,6 +147,35 @@
   simple-array-u64-2d
   simple-array-fixnum-2d
   simple-array-char-2d
+  array-t-3d
+  array-bit-3d
+  array-s8-3d
+  array-u8-3d
+  array-s16-3d
+  array-u16-3d
+  array-s32-3d
+  array-u32-3d
+  array-s64-3d
+  array-u64-3d
+  array-fixnum-3d
+  array-single-float-3d
+  array-double-float-3d
+  array-char-3d
+  simple-array-t-3d
+  simple-array-bit-3d
+  simple-array-s8-3d
+  simple-array-u8-3d
+  simple-array-s16-3d
+  simple-array-u16-3d
+  simple-array-s32-3d
+  simple-array-u32-3d
+  simple-array-s64-3d
+  simple-array-u64-3d
+  simple-array-fixnum-3d
+  simple-array-single-float-3d
+  simple-array-double-float-3d
+  simple-array-char-3d
+
   ;; Sentinel
   unused-max-type-error
   )
