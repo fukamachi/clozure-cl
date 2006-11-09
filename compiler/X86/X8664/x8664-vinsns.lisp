@@ -3899,6 +3899,26 @@
   :bad
   (uuo-error-reg-not-type (:%q object) (:$ub type-error))
   :good)
+
+(define-x8664-vinsn trap-unless-simple-array-3 (()
+                                                ((object :lisp)
+                                                 (expected-flags :u32const)
+                                                 (type-error :u8const))
+                                                ((tag :u8)))
+  
+  (movb (:%b object) (:%b tag))
+  (andb (:$b x8664::tagmask) (:%b tag))
+  (cmpb (:$b x8664::tag-misc) (:%b tag))
+  (jne :bad)
+  (cmpb (:$b x8664::subtag-arrayH) (:@ x8664::misc-subtag-offset (:%q object)))
+  (jne :bad)
+  (cmpq (:$b (ash 3 x8664::fixnumshift)) (:@ x8664::arrayH.rank (:%q object)))
+  (jne :bad)
+  (cmpq (:$l (:apply ash expected-flags x8664::fixnumshift)) (:@ x8664::arrayH.flags (:%q object)))
+  (je.pt :good)
+  :bad
+  (uuo-error-reg-not-type (:%q object) (:$ub type-error))
+  :good)
   
 (define-x8664-vinsn trap-unless-array-header (()
                                               ((object :lisp))
@@ -4083,8 +4103,7 @@
 				    ((i :imm)
 				     (j :imm)
 				     (header :lisp)))
-  (cmpq (:@ (+ x8664::misc-data-offset (* 8 x8664::arrayH.dim0-cell)) (:%q header))
-        (:%q i))
+  (cmpq (:@ (+ x8664::misc-data-offset (* 8 x8664::arrayH.dim0-cell)) (:%q header)) (:%q i))
   (jb :i-ok)
   (uuo-error-array-bounds (:%q i) (:%q header))
   :i-ok
@@ -4096,12 +4115,45 @@
   :j-ok
   (sarq (:$ub x8664::fixnumshift) (:%q dim)))
 
+;;; Return dim1, dim2 (unboxed)
+(define-x8664-vinsn check-3d-bound (((dim1 :u64)
+                                     (dim2 :u64))
+				    ((i :imm)
+				     (j :imm)
+                                     (k :imm)
+				     (header :lisp)))
+  (cmpq (:@ (+ x8664::misc-data-offset (* 8 x8664::arrayH.dim0-cell)) (:%q header)) (:%q i))
+  (jb :i-ok)
+  (uuo-error-array-bounds (:%q i) (:%q header))
+  :i-ok
+  (movq (:@ (+ x8664::misc-data-offset (* 8 (1+ x8664::arrayH.dim0-cell))) (:%q header)) (:%q dim1))
+  (cmpq (:%q dim1) (:%q j))
+  (jb :j-ok)
+  (uuo-error-array-bounds (:%q j) (:%q header))
+  :j-ok
+  (sarq (:$ub x8664::fixnumshift) (:%q dim1))
+  (movq (:@ (+ x8664::misc-data-offset (* 8 (+ 2 x8664::arrayH.dim0-cell))) (:%q header)) (:%q dim2))
+  (cmpq (:%q dim2) (:%q k))
+  (jb ::k-ok)
+  (uuo-error-array-bounds (:%q k) (:%q header))
+  :k-ok
+  (sarq (:$ub x8664::fixnumshift) (:%q dim2)))
+
+
 (define-x8664-vinsn 2d-dim1 (((dest :u64))
 			     ((header :lisp)))
   (movq (:@ (+ x8664::misc-data-offset (* 8 (1+ x8664::arrayH.dim0-cell))) (:%q header))
         (:%q dest))
   (sarq (:$ub x8664::fixnumshift) (:%q dest)))
 
+
+(define-x8664-vinsn 3d-dims (((dim1 :u64)
+                              (dim2 :u64))
+			     ((header :lisp)))
+  (movq (:@ (+ x8664::misc-data-offset (* 8 (1+ x8664::arrayH.dim0-cell))) (:%q header)) (:%q dim1))
+  (movq (:@ (+ x8664::misc-data-offset (* 8 (+ 2 x8664::arrayH.dim0-cell))) (:%q header)) (:%q dim2))
+  (sarq (:$ub x8664::fixnumshift) (:%q dim1))
+  (sarq (:$ub x8664::fixnumshift) (:%q dim2)))
 
 (define-x8664-vinsn 2d-unscaled-index (((dest :imm)
                                         (dim1 :u64))
@@ -4111,6 +4163,22 @@
 
   (imulq (:%q i) (:%q dim1))
   (leaq (:@ (:%q j) (:%q dim1)) (:%q dest)))
+
+
+;; dest <- (+ (* i dim1 dim2) (* j dim2) k)
+(define-x8664-vinsn 3d-unscaled-index (((dest :imm)
+                                        (dim1 :u64)
+                                        (dim2 :u64))
+				       ((dim1 :u64)
+                                        (dim2 :u64)
+                                        (i :imm)
+					(j :imm)
+                                        (k :imm)))
+  (imulq (:%q dim1) (:%q dim2))
+  (imulq (:%q j) (:%q dim1))
+  (imulq (:%q i) (:%q dim2))
+  (addq (:%q dim1) (:%q dim2))
+  (leaq (:@ (:%q k) (:%q dim2)) (:%q dest)))
 
 (define-x8664-vinsn branch-unless-both-args-fixnums (()
                                                      ((a :lisp)

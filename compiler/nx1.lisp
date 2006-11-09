@@ -816,6 +816,37 @@
                   (nx1-form i)
                   (nx1-form j)))))
 
+(defnx1 nx1-%aref3 ((%aref3)) (&whole whole &environment env arr i j k)
+  (let* ((arch (backend-target-arch *target-backend*))
+         (ctype (specifier-type (nx-form-type arr env)))
+         (atype (if (csubtypep ctype (specifier-type '(array * (* * *)))) ctype))
+         (simple-atype (if (and atype
+                                (csubtypep atype (specifier-type '(simple-array * (* * *)))))
+                         atype))
+         (type-keyword (if atype
+                         (funcall
+                          (arch::target-array-type-name-from-ctype-function arch)
+                          atype))))
+    (if (and type-keyword simple-atype)
+      (let* ((dims (array-ctype-dimensions atype))
+             (dim0 (car dims))
+             (dim1 (cadr dims))
+             (dim2 (caddr dims)))
+        (make-acode (%nx1-operator simple-typed-aref3)
+                    (nx1-form type-keyword)
+                    (nx1-form arr)
+                    (nx1-form i)
+                    (nx1-form j)
+                    (nx1-form k)
+                    (nx1-form (if (typep dim0 'fixnum) dim0))
+                    (nx1-form (if (typep dim1 'fixnum) dim1))
+                    (nx1-form (if (typep dim2 'fixnum) dim2))))
+      (make-acode (%nx1-operator general-aref3)
+                  (nx1-form arr)
+                  (nx1-form i)
+                  (nx1-form j)
+                  (nx1-form k)))))
+
 (defun nx1-1d-vset (arr newval dim0 env)
   (let* ((simple-vector-p (nx-form-typep arr 'simple-vector env))
          (string-p (unless simple-vector-p 
@@ -884,6 +915,40 @@
                   (nx1-form arr)
                   (nx1-form i)
                   (nx1-form j)
+                  (nx1-form new)))))
+
+(defnx1 nx1-%aset3 ((%aset3)) (&whole whole &environment env arr i j k new)
+  (let* ((arch (backend-target-arch *target-backend*))
+         (ctype (specifier-type (nx-form-type arr env)))
+         (atype (if (csubtypep ctype (specifier-type '(array * (* * *)))) ctype))
+         (simple-atype (if (and atype
+                                (csubtypep atype (specifier-type '(simple-array * (* * *)))))
+                         atype))
+         (type-keyword (if atype
+                         (funcall
+                          (arch::target-array-type-name-from-ctype-function arch)
+                          atype))))
+
+    (if (and type-keyword simple-atype)
+      (let* ((dims (array-ctype-dimensions atype))
+             (dim0 (car dims))
+             (dim1 (cadr dims))
+             (dim2 (caddr dims)))
+        (make-acode (%nx1-operator simple-typed-aset3)
+                    (nx1-form type-keyword)
+                    (nx1-form arr)
+                    (nx1-form i)
+                    (nx1-form j)
+                    (nx1-form k)
+                    (nx1-form new)
+                    (nx1-form (if (typep dim0 'fixnum) dim0))
+                    (nx1-form (if (typep dim1 'fixnum) dim1))
+                    (nx1-form (if (typep dim2 'fixnum) dim2))))
+            (make-acode (%nx1-operator general-aset3)
+                  (nx1-form arr)
+                  (nx1-form i)
+                  (nx1-form j)
+                  (nx1-form k)
                   (nx1-form new)))))
 
 (defnx1 nx1-prog1 (prog1 multiple-value-prog1) (save &body args 
