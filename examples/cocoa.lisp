@@ -30,6 +30,12 @@
   (declare (ignore notification))
   (initialize-user-interface))
 
+(define-objc-method ((:void :application-will-terminate (:id notification))
+                     lisp-application-delegate)
+  (declare (ignore notification))
+  ;; UI has decided to quit; terminate other lisp threads.
+  (prepare-to-quit))
+
 (define-objc-method ((:void :new-listener sender) lisp-application-delegate)
   (declare (ignore sender))
   (send (send (@class ns-document-controller) 'shared-document-controller)

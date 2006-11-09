@@ -114,15 +114,8 @@
 	      :with-object e
 	      :wait-until-done t)))))
 
-#+apple-objc
-(define-objc-method ("_shouldTerminate" lisp-application)
-  (:<BOOL>)
-  (with-slots (termp) self
-      (setq termp (objc-message-send-super (super) "_shouldTerminate" :<BOOL>))))
 
-(define-objc-method ((:<BOOL> termp) lisp-application)
-  (with-slots (termp) self
-      termp))
+
 
 (defloadvar *default-ns-application-proxy-class-name*
     "LispApplicationDelegate")
@@ -185,10 +178,7 @@
           (if addr (ff-call addr :void)))
 	(send (the ns-application self) :stop (%null-ptr))))))
 
-(define-objc-method ((:void :terminate sender)
-		     lisp-application)
-  (declare (ignore sender))
-  (quit))
+
 
 (define-objc-method ((:void :show-preferences sender) lisp-application)
   (declare (ignore sender))
@@ -206,30 +196,12 @@
 	(#_NSLog #@"Error in event loop: %@" :address nsstr)))))
 
 
-#+apple-objc
-(defmethod process-verify-quit ((process appkit-process))
-  (let* ((app *NSApp*))
-    (or
-     (null app)
-     (not (send app 'is-running))
-     (eql (pref app :<NSA>pplication._app<F>lags._app<D>ying) #$YES)
-     (eql (pref app
-		:<NSA>pplication._app<F>lags._dont<S>end<S>hould<T>erminate)
-	  #$YES)
-     (progn
-       (send
-	app
-	:perform-selector-on-main-thread (@selector "_shouldTerminate")
-	:with-object (%null-ptr)
-	:wait-until-done t)
-       (send app 'termp)))))
 
-#+apple-objc
+
 (defmethod process-exit-application ((process appkit-process) thunk)
   (when (eq process *initial-process*)
-    (prepare-to-quit)
     (%set-toplevel thunk)
-    (send (the lisp-application *NSApp*) 'shutdown)
+    (send (the lisp-application *NSApp*) :terminate (%null-ptr))
     ))
 
 (defun run-event-loop ()
