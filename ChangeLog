@@ -1,3 +1,8 @@
+2006-11-09 12:50  gb
+
+	* compiler/X86/x862.lisp: Always check that array-ctype's
+	dimensions are a list before taking their length.
+
 2006-11-09 12:13  gb
 
 	* compiler/X86/X8664/x8664-vinsns.lisp: 3d-unscaled-index does the
