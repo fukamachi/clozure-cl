@@ -117,7 +117,8 @@
 			 #'(lambda ()
 			     (process-exit-application *current-process*
                                                        #'(lambda ()
-                                                           (#_exit exit-status)))))
+                                                           (%set-toplevel nil)
+                                                           (#__exit exit-status)))))
       (unless (eq cp ip)
 	(process-kill cp)))))
 
@@ -148,7 +149,7 @@
       (dolist (p stragglers)
 	(unless (process-wait-with-timeout
 		 "deathwatch"
-		 (* 5 *ticks-per-second*)
+		 10
 		 #'(lambda () (process-exhausted-p p)))
 	  (maybe-finish-process-kill p :kill))))
     (shutdown-lisp-threads)
