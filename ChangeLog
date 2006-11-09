@@ -1,3 +1,8 @@
+2006-11-09 10:08  gb
+
+	* compiler/: nx1.lisp, X86/x862.lisp, X86/X8664/x8664-vinsns.lisp:
+	Three-arg aref/(setf aref) for x8664.
+
 2006-11-09 05:37  gb
 
 	* compiler/nx0.lisp: Map array-type keywords to 3d-array type
