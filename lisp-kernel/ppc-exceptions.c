@@ -441,7 +441,7 @@ handle_gc_trap(ExceptionInformation *xp, TCR *tcr)
         nrs_TOPLFUNC.vcell = *((LispObj *)(vsarea->high)-1);
         err = save_application(arg);
         if (err == noErr) {
-          exit(0);
+          _exit(0);
         }
         fatal_oserr(": save_application", err);
       }
