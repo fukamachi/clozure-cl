@@ -1,3 +1,8 @@
+2006-11-09 12:13  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: 3d-unscaled-index does the
+	right thing ...
+
 2006-11-09 10:08  gb
 
 	* compiler/: nx1.lisp, X86/x862.lisp, X86/X8664/x8664-vinsns.lisp:
