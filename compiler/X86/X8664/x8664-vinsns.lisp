@@ -4174,9 +4174,9 @@
                                         (i :imm)
 					(j :imm)
                                         (k :imm)))
-  (imulq (:%q dim1) (:%q dim2))
-  (imulq (:%q j) (:%q dim1))
-  (imulq (:%q i) (:%q dim2))
+  (imulq (:%q dim2) (:%q dim1))
+  (imulq (:%q j) (:%q dim2))
+  (imulq (:%q i) (:%q dim1))
   (addq (:%q dim1) (:%q dim2))
   (leaq (:@ (:%q k) (:%q dim2)) (:%q dest)))
 
