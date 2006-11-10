@@ -7818,7 +7818,7 @@
          (atype (if (array-ctype-p ctype) ctype))
          (keyword (and atype
                        (let* ((dims (array-ctype-dimensions atype)))
-                         (and (type dims 'list)
+                         (and (typep dims 'list)
                               (= 2 (length dims))))
                        (not (array-ctype-complexp atype))
                        (funcall
