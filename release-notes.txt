@@ -1,3 +1,39 @@
+OpenMCL 1.1-pre-061110
+- The FASL version changed (old FASL files won't work with this
+  lisp version), as did the version information which tries to
+  keep the kernel in sync with heap images.
+- Several bug fixes (see ChangeLog), and modest-to-moderate
+  performance improvements.  Notably, AREF and (SETF AREF)
+  of 2- and 3-dimensional arrays are open-coded in more cases
+  and are usually at least 5x faster than in previous versions.
+  If the compiler knows that the array in question is a
+  SIMPLE-ARRAY of appropiate dimensionality and knows the
+  array's element-type, the speedup can be much greater.
+  There are certainly opportunities for further improvements
+  here, both in breadth (handling more cases) and depth
+  (eliminating some type-and-bounds checking in safe code,
+  doing parts of index calculations at compile-time when
+  bounds and indices are constants ...), but things are
+  generally improved.
+- QUIT and SAVE-APPLICATION work a little differently; in
+  particular, SAVE-APPLICATION sometimes runs after #_exit
+  is called (via the #_atexit mechanism).
+  The motivation for this change has to do with how some
+  environments (Cocoa, to name one) conflate the ideas of
+  "shutting down the GUI" with "exiting the application".
+  Previous versions of OpenMCL tried to work around this
+  by overriding some internal Cocoa methods; that approach
+  was never particularly attractive and (predictably) it'll
+  break in future OSX releases.
+  The new scheme (which involves letting code run after #_exit
+  has been called) certainly offers other ways to lose; so
+  far, I haven't seen evidence of such lossage.
+- For historical reasons (forgotten historical reasons, in fact)
+  the PPC versions of OpenMCL run with floating-point underflow
+  exceptions disabled (the x86-64 versions enable these exceptions
+  by default.)  This should change soon (as soon as I remember
+  to change it ...); it's unlikely that this will affect much
+  user code, but it's possible that it'll do so.
 OpenMCL 1.1-pre-061024
 - The FASL version changed (old FASL files won't work with this
   lisp version), as did the version information which tries to
