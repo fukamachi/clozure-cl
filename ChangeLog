@@ -1,3 +1,9 @@
+2006-11-09 16:26  gb
+
+	* level-1/l1-readloop.lisp: QUIT uses #__quit.
+	
+	PREPARE-TO-QUIT kill stragglers without waiting as long.
+
 2006-11-09 15:50  gb
 
 	* lisp-kernel/pmcl-kernel.c: Use #_ _exit for fatal termination.
