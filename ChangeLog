@@ -1,3 +1,36 @@
+2006-11-10 04:19  gb
+
+	* xdump/heap-image.lisp: bump current image version.
+
+2006-11-10 04:19  gb
+
+	* lisp-kernel/image.h: bump current, max image version.
+
+2006-11-10 04:10  gb
+
+	* xdump/faslenv.lisp: Bump min fasl version.
+
+2006-11-10 03:56  gb
+
+	* lib/nfcomp.lisp: bump current fasl version.
+
+2006-11-10 03:47  gb
+
+	* lisp-kernel/x86-exceptions.c: save_application: use #__exit, not
+	#_exit
+
+2006-11-10 03:46  gb
+
+	* compiler/X86/x862.lisp: TYPE typo.
+
+2006-11-10 03:32  gb
+
+	* xdump/faslenv.lisp: Bump max fasl version.
+
+2006-11-10 03:25  gb
+
+	* level-1/version.lisp: Bump.  New snapshots today!
+
 2006-11-09 16:26  gb
 
 	* level-1/l1-readloop.lisp: QUIT uses #__quit.
