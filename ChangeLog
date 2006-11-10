@@ -1,3 +1,11 @@
+2006-11-10 05:08  gb
+
+	* release-notes.txt: Update.
+
+2006-11-10 04:28  gb
+
+	* lisp-kernel/image.h: Bump min image version.
+
 2006-11-10 04:19  gb
 
 	* xdump/heap-image.lisp: bump current image version.
