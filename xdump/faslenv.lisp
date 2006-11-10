@@ -58,7 +58,7 @@
 (defconstant $fasl-epush-bit 7)
 (defconstant $fasl-file-id #xff00)
 (defconstant $fasl-file-id1 #xff01)
-(defconstant $fasl-vers #x49)
+(defconstant $fasl-vers #x4a)
 (defconstant $fasl-min-vers #x49)
 (defconstant $faslend #xff)
 (defconstant $fasl-buf-len 2048)
