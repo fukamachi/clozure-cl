@@ -442,7 +442,7 @@ safer to mess with directly as there is less magic going on."))
     #+darwin-target
     (%str-from-ptr (pref addr :sockaddr_un.sun_path)
 		   (- (pref addr :sockaddr_un.sun_len) 2))
-    #-darwinc-target
+    #-darwin-target
     (%get-cstring (pref addr :sockaddr_un.sun_path))))
 
 (defun local-socket-filename (fd socket)
