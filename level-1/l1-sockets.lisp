@@ -356,11 +356,18 @@ make-socket."))
                      'basic-character-io-stream)
 
 
+(defmethod map-to-basic-stream-class-name ((name (eql 'file-socket-stream)))
+  'basic-file-socket-stream)
 
 (defmethod select-stream-class ((class file-socket-stream) in-p out-p char-p)
   (declare (ignore char-p)) ; TODO: is there any real reason to care about this?
-  (assert (and in-p out-p) () "Non-bidirectional tcp stream?")
+  (assert (and in-p out-p) () "Non-bidirectional file-socket stream?")
   'fundamental-file-socket-stream)
+
+(defmethod select-stream-class ((s (eql 'basic-file-socket-stream)) in-p out-p char-p)
+  (declare (ignore char-p))
+  (assert (and in-p out-p) () "Non-bidirectional file-socket stream?")
+  'basic-file-socket-stream)
 
 (defclass unconnected-socket (socket)
   ((device :initarg :device :accessor socket-device)
@@ -1122,18 +1129,22 @@ unsigned IP address."
 (defun init-unix-sockaddr (addr path)
   (macrolet ((sockaddr_un-path-len ()
                (/ (ensure-foreign-type-bits
-                    (foreign-record-field-type 
-                     (%find-foreign-record-type-field
-                      (parse-foreign-type '(:struct :sockaddr_un)) :sun_path)))
+                   (foreign-record-field-type 
+                    (%find-foreign-record-type-field
+                     (parse-foreign-type '(:struct :sockaddr_un)) :sun_path)))
                   8)))
     (let* ((name (native-translated-namestring path))
            (namelen (length name))
            (pathlen (sockaddr_un-path-len))
            (copylen (min (1- pathlen) namelen)))
-        (setf (pref addr :sockaddr_un.sun_family) #$AF_LOCAL)
-        (%copy-ivector-to-ptr name 0
-                              (pref addr :sockaddr_un.sun_path) 0
-                              copylen))))
+      (setf (pref addr :sockaddr_un.sun_family) #$AF_LOCAL)
+      (let* ((sun-path (pref addr :sockaddr_un.sun_path)))
+        (dotimes (i copylen)
+          (setf (%get-unsigned-byte sun-path i)
+                (let* ((code (char-code (schar name i))))
+                  (if (> code 255)
+                    (char-code #\Sub)
+                    code))))))))
 
 (defun bind-unix-socket (socketfd path)
   (rletz ((addr :sockaddr_un))
