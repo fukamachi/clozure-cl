@@ -1,3 +1,10 @@
+2006-11-21 00:55  gb
+
+	* level-1/l1-sockets.lisp: INIT-UNIX-SOCKADDR: don't use
+	%COPY-IVECTOR-TO-PTR to copy string to foreign memory.
+	
+	Basic file-socket streams.
+
 2006-11-10 05:08  gb
 
 	* release-notes.txt: Update.
