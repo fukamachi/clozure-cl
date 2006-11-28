@@ -89,7 +89,7 @@
 ;;; close boxes to be highlighted.
 (define-objc-method ((:void :set-document-edited (:<BOOL> edited))
                      hemlock-listener-window-controller)
-  (declare (ignore edited)))
+  (declare (ignorable edited)))
  
 
 (define-objc-method ((:id :init-with-window w)
