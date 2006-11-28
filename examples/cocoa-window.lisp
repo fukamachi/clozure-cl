@@ -277,7 +277,8 @@
 		(%get-single-float matrix 12) size)
           (let* ((fontname (send (@class ns-string) :string-with-c-string name))
 		 (font (send (@class ns-font)
-				  :font-with-name fontname :matrix matrix))
+                              :font-with-name fontname :matrix matrix))
+                   
 		 (implemented-attributes ()))
 	    (if (or (%null-ptr-p font)
 		    (and 
@@ -298,7 +299,7 @@
 		    (unless (eql font newfont)
 		      (setq font newfont)
 		      (push attr-name implemented-attributes))))))
-	    (values font implemented-attributes))))))
+	    (values (send font 'retain) implemented-attributes))))))
 
 ;;; Create a paragraph style, mostly so that we can set tabs reasonably.
 (defun create-paragraph-style (font line-break-mode)
