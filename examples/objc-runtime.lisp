@@ -295,16 +295,30 @@
   ;; This'll help to convince the AppKit that we're
   ;; multitheaded.  (A lot of other things, including
   ;; the ObjC runtime, seem to have already noticed.)
-  (with-cstrs ((class-name "NSThread")
-               (message-selector-name "detachNewThreadSelector:toTarget:withObject:")
-               (exit-selector-name "exit"))
-    (let* ((nsthread-class (#_objc_lookUpClass class-name))
-           (message-selector (#_sel_getUid message-selector-name))
-           (exit-selector (#_sel_getUid exit-selector-name)))
-      (#_objc_msgSend nsthread-class message-selector
-                      :address exit-selector
-                      :address nsthread-class
-                      :address (%null-ptr))
+  (with-cstrs ((thread-class-name "NSThread")
+               (pool-class-name "NSAutoreleasePool")
+               (thread-message-selector-name "detachNewThreadSelector:toTarget:withObject:")
+               (exit-selector-name "exit")
+               (alloc-selector-name "alloc")
+               (init-selector-name "init")
+               (release-selector-name "release"))
+    (let* ((nsthread-class (#_objc_lookUpClass thread-class-name))
+           (pool-class (#_objc_lookUpClass pool-class-name))
+           (thread-message-selector (#_sel_getUid thread-message-selector-name))
+           (exit-selector (#_sel_getUid exit-selector-name))
+           (alloc-selector (#_sel_getUid alloc-selector-name))
+           (init-selector (#_sel_getUid init-selector-name))
+           (release-selector (#_sel_getUid release-selector-name))
+           (pool (#_objc_msgSend
+                  (#_objc_msgSend pool-class
+                                  alloc-selector)
+                  init-selector)))
+      (unwind-protect
+           (#_objc_msgSend nsthread-class thread-message-selector
+                           :address exit-selector
+                           :address nsthread-class
+                           :address (%null-ptr))
+        (#_objc_msgSend pool release-selector))
       nil)))
 
 (defun run-in-cocoa-process-and-wait  (f)
