@@ -42,12 +42,12 @@
 (defconstant cdb-hash-mask (1- (ash 1 29)))
 
 (defun cdb-hash (buf len)
-    (declare (fixnum len))
-    (let* ((h 5381))
-      (declare (fixnum h))
-      (dotimes (i len (logand h cdb-hash-mask))
-	(setq h (+ h (the fixnum (logand cdb-hash-mask (ash h 5)))))
-	(setq h (logxor (the (unsigned-byte 8) (%get-unsigned-byte buf i)) h)))))
+  (declare (fixnum len))
+  (let* ((h 5381))
+    (declare (fixnum h))
+    (dotimes (i len (logand h cdb-hash-mask))
+      (setq h (+ h (the fixnum (logand cdb-hash-mask (ash h 5)))))
+      (setq h (logxor (the (unsigned-byte 8) (%get-unsigned-byte buf i)) h)))))
 
 (defconstant cdbm-hplist 1000)
 
@@ -421,6 +421,34 @@
       (format stream "~s [~a]" (cdb-pathname cdb) (or fid "closed")))))
 
 
+(defun cdb-enumerate-keys (cdb &optional (predicate #'true))
+  "Returns a list of all keys (strings) in the open .cdb file CDB which
+satisfy the optional predicate PREDICATE."
+  (with-lock-grabbed ((cdb-lock cdb))
+    (let* ((keys ())
+           (fid (cdb-fid cdb)))
+      (dotimes (i 256 keys)
+        (fid-seek fid (+ (* 256 2 4) (* 8 i)))
+        (let* ((pos (fid-read-u32 fid))
+               (n (fid-read-u32 fid)))
+          (dotimes (j n)
+            (fid-seek fid (+ pos (* 8 j) 4))
+            (let* ((posk (fid-read-u32 fid)))
+              (unless (zerop posk)
+                (fid-seek fid posk)
+                (let* ((hashed-key-len (fid-read-u32 fid)))
+                  ;; Skip hashed data length
+                  (fid-read-u32 fid)
+                  (let* ((string (make-string hashed-key-len)))
+                    (%stack-block ((buf hashed-key-len))
+                      (fid-read fid buf hashed-key-len)
+                      (dotimes (k hashed-key-len)
+                        (setf (schar string k)
+                              (code-char (%get-unsigned-byte buf k)))))
+                    (when (funcall predicate string)
+                      (push (copy-seq string) keys))))))))))))
+                                        ;
+                  
 
 
 (defstruct ffi-type
