@@ -90,7 +90,8 @@
 
 (defun %destructure-lambda-list (lambda-list wholeform  lets decls
 					     &key cdr-p (whole-p t) use-whole-var default-initial-value)
-  (unless (verify-lambda-list lambda-list t whole-p)
+  (unless (and (listp lambda-list)
+               (verify-lambda-list lambda-list t whole-p))
     (signal-simple-program-error "Invalid lambda list: ~s" lambda-list))
   (multiple-value-bind (normalized whole) (normalize-lambda-list
 					   lambda-list whole-p)
