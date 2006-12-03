@@ -27,6 +27,7 @@
                                  (get-field-offset :mcontext_t.gregs)))
   (defmacro xp-gp-regs (xp) xp)
   (defconstant flags-register-offset #$REG_EFL)
+  (defconstant rip-register-offset #$REG_RIP)
   (defparameter *encoded-gpr-to-indexed-gpr*
     #(13                                ;rax
       14                                ;rcx
@@ -51,6 +52,7 @@
   (defconstant gp-regs-offset (get-field-offset :ucontext_t.uc_mcontext))
   (defmacro xp-gp-regs (xp) xp)
   (defconstant flags-register-offset 22)
+  (defconstant rip-register-offset 20)
   (defparameter *encoded-gpr-to-indexed-gpr*
     #(7					;rax
       4					;rcx
@@ -99,6 +101,7 @@
     `(pref (pref ,xp :portable_ucontext64.uc_mcontext64) :portable_mcontext64.ss))
 
   (defconstant flags-register-offset 17)
+  (defconstant rip-register-offset 16)  
   (defparameter *encoded-gpr-to-indexed-gpr*
     #(0					;rax
       2					;rcx
