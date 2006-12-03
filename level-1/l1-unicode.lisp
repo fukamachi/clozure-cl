@@ -3472,10 +3472,7 @@ in native byte-order with a leading byte-order mark."
    (lambda (string vector idx start end)
      (declare (type (simple-array (unsigned-byte 8) (*)) vector)
               (fixnum idx))
-     (when (> end start)
-       (setf (%native-u8-ref-u16 vector idx) byte-order-mark-char-code)
-       (incf idx 2))
-            (do* ((i start (1+ i)))
+     (do* ((i start (1+ i)))
             ((>= i end) idx)
          (declare (fixnum i))
          (let* ((char (schar string i))
@@ -3535,10 +3532,6 @@ in native byte-order with a leading byte-order mark."
    utf-16-memory-encode
    (lambda (string pointer idx start end)
      (declare (fixnum idx))
-     (when (> end start)
-       (setf (%get-unsigned-word pointer idx)
-             byte-order-mark-char-code)
-       (incf idx 2))
      (do* ((i start (1+ i)))
           ((>= i end) idx)
        (let* ((code (char-code (schar string i)))
@@ -3592,10 +3585,7 @@ in native byte-order with a leading byte-order mark."
                            (utf-16-combine-surrogate-pairs 1st-unit 2nd-unit)))))))
              (setf (schar string i) (or char #\Replacement_Character))))))))
   :octets-in-string-function
-  #'(lambda (&rest args)
-      (declare (dynamic-extent args))
-      ;; Add two for the BOM.
-      (+ 2 (apply #'utf-16-octets-in-string args)))
+  #'utf-16-octets-in-string
   :length-of-vector-encoding-function
   (nfunction
    utf-16-length-of-vector-encoding
@@ -3898,9 +3888,6 @@ big-endian order."
    (lambda (string vector idx start end)
      (declare (type (simple-array (unsigned-byte 8) (*)) vector)
               (fixnum idx))
-     (when (> end start)
-       (setf (%native-u8-ref-u16 vector idx) byte-order-mark-char-code)
-       (incf idx 2))
      (do* ((i start (1+ i)))
           ((>= i end) idx)
        (let* ((char (schar string i))
@@ -3940,10 +3927,6 @@ big-endian order."
    ucs-2-memory-encode
    (lambda (string pointer idx start end)
      (declare (fixnum idx))
-     (when (> end start)
-       (setf (%get-unsigned-word pointer idx)
-             byte-order-mark-char-code)
-       (incf idx 2))
      (do* ((i start (1+ i)))
           ((>= i end) idx)
        (let* ((code (char-code (schar string i))))
@@ -3978,10 +3961,7 @@ big-endian order."
          (if swap (setq 1st-unit (%swap-u16 1st-unit)))
          (setf (schar string i) (or (code-char 1st-unit) #\Replacement_Character)))))))
   :octets-in-string-function
-  #'(lambda (&rest args)
-      (declare (dynamic-extent args))
-      ;; Add two for the BOM.
-      (+ 2 (apply #'ucs-2-octets-in-string args)))
+  #'ucs-2-octets-in-string
   :length-of-vector-encoding-function
   (nfunction
    ucs-2-length-of-vector-encoding
@@ -4097,7 +4077,7 @@ big-endian order."
 
 
 ;;; UTF-32/UCS-4, native byte order
-(define-character-encoding #+big-endian-target :utf32-be #-big-endian-target :utf32-le
+(define-character-encoding #+big-endian-target :utf-32be #-big-endian-target :utf32-le
   #+big-endian-target
   "A 32-bit, fixed-length encoding in which all Unicode characters
 encoded in a single 32-bit word. The encoded data is implicitly big-endian;
@@ -4192,7 +4172,7 @@ or prepended to output."
   )
 
 ;;; UTF-32/UCS-4, reversed byte order
-(define-character-encoding #+big-endian-target :utf32-le #-big-endian-target :utf32-be
+(define-character-encoding #+big-endian-target :utf-32le #-big-endian-target :utf-32be
   #+little-endian-target
   "A 32-bit, fixed-length encoding in which all Unicode characters
 encoded in a single 32-bit word. The encoded data is implicitly big-endian;
@@ -4304,9 +4284,6 @@ or prepended to output."
    (lambda (string vector idx start end)
      (declare (type (simple-array (unsigned-byte 8) (*)) vector)
               (fixnum idx))
-     (when (> end start)
-       (setf (%native-u8-ref-u32 vector idx) byte-order-mark-char-code)
-       (incf idx 4))
      (do* ((i start (1+ i)))
           ((>= i end) idx)
        (let* ((char (schar string i))
@@ -4383,10 +4360,7 @@ or prepended to output."
                                       (code-char 1st-unit))
                                     #\Replacement_Character)))))))
   :octets-in-string-function
-  #'(lambda (&rest args)
-      (declare (dynamic-extent args))
-      ;; Add four for the BOM.
-      (+ 4 (apply #'ucs-4-octets-in-string args)))
+  #'ucs-4-octets-in-string
   :length-of-vector-encoding-function
   (nfunction
    utf-32-length-of-vector-encoding
@@ -4444,12 +4418,172 @@ or prepended to output."
   (declare (ignore environment))
   `(get-character-encoding ,(character-encoding-name c)))
 
+(defvar *native-newline-string* (make-string 1 :initial-element #\Newline))
+(defvar *unicode-newline-string* (make-string 1 :initial-element #\Line_Separator))
+(defvar *cr-newline-string* (make-string 1 :initial-element #\Return))
+(defvar *crlf-newline-string* (make-array 2 :element-type 'character :initial-contents '(#\Return #\Linefeed)))
+
+(defun string-size-in-octets (string &key
+                                     (start 0)
+                                     end
+                                     external-format
+                                     use-byte-order-mark)
+  (setq end (check-sequence-bounds string start end))
+  (let* ((ef (normalize-external-format t external-format)))
+    (%string-size-in-octets string
+                            start
+                            end
+                            (get-character-encoding
+                             (external-format-character-encoding ef))
+                            (cdr (assoc (external-format-line-termination ef)
+                                        *canonical-line-termination-conventions*))
+                            use-byte-order-mark)))
+  
+
+(defun %string-size-in-octets (string start end encoding line-termination use-byte-order-mark)  
+    (declare (fixnum start end))
+    (multiple-value-bind (simple-string offset)
+        (array-data-and-offset string)
+      (declare (fixnum offset) (simple-string simple-string))
+      (incf start offset)
+      (incf end offset)
+      (let* ((n (if use-byte-order-mark
+                  (length (character-encoding-bom-encoding encoding))
+                  0))
+             (f (character-encoding-octets-in-string-function encoding))
+             (nlpos (if line-termination
+                      (position #\Newline simple-string :start start :end end))))
+        (if (not nlpos)
+          (+ n (funcall f simple-string start end))
+          (let* ((nlstring (case line-termination
+                             (:cr *cr-newline-string*)
+                             (:crlf *crlf-newline-string*)
+                             (:unicode *unicode-newline-string*)))
+                 (nlstring-length (if (eq line-termination :crlf) 2 1)))
+            (do* ()
+                 ((null nlpos) (+ n (funcall f simple-string start end)))
+              (unless (eql nlpos start)
+                (incf n (funcall f simple-string start nlpos)))
+              (incf n (funcall f nlstring 0 nlstring-length))
+              (setq start (1+ nlpos)
+                    nlpos (position #\Newline simple-string :start start :end end))))))))
+
+(defun encode-string-to-octets (string &key
+                                       (start 0)
+                                       end
+                                       external-format
+                                       use-byte-order-mark
+                                       (vector nil vector-p)
+                                       (vector-offset 0))
+  (setq end (check-sequence-bounds string start end))
+  (let* ((ef (normalize-external-format t external-format)) 
+         (encoding (get-character-encoding
+                    (external-format-character-encoding ef)))
+         (line-termination (cdr (assoc (external-format-line-termination ef)
+                                       *canonical-line-termination-conventions*)))
+         (n (%string-size-in-octets string start end encoding line-termination use-byte-order-mark)))
+    (declare (fixnum start end n))
+    (unless (and (typep vector-offset 'fixnum)
+                 (or (not vector-p)
+                     (< vector-offset (length vector))))
+      (error "Invalid vector offset ~s" vector-offset))
+    (if (not vector-p)
+      (setq vector (make-array (+ n vector-offset)
+                               :element-type '(unsigned-byte 8)))
+      (progn
+        (unless (= (typecode vector) target::subtag-u8-vector)
+          (report-bad-arg vector '(simple-array (unsigned-byte 8) (*))))
+        (unless (>= (length vector) (+ vector-offset n))
+          (error "Can't encode ~s into supplied vector ~s; ~&~d octets are needed, but only ~d are available" string vector n (- (length vector) vector-offset)))))
+    (when use-byte-order-mark
+      (let* ((bom (character-encoding-bom-encoding encoding)))
+        (dotimes (i (length bom))
+          (setf (aref vector vector-offset)
+                (aref bom i))
+          (incf vector-offset))))
+    (multiple-value-bind (simple-string offset) (array-data-and-offset string)
+      (incf start offset)
+      (incf end offset)
+      (let* ((f (character-encoding-vector-encode-function encoding))
+             (nlpos (if line-termination
+                      (position #\Newline simple-string :start start :end end))))
+        (if (null nlpos)
+          (setq vector-offset
+                (funcall f simple-string vector vector-offset start end))
+          (let* ((nlstring (case line-termination
+                             (:cr *cr-newline-string*)
+                             (:crlf *crlf-newline-string*)
+                             (:unicode *unicode-newline-string*)))
+                 (nlstring-length (if (eq line-termination :crlf) 2 1)))
+            (do* ()
+                 ((null nlpos)
+                  (setq vector-offset
+                        (funcall f simple-string vector vector-offset start end)))
+              (unless (eql nlpos start)
+                (setq vector-offset (funcall f simple-string vector vector-offset start nlpos)))
+              (setq vector-offset (funcall f nlstring vector vector-offset 0 nlstring-length))
+              (setq start (1+ nlpos)
+                    nlpos (position #\Newline simple-string :start start :end end)))))
+        (values vector vector-offset)))))
+
+(defun count-characters-in-octet-vector (vector &key
+                                                (start 0)
+                                                end
+                                                external-format)
+  (setq end (check-sequence-bounds vector start end))
+  (%count-characters-in-octet-vector
+   vector
+   start
+   end
+   (get-character-encoding (external-format-character-encoding (normalize-external-format t external-format)))))
+
+(defun %count-characters-in-octet-vector (vector start end encoding)
+  (unless (= (typecode vector) target::subtag-u8-vector)
+    (report-bad-arg vector '(simple-array (unsgigned-byte 8) (*))))
+  (funcall (character-encoding-length-of-vector-encoding-function encoding)
+           vector
+           start
+           (- end start)))
+                                         
+
+(defun decode-string-from-octets (vector &key
+                                         (start 0)
+                                         end
+                                         external-format
+                                         (string nil string-p))
+  (unless (= (typecode vector) target::subtag-u8-vector)
+    (report-bad-arg vector '(simple-array (unsgigned-byte 8) (*))))
+  (setq end (check-sequence-bounds vector start end))
+  (let* ((encoding (get-character-encoding
+                    (external-format-character-encoding
+                     (normalize-external-format t external-format)))))
+    (multiple-value-bind (nchars last-octet)
+        (%count-characters-in-octet-vector vector start end encoding)
+      (if (not string-p)
+        (setq string (make-string nchars))
+        (progn
+          (unless (= (typecode string) target::subtag-simple-base-string)
+            (report-bad-arg string 'simple-string))
+          (unless (>= (length string) nchars)
+            (error "String ~s is too small; ~d characters are needed."
+                   string nchars))))
+      (funcall (character-encoding-vector-decode-function encoding)
+               vector
+               start
+               (- last-octet start)
+               string)
+      (values string last-octet))))
+      
+                              
+                                     
 (defun cstring-encoded-length-in-bytes (encoding string start end)
   (+ 1                             ; NULL terminator
      (funcall (character-encoding-octets-in-string-function encoding)
               string
               (or start 0)
               (or end (length string)))))
+
+
 
 (defun encode-string-to-memory (encoding pointer offset string start end)
   (funcall (character-encoding-memory-encode-function encoding)
