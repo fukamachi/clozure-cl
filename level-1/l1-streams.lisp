@@ -4074,6 +4074,12 @@
 
 (def-standard-initial-binding %string-output-stream-ioblocks% (%cons-pool nil))
 
+(defmethod stream-force-output ((s string-output-stream))
+  nil)
+
+(defmethod stream-finish-output ((s string-output-stream))
+  nil)
+
 ;;; Should only be used for a stream whose class is exactly
 ;;; *string-output-stream-class* 
 (defun %close-string-output-stream (stream ioblock)
@@ -4459,6 +4465,23 @@
     (< idx end)))
 
 
+(defun string-input-stream-character-read-vector (ioblock vector start end)
+  (let* ((string (string-stream-ioblock-string ioblock))
+         (idx (string-input-stream-ioblock-index ioblock))
+         (limit (string-input-stream-ioblock-end ioblock)))
+    (declare (fixnum idx limit))
+    (do* ((i start (1+ i)))
+         ((= i end) (setf (string-input-stream-ioblock-index ioblock) idx) end)
+      (declare (fixnum i))
+      (if (< idx limit)
+        (setf (uvref vector i) (schar string idx)
+              idx (1+ idx))
+        (progn
+          (setf (string-input-stream-ioblock-index ioblock) idx)
+          (return i))))))
+         
+
+
 (defun make-string-input-stream (string &optional (start 0)
                                         (end nil))
   "Return an input stream which will supply the characters of STRING between
@@ -4482,7 +4505,7 @@
                      :read-char-function 'string-input-stream-ioblock-read-char
                      :read-char-when-locked-function 'string-input-stream-ioblock-read-char
                      :peek-char-function 'string-input-stream-ioblock-peek-char
-                     :character-read-vector-function 'generic-character-read-vector
+                     :character-read-vector-function 'string-input-stream-character-read-vector
                      :close-function #'false
                      :unread-char-function 'string-input-stream-ioblock-unread-char
                      :read-line-function 'string-input-stream-ioblock-read-line
