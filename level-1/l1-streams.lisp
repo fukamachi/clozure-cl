@@ -3400,34 +3400,34 @@
 ;;; They can assume that the 'vector' argument is a simple one-dimensional
 ;;; array and that the 'start' and 'end' arguments are sane.
 
-(defmethod stream-write-vector ((stream fundamental-character-output-stream)
+(defmethod stream-write-vector ((stream character-output-stream)
 				vector start end)
   (declare (fixnum start end))
   (do* ((i start (1+ i)))
        ((= i end))
     (declare (fixnum i))
-    (stream-write-char stream (uvref vector i))))
+    (write-char (uvref vector i) stream)))
 
-(defmethod stream-write-vector ((stream fundamental-binary-output-stream)
+(defmethod stream-write-vector ((stream binary-output-stream)
 				vector start end)
   (declare (fixnum start end))
   (do* ((i start (1+ i)))
        ((= i end))
     (declare (fixnum i))
-    (stream-write-byte stream (uvref vector i))))
+    (write-byte (uvref vector i) stream)))
 
-(defmethod stream-read-vector ((stream fundamental-character-input-stream)
+(defmethod stream-read-vector ((stream character-input-stream)
 			       vector start end)
   (generic-character-read-vector stream vector start end))
 
 
-(defmethod stream-read-vector ((stream fundamental-binary-input-stream)
+(defmethod stream-read-vector ((stream binary-input-stream)
 			       vector start end)
   (declare (fixnum start end))
   (do* ((i start (1+ i)))
        ((= i end) end)
     (declare (fixnum i))
-    (let* ((b (stream-read-byte stream)))
+    (let* ((b (read-byte stream)))
       (if (eq b :eof)
 	(return i)
 	(setf (uvref vector i) b)))))
@@ -3566,13 +3566,10 @@
   (dotimes (i count)
     (stream-write-char stream (pop list))))
 
-(defmethod stream-read-list ((stream fundamental-character-input-stream)
+(defmethod stream-read-list ((stream character-input-stream)
 			     list count)
   (generic-character-read-list stream list count))
 
-(defmethod stream-read-list ((stream basic-character-input-stream)
-			     list count)
-  (generic-character-read-list stream list count))
 
 (defmethod stream-write-list ((stream fundamental-binary-output-stream)
 			      list count)
@@ -3592,19 +3589,7 @@
         (write-char element stream)
         (write-byte element stream)))))
 
-(defmethod stream-read-list ((stream fundamental-binary-input-stream)
-			     list count)
-  (declare (fixnum count))
-  (do* ((tail list (cdr tail))
-	(i 0 (1+ i)))
-       ((= i count) count)
-    (declare (fixnum i))
-    (let* ((b (stream-read-byte stream)))
-      (if (eq b :eof)
-	(return i)
-	(rplaca tail b)))))
-
-(defmethod stream-read-list ((stream basic-binary-input-stream)
+(defmethod stream-read-list ((stream binary-input-stream)
 			     list count)
   (declare (fixnum count))
   (do* ((tail list (cdr tail))
@@ -3616,17 +3601,17 @@
 	(return i)
 	(rplaca tail b)))))
 
-(defmethod stream-read-vector ((stream basic-character-input-stream)
-			       vector start end)
-  (generic-character-read-vector stream vector start end))
 
-(defmethod stream-read-vector ((stream basic-binary-input-stream)
+
+
+
+(defmethod stream-read-vector ((stream binary-input-stream)
 			       vector start end)
   (declare (fixnum start end))
   (do* ((i start (1+ i)))
        ((= i end) end)
     (declare (fixnum i))
-    (let* ((b (stream-read-byte stream)))
+    (let* ((b (read-byte stream)))
       (if (eq b :eof)
 	(return i)
 	(setf (uvref vector i) b)))))
@@ -3674,7 +3659,7 @@
 			       vector start end)
   (declare (fixnum start end))
   (if (not (typep vector 'simple-base-string))
-    (call-next-method)
+    (generic-character-read-vector stream vector start end)
     (let* ((ioblock (basic-stream-ioblock stream)))
       (with-ioblock-input-locked (ioblock)
         (values
