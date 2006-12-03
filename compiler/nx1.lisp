@@ -18,12 +18,16 @@
 
 ;;; Wimp out, but don't choke on (the (values ...) form)
 (defnx1 nx1-the the (&whole call typespec form &environment env)
-  (if (or (and (consp typespec) (eq (car typespec) 'values))
-          (and (self-evaluating-p form)
+  (if (and (self-evaluating-p form)
                (not (typep form typespec))
-               (progn (nx1-whine :type call) t)))
+               (progn (nx1-whine :type call) t))
     (setq typespec t))
-  (setq typespec (nx-target-type typespec))
+  ;; Allow VALUES types here (or user-defined types that
+  ;; expand to VALUES types).
+  (let* ((ctype (values-specifier-type typespec)))
+    (if (typep ctype 'values-ctype)
+      (setq typespec '*)
+      (setq typespec (nx-target-type (type-specifier ctype)))))
   (let* ((*nx-form-type* typespec)
          (transformed (nx-transform form env)))
     (if (and (consp transformed)
