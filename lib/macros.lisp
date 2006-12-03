@@ -1382,7 +1382,7 @@ All output to that string stream is saved in a string."
               (,var (if ,string-var
                         (%make-string-output-stream ,string-var)
                       ,@(if element-type-p
-                            `((make-string-output-stream :element-type ',element-type))
+                            `((make-string-output-stream :element-type ,element-type))
                             `((make-string-output-stream))))))
          ,@decls
          (unwind-protect
