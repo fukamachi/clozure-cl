@@ -1427,6 +1427,11 @@
       (setf (uvref s (ccl::ssd-offset slot)) new-value)
       (setf-line-n-out-of-range s n))))
 
+
+(defclass basic-stream-inspector (uvector-inspector) ())
+
+(defmethod inspector-class ((bs ccl::basic-stream)) 'basic-stream-inspector)
+  
 ;;;;;;;
 ;;
 ;; packages
