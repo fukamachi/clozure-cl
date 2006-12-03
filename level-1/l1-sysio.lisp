@@ -115,7 +115,8 @@ is :UNIX.")
   (if (eq line-termination :default)
     (setq line-termination *default-line-termination*))
   (unless (assq line-termination *canonical-line-termination-conventions*)
-                    (error "~S is not a known line-termination format." line-termination))
+    (error "~S is not a known line-termination format." line-termination))
+
   (if (eq character-encoding :default)
     (setq character-encoding
           (default-character-encoding domain)))
