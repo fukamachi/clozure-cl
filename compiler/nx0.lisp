@@ -2162,11 +2162,11 @@ Or something. Right? ~s ~s" var varbits))
     (nx-set-var-bits var (%ilogior (%ilogand (%ilognot $vrefmask) bits) new))
     new))
 
-
+;;; Treat (VALUES x . y) as X if it appears in a THE form
 (defun nx-form-type (form &optional (env *nx-lexical-environment*))
   (if (self-evaluating-p form)
     (type-of form)
-    (if (and (consp form)               ; Kinda bogus now, but require-type
+    (if (and (consp form)          ; Kinda bogus now, but require-type
              (eq (%car form) 'require-type) ; should be special some day
              (quoted-form-p (caddr form)))
       (%cadr (%caddr form))
@@ -2174,12 +2174,20 @@ Or something. Right? ~s ~s" var varbits))
         (if (symbolp form)
           (nx-target-type (nx-declared-type form env))
           (if (consp form)
-            (if (eq (%car form) 'the) 
-              (nx-target-type (cadr form))
+            (if (eq (%car form) 'the)
+              (destructuring-bind (typespec val) (%cdr form)
+                (declare (ignore val))
+                (let* ((ctype (values-specifier-type typespec)))
+                  (if (typep ctype 'values-ctype)
+                    (let* ((req (values-ctype-required ctype)))
+                      (if req
+                        (nx-target-type (type-specifier (car req)))
+                        '*))
+                    (nx-target-type (type-specifier ctype)))))
               (if (eq (%car form) 'setq)
                 (nx-declared-type (cadr form) env)
                 (let* ((op (gethash (%car form) *nx1-operators*)))
-                  (or (and op (cdr (assq op *nx-operator-result-types*)))       ;
+                  (or (and op (cdr (assq op *nx-operator-result-types*)))
                       (and (not op)(cdr (assq (car form) *nx-operator-result-types-by-name*)))
                       (and (memq (car form) *numeric-ops*)
                            (grovel-numeric-form form env))
