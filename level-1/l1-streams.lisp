@@ -77,6 +77,9 @@
 (defmethod stream-element-type ((x t))
   (report-bad-arg x 'stream))
 
+(defmethod stream-position ((s stream) &optional newpos)
+  (declare (ignore newpos)))
+
 ;;; For input streams:
 
 ;; From Shannon Spires, slightly modified.
@@ -4382,6 +4385,26 @@
     (report-bad-arg s 'string-input-stream)))
 
 
+(defmethod stream-position ((s string-input-stream) &optional newpos)
+  (let* ((ioblock (basic-stream-ioblock s))
+         (start (string-input-stream-ioblock-start ioblock))
+         (idx (string-input-stream-ioblock-index ioblock))
+         (end (string-input-stream-ioblock-end ioblock)))
+    (declare (fixnum end idx start))
+    (if newpos
+      (let* ((limit (- end start)))
+        (declare (fixnum limit))
+        (if (and (typep newpos 'fixnum)
+                 (>= (the fixnum newpos) 0)
+                 (< (the fixnum newpos) limit))
+          (progn
+            (setf (string-input-stream-ioblock-index ioblock)
+                  (the fixnum (+ start (the fixnum newpos))))
+            newpos)
+          (report-bad-arg newpos `(integer 0 (,limit)))))
+      (the fixnum (- idx start)))))
+    
+  
 
 (defun string-input-stream-ioblock-read-char (ioblock)
   (let* ((string (string-stream-ioblock-string ioblock))
