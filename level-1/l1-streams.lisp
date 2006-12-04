@@ -4487,6 +4487,9 @@
     (declare (fixnum idx end))
     (< idx end)))
 
+(defmethod stream-clear-input ((s string-input-stream))
+  (basic-stream-ioblock s)
+  nil)
 
 (defun string-input-stream-character-read-vector (ioblock vector start end)
   (let* ((string (string-stream-ioblock-string ioblock))
