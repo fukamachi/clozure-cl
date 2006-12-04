@@ -465,6 +465,8 @@
 						(ppc-lap-word
 						 (lwzx ?? ?? ??)))
 					       fn pc-index)))
+              (setq *error-reentry-count* 0)  ; succesfully reported error
+
               ;; %SLOT-UNBOUND-TRAP will decode the arguments further,
               ;; then call the generic function SLOT-UNBOUND.  That
               ;; might return a value; if so, set the value of the
@@ -747,6 +749,7 @@
 						(ppc-lap-word
 						 (ldx ?? ?? ??)))
 					       fn pc-index)))
+              (setq *error-reentry-count* 0)  ; succesfully reported error
               ;; %SLOT-UNBOUND-TRAP will decode the arguments further,
               ;; then call the generic function SLOT-UNBOUND.  That
               ;; might return a value; if so, set the value of the
