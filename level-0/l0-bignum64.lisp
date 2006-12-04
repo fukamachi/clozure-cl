@@ -1943,7 +1943,7 @@
         (incf idx)
         (let* ((y (bignum-ref source idx)))
           (declare (type bignum-element-type y))
-          (setq y (%ilsl rbits y))
+          (setq y (%ashl y rbits))
           (setf (bignum-ref result j)
                 (%logior x y)))))
     (setf (bignum-ref result len)
