@@ -2979,9 +2979,11 @@
   (let* ((upgraded (upgraded-array-element-type element-type)))
     (if (eq upgraded 'bit)
       '(unsigned-byte 8)
-      (if (eq upgraded t)
-        (error "Stream element-type ~s can't be reasonably supported." element-type)
-        upgraded))))
+      (if (eq upgraded 'fixnum)
+        #+64-bit-target '(signed-byte 64) #+32-bit-target '(signed-byte 32)
+        (if (eq upgraded t)
+          (error "Stream element-type ~s can't be reasonably supported." element-type)
+          upgraded)))))
 
 (defun init-stream-ioblock (stream
                             &key
