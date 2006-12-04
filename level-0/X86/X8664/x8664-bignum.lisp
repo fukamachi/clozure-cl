@@ -96,27 +96,24 @@
 ;;; Return the (possibly truncated) 32-bit quotient and remainder
 ;;; resulting from dividing hi:low by divisor.
 ;;; We only have two immediate registers, and -have- to use them
-;;; to represent hi:low.  We -can- store the unboxed divisor in
-;;; %ebp, if we commit to the idea that %rbp will never be traced
-;;; by the GC.  I'm willing to commit to that for x8664, since
-;;; this is an example of not having enough imm regs.  We do need
-;;; to save/restore %rbp, but hopefully we can do wo without
-;;; hitting memory.
+;;; to represent hi:low.  Keep the unboxed divisor in the high
+;;; word of a fixnum on the top of the stack.  (That's probably
+;;; slower than using %rbp, but clobbering %rbp confuses backtrace).
 ;;; For x8632, we'll probably have to mark something (%ecx ?) as
 ;;; being "temporarily unboxed" by mucking with some bits in the
 ;;; TCR.
 (defx86lapfunction %floor ((num-high arg_x) (num-low arg_y) (divisor arg_z))
   (let ((unboxed-high imm1)
         (unboxed-low imm0)
-        (unboxed-divisor ebp)
         (unboxed-quo imm0)
         (unboxed-rem imm1))
-    (movd (% rbp) (% mm0))
-    (unbox-fixnum divisor rbp)
+    (unbox-fixnum divisor imm0)
+    (pushq ($ 0))
+    (movl (%l imm0) (@ 4 (% rsp)))
     (unbox-fixnum num-high unboxed-high)
     (unbox-fixnum num-low unboxed-low)
-    (divl (% ebp))
-    (movd (% mm0) (% rbp))
+    (divl (@ 4 (% rsp)))
+    (addq ($ 8) (% rsp))
     (box-fixnum unboxed-quo arg_y)
     (box-fixnum unboxed-rem arg_z)
     (movq (% rsp) (% temp0))
@@ -204,7 +201,7 @@
 
 ;;; Again, we're out of imm regs: a variable shift count has to go in %cl.
 ;;; Make sure that the rest of %rcx is 0, to keep the GC happy.
-;;; %rcx == temp1
+;;; %rcx == temp2
 (defx86lapfunction %digit-logical-shift-right ((digit arg_y) (count arg_z))
   (unbox-fixnum digit imm0)
   (unbox-fixnum count imm1)
@@ -214,6 +211,8 @@
   (movb ($ 0) (% temp2.b))
   (box-fixnum imm0 arg_z)
   (single-value-return))
+
+
 
 (defx86lapfunction %ashr ((digit arg_y) (count arg_z))
   (unbox-fixnum digit imm0)
@@ -231,7 +230,7 @@
   (unbox-fixnum count imm1)
   (xorq (% temp2) (% temp2))
   (movb (% imm1.b) (% temp2.b))
-  (shll (% temp2.b) (%l imm0))
+  (shlq (% temp2.b) (% imm0))
   (movb ($ 0) (% temp2.b))  
   (movl (%l imm0) (%l imm0))            ;zero-extend
   (box-fixnum imm0 arg_z)
