@@ -1967,7 +1967,7 @@
 	     (v-trailing-0-bits (%bignum-count-trailing-zero-bits v))
 	     (v-trailing-0-digits (ash v-trailing-0-bits -5)))
 	(declare (fixnum u-trailing-0-bits v-trailing-0-bits))
-	(unless (zerop u-trailing-0-digits)
+	(unless (zerop u-trailing-0-bits)
 	  (bignum-shift-right-loop-1
 	   (logand u-trailing-0-bits 31)
 	   u2
@@ -1990,46 +1990,47 @@
 	(let* ((shift (min u-trailing-0-bits
 			   v-trailing-0-bits)))
 	  (loop
-	      (let* ((fix-u (and (= u-len 1)
-				 (let* ((hi-u (%bignum-ref-hi u 0)))
-				   (declare (fixnum hi-u))
-				   (= hi-u (the fixnum
-					     (logand hi-u (ash most-positive-fixnum -16)))))
-				 (uvref u 0)))
-		     (fix-v (and (= v-len 1)
-				 (let* ((hi-v (%bignum-ref-hi v 0)))
-				   (declare (fixnum hi-v))
-				   (= hi-v (the fixnum
-					     (logand hi-v (ash most-positive-fixnum -16)))))
-				 (uvref v 0))))
-		(if fix-v
-		  (if fix-u
-		    (return (ash (%fixnum-gcd fix-u fix-v) shift))
-		    (return (ash (bignum-fixnum-gcd u fix-v) shift)))
-		  (if fix-u
-		    (return (ash (bignum-fixnum-gcd v fix-u) shift)))))
+            (let* ((fix-u (and (= u-len 1)
+                               (let* ((hi-u (%bignum-ref-hi u 0)))
+                                 (declare (fixnum hi-u))
+                                 (= hi-u (the fixnum
+                                           (logand hi-u (ash most-positive-fixnum -16)))))
+                               (uvref u 0)))
+                   (fix-v (and (= v-len 1)
+                               (let* ((hi-v (%bignum-ref-hi v 0)))
+                                 (declare (fixnum hi-v))
+                                 (= hi-v (the fixnum
+                                           (logand hi-v (ash most-positive-fixnum -16)))))
+                               (uvref v 0))))
+              (if fix-v
+                (if fix-u
+                  (return (ash (%fixnum-gcd fix-u fix-v) shift))
+                  (return (ash (bignum-fixnum-gcd u fix-v) shift)))
+                (if fix-u
+                  (return (ash (bignum-fixnum-gcd v fix-u) shift)))))
 	      
-	      (let* ((signum (if (> u-len v-len)
-			       1
-			       (if (< u-len v-len)
-				 -1
-				 (bignum-compare u v)))))
-		(declare (fixnum signum))
-		(case signum
-		  (0			; (= u v)
-		   (if (zerop shift)
-		     (let* ((copy (%allocate-bignum u-len)))
-		       (bignum-replace copy u)
-		       (return copy))
-		     (return (ash u shift))))
-		  (1			; (> u v)
-		   (bignum-subtract-loop u u-len v v-len u)
-		   (%mostly-normalize-bignum-macro u)
-		   (setq u-len (%bignum-length u))
-		   (setq u-trailing-0-bits
-			 (%bignum-count-trailing-zero-bits u)
-			 u-trailing-0-digits
-			 (ash u-trailing-0-bits -5))
+            (let* ((signum (if (> u-len v-len)
+                             1
+                             (if (< u-len v-len)
+                               -1
+                               (bignum-compare u v)))))
+              (declare (fixnum signum))
+              (case signum
+                (0			; (= u v)
+                 (if (zerop shift)
+                   (let* ((copy (%allocate-bignum u-len)))
+                     (bignum-replace copy u)
+                     (return copy))
+                   (return (ash u shift))))
+                (1			; (> u v)
+                 (bignum-subtract-loop u u-len v v-len u)
+                 (%mostly-normalize-bignum-macro u)
+                 (setq u-len (%bignum-length u))
+                 (setq u-trailing-0-bits
+                       (%bignum-count-trailing-zero-bits u)
+                       u-trailing-0-digits
+                       (ash u-trailing-0-bits -5))
+                 (unless (zerop u-trailing-0-bits)
 		   (%init-misc 0 u2)
 		   (bignum-shift-right-loop-1
 		    (logand u-trailing-0-bits 31)
@@ -2040,15 +2041,16 @@
 		    u-trailing-0-digits)
 		   (rotatef u u2)
 		   (%mostly-normalize-bignum-macro u)
-		   (setq u-len (%bignum-length u)))
-		  (t			; (> v u)
-		   (bignum-subtract-loop v v-len u u-len v)
-		   (%mostly-normalize-bignum-macro v)
-		   (setq v-len (%bignum-length v))
-		   (setq v-trailing-0-bits
-			 (%bignum-count-trailing-zero-bits v)
-			 v-trailing-0-digits
-			 (ash v-trailing-0-bits -5))
+		   (setq u-len (%bignum-length u))))
+                (t			; (> v u)
+                 (bignum-subtract-loop v v-len u u-len v)
+                 (%mostly-normalize-bignum-macro v)
+                 (setq v-len (%bignum-length v))
+                 (setq v-trailing-0-bits
+                       (%bignum-count-trailing-zero-bits v)
+                       v-trailing-0-digits
+                       (ash v-trailing-0-bits -5))
+                 (unless (zerop v-trailing-0-bits)
 		   (%init-misc 0 v2)
 		   (bignum-shift-right-loop-1
 		    (logand v-trailing-0-bits 31)
@@ -2058,7 +2060,7 @@
 		    v-trailing-0-digits)
 		   (rotatef v v2)
 		   (%mostly-normalize-bignum-macro v)
-		   (setq v-len (%bignum-length v)))))))))))
+		   (setq v-len (%bignum-length v))))))))))))
 
 (defun %bignum-bignum-gcd (u v)
   (with-negated-bignum-buffers u v %positive-bignum-bignum-gcd))
