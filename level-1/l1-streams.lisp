@@ -2974,9 +2974,14 @@
                            '%locked-ioblock-write-char-translating-newline-to-line-separator)
                           (t '%ioblock-write-char-translating-newline-to-line-separator))))))))
 
-(defun buffer-element-type-for-character-encoding (encoding)
-  (declare (ignore encoding))
-  '(unsigned-byte 8))
+
+(defun ensure-reasonable-element-type (element-type)
+  (let* ((upgraded (upgraded-array-element-type element-type)))
+    (if (eq upgraded 'bit)
+      '(unsigned-byte 8)
+      (if (eq upgraded t)
+        (error "Stream element-type ~s can't be reasonably supported." element-type)
+        upgraded))))
 
 (defun init-stream-ioblock (stream
                             &key
@@ -3030,8 +3035,9 @@
         (multiple-value-bind (buffer ptr in-size-in-octets)
             (make-heap-ivector insize
                                (if character-p
-                                 (buffer-element-type-for-character-encoding encoding)
-                                 element-type))
+                                 '(unsigned-byte 8)
+                                 (setq element-type
+                                       (ensure-reasonable-element-type element-type))))
           (setf (ioblock-inbuf ioblock)
                 (make-io-buffer :buffer buffer
                                 :bufptr ptr
@@ -3055,8 +3061,8 @@
           (multiple-value-bind (buffer ptr out-size-in-octets)
               (make-heap-ivector outsize
                                  (if character-p
-                                   (buffer-element-type-for-character-encoding encoding)
-                                   element-type))
+                                   '(unsigned-byte 8)
+                                   (setq element-type (ensure-reasonable-element-type element-type))))
             (setf (ioblock-outbuf ioblock)
                   (make-io-buffer :buffer buffer
                                   :bufptr ptr
