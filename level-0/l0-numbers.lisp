@@ -1756,7 +1756,7 @@
           (fixnum
 	   (if (eql n1 most-negative-fixnum)
 	     (if (eql n2 most-negative-fixnum)
-	       1
+	       (- most-negative-fixnum)
 	       (bignum-fixnum-gcd (- most-negative-fixnum) (abs n2)))
 	     (if (eql n2 most-negative-fixnum)
 	       (bignum-fixnum-gcd (- most-negative-fixnum) (abs n1))
@@ -1772,7 +1772,9 @@
 	(bignum
 	 (number-case n2
 	   (fixnum
-	    (bignum-fixnum-gcd (bignum-abs n1)(fixnum-abs n2)))
+            (if (eql n2 most-negative-fixnum)
+              (%bignum-bignum-gcd (bignum-abs n1)(fixnum-abs n2))
+              (bignum-fixnum-gcd (bignum-abs n1)(fixnum-abs n2))))
 	   (bignum (%bignum-bignum-gcd n1 n2))))))))
 
 #|
