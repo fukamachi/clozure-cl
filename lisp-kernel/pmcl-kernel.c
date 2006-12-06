@@ -1232,7 +1232,7 @@ remap_spjump()
   int disp;
   
   if (new != (pc) 0x5000) {
-    exit(1);
+    _exit(1);
   }
   
   for (work = new; old < limit; work++, old++) {
@@ -1262,7 +1262,7 @@ remap_spjump()
     old = &spjump_start;
   if (new == (pc)-1) {
     perror("remap spjump");
-    exit(1);
+    _exit(1);
   }
   bcopy(old, new, 0x1000);
 }
