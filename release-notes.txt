@@ -1,3 +1,56 @@
+OpenMCL 1.1-pre-061205
+- This release is intended to package up the bug fixes since
+  the 061110 tarballs.  There aren't too many changes in 
+  functionality or any deep architectural changes since 061110, 
+  and it should be easy to bootstrap from current sources with 
+  061110 images.
+  (It'd still be a good idea to recompile your code with 
+  up-to-date images, whether you download those images or
+  build them yourself from CVS.)
+- The one (barely) notable change in functionality has to do
+  with how the lisp sets up pathname translations for the
+  "ccl" logical host when the "CCL_DEFAULT_DIRECTORY" environment
+  variable isn't set (e.g., when a shell script isn't used to
+  invoke the lisp.)  Previous versions just used the current
+  directory; this version tries to use the directory containing
+  the current heap image.  The new scheme might get fooled by
+  symbolic links (either following them or not following them
+  could be wrong), but it's more likely to work for people
+  who don't read or understand the discussion of the shell script
+  in the documentation.
+- All (knock wood) bugs that have been reported since the 061110
+  images were released should be fixed.  Well, almost all.  The
+  fixes include:
+
+  - a typo (wrong register) in the "generic" version of the
+    code which implements (SETF AREF) on 2-dimensional arrays
+    on x86-64
+  - incorrect bounds checking on vector references on x86-64,
+    which caused some invalid indices to be treated as valid
+    (usually leading to a segfault).  IIRC, the invalid indices
+    that were erroneously accepted were fixnums whose absolute
+    value was > (expt 2 56).  (More or less.).
+  - Missing stream methods (especially involving string streams)
+    affecting all platforms.
+  - Several bugs involving GCD, some of which were specific to
+    64-bit platforms and some of which affected all platforms.
+    (These bugs sometimes affected results returned by #'/,
+    LCM, and other funtions.)
+
+  - OpenMCL has only ever supported an ELEMENT-TYPE argument of
+   ([signed,unsigned]-byte 8|16|32|64) on binary file streams (with
+   64-bit types supported only on 64-bit platforms.)  It has not
+   previously tried to upgrade a supplied element-type to a supported
+   one (it does now) and any errors that resulted from supplying an
+   element-type that was not supported (and could not be upgraded) were
+   either obscure side-effects or quiet misbehavior; an error (a
+   SIMPLE-ERROR complaining about the unsupported element type) is now
+   signaled as soon as attempts to upgrade to a supported element type
+   fail.  I believe that the current behavior is both compliant and
+   reasonable; it's probably better to discuss that issue on 
+   openmcl-devel than to do so here.
+
+
 OpenMCL 1.1-pre-061110
 - The FASL version changed (old FASL files won't work with this
   lisp version), as did the version information which tries to
