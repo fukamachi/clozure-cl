@@ -94,7 +94,7 @@
 (defx86lapfunction sfloat-significand-zeros ((sfloat arg_z))
   (xorb (%b sfloat) (%b sfloat))
   (shl ($ (1+ IEEE-single-float-exponent-width)) (% sfloat))
-  (bsrq (% imm1) (% imm0))
+  (bsrq (% sfloat) (% imm0))
   (xorq ($ (1- target::nbits-in-word)) (% imm0))
   (box-fixnum imm0 arg_z)
   (single-value-return))
