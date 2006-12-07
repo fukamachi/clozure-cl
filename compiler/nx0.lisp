@@ -199,12 +199,15 @@
 
 (defmacro define-compiler-macro  (name arglist &body body &environment env)
   "Define a compiler-macro for NAME."
-  (setq name (validate-function-name name))
-  (let ((body (parse-macro-1 name arglist body env)))
-    `(eval-when (:compile-toplevel :load-toplevel :execute)
-       (setf (compiler-macro-function ',name)
-             (nfunction (compiler-macro-function ,name) ,body))         
-       ',name)))
+  (let* ((block-name name)
+         (def-name (validate-function-name name)))
+    (unless (eq def-name block-name)
+      (setq block-name (cadr block-name)))
+    (let ((body (parse-macro-1 block-name arglist body env)))
+      `(eval-when (:compile-toplevel :load-toplevel :execute)
+        (setf (compiler-macro-function ',name)
+         (nfunction (compiler-macro-function ,name)  ,body))
+        ',name))))
 
 ;;; This is silly (as may be the whole idea of actually -using- compiler-macros).
 ;;; Compiler-macroexpand-1 will return a second value of  NIL if the value returned
@@ -235,12 +238,13 @@
 (defun compiler-macro-function (name &optional env)
   "If NAME names a compiler-macro in ENV, return the expansion function, else
    return NIL. Can be set with SETF when ENV is NIL."
+  (setq name (validate-function-name name))
   (unless (nx-lexical-finfo name env)
     (or (cdr (assq name *nx-compile-time-compiler-macros*))
         (values (gethash name *compiler-macros*)))))
 
 (defun set-compiler-macro-function (name def)
-  (unless (symbolp name) (report-bad-arg name 'symbol))
+  (setq name (validate-function-name name))
   (if def
     (setf (gethash name *compiler-macros*) def)
     (remhash name *compiler-macros*))
