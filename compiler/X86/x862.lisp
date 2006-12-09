@@ -1665,11 +1665,14 @@
             (! trap-unless-fixnum unscaled-j)))
         (with-imm-target () dim1
           (let* ((idx-reg ($ x8664::arg_y)))
-            (unless constidx
-              (if safe                  
-                (! check-2d-bound dim1 unscaled-i unscaled-j src)
-                (! 2d-dim1 dim1 src))
-              (! 2d-unscaled-index idx-reg dim1 unscaled-i unscaled-j))
+            (if constidx
+              (if needs-memoization
+                (x862-lri seg x8664::arg_y (ash constidx *x862-target-fixnum-shift*)))
+              (progn
+                (if safe                  
+                  (! check-2d-bound dim1 unscaled-i unscaled-j src)
+                  (! 2d-dim1 dim1 src))
+                (! 2d-unscaled-index idx-reg dim1 unscaled-i unscaled-j)))
             (let* ((v ($ x8664::arg_x)))
               (! array-data-vector-ref v src)
               (x862-vset1 seg vreg xfer type-keyword v idx-reg constidx val-reg (x862-unboxed-reg-for-aset seg type-keyword val-reg safe constval) constval needs-memoization))))))))
@@ -1734,11 +1737,14 @@
         (with-imm-target () dim1
           (with-imm-target (dim1) dim2
             (let* ((idx-reg ($ x8664::arg_y)))
-              (unless constidx
-                (if safe                  
-                  (! check-3d-bound dim1 dim2 unscaled-i unscaled-j unscaled-k src)
-                  (! 3d-dims dim1 dim2 src))
-                (! 3d-unscaled-index idx-reg dim1 dim2 unscaled-i unscaled-j unscaled-k))
+              (if constidx
+                (when needs-memoization
+                  (x862-lri seg idx-reg (ash constidx *x862-target-fixnum-shift*)))
+                (progn
+                  (if safe                  
+                    (! check-3d-bound dim1 dim2 unscaled-i unscaled-j unscaled-k src)
+                    (! 3d-dims dim1 dim2 src))
+                  (! 3d-unscaled-index idx-reg dim1 dim2 unscaled-i unscaled-j unscaled-k)))
               (let* ((v ($ x8664::arg_x)))
                 (! array-data-vector-ref v src)
                 (x862-vset1 seg vreg xfer type-keyword v idx-reg constidx val-reg (x862-unboxed-reg-for-aset seg type-keyword val-reg safe constval) constval needs-memoization)))))))))
@@ -1776,16 +1782,16 @@
           (! trap-unless-fixnum unscaled-i))
         (unless j-known-fixnum
           (! trap-unless-fixnum unscaled-j)))
-      (with-node-target (src unscaled-i unscaled-j) idx-reg
+      (with-node-target (src) idx-reg
         (with-imm-target () dim1
-        (unless constidx
-          (if safe                    
-            (! check-2d-bound dim1 unscaled-i unscaled-j src)
-            (! 2d-dim1 dim1 src))
-          (! 2d-unscaled-index idx-reg dim1 unscaled-i unscaled-j))
-        (with-node-target (idx-reg) v
-          (! array-data-vector-ref v src)
-          (x862-vref1 seg vreg xfer typekeyword v idx-reg constidx)))))))
+          (unless constidx
+            (if safe                    
+              (! check-2d-bound dim1 unscaled-i unscaled-j src)
+              (! 2d-dim1 dim1 src))
+            (! 2d-unscaled-index idx-reg dim1 unscaled-i unscaled-j))
+          (with-node-target (idx-reg) v
+            (! array-data-vector-ref v src)
+            (x862-vref1 seg vreg xfer typekeyword v idx-reg constidx)))))))
 
 (defun x862-aref3 (seg vreg xfer array i j k safe typekeyword &optional dim0 dim1 dim2)
   (with-x86-local-vinsn-macros (seg vreg xfer)
