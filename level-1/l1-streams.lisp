@@ -4091,6 +4091,9 @@
 (defmethod stream-finish-output ((s string-output-stream))
   nil)
 
+(defmethod stream-clear-output ((s string-output-stream))
+  nil)
+
 ;;; Should only be used for a stream whose class is exactly
 ;;; *string-output-stream-class* 
 (defun %close-string-output-stream (stream ioblock)
@@ -4531,6 +4534,7 @@
                     :element-type 'character))
            (ioblock (make-string-input-stream-ioblock
                      :stream stream
+                     :offset offset
                      :device nil
                      :string data
                      :start start
