@@ -869,7 +869,7 @@ are no Forms, OR returns NIL."
         (setq types `(or ,@(nreverse types)))
         (if (eq construct 'etypecase)
             (push `(t (values (%err-disp #.$XWRONGTYPE ,key-var ',types))) body)
-            (push `(t (setf ,keyform (ensure-value-of-type ,key-var ',types ',keyform))
+            (push `(t (setf ,key-var (ensure-value-of-type  ,key-var ',types ',keyform))
                       (go ,e-c-p)) body))))
     `(cond ,@(nreverse body))))
 
@@ -898,8 +898,8 @@ are no Forms, OR returns NIL."
   (let ((key-var (gensym))
         (tag (gensym)))
     `(prog (,key-var)
-       ,tag
        (setq ,key-var ,keyform)
+       ,tag
        (return ,(typecase-aux key-var clauses tag keyform)))))
 
 (defmacro destructuring-bind (lambda-list expression &body body)
@@ -1380,7 +1380,11 @@ All output to that string stream is saved in a string."
     (multiple-value-bind (forms decls) (parse-body body env nil)
       `(let* ((,string-var ,string)
               (,var (if ,string-var
-                        (%make-string-output-stream ,string-var)
+                      ,@(if element-type-p
+                            `((progn
+                                ,element-type
+                                (%make-string-output-stream ,string-var)))
+                            `((%make-string-output-stream ,string-var)))
                       ,@(if element-type-p
                             `((make-string-output-stream :element-type ,element-type))
                             `((make-string-output-stream))))))
