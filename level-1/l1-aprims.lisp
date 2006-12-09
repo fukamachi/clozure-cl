@@ -784,7 +784,6 @@ terminate the list"
   (seq-dispatch
    sequence
    (let* ((cell (nthcdr idx sequence)))
-     (declare (list cell))
      (if cell (car cell) (%err-disp $XACCESSNTH idx sequence)))
    (progn
      (unless (and (typep idx 'fixnum) (>= (the fixnum idx) 0))
