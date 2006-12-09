@@ -1197,7 +1197,7 @@
 
 (defun %type-intersection (input-types)
   (let ((simplified (simplify-intersections input-types)))
-    ;(declare (type (vector ctype) simplified))
+    ;;(declare (type (vector ctype) simplified))
     ;; We want to have a canonical representation of types (or failing
     ;; that, punt to HAIRY-TYPE). Canonical representation would have
     ;; intersections inside unions but not vice versa, since you can
@@ -1207,19 +1207,19 @@
     ;; we try to generate a simple type by distributing the union; if
     ;; the type can't be made simple, we punt to HAIRY-TYPE.
     (if (and (cdr simplified) (some #'union-ctype-p simplified))
-	(let* ((first-union (find-if #'union-ctype-p simplified))
-	       (other-types (remove first-union simplified))
-	       (distributed (maybe-distribute-one-union first-union other-types)))
-	  (if distributed
-	      (apply #'type-union distributed)
-	      (make-hairy-ctype
-	       :specifier `(and ,@(mapcar #'type-specifier simplified)))))
-	(cond
-	  ((null simplified) *universal-type*)
-	  ((null (cdr simplified)) (car simplified))
-	  (t (make-intersection-ctype
-	      (some #'(lambda (c) (ctype-enumerable c)) simplified)
-	      simplified))))))
+      (let* ((first-union (find-if #'union-ctype-p simplified))
+             (other-types (remove first-union simplified))
+             (distributed (maybe-distribute-one-union first-union other-types)))
+        (if distributed
+          (apply #'type-union distributed)
+          (make-hairy-ctype
+           :specifier `(and ,@(mapcar #'type-specifier simplified)))))
+      (cond
+        ((null simplified) *universal-type*)
+        ((null (cdr simplified)) (car simplified))
+        (t (make-intersection-ctype
+            (some #'(lambda (c) (ctype-enumerable c)) simplified)
+            simplified))))))
 
 (defun simplify-intersections (types)
   (when types
@@ -3992,6 +3992,7 @@
           byte-vector word-vector long-vector
           single-float-vector double-float-vector
           general-vector
+          fixnum-vector
           #+64-bit-target
           doubleword-vector
           #+64-bit-target
@@ -4007,6 +4008,7 @@
           simple-single-float-vector 
           simple-double-float-vector
           simple-vector
+          simple-fixnum-vector
           #+64-bit-target
           simple-doubleword-vector
           #+64-bit-target
