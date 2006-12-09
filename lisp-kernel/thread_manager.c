@@ -580,7 +580,9 @@ new_tcr(natural vstack_size, natural tstack_size)
 #endif
 #ifdef X86
   tcr->lisp_mxcsr = (1 << MXCSR_DM_BIT) | 
-#if 0
+#if 1                           /* Mask underflow; too hard to 
+                                   deal with denorms if underflow is 
+                                   enabled */
     (1 << MXCSR_UM_BIT) | 
 #endif
     (1 << MXCSR_PM_BIT);
