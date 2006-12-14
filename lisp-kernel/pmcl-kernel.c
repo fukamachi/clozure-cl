@@ -1330,6 +1330,8 @@ lazarus()
 {
   TCR *tcr = get_tcr(false);
   if (tcr) {
+    /* Some threads may be dying; no threads should be created. */
+    LOCK(lisp_global(TCR_AREA_LOCK),tcr);
     tcr->vs_area->active = tcr->vs_area->high - node_size;
     tcr->save_vsp = (LispObj *)(tcr->vs_area->active);
     tcr->ts_area->active = tcr->ts_area->high;
