@@ -178,7 +178,7 @@
     (cond ((zerop signal)               ;thread interrupt
            (cmain))
           ((< signal 0)
-           (%err-disp code))
+           (%err-disp-internal code () frame-ptr))
           ((= signal #$SIGFPE)
            (multiple-value-bind (operation operands)
                (decode-arithmetic-error xp xcf)
