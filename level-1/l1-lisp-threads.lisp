@@ -401,7 +401,7 @@
   (setf (lisp-thread.initial-function.args thread)
 	(cons function args)))
 
-(defun thread-enable (thread activation-semaphore allocation-quantum &optional (timeout most-positive-fixnum))
+(defun thread-enable (thread termination-semaphore allocation-quantum &optional (timeout most-positive-fixnum))
   (let* ((tcr (or (lisp-thread.tcr thread) (new-tcr-for-thread thread))))
     (with-macptrs (s)
       (%setf-macptr-to-object s (%fixnum-ref tcr target::tcr.reset-completion))
@@ -409,7 +409,7 @@
         (%set-tcr-toplevel-function
          tcr
          (lisp-thread.startup-function thread))
-        (%activate-tcr tcr activation-semaphore allocation-quantum)
+        (%activate-tcr tcr termination-semaphore allocation-quantum)
         thread))))
 			      
 
@@ -423,11 +423,12 @@
 	(setf (lisp-thread.tcr thread) nil)))))
 
 (defun kill-lisp-thread (thread)
-  (let* ((pthread (lisp-thread-os-thread thread)))
-    (when pthread
-      (setf (lisp-thread.tcr thread) nil
-	    (lisp-thread.state thread) :exit)
-      (#_pthread_cancel pthread))))
+  (unless (eq thread initial-thread)
+    (let* ((pthread (lisp-thread-os-thread thread)))
+      (when pthread
+        (setf (lisp-thread.tcr thread) nil
+              (lisp-thread.state thread) :exit)
+        (#_pthread_kill pthread #$SIGQUIT)))))
 
 ;;; This returns the underlying pthread, whatever that is.
 (defun lisp-thread-os-thread (thread)
