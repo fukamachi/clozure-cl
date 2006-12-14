@@ -128,7 +128,8 @@
      (total-run-time :initform nil :accessor %process-total-run-time)
      (ui-object :initform (application-ui-object *application*)
                 :accessor process-ui-object)
-     (termination-semaphore :initform nil :initarg :termination-semaphore
+     (termination-semaphore :initform nil
+                            :initarg :termination-semaphore
                             :accessor process-termination-semaphore
                             :type (or null semaphore))
      (allocation-quantum :initform (default-allocation-quantum)
@@ -175,7 +176,8 @@
 					 (standard-initial-bindings))
 				       (wrap-initial-bindings
 					initial-bindings))
-             :termination-semaphore termination-semaphore
+             :termination-semaphore (or termination-semaphore
+                                        (make-semaphore))
              :allocation-quantum allocation-quantum)))
     (add-to-all-processes p)
     (setf (car (process-splice p)) p)
