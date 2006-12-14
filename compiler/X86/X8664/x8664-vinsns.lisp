@@ -1305,9 +1305,9 @@
   (comiss (:%xmm arg1) (:%xmm arg0)))
               
 
-(define-x8664-vinsn double-float+-2 (((result :single-float))
-				     ((x :single-float)
-				      (y :single-float)))
+(define-x8664-vinsn double-float+-2 (((result :double-float))
+				     ((x :double-float)
+				      (y :double-float)))
   ((:pred =
           (:apply %hard-regspec-value result)
           (:apply %hard-regspec-value x))
@@ -1329,17 +1329,17 @@
    (addsd (:%xmm y) (:%xmm result))))
 
 ;;; Caller guarantees (not (eq y result))
-(define-x8664-vinsn double-float--2 (((result :single-float))
-				     ((x :single-float)
-				      (y :single-float)))
+(define-x8664-vinsn double-float--2 (((result :double-float))
+				     ((x :double-float)
+				      (y :double-float)))
   ((:not (:pred = (:apply %hard-regspec-value result)
                 (:apply %hard-regspec-value x)))
    (movsd (:%xmm x) (:%xmm result)))
   (subsd (:%xmm y) (:%xmm result)))
 
-(define-x8664-vinsn double-float*-2 (((result :single-float))
-				     ((x :single-float)
-                                      (y :single-float)))
+(define-x8664-vinsn double-float*-2 (((result :double-float))
+				     ((x :double-float)
+                                      (y :double-float)))
   ((:pred =
           (:apply %hard-regspec-value result)
           (:apply %hard-regspec-value x))
