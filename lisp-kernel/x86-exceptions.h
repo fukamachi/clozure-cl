@@ -27,6 +27,7 @@ typedef u8_t opcode, *pc;
 #endif
 
 #ifdef DARWIN
+#define DARWIN_USE_PSEUDO_SIGRETURN 1
 #include <sys/syscall.h>
 #define DarwinSigReturn(context) syscall(SYS_sigreturn,context)
 #ifdef X8664
