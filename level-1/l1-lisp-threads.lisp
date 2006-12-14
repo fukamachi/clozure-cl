@@ -423,7 +423,7 @@
 	(setf (lisp-thread.tcr thread) nil)))))
 
 (defun kill-lisp-thread (thread)
-  (unless (eq thread initial-thread)
+  (unless (eq thread *initial-lisp-thread*)
     (let* ((pthread (lisp-thread-os-thread thread)))
       (when pthread
         (setf (lisp-thread.tcr thread) nil
