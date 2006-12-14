@@ -232,29 +232,7 @@ handle_gc_trap(ExceptionInformation *xp, TCR *tcr)
 }
 
   
-Boolean
-handle_alloc_trap(ExceptionInformation *xp, TCR *tcr)
-{
-  natural cur_allocptr, bytes_needed;
-  unsigned allocptr_tag;
-  signed_natural disp;
-  
-  cur_allocptr = xpGPR(xp,Iallocptr);
-  allocptr_tag = fulltag_of(cur_allocptr);
-  if (allocptr_tag == fulltag_misc) {
-    disp = xpGPR(xp,Iimm1);
-  } else {
-    disp = dnode_size-fulltag_cons;
-  }
-  bytes_needed = disp+allocptr_tag;
 
-  update_bytes_allocated(tcr,((BytePtr)(cur_allocptr+disp)));
-  if (allocate_object(xp, bytes_needed, disp, tcr)) {
-    return true;
-  }
-
-  return false;
-}
 
 
 void
@@ -375,6 +353,45 @@ create_exception_callback_frame(ExceptionInformation *xp)
   return xpGPR(xp,Isp);
 }
 
+#ifndef XMEMFULL
+#define XMEMFULL (76)
+#endif
+
+Boolean
+handle_alloc_trap(ExceptionInformation *xp, TCR *tcr)
+{
+  natural cur_allocptr, bytes_needed;
+  unsigned allocptr_tag;
+  signed_natural disp;
+  
+  cur_allocptr = xpGPR(xp,Iallocptr);
+  allocptr_tag = fulltag_of(cur_allocptr);
+  if (allocptr_tag == fulltag_misc) {
+    disp = xpGPR(xp,Iimm1);
+  } else {
+    disp = dnode_size-fulltag_cons;
+  }
+  bytes_needed = disp+allocptr_tag;
+
+  update_bytes_allocated(tcr,((BytePtr)(cur_allocptr+disp)));
+  if (allocate_object(xp, bytes_needed, disp, tcr)) {
+    return true;
+  }
+  
+  {
+    LispObj xcf = create_exception_callback_frame(xp),
+      cmain = nrs_CMAIN.vcell;
+    int skip;
+    
+    tcr->save_allocptr = tcr->save_allocbase = (void *)VOID_ALLOCPTR;
+    xpGPR(xp,Iallocptr) = VOID_ALLOCPTR;
+
+    skip = callback_to_lisp(tcr, cmain, xp, xcf, -1, XMEMFULL, 0, 0);
+    xpPC(xp) += skip;
+  }
+
+  return true;
+}
 
 extern unsigned get_mxcsr();
 extern void set_mxcsr(unsigned);
