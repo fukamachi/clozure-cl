@@ -72,7 +72,6 @@ protection_handler
 extern protection_handler
   *protection_handlers[];
 
-OSStatus do_memo_reset(ExceptionInformation *, TCR *, BytePtr);
 
 void
 exception_cleanup(void);
