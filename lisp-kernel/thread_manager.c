@@ -539,6 +539,10 @@ new_tcr(natural vstack_size, natural tstack_size)
     *allocate_tstack_holding_area_lock(unsigned);
   area *a;
   int i;
+  sigset_t sigmask;
+
+  sigemptyset(&sigmask);
+  pthread_sigmask(SIG_SETMASK,&sigmask, NULL);
 #ifdef HAVE_TLS
   TCR *tcr = &current_tcr;
 #ifdef X8664
@@ -654,6 +658,30 @@ shutdown_thread_tcr(void *arg)
   } else {
     tsd_set(lisp_global(TCR_KEY), TCR_TO_TSD(tcr));
   }
+}
+
+void
+tcr_cleanup(void *arg)
+{
+  TCR *tcr = (TCR *)arg;
+  area *a;
+
+  a = tcr->vs_area;
+  if (a) {
+    a->active = a->high;
+  }
+  a = tcr->ts_area;
+  if (a) {
+    a->active = a->high;
+  }
+  a = tcr->cs_area;
+  if (a) {
+    a->active = a->high;
+  }
+  tcr->valence = TCR_STATE_FOREIGN;
+  tcr->shutdown_count = 1;
+  shutdown_thread_tcr(tcr);
+  tsd_set(lisp_global(TCR_KEY), NULL);
 }
 
 void *
@@ -791,6 +819,8 @@ lisp_thread_entry(void *param)
   pthread_sigmask(SIG_SETMASK, &mask, &old_mask);
 
   register_thread_tcr(tcr);
+
+  pthread_cleanup_push(tcr_cleanup,(void *)tcr);
   tcr->vs_area->active -= node_size;
   *(--tcr->save_vsp) = lisp_nil;
   enable_fp_exceptions();
@@ -803,6 +833,8 @@ lisp_thread_entry(void *param)
     /* Now go run some lisp code */
     start_lisp(TCR_TO_TSD(tcr),0);
   } while (tcr->flags & (1<<TCR_FLAG_BIT_AWAITING_PRESET));
+  pthread_cleanup_pop(true);
+
 }
 
 
@@ -1139,6 +1171,33 @@ enqueue_freed_tcr (TCR *tcr)
 #endif
 }
 
+/* It's not clear that we can safely condemn a dead tcr's areas, since
+   we may not be able to call free() if a suspended thread owns a 
+   malloc lock. At least make the areas appear to be empty. 
+*/
+   
+
+void
+normalize_dead_tcr_areas(TCR *tcr)
+{
+  area *a;
+
+  a = tcr->vs_area;
+  if (a) {
+    a->active = a->high;
+  }
+
+  a = tcr->ts_area;
+  if (a) {
+    a->active = a->high;
+  }
+
+  a = tcr->cs_area;
+  if (a) {
+    a->active = a->high;
+  }
+}
+    
 void
 free_freed_tcrs ()
 {
@@ -1198,6 +1257,7 @@ suspend_other_threads(Boolean for_gc)
     for (other = current->next; other != current; other = next) {
       next = other->next;
       if ((other->osid == 0))  {
+        normalize_dead_tcr_areas(other);
 	dequeue_tcr(other);
 	enqueue_freed_tcr(other);
       }
