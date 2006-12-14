@@ -263,7 +263,8 @@
   ()                                    ; 'pathname
   %pathname-directory
   %pathname-name
-  %pathname-type)
+  %pathname-type
+  %physical-pathname-version)
 
 (def-accessors (logical-pathname) %svref
   ()                                    ; 'logical-pathname
@@ -273,17 +274,11 @@
   %logical-pathname-host
   %logical-pathname-version)
 
-(defmacro %cons-pathname (directory name type)
-  `(%istruct 'pathname ,directory ,name ,type))
-#|
-  `(%gvector $v_istruct 'pathname ,directory ,name ,type))
-|#
+(defmacro %cons-pathname (directory name type &optional version)
+  `(%istruct 'pathname ,directory ,name ,type ,version))
 
 (defmacro %cons-logical-pathname (directory name type host version)
   `(%istruct 'logical-pathname ,directory ,name ,type ,host ,version))
-#|
-  `(%gvector $v_istruct 'logical-pathname ,directory ,name ,type ,host ,version))
-|#
 
 (def-accessors (restart) %svref
   ()                                    ; 'restart
