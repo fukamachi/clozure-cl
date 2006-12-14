@@ -31,6 +31,11 @@
 #include <fpu_control.h>
 #include <linux/prctl.h>
 #endif
+#ifdef DARWIN
+#include <sysexits.h>
+#endif
+#include <sys/syslog.h>
+
 
 int
 page_size = 4096;
@@ -876,14 +881,18 @@ signal_handler(int signum, siginfo_t *info, ExceptionInformation  *context, TCR 
     }
   }
   unlock_exception_lock_in_handler(tcr);
+#ifndef DARWIN_USE_PSEUDO_SIGRETURN
   exit_signal_handler(tcr, old_valence);
+#endif
   /* raise_pending_interrupt(tcr); */
 #ifdef DARWIN_GS_HACK
   if (gs_was_tcr) {
     set_gs_address(tcr);
   }
 #endif
+#ifndef DARWIN_USE_PSEUDO_SIGRETURN
   SIGRETURN(context);
+#endif
 }
 
 #ifdef DARWIN
@@ -1057,13 +1066,32 @@ interrupt_handler (int signum, siginfo_t *info, ExceptionInformation *context)
 	  xframe_list xframe_link;
 	  int old_valence;
           signed_natural alloc_displacement = 0;
-	  
+          LispObj 
+            *next_tsp = tcr->next_tsp,
+            *save_tsp = tcr->save_tsp,
+            *p,
+            q;
+            
+          if (next_tsp != save_tsp) {
+            tcr->next_tsp = save_tsp;
+          } else {
+            next_tsp = NULL;
+          }
 	  pc_luser_xp(context, tcr, &alloc_displacement);
 	  old_valence = prepare_to_wait_for_exception_lock(tcr, context);
 	  wait_for_exception_lock_in_handler(tcr, context, &xframe_link);
 	  handle_exception(signum, info, context, tcr);
           if (alloc_displacement) {
             tcr->save_allocptr -= alloc_displacement;
+          }
+          if (next_tsp) {
+            tcr->next_tsp = next_tsp;
+            p = next_tsp;
+            while (p != save_tsp) {
+              *p++ = 0;
+            }
+            q = (LispObj)save_tsp;
+            *next_tsp = q;
           }
 	  unlock_exception_lock_in_handler(tcr);
 	  exit_signal_handler(tcr, old_valence);
@@ -1216,6 +1244,75 @@ altstack_suspend_resume_handler(int signum, siginfo_t *info, ExceptionInformatio
 }
 
 void
+quit_handler(int signum, siginfo_t info, ExceptionInformation *xp)
+{
+  TCR *tcr = get_tcr(false);
+  area *a;
+  sigset_t mask;
+  
+  sigemptyset(&mask);
+
+
+  if (tcr) {
+    tcr->valence = TCR_STATE_FOREIGN;
+    a = tcr->vs_area;
+    if (a) {
+      a->active = a->high;
+    }
+    a = tcr->ts_area;
+    if (a) {
+      a->active = a->high;
+    }
+    a = tcr->cs_area;
+    if (a) {
+      a->active = a->high;
+    }
+  }
+  
+  pthread_sigmask(SIG_SETMASK,&mask,NULL);
+  pthread_exit(NULL);
+}
+
+void
+altstack_quit_handler(int signum, siginfo_t *info, ExceptionInformation *context)
+{
+#ifdef DARWIN_GS_HACK
+  Boolean gs_was_tcr = ensure_gs_pthread();
+#endif
+  TCR* tcr = get_tcr(true);
+  LispObj *foreign_rsp = find_foreign_rsp(xpGPR(context,Isp), tcr->cs_area, tcr);
+#ifdef LINUX
+  fpregset_t fpregs = NULL;
+#else
+  void *fpregs = NULL;
+#endif
+#ifdef DARWIN
+  MCONTEXT_T mcontextp = NULL;
+#endif
+
+  siginfo_t *info_copy = NULL;
+  ExceptionInformation *xp = NULL;
+
+  if (foreign_rsp) {
+#ifdef LINUX
+    foreign_rsp = copy_fpregs(context, foreign_rsp, &fpregs);
+#endif
+#ifdef DARWIN
+    foreign_rsp = copy_darwin_mcontext(UC_MCONTEXT(context), foreign_rsp, &mcontextp);
+#endif
+    foreign_rsp = copy_siginfo(info, foreign_rsp);
+    info_copy = (siginfo_t *)foreign_rsp;
+    foreign_rsp = copy_ucontext(context, foreign_rsp, fpregs);
+    xp = (ExceptionInformation *)foreign_rsp;
+#ifdef DARWIN
+    UC_MCONTEXT(xp) = mcontextp;
+#endif
+    *--foreign_rsp = (LispObj)__builtin_return_address(0);
+    switch_to_foreign_stack(foreign_rsp,quit_handler,signum,info_copy,xp);
+  }
+}
+
+void
 thread_signal_setup()
 {
   thread_suspend_signal = SIG_SUSPEND_THREAD;
@@ -1223,6 +1320,7 @@ thread_signal_setup()
 
   install_signal_handler(thread_suspend_signal, (void *)altstack_suspend_resume_handler);
   install_signal_handler(thread_resume_signal, (void *)altstack_suspend_resume_handler);
+  install_signal_handler(SIGQUIT, (void *)altstack_quit_handler);
 }
 
 
@@ -1522,6 +1620,8 @@ normalize_tcr(ExceptionInformation *xp, TCR *tcr, Boolean is_other_tcr)
    in that context.  Resume the other tcrs, then return what the
    function returned */
 
+TCR *gc_tcr = NULL;
+
 int
 gc_like_from_xp(ExceptionInformation *xp, 
                 int(*fun)(TCR *, signed_natural), 
@@ -1541,6 +1641,8 @@ gc_like_from_xp(ExceptionInformation *xp,
     resume_other_threads(true);
     return 0;
   }
+
+  gc_tcr = tcr;
 
   /* This is generally necessary if the current thread invoked the GC
      via an alloc trap, and harmless if the GC was invoked via a GC
@@ -1576,6 +1678,8 @@ gc_like_from_xp(ExceptionInformation *xp,
     other_tcr->gc_context = NULL;
     other_tcr = other_tcr->next;
   } while (other_tcr != tcr);
+
+  gc_tcr = NULL;
 
   resume_other_threads(true);
 
@@ -2009,6 +2113,12 @@ setup_signal_frame(mach_port_t thread,
 #define ts_pc(t) t.eip
 #endif
 
+#ifdef DARWIN_USE_PSEUDO_SIGRETURN
+#define DARWIN_EXCEPTION_HANDLER signal_handler
+#else
+#define DARWIN_EXCEPTION_HANDLER pseudo_signal_handler
+#endif
+
 kern_return_t
 catch_exception_raise(mach_port_t exception_port,
 		      mach_port_t thread,
@@ -2087,7 +2197,7 @@ catch_exception_raise(mach_port_t exception_port,
       }
       if (signum) {
         kret = setup_signal_frame(thread,
-                                  (void *)pseudo_signal_handler,
+                                  (void *)DARWIN_EXCEPTION_HANDLER,
                                   signum,
                                   code,
                                   tcr, 
@@ -2106,16 +2216,27 @@ catch_exception_raise(mach_port_t exception_port,
     pthread_mutex_unlock(mach_exception_lock);
   } else {
     SET_TCR_FLAG(tcr,TCR_FLAG_BIT_PENDING_EXCEPTION);
+      
 #if 0
     fprintf(stderr, "deferring pending exception in 0x%x\n", tcr);
 #endif
     kret = 0;
+    if (tcr == gc_tcr) {
+      int i;
+      write(1, "exception in GC thread. Sleeping for 60 seconds\n",sizeof("exception in GC thread.  Sleeping for 60 seconds\n"));
+      for (i = 0; i < 60; i++) {
+        sleep(1);
+      }
+      _exit(EX_SOFTWARE);
+    }
   }
   return kret;
 }
 
 
 
+
+static mach_port_t mach_exception_thread = (mach_port_t)0;
 
 
 /*
@@ -2128,11 +2249,25 @@ exception_handler_proc(void *arg)
   extern boolean_t exc_server();
   mach_port_t p = TCR_TO_EXCEPTION_PORT(arg);
 
+  mach_exception_thread = pthread_mach_thread_np(pthread_self());
   mach_msg_server(exc_server, 256, p, 0);
   /* Should never return. */
   abort();
 }
 
+
+
+void
+mach_exception_thread_shutdown()
+{
+  kern_return_t kret;
+
+  fprintf(stderr, "terminating Mach exception thread, 'cause exit can't\n");
+  kret = thread_terminate(mach_exception_thread);
+  if (kret != KERN_SUCCESS) {
+    fprintf(stderr, "Couldn't terminate exception thread, kret = %d\n",kret);
+  }
+}
 
 
 mach_port_t
