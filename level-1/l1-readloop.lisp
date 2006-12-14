@@ -139,19 +139,16 @@
 	    (process-reset p :shutdown)
 	    (process-kill p))))
       (dolist (p (all-processes))
-        (unless (eq p *initial-process*)
-          (unless (process-wait-with-timeout
-                   "Shutdown wait"
-                   5
-                   #'process-exhausted-p
-                   p)
-            (push p stragglers))))
+        (let* ((semaphore (process-termination-semaphore p)))
+          (when semaphore
+            (unless (eq p *initial-process*)
+              (unless (timed-wait-on-semaphore semaphore 0.05)
+                (push p stragglers))))))
       (dolist (p stragglers)
-	(unless (process-wait-with-timeout
-		 "deathwatch"
-		 10
-		 #'(lambda () (process-exhausted-p p)))
-	  (maybe-finish-process-kill p :kill))))
+        (let* ((semaphore (process-termination-semaphore p)))
+          (maybe-finish-process-kill p :kill)
+          (when semaphore
+            (timed-wait-on-semaphore semaphore 0.10)))))
     (shutdown-lisp-threads)
     (while *open-file-streams*
       (let* ((ioblock (stream-ioblock (car *open-file-streams*) nil)))
@@ -160,7 +157,7 @@
                 (ioblock-outbuf-lock ioblock) nil
                 (ioblock-owner ioblock) nil)))
       (close (car *open-file-streams*)))
-    (setf (interrupt-level) -1)       ; can't abort after this
+    (setf (interrupt-level) -1)         ; can't abort after this
     ))
 
 
