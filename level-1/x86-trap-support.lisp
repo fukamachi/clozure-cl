@@ -177,6 +177,8 @@
   (let* ((frame-ptr (macptr->fixnum xcf)))
     (cond ((zerop signal)               ;thread interrupt
            (cmain))
+          ((< signal 0)
+           (%err-disp code))
           ((= signal #$SIGFPE)
            (multiple-value-bind (operation operands)
                (decode-arithmetic-error xp xcf)
