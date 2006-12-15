@@ -37,6 +37,7 @@
 #ifndef SA_NODEFER
 #define SA_NODEFER 0
 #endif
+#include <sysexits.h>
 
 /* a distinguished UUO at a distinguished address */
 extern void pseudo_sigreturn(ExceptionInformation *);
@@ -655,6 +656,8 @@ normalize_tcr(ExceptionInformation *xp, TCR *tcr, Boolean is_other_tcr)
   }
 }
 
+TCR *gc_tcr = NULL;
+
 /* Suspend and "normalize" other tcrs, then call a gc-like function
    in that context.  Resume the other tcrs, then return what the
    function returned */
@@ -678,6 +681,8 @@ gc_like_from_xp(ExceptionInformation *xp,
     resume_other_threads(true);
     return 0;
   }
+
+  gc_tcr = tcr;
 
   xpGPR(xp, allocptr) = VOID_ALLOCPTR;
   xpGPR(xp, allocbase) = VOID_ALLOCPTR;
@@ -708,6 +713,8 @@ gc_like_from_xp(ExceptionInformation *xp,
     other_tcr->gc_context = NULL;
     other_tcr = other_tcr->next;
   } while (other_tcr != tcr);
+
+  gc_tcr = NULL;
 
   resume_other_threads(true);
 
@@ -1358,8 +1365,6 @@ callback_to_lisp (LispObj callback_macptr, ExceptionInformation *xp,
   tcr->save_vsp = (LispObj*) ptr_from_lispobj(xpGPR(xp, vsp));
   tcr->save_tsp = (LispObj*) ptr_from_lispobj(xpGPR(xp, tsp));
 
-  tcr->lisp_fpscr.words.l = 0xd0;
-  enable_fp_exceptions();
 
 
   /* Call back.
@@ -2094,6 +2099,35 @@ install_pmcl_exception_handlers()
 }
 
 void
+quit_handler(int signum, siginfo_t info, ExceptionInformation *xp)
+{
+  TCR *tcr = get_tcr(false);
+  area *a;
+  sigset_t mask;
+  
+  sigemptyset(&mask);
+
+  if (tcr) {
+    tcr->valence = TCR_STATE_FOREIGN;
+    a = tcr->vs_area;
+    if (a) {
+      a->active = a->high;
+    }
+    a = tcr->ts_area;
+    if (a) {
+      a->active = a->high;
+    }
+    a = tcr->cs_area;
+    if (a) {
+      a->active = a->high;
+    }
+  }
+  
+  pthread_sigmask(SIG_SETMASK,&mask,NULL);
+  pthread_exit(NULL);
+}
+
+void
 thread_signal_setup()
 {
   thread_suspend_signal = SIG_SUSPEND_THREAD;
@@ -2101,6 +2135,7 @@ thread_signal_setup()
 
   install_signal_handler(thread_suspend_signal, (void *) suspend_resume_handler);
   install_signal_handler(thread_resume_signal,  (void *) suspend_resume_handler);
+  install_signal_handler(SIGQUIT, (void *)quit_handler);
 }
 
 
@@ -2671,6 +2706,14 @@ catch_exception_raise(mach_port_t exception_port,
     fprintf(stderr, "deferring pending exception in 0x%x\n", tcr);
 #endif
     kret = 0;
+    if (tcr == gc_tcr) {
+      int i;
+      write(1, "exception in GC thread. Sleeping for 60 seconds\n",sizeof("exception in GC thread.  Sleeping for 60 seconds\n"));
+      for (i = 0; i < 60; i++) {
+        sleep(1);
+      }
+      _exit(EX_SOFTWARE);
+    }
   }
   return kret;
 }
