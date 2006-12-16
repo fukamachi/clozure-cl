@@ -104,6 +104,17 @@ _exportfn(C(set_fpscr))
 	__(blr)
 _endfn
 
+
+_exportfn(C(get_fpscr))
+	__(stru(sp,-32(sp)))
+        __(mffs f0)
+        __(stfd f0,8(sp))
+        __(lwz r3,12(sp))
+	__(la sp,32(sp))
+	__(blr)
+_endfn
+                
+
 /* The Linux kernel is constantly enabling and disabling the FPU and enabling */
 /* FPU exceptions.  We can't touch the FPU without turning off the FPSCR[FEX] */
 /* bit and we can't turn off the FPSCR[FEX] bit without touching the FPU. */
