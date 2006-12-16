@@ -86,13 +86,16 @@
 				     (multiple-value-bind (status control) (xp-fpscr-info xp)
 				       (%error (make-condition (fp-condition-from-fpscr status control)
 							       :operation (fp-minor-opcode-operation minor)
-							       :operands (list (coerce-to-op-type 
-										(xp-double-float xp fra))
-									       (if (= minor 25)
-										 (coerce-to-op-type 
-										  (xp-double-float xp frc))
-										 (coerce-to-op-type 
-										  (xp-double-float xp frb)))))
+							       :operands
+                                                               (if (= minor 22)
+                                                                 (list (coerce-to-op-type (xp-double-float xp frb)))
+                                                                 (list (coerce-to-op-type 
+                                                                        (xp-double-float xp fra))
+                                                                       (if (= minor 25)
+                                                                         (coerce-to-op-type 
+                                                                          (xp-double-float xp frc))
+                                                                         (coerce-to-op-type 
+                                                                          (xp-double-float xp frb))))))
 					       nil
 					       frame-ptr)))))))
 			    ((eql errnum arch::error-excised-function-call)
