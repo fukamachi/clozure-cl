@@ -483,6 +483,8 @@
 ;;; This assumes that the FEX and one of {VX OX UX ZX XX} is set.
 (defun %fp-error-from-status (status-bits control-bits operation &rest operands)
   (declare (type (unsigned-byte 16) status-bits))
+  (case operation
+    (sqrt (setq operands (cdr operands))))
   (let* ((condition-class (fp-condition-from-fpscr status-bits control-bits)))
     (if condition-class
       (error (make-instance condition-class
@@ -495,6 +497,7 @@
     (18 '/)
     (20 '-)
     (21 '+)
+    (22 'sqrt)
     (t 'unknown)))
 
 ;;; Don't we already have about 20 versions of this ?
