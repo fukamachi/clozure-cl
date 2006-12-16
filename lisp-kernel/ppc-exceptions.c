@@ -1156,8 +1156,39 @@ handle_sigfpe(ExceptionInformation *xp, TCR *tcr)
     
 int
 altivec_present = 1;
-		  
 
+
+/* This only tries to implement the "optional" fsqrt and fsqrts
+   instructions, which were generally implemented on IBM hardware
+   but generally not available on Motorola/Freescale systems.
+*/		  
+OSStatus
+handle_unimplemented_instruction(ExceptionInformation *xp,
+                                 opcode instruction,
+                                 TCR *tcr)
+{
+  (void) zero_fpscr(tcr);
+  enable_fp_exceptions();
+  /* the rc bit (bit 0 in the instruction) is supposed to cause
+     some FPSCR bits to be copied to CR1.  OpenMCL doesn't generate
+     fsqrt. or fsqrts.
+  */
+  if (((major_opcode_p(instruction,major_opcode_FPU_DOUBLE)) || 
+       (major_opcode_p(instruction,major_opcode_FPU_SINGLE))) &&
+      ((instruction & ((1 << 6) -2)) == (22<<1))) {
+      double b, d;
+
+      b = xpFPR(xp,RB_field(instruction));
+      d = sqrt(b);
+      xpFPSCR(xp) = ((xpFPSCR(xp) & ~_FPU_RESERVED) |
+                     (get_fpscr() & _FPU_RESERVED));
+      xpFPR(xp,RT_field(instruction)) = d;
+      adjust_exception_pc(xp,4);
+      return 0;
+  }
+
+  return -1;
+}
 
 OSStatus
 PMCL_exception_handler(int xnum, 
@@ -1191,6 +1222,8 @@ PMCL_exception_handler(int xnum,
       status = handle_uuo(xp, instruction, program_counter);
     } else if (is_conditional_trap(instruction)) {
       status = handle_trap(xp, instruction, program_counter, info);
+    } else {
+      status = handle_unimplemented_instruction(xp,instruction,tcr);
     }
   } else if (xnum == SIGNAL_FOR_PROCESS_INTERRUPT) {
     tcr->interrupt_pending = 0;
