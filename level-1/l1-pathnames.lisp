@@ -116,6 +116,8 @@
          (null wild))
         ((null wild)
          t)
+        ((not (and (stringp name) (stringp wild)))
+         (eq name wild))
         (t (%path-str*= name wild))))
 
 (defun translate-directory (source from to reversible &optional thost)
@@ -617,7 +619,7 @@
     (if dirpath
       (native-to-directory-pathname dirpath)
       (let* ((directory-containing-heap-image
-              (make-pathname :directory (pathname-directory *heap-image-name*)))
+              (make-pathname :directory (pathname-directory (%realpath *heap-image-name*))))
              (rpath (merge-pathnames
 		     #+darwinppc-target "../Resources/ccl/"
 		     #+linux-target "Resources/ccl/"
