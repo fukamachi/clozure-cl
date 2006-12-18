@@ -203,8 +203,8 @@
 
 (defun %pathname-version (pathname)
   (if (logical-pathname-p pathname)
-      (%logical-pathname-version pathname)
-      :newest))
+    (%logical-pathname-version pathname)
+    (%physical-pathname-version pathname)))
 
 
 
@@ -214,7 +214,7 @@
 
 (defun pathname-version (thing)  ; redefined later in this file
   (declare (ignore thing))
-  :unspecific)
+  nil)
 
 (defmethod print-object ((pathname pathname) stream)
   (let ((flags (if (logical-pathname-p pathname) 4
@@ -338,9 +338,10 @@
 
 (defun file-namestring (path)
   "Return a string representation of the name used in the pathname."
-  (let* ((name (pathname-name path))
+  (let* ((path (pathname path))
+         (name (pathname-name path))
          (type (pathname-type path))
-         (version (pathname-version path)))
+         (version (if (typep path 'logical-pathname) (pathname-version path))))
     (file-namestring-from-parts name type version)))
 
 (defun file-namestring-from-parts (name type version)
@@ -407,7 +408,7 @@
 (defun cons-pathname (dir name type &optional host version)
   (if (neq host :unspecific)
     (%cons-logical-pathname dir name type host version)
-    (%cons-pathname dir name type)))
+    (%cons-pathname dir name type version)))
 
 (defun pathname (path)
   "Convert thing (a pathname, string or stream) into a pathname."
@@ -451,7 +452,7 @@
       (unless (eq start-pos end-pos)
         (setq name (%std-name-component (%substr sstr start-pos end-pos))))
       (if (eq host :unspecific)
-	(%cons-pathname directory name type)
+	(%cons-pathname directory name type version)
         (%cons-logical-pathname directory name type host version)))))
 
 (defun parse-namestring (thing &optional host (defaults *default-pathname-defaults*)
@@ -509,7 +510,7 @@ a host-structure or string."
 		    (and defaults (pathname-version defaults)))))
   (setq path
         (if (eq host :unspecific)
-          (%cons-pathname directory name type)
+          (%cons-pathname directory name type version)
           (%cons-logical-pathname
 	   (or directory
 	       (unless directory-p '(:absolute)))
@@ -750,12 +751,12 @@ a host-structure or string."
   (when (streamp path) (setq path (%path-from-stream path)))
   (typecase path
     (logical-pathname (%logical-pathname-version path))
-    (pathname :unspecific)
+    (pathname (%physical-pathname-version path))
     (string
      (multiple-value-bind (sstr start end) (get-sstring path)
        (multiple-value-bind (newstart host) (pathname-directory-end sstr start end)
 	 (if (eq host :unspecific)
-	   :unspecific
+	   nil
 	   (pathname-version-sstr sstr newstart end)))))
     (t (report-bad-arg path pathname-arg-type))))
 
