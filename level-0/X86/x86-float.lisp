@@ -441,6 +441,17 @@
   (movl ($ x8664::nil-value) (% arg_z.l))
   (cmovlq (% imm0) (% arg_z))
   (single-value-return))
-  
+
+(defx86lapfunction %double-float-sqrt! ((n arg_y) (result arg_z))
+  (get-double-float n fp0)
+  (sqrtsd (% fp0) (% fp0))
+  (put-double-float fp0 result)
+  (single-value-return))
+
+(defx86lapfunction %single-float-sqrt ((n arg_z))
+  (get-single-float n fp0)
+  (sqrtss (% fp0) (% fp0))
+  (put-single-float fp0 arg_z)
+  (single-value-return))
 
 ;;; end of x86-float.lisp
