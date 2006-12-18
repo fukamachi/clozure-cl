@@ -63,8 +63,33 @@
       (not res)
       res)))
 
-
-
+;;; CTYPE is a recognizable subtype of VECTOR, which means that it's either
+;;; a) an ARRAY-CTYPE
+;;; b) a UNION-CTYPE whose leaves are ARRAY-CTYPE
+;;; c) the NIL type, which is trivially a subtype of VECTOR but isn't really
+;;;    worth considering here
+;;; d) a MEMBER-CTYPE whose members are all vectors and which therefore have
+;;;    corresponding ARRAY-CTYPEs.
+;;; Try to find the interesection of all ARRAY-CTYPEs referenced in CTYPE and
+;;;  return it.
+;;; Note that this intersection may be the null type.
+(defun simplify-vector-ctype (ctype)
+  (typecase ctype
+    (array-ctype
+     (make-array-ctype :complexp nil
+                       :element-type (array-ctype-element-type ctype)
+                       :specialized-element-type (array-ctype-specialized-element-type ctype)
+                       :dimensions '(*)))
+                                      
+    (named-ctype ctype)
+    (member-ctype
+     (apply #'type-intersection (mapcar #'(lambda (x)
+                                    (simplify-vector-ctype
+                                     (ctype-of x)))
+                                (member-ctype-members ctype))))
+    (union-ctype
+     (apply #'type-intersection (mapcar #'simplify-vector-ctype (union-ctype-types ctype))))))
+    
 (defun make-sequence (type length &key (initial-element nil initial-element-p))
   "Return a sequence of the given TYPE and LENGTH, with elements initialized
   to INITIAL-ELEMENT."
@@ -85,32 +110,18 @@
                           :initial-element initial-element)
              (make-string length
                           :element-type 'base-char)))
-          ((csubtypep ctype (specifier-type 'string))
-           (if initial-element-p
-             (make-string length :element-type 'character :initial-element initial-element)
-             (make-string length :element-type 'character)))
           ((csubtypep ctype (specifier-type 'vector))
-           (let* ((element-type (type-specifier (array-ctype-element-type ctype))))
-             (if (eq element-type '*) (setq element-type t))
-             (if initial-element-p
-               (make-array (the fixnum length)
-                           :element-type element-type
-                           :initial-element initial-element)
-               (make-array (the fixnum length)
-                           :element-type element-type))))
-          ((csubtypep ctype (specifier-type 'array))
-           (let* ((dims (array-ctype-dimensions ctype)))
-             (when (consp dims)
-               (when (not (null (cdr dims)))
-                 (error 'invalid-subtype-error :datum  type :expected-type 'vector))))
-           (let* ((element-type (type-specifier (array-ctype-element-type ctype))))
-             (if (eq element-type '*) (setq element-type t))
-             (if initial-element-p
-               (make-array (the fixnum length)
-                           :element-type element-type
-                           :initial-element initial-element)
-               (make-array (the fixnum length)
-                           :element-type element-type))))           
+           (let* ((atype (simplify-vector-ctype ctype)))
+             (unless (typep atype 'array-ctype)
+               (error "Can't determine vector element-type of ~s" (type-specifier ctype)))
+             (let* ((element-type (type-specifier (array-ctype-element-type atype))))
+               (if (eq element-type '*) (setq element-type t))
+               (if initial-element-p
+                 (make-array (the fixnum length)
+                             :element-type element-type
+                             :initial-element initial-element)
+                 (make-array (the fixnum length)
+                             :element-type element-type)))))
           ((csubtypep ctype (specifier-type 'null))
            (unless (zerop length)
              (error 'invalid-subtype-error :datum type :expected-type 'cons)))
@@ -196,9 +207,6 @@
 		  ((= i end) dest)
 	       (declare (fixnum i j))
 	       (setf (sbit dest j) (sbit src i))))))))))
-		   
-				     
-	
 
 
 (defun nthcdr-error (index list &aux (copy list))
@@ -757,13 +765,7 @@
       (if (listp dims)
         (if (null (cdr dims))
           (let* ((dim0 (car dims)))
-            (unless (eq dim0 '*) dim0)))))
-    (if (typep ctype 'union-ctype)
-      ; this isn't really right either but does trt for (string 2)
-      ; check if all specify a length and lengths are the same?
-      (dolist (type (union-ctype-types ctype))
-        (let ((len (array-ctype-length type)))
-          (when len (return len)))))))
+            (unless (eq dim0 '*) dim0)))))))
 
 
 
@@ -801,12 +803,15 @@
         (coerce-to-uarray object #.(type-keyword-code :simple-string)
                           t))
        ((csubtypep type (specifier-type 'vector))
-        (let* ((element-type (type-specifier (array-ctype-element-type type))))
-          (let ((length (array-ctype-length type)))
-            (if (and length (neq length (length object)))
-              (report-bad-arg (make-array length :element-type element-type)
-                              `(vector ,element-type ,(length object))))
-            (coerce-to-uarray object (element-type-subtype element-type) t))))
+        (let* ((atype (simplify-vector-ctype type)))
+          (unless (typep atype 'array-ctype)
+            (error "Can't determine vector type of ~s" output-type-spec))
+          (let* ((element-type (type-specifier (array-ctype-element-type atype))))
+            (let ((length (array-ctype-length atype)))
+              (if (and length (neq length (length object)))
+                (report-bad-arg (make-array length :element-type element-type)
+                                `(vector ,element-type ,(length object))))
+              (coerce-to-uarray object (element-type-subtype element-type) t)))))
        ((csubtypep type (specifier-type 'array))
         (let* ((dims (array-ctype-dimensions type)))
           (when (consp dims)
