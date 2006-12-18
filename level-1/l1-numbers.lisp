@@ -946,34 +946,6 @@
     (%sf-check-exception-1 'atanh n (%ffi-exception-status))
     result))
 
-(defun %double-float-sqrt! (n result)
-  (declare (double-float n result))
-  (with-stack-double-floats ((temp))
-    (%setf-double-float TEMP (#_sqrt n))
-    (%df-check-exception-1 'sqrt n (%ffi-exception-status))
-    (%setf-double-float result TEMP)))
 
-#+(and ppc32-target (not darwinppc-target))
-(defun %single-float-sqrt! (n result)
-  (declare (single-float n result))
-  (ppc32::with-stack-short-floats ((temp))
-    (%setf-short-float TEMP (#_sqrtf n))
-    (%sf-check-exception-1 'sqrt n (%ffi-exception-status))
-    (%setf-short-float result TEMP)))
-
-#+(and ppc32-target darwinppc-target)
-(defun %single-float-sqrt! (n result)
-  (declare (single-float n result))
-  (with-stack-double-floats ((n2 n)
-			     (result2))
-    (%double-float-sqrt! n2 result2)
-    (%double-float->short-float result2 result)))
-
-#+64-bit-target
-(defun %single-float-sqrt (n)
-  (declare (single-float n))
-  (let* ((result (#_sqrtf n)))
-    (%sf-check-exception-1 'sqrt n (%ffi-exception-status))
-    result))
 
 
