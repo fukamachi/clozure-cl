@@ -1345,7 +1345,7 @@
 		 (cdb-close was-open))
 	       (when (probe-file path)
 		 (rename-file path
-			      (concatenate 'string (namestring path) "-BAK")
+			      (concatenate 'string (namestring (truename path)) "-BAK")
 			      :if-exists :supersede))
 	       (rename-file newpath path)
 	       (when was-open
