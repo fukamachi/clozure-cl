@@ -1,3 +1,437 @@
+2006-12-19 01:24  gb
+
+	* library/parse-ffi.lisp: Just to be on the safe side (new pathname
+	bugs, or old ?), append -BAK to (NAMESTRING (TRUENAME path)), not
+	just (NAMESTRING path) when renaming.  (MERGE-PATHNAMES call is
+	producing a pathane with a non-null VERSION component, as it
+	arguably should have been all along.
+
+2006-12-18 13:22  gb
+
+	* lib/sequences.lisp: COERCE/MAKE-SEQUENCE try to simplify vector
+	types into concrete vector types.
+
+2006-12-18 13:04  gb
+
+	* level-1/l1-pathnames.lisp: Try (halfheartedly) to maintain
+	PATHNAME-VERSION of physical pathnames.  (Totally meaningless, but
+	failing to do this leads to many test failures.)
+
+2006-12-18 13:03  gb
+
+	* level-1/l1-numbers.lisp: Don't call out to do sqrt.
+
+2006-12-18 12:57  gb
+
+	* level-1/l1-files.lisp: Try (halfheartedly) to maintain
+	PATHNAME-VERSION of physical pathnames.  (Totally meaningless, but
+	failing to do this leads to many test failures.)
+
+2006-12-18 12:54  gb
+
+	* level-0/X86/x86-float.lisp: Do single/double-float sqrt inline.
+
+2006-12-16 05:28  gb
+
+	* level-0/PPC/ppc-float.lisp: Recognize that fsqrt/fsqrts
+	instructions have a minor opcode in frb and only have one source
+	operand.
+
+2006-12-16 05:27  gb
+
+	* level-1/ppc-error-signal.lisp: If we get an FP exception during a
+	SQRT, note that there's only one operand and that it's in frb.
+
+2006-12-16 05:25  gb
+
+	* lisp-kernel/ppc-exceptions.c: Handle (some) unimplemented
+	instructions, notably fsqrt/fqrts, which are optional and not
+	implemented on some PPC machines.
+
+2006-12-16 05:24  gb
+
+	* lisp-kernel/ppc-asmutils.s: Add get_fpscr().
+
+2006-12-14 19:47  gb
+
+	* lisp-kernel/ppc-exceptions.c: Need to handle SIGQUIT on ppc, too.
+
+2006-12-14 16:43  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: Constraints on some
+	double-float arithmetic vinsns should say :double-float, not
+	:single-float.	(I suspect cut-and-paste, frankly.)
+
+2006-12-14 16:25  gb
+
+	* level-1/l1-lisp-threads.lisp: *initial-lisp-thread*, not
+	initial-thread.
+
+2006-12-14 16:24  gb
+
+	* level-1/x86-trap-support.lisp: Use frame pointer when signaling
+	error.
+
+2006-12-14 16:14  gb
+
+	* library/lispequ.lisp: Add a %PHYSICAL-PATHAME-VERSION slot to
+	physical pathnames. (Yes, this is kind of silly.)
+
+2006-12-14 16:01  gb
+
+	* level-1/x86-trap-support.lisp: Recognize the kernel's attempt to
+	signal errors for (e.g.) failed memory allocation.
+
+2006-12-14 16:00  gb
+
+	* lisp-kernel/x86-exceptions.c: If a memory allocation request
+	fails, signal a lisp error (what a concept.)
+
+2006-12-14 15:51  gb
+
+	* lisp-kernel/x86-exceptions.h: Define DARWIN_USE_PSEUDO_SIGRETURN.
+	
+	Might be worth revisiting this.
+
+2006-12-14 15:50  gb
+
+	* lisp-kernel/x86-exceptions.c: Go back to using the
+	pseudo_sigreturn mechanism on Darwin, since doing a real sigreturn
+	from a fake context may not be reliable.
+	
+	When handling an interrupt with a partially created temp stack
+	frame, do the right thing.  (That basically means reset the frame
+	before calling out and recreating it if we return from the
+	callout.)
+	
+	Handle SIGQUIT on the altstack, to provide a way of forcibly
+	terminating threads that's a bit more GC-safe than doing it via
+	#_pthread_cancel.
+	
+	Note the tcr of the gc thread on gc entry; if an exception happens
+	in that thread, print a message and sleep for 60 seconds.
+	
+	Note that there's still a race condition here: if thread A gets an
+	exception and thread B gets the mach_exception_lock (to GC) before
+	the exception thread can handle the message, we deadlock (thread A
+	would be suspended in the kernel and can't respond to a suspend
+	signal.)  We can tell that this has happened and make a good guess
+	as to why it happened, but dealing with it will require some
+	thought.  (If we've already issued a suspend signal and eventually
+	raise the suspended thread's resume semaphore, it'll suspend and
+	resume once the mach exception thread makes it runnable.  Who
+	cleans up its exception context in that case ?	Does it matter ?)
+
+2006-12-14 15:19  gb
+
+	* lisp-kernel/thread_manager.c: Ensure that newly-created threads
+	have all signals unmasked.
+	
+	If a tcr is dead, ensure that its stack areas are empty.
+	
+	Try to run shutdown_thread_tcr as a pthread cleanup action,
+	hopefully before Mach clobbers the thread's signal mask.
+
+2006-12-14 15:16  gb
+
+	* lisp-kernel/pmcl-kernel.c: lazarus() runs with a lock on the
+	TCR_AREA_LOCK.
+
+2006-12-14 15:15  gb
+
+	* lisp-kernel/memprotect.h: Don't declare do_memo_reset(), which
+	hasn't existed in years.
+
+2006-12-14 15:14  gb
+
+	* level-1/version.lisp: Bump.
+
+2006-12-14 15:14  gb
+
+	* level-1/l1-readloop.lisp: PREPARE-TO-QUIT: wait for the
+	termination semaphore.
+
+2006-12-14 15:13  gb
+
+	* level-1/l1-processes.lisp: PROCESS objects are created with a
+	termination semaphore.
+
+2006-12-14 15:12  gb
+
+	* level-1/l1-lisp-threads.lisp: THREAD-ENABLE: second arg is
+	TERMINATION-SEMAPHORE.
+	
+	KILL-LISP-THREAD: don't use #_pthread_cancel, which may force the
+	target thread to transition from running lisp code to running
+	foreign code without advertising that fact. Send a SIGQUIT instead,
+	and trust the SIGQUIT handler to manage that transition.  Don't try
+	to kill the initial thread.
+
+2006-12-09 09:52  gb
+
+	* level-1/l1-streams.lisp: STRING-OUTPUT-STREAMs need to override
+	their CLEAR-OUTPUT methods.
+	
+	MAKE-STRING-INPUT-STREAM: handle displaced strings better (remember
+	their displaced-index-offsets.)
+
+2006-12-09 09:49  gb
+
+	* lisp-kernel/thread_manager.c: Disable underflow traps in new
+	threads on x86-64.  (The PPC never got around to enabling them.)
+
+2006-12-09 09:47  gb
+
+	* lib/macros.lisp: WITH-OUTPUT-TO-STRING: if string provided,
+	evaluate the ELEMENT-TYPE expression (for side-effects) and ignore
+	the result of its evaluation.
+	
+	Some fixes in CTYPECASE handling, which hopefully didn't break
+	anything else.
+
+2006-12-09 09:36  gb
+
+	* compiler/X86/x862.lisp: In aset2/aset3, ensure that the (final,
+	1d) index register is set - even if the index is a constant - if we
+	think that the store needs EGC memoization.
+	
+	(Note that the test case that exposed this involved storing
+	SINGLE-FLOATs, which don't need EGC write-barrier handling on
+	64-bit platforms.)
+	
+	In aref2, don't worry about reserving unscaled index registers when
+	targeting the 1d index; the unscaled index registers aren't live
+	after, could be NULL if the index is a constant, and any overlap
+	between one of them and the 1d index should be handled in the
+	vinsn(s).
+
+2006-12-09 09:30  gb
+
+	* level-1/l1-typesys.lisp: Ensure that the (relatively new)
+	built-in-classes SIMPLE-FIXNUM-VECTOR and FIXNUM-VECTOR have
+	class-translations.
+
+2006-12-09 09:27  gb
+
+	* level-1/l1-aprims.lisp: In list case of ELT: who says that value
+	returned by NTHCDR is a LIST ? (It's not necessarily a list, so
+	don't segfault taking its CAR without checking.)
+
+2006-12-06 18:48  gb
+
+	* level-0/X86/x86-float.lisp: x86-64 version of
+	SFLOAT-SIGNIFICAND-ZEROS: count zero bits in the shifted float, not
+	in %imm1 (which is undefined here ...)
+
+2006-12-06 17:05  gb
+
+	* compiler/nx0.lisp: DEFINE-COMPILER-MACRO: if a SETF name, use the
+	right symbol for the named block.
+	
+	COMPILER-MACRO-FUNCTION, (SETF COMPILER-MACRO-FUNCTION): deal with
+	(SETF NAME).
+
+2006-12-05 22:44  gb
+
+	* release-notes.txt: Update for 061205.
+
+2006-12-05 20:31  gb
+
+	* lisp-kernel/darwinppc64/Makefile: Change LDFLAGS, to keep ld64
+	from putting a linkedit segment in the wrong place and making
+	32-bit memory unmappable.
+
+2006-12-05 20:30  gb
+
+	* level-1/version.lisp: Bump.
+
+2006-12-05 20:29  gb
+
+	* lisp-kernel/pmcl-kernel.c: Use _exit(), just in case.
+
+2006-12-05 18:53  gb
+
+	* level-1/l1-reader.lisp: *ALTERNATE-LINE-TERMINATOR* set to
+	#\Return on #+darwin-target, not just #+darwinppc-target. Change
+	doc string for *ALTERNATE-LINE-TERMINATOR*.
+
+2006-12-04 15:13  gb
+
+	* level-1/version.lisp: Append a patchlevel to the version string,
+	at least until new tarballs can be built.
+
+2006-12-04 15:12  gb
+
+	* level-1/l1-streams.lisp: If stream element type upgrades to
+	FIXNUM, upgrade it further (to largest supported SIGNED-BYTE
+	element-type.)
+
+2006-12-04 13:02  gb
+
+	* level-0/l0-bignum32.lisp: BIGNUM-BIGNUM-GCD (whatever it's
+	called): don't bother to shift by 0 bits.  Do shift the initial U
+	if non-zero trailing 0 BITS (was testing for non-zero trailing
+	DIGITS.)
+
+2006-12-04 12:52  gb
+
+	* level-1/l1-streams.lisp: Choke earlier on unsupported stream
+	element-types; do some upgrading to support some more element types
+	(BIT -> (UNSIGNED-BYTE 8)).
+	
+	Maybe support arbitrarily large integer types someday soon.  Maybe
+	not.
+
+2006-12-04 12:48  gb
+
+	* level-1/l1-clos-boot.lisp: Make built-in classes for istruct
+	types (compiler stuff, mostly).
+
+2006-12-04 12:46  gb
+
+	* level-0/X86/X8664/x8664-bignum.lisp: Ensure that %ASHL handles
+	shift count of 32 (and returns 0 in that case.)
+
+2006-12-04 12:46  gb
+
+	* level-0/l0-bignum64.lisp: In BIGNUM-SHIFT-RIGHT-LOOP-1, use
+	%ASHL, not %ILSL.  (Don't want nonsense in the high 32 bits, just
+	in case.)
+
+2006-12-04 12:43  gb
+
+	* level-0/l0-numbers.lisp: Bugs in GCD-2.  Long-standing bugs in
+	GCD-2 ...
+
+2006-12-04 09:26  gb
+
+	* level-1/l1-streams.lisp: STREAM-CLEAR-INPUT: don't inherit method
+	for STRING-INPUT-STREAMs.
+
+2006-12-04 09:24  gb
+
+	* level-0/l0-bignum64.lisp: BIGNUM-SHIFT-RIGHT-1: handle shift by 0
+	bits.  BIGNUM-BIGNUM-GCD (whatever it's called): don't bother to
+	shift by 0 bits.
+
+2006-12-04 09:21  gb
+
+	* level-1/ppc-trap-support.lisp: Reset error-reentry count before
+	doing %SLOT-UNBOUND-TRAP.
+
+2006-12-04 09:21  gb
+
+	* level-1/l1-streams.lisp: Default STREAM-POSITION method for
+	STREAMs, returns NIL.  STREAM-POSITION method for
+	STRING-INPUT-STREAMs.
+
+2006-12-04 09:19  gb
+
+	* level-1/l1-pathnames.lisp: Derive ccl-directory from pathname
+	containing heap image.
+
+2006-12-03 07:41  gb
+
+	* level-1/l1-streams.lisp: FORCE-OUTPUT, FINISH-OUTPUT on
+	STRING-OUTPUT-STREAMs are no-ops.
+	
+	Need an ioblock-based character-read-vector function for
+	string-input-streams.
+
+2006-12-03 07:37  gb
+
+	* lib/describe.lisp: Minimal DESCRIBE support for
+	CCL::BASIC-STREAM.
+
+2006-12-03 07:36  gb
+
+	* lib/macros.lisp: If :element-type is supplied in
+	WITH-OUTPUT-TO-STRING, don't quote it.
+
+2006-12-03 05:11  gb
+
+	* level-1/x86-trap-support.lisp: Define RIP-REGISTER-OFFSET, which
+	isn't necessarily 16.
+
+2006-12-03 05:10  gb
+
+	* level-1/x86-error-signal.lisp: Use RIP-REGISTER-OFFSET, which
+	isn't necessarily 16.
+	
+	Use WITH-ERROR-REENTRY-DETECTION n %xerr-disp; dtrt for
+	%slot-unbound-trap.
+
+2006-12-03 05:09  gb
+
+	* level-1/l1-streams.lisp: Tweak stream hierarchy a little, to
+	avoid some NO-NEXT-METHODs.
+
+2006-12-03 02:42  gb
+
+	* compiler/nx1.lisp: Handle VALUES type specifiers in THE forms a
+	bit better.
+
+2006-12-03 02:41  gb
+
+	* compiler/nx0.lisp: Handle VALUES type specifiers in THE forms a
+	bit.
+
+2006-12-03 02:28  gb
+
+	* lisp-kernel/x86-spentry64.s: Do vector bounds checking by
+	clearing the low byte of the header, shifting it right, and
+	comparing the index to that.  (It's not reliable to shift the index
+	left.)
+
+2006-12-03 02:26  gb
+
+	* level-1/l1-unicode.lisp: Memory/vector encode functions: don't
+	write BOM, leave that up to higher-level code.
+	
+	Start to write some higher-level code.
+
+2006-12-03 02:23  gb
+
+	* level-1/l1-sysio.lisp: Fix some indentation.
+
+2006-12-03 02:21  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: CHECK-MISC-BOUNDS: shift
+	the header word right (after clearing its low byte) and compare the
+	index to that.	(Shifting the index left - d'oh - obviously fails
+	for indices of large magnitude.)
+
+2006-11-29 21:07  gb
+
+	* lib/db-io.lisp: Indentation change.
+	
+	Add CDB-ENUMERATE-KEYS.
+
+2006-11-29 18:37  gb
+
+	* lib/level-2.lisp: %DESTRUCTURE-LAMBDA-LIST: other callers of
+	VERIFY-LAMBDA-LIST (hopefully) check to see if the alleged list is
+	LISTP first.  (I hope ...).  Do so.
+
+2006-11-28 18:42  gb
+
+	* lisp-kernel/x86-spentry64.s: Wrong register typo in .SPaset2.
+
+2006-11-28 16:14  gb
+
+	* examples/cocoa-window.lisp: DEFAULT-FONT: retain the font.
+
+2006-11-28 16:12  gb
+
+	* examples/objc-runtime.lisp: Wrap a (primitive)
+	WITH-AUTORELEASE-POOL around the code which detaches the dummy
+	NSThread.
+
+2006-11-28 16:09  gb
+
+	* examples/cocoa-listener.lisp: Don't claim that a callback
+	parameter is ignored; use IGNORABLE instead.
+
 2006-11-21 01:28  gb
 
 	* level-1/l1-sockets.lisp: Typo in PATH-FROM-UNIX-ADDRESS
