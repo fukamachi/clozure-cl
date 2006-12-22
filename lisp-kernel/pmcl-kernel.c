@@ -1185,9 +1185,9 @@ terminate_lisp()
 
 #ifdef DARWIN
 #ifdef PPC64
-#define min_os_version "8.0"
+#define min_os_version "8.0"    /* aka Tiger */
 #else
-#define min_os_version "6.0"
+#define min_os_version "7.0"    /* aka Panther */
 #endif
 #endif
 #ifdef LINUX
@@ -1594,6 +1594,7 @@ xGetSharedLibrary(char *path, int mode)
 void *
 xGetSharedLibrary(char *path, int *resultType)
 {
+#if WORD_SIZE == 32
   NSObjectFileImageReturnCode code;
   NSObjectFileImage	         moduleImage;
   NSModule		         module;
@@ -1679,6 +1680,20 @@ xGetSharedLibrary(char *path, int *resultType)
       }
     }
   return result;
+#else
+  const char *                   error;
+  void *                         result;
+
+  result = dlopen(path, RTLD_NOW | RTLD_GLOBAL);
+  
+  if (result == NULL) {
+    error = dlerror();
+    *resultType = 0;
+    return error;
+  }
+  *resultType = 1;
+  return result;
+#endif
 }
 #endif
 
