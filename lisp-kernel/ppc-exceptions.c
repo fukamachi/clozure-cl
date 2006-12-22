@@ -1176,15 +1176,15 @@ handle_unimplemented_instruction(ExceptionInformation *xp,
   if (((major_opcode_p(instruction,major_opcode_FPU_DOUBLE)) || 
        (major_opcode_p(instruction,major_opcode_FPU_SINGLE))) &&
       ((instruction & ((1 << 6) -2)) == (22<<1))) {
-      double b, d;
+    double b, d, sqrt(double);
 
-      b = xpFPR(xp,RB_field(instruction));
-      d = sqrt(b);
-      xpFPSCR(xp) = ((xpFPSCR(xp) & ~_FPU_RESERVED) |
-                     (get_fpscr() & _FPU_RESERVED));
-      xpFPR(xp,RT_field(instruction)) = d;
-      adjust_exception_pc(xp,4);
-      return 0;
+    b = xpFPR(xp,RB_field(instruction));
+    d = sqrt(b);
+    xpFPSCR(xp) = ((xpFPSCR(xp) & ~_FPU_RESERVED) |
+                   (get_fpscr() & _FPU_RESERVED));
+    xpFPR(xp,RT_field(instruction)) = d;
+    adjust_exception_pc(xp,4);
+    return 0;
   }
 
   return -1;
