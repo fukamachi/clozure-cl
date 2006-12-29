@@ -177,7 +177,7 @@ typedef struct area_list {
 
 #define STATIC_RESERVE heap_segment_size
 
-#ifdef PPC64
+#ifdef PPC
 #define STATIC_BASE_ADDRESS 0x00002000
 #else
 #define STATIC_BASE_ADDRESS 0x00001000

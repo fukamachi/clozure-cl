@@ -111,7 +111,7 @@
    :nil-relative-symbols ppc::*ppc-nil-relative-symbols*
    :static-space-init-function 'ppc32-initialize-static-space
    :purespace-reserve (ash 64 20)
-   :static-space-address (ash 1 12)
+   :static-space-address (ash 2 12)
 ))
 
 (add-xload-backend *ppc32-xload-backend*)

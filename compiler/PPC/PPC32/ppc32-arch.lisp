@@ -133,7 +133,7 @@
 
 
 
-(defconstant nil-value #x00002015)
+(defconstant nil-value #x00003015)
 ;;; T is almost adjacent to NIL: since NIL is a misaligned CONS, it spans
 ;;; two doublewords.  The arithmetic difference between T and NIL is
 ;;; such that the least-significant bit and exactly one other bit is
@@ -605,7 +605,7 @@
     (if pos (+ t-offset (* pos symbol.size)))))
 
 
-(defconstant reservation-discharge #x1004)
+(defconstant reservation-discharge #x2004)
 
 
 
