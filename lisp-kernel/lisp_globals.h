@@ -73,8 +73,8 @@ extern LispObj lisp_nil;
 
 #ifdef PPC
 #ifdef PPC64
-#define lisp_global(g) (((LispObj *) 0x2000)[(g)])
-#define nrs_symbol(s) (((lispsymbol *) 0x2000)[(s)])
+#define lisp_global(g) (((LispObj *) 0x3000)[(g)])
+#define nrs_symbol(s) (((lispsymbol *) 0x3000)[(s)])
 #else
 #define lisp_global(g) (((LispObj *) (nil_value-fulltag_nil))[(g)])
 #define nrs_symbol(s) (((lispsymbol *) (nil_value+(8-fulltag_nil)+8))[(s)])
