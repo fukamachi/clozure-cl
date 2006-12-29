@@ -1,3 +1,7 @@
+2006-12-29 02:38  gb
+
+	* level-0/PPC/ppc-float.lisp: SQRT in LAP (todo: inline it.)
+
 2006-12-29 01:38  gb
 
 	* compiler/PPC/PPC64/ppc64-arch.lisp: Move ppc64::nil-value (and
