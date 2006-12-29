@@ -1,3 +1,49 @@
+2006-12-29 01:38  gb
+
+	* compiler/PPC/PPC64/ppc64-arch.lisp: Move ppc64::nil-value (and
+	ppc64::reservation-discharge) up a page.
+
+2006-12-29 01:37  gb
+
+	* xdump/xppcfasload.lisp: xload-static-space-address for ppc64 is
+	#x2000; still #x1000 for ppc32.  (need to set this for x86-64)
+
+2006-12-29 01:36  gb
+
+	* xdump/xfasload.lisp: *xload-static-space-address* depends on the
+	backend.  ppc64 wants it one page higher than it has been, to avoid
+	letting unmapped pages get claimed by the dynamic linker on Darwin.
+
+2006-12-29 01:35  gb
+
+	* lisp-kernel/darwinppc64/Makefile: Change seg1addr/sectalign, so
+	that the image starts at #x1000 and aligned section data for the
+	text section starts on the next page.
+
+2006-12-29 01:33  gb
+
+	* lisp-kernel/ppc-spjump.s: Org the spjump table 3 pages from where
+	the aligned text section data starts.
+
+2006-12-29 01:32  gb
+
+	* lisp-kernel/: ppc-constants64.h, ppc-constants64.s: nil_value,
+	etc a page higher.
+
+2006-12-29 01:32  gb
+
+	* lisp-kernel/pmcl-kernel.c: Don't remap ppc64 spjump table if it's
+	already where it should be.
+
+2006-12-29 01:32  gb
+
+	* lisp-kernel/lisp_globals.h: Access lisp_globals/nrs_symbols a
+	page higher.
+
+2006-12-29 01:30  gb
+
+	* lisp-kernel/area.h: Move STATIC_BASE_ADDRESS up a page for ppc64.
+
 2006-12-22 01:40  gb
 
 	* lisp-kernel/ppc-exceptions.c: Ensure that sqrt() is prototyped.
