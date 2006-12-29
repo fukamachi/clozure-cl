@@ -642,7 +642,26 @@
   (bgelr)
   (li arg_z t)
   (blr))
-  
+
+#+32-bit-target
+(defppclapfunction %single-float-sqrt! ((src arg_y) (dest arg_z))
+  (get-single-float fp1 src)
+  (fsqrts fp2 fp1)
+  (put-single-float fp2 dest)
+  (blr))
+
+#+64-bit-target
+(defppclapfunction %single-float-sqrt ((arg arg_z))
+  (get-single-float fp1 arg)
+  (fsqrts fp2 fp1)
+  (put-single-float fp2 arg_z)
+  (blr))
+
+(defppclapfunction %double-float-sqrt! ((src arg_y) (dest arg_z))
+  (get-double-float fp1 src)
+  (fsqrt fp2 fp1)
+  (put-double-float fp2 dest)
+  (blr))
 
 #+poweropen-target
 (defppclapfunction %get-fp-arg-regs ((ptr arg_z))
