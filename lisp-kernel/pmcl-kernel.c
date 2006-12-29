@@ -1218,12 +1218,7 @@ void
 remap_spjump()
 {
   extern opcode spjump_start, spjump_end;
-  pc new = mmap((pc) 0x5000,
-                0x1000,
-                PROT_READ | PROT_WRITE | PROT_EXEC,
-                MAP_PRIVATE | MAP_ANON | MAP_FIXED,
-                -1,
-                0),
+  pc new,
     old = &spjump_start,
     limit = &spjump_end,
     work;
@@ -1231,19 +1226,27 @@ remap_spjump()
   void *target;
   int disp;
   
-  if (new != (pc) 0x5000) {
-    _exit(1);
+  if (old != (pc)0x5000) {
+    new = mmap((pc) 0x5000,
+               0x1000,
+               PROT_READ | PROT_WRITE | PROT_EXEC,
+               MAP_PRIVATE | MAP_ANON | MAP_FIXED,
+               -1,
+               0);
+    if (new != (pc) 0x5000) {
+      _exit(1);
+    }
+    
+    for (work = new; old < limit; work++, old++) {
+      instr = *old;
+      disp = instr & ((1<<26)-1);
+      target = (void*)old+disp;
+      disp = target-(void *)work;
+      *work = ((instr >> 26) << 26) | disp;
+    }
+    xMakeDataExecutable(new, (void*)work-(void*)new);
+    mprotect(new, 0x1000, PROT_READ | PROT_EXEC);
   }
-  
-  for (work = new; old < limit; work++, old++) {
-    instr = *old;
-    disp = instr & ((1<<26)-1);
-    target = (void*)old+disp;
-    disp = target-(void *)work;
-    *work = ((instr >> 26) << 26) | disp;
-  }
-  xMakeDataExecutable(new, (void*)work-(void*)new);
-  mprotect(new, 0x1000, PROT_READ | PROT_EXEC);
 }
 #endif
 #endif
@@ -1689,7 +1692,7 @@ xGetSharedLibrary(char *path, int *resultType)
   if (result == NULL) {
     error = dlerror();
     *resultType = 0;
-    return error;
+    return (void *)error;
   }
   *resultType = 1;
   return result;
