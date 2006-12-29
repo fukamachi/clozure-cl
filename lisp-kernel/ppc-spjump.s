@@ -22,7 +22,7 @@ _exportfn(j_SP$1)
           __(b _SP$1)
 _endfn
 ])
-
+        .org 0x3000
         /*	.align 12 */
         __ifdef([DARWIN])
          __ifdef([PPC64])
