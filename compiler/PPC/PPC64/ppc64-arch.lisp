@@ -674,10 +674,10 @@
   (let* ((pos (position name ppc::*ppc-nilreg-relative-symbols* :test #'eq)))
     (if pos (* (1- pos) symbol.size))))
 
-(defconstant nil-value (+ #x2000 symbol.size fulltag-misc))
+(defconstant nil-value (+ #x3000 symbol.size fulltag-misc))
 
 
-(defconstant reservation-discharge #x1008)
+(defconstant reservation-discharge #x2008)
 
 (defparameter *ppc64-target-uvector-subtags*
   `((:bignum . ,subtag-bignum)
