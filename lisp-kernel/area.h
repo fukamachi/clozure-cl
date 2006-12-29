@@ -176,7 +176,12 @@ typedef struct area_list {
 #endif
 
 #define STATIC_RESERVE heap_segment_size
+
+#ifdef PPC64
+#define STATIC_BASE_ADDRESS 0x00002000
+#else
 #define STATIC_BASE_ADDRESS 0x00001000
+#endif
 
 extern LispObj image_base;
 extern BytePtr pure_space_start, pure_space_active, pure_space_limit;
