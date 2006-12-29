@@ -49,14 +49,14 @@ LD = ld64
 
 ### The -seg1addr and -pagezero_size arguments below are nonsense;
 ### early versions of ld64 were/are broken.
-LDFLAGS = -M -arch ppc64 -dynamic  -o $@ -e start -pagezero_size 0x1000 -seg1addr 0x6000
+LDFLAGS = -M -arch ppc64 -dynamic  -o $@ -e start -pagezero_size 0x1000 -seg1addr 0x1000 -sectalign __TEXT __text 0x1000
 AS = as
 M4 = gm4
 M4FLAGS = -DDARWIN -DPPC -DPPC64
 ASFLAGS = -arch ppc64
 CDEFINES = -DDARWIN -DPPC -DPPC64 $(BROKEN_PREPROCESSOR_WORKAROUND)
 CDEBUG = -g
-COPT = -O2
+COPT = #-O2
 
 .s.o:
 	$(M4) $(M4FLAGS) -I../ $< | $(AS) $(ASFLAGS) -o $@
