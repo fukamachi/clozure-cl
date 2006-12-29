@@ -141,8 +141,7 @@ define_subtag(xfunction,fulltag_nodeheader_2,5)
 define_subtag(ratio,fulltag_nodeheader_3,0)
 define_subtag(complex,fulltag_nodeheader_3,1)
 			
-nil_value = (0x2000+fulltag_misc+symbol.size)
-t_value = (0x2000+fulltag_misc)	
+t_value = (0x3000+fulltag_misc)	
 misc_bias = fulltag_misc
 cons_bias = fulltag_cons
 define([t_offset],-symbol.size)
@@ -334,7 +333,7 @@ max_1_bit_constant_index = ((0x7fff + misc_data_offset)<<5)
 symbol_extra = symbol.size-fulltag_misc
 
 	
-	_struct(nrs,0x2000)
+	_struct(nrs,0x3000)
 	 _struct_pad(fulltag_misc)
 	 _struct_label(tsym)
 	 _struct_pad(symbol_extra)	/* t */
@@ -578,11 +577,12 @@ TCR_BIAS = 0
 TCR_FLAG_BIT_FOREIGN = fixnum_shift
 TCR_FLAG_BIT_AWAITING_PRESET = (fixnum_shift+1)	
 
-nil_value = 0x2000+symbol.size+fulltag_misc
-	
-define([RESERVATION_DISCHARGE],0x1008)
 
-lisp_globals_limit = 0x2000
+nil_value = 0x3000+symbol.size+fulltag_misc        
+        	
+define([RESERVATION_DISCHARGE],0x2008)
+
+lisp_globals_limit = 0x3000
         
 INTERRUPT_LEVEL_BINDING_INDEX = fixnumone
         
