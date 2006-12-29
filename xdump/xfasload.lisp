@@ -94,6 +94,7 @@
   nil-relative-symbols
   static-space-init-function
   purespace-reserve
+  static-space-address
 )
 
 (defun setup-xload-target-parameters ()
@@ -109,6 +110,9 @@
           (+ *xload-image-base-address*
              *xload-purespace-reserve*))
     (setq *xload-managed-static-space-address* *xload-dynamic-space-address*)
+    (setq *xload-static-space-address*
+          (backend-xload-info-static-space-address
+           *xload-target-backend*))
     (setq *xload-target-nil*
           (arch::target-nil-value arch))
     (setq *xload-target-unbound-marker*
@@ -1746,7 +1750,8 @@
             (*xload-target-fulltag-for-symbols* *xload-target-fulltag-for-symbols*)
             (*xload-target-fulltag-for-functions* *xload-target-fulltag-for-functions*)
             (*xload-target-char-code-limit* *xload-target-char-code-limit*)
-            (*xload-purespace-reserve* *xload-purespace-reserve*))
+            (*xload-purespace-reserve* *xload-purespace-reserve*)
+            (*xload-static-space-address* *xload-static-space-address*))
        (setup-xload-target-parameters)
        (let* ((*load-verbose* t)
               (compiler-backend (find-backend
