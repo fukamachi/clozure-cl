@@ -1,3 +1,10 @@
+2006-12-29 20:13  gb
+
+	* compiler/X86/X8664/x8664-arch.lisp, lisp-kernel/area.h,
+	lisp-kernel/lisp_globals.h, lisp-kernel/x86-constants64.h,
+	lisp-kernel/x86-constants64.s, xdump/xx8664-fasload.lisp: Move NIL
+	up a page on x86-64 as well.
+
 2006-12-29 16:09  gb
 
 	* lisp-kernel/ppc-spjump.s: Be a little clearer about where we're
