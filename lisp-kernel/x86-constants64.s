@@ -310,8 +310,8 @@ define_subtag(lock,fulltag_nodeheader_1,7)
 define_subtag(instance,fulltag_nodeheader_1,8)
 	
 			
-nil_value = (0x2000+fulltag_nil)
-t_value = (0x2020+fulltag_symbol)
+nil_value = (0x3000+fulltag_nil)
+t_value = (0x3020+fulltag_symbol)
 misc_bias = fulltag_misc
 cons_bias = fulltag_cons
 define([t_offset],(t_value-nil_value))
@@ -507,7 +507,7 @@ define_subtag(function_boundary_marker,fulltag_imm_1,15)
 symbol_extra = symbol.size-fulltag_symbol
 
 	
-	_struct(nrs,0x2020)
+	_struct(nrs,0x3020)
 	 _struct_pad(fulltag_symbol)
 	 _struct_label(tsym)
 	 _struct_pad(symbol_extra)	/* t    */
@@ -752,7 +752,7 @@ target_most_positive_fixnum = 1152921504606846975
 target_most_negative_fixnum = -1152921504606846976
 
 
-lisp_globals_limit = 0x2000
+lisp_globals_limit = 0x3000
         
 INTERRUPT_LEVEL_BINDING_INDEX = fixnumone
 

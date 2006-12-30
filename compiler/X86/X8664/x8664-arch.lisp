@@ -405,8 +405,8 @@
 (define-subtag instance fulltag-nodeheader-1 8)
 
 	
-(defconstant nil-value (+ #x2000 fulltag-nil))
-(defconstant t-value (+ #x2020 fulltag-symbol))
+(defconstant nil-value (+ #x3000 fulltag-nil))
+(defconstant t-value (+ #x3020 fulltag-symbol))
 (defconstant misc-bias fulltag-misc)
 (defconstant cons-bias fulltag-cons)
 (defconstant t-offset (- t-value nil-value))
