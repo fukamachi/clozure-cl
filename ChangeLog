@@ -1,3 +1,21 @@
+2006-12-31 09:13  gb
+
+	* lisp-kernel/image.h, xdump/heap-image.lisp: Bump image/abi
+	version.
+
+2006-12-31 08:57  gb
+
+	* xdump/faslenv.lisp: Bump fasl-min-vers.
+
+2006-12-31 08:49  gb
+
+	* lib/nfcomp.lisp: Bump current fasl version.
+
+2006-12-31 08:33  gb
+
+	* lisp-kernel/: linuxppc/elf32ppclinux.x, linuxppc64/elf64ppc.x:
+	Tweak the executable start address.
+
 2006-12-31 02:44  gb
 
 	* lisp-kernel/x86-spjump64.s: On Darwin, use a .space directive to
