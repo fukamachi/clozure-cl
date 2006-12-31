@@ -1,3 +1,7 @@
+2006-12-31 10:15  gb
+
+	* release-notes.txt: Update.
+
 2006-12-31 09:13  gb
 
 	* lisp-kernel/image.h, xdump/heap-image.lisp: Bump image/abi
