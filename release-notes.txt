@@ -1,3 +1,38 @@
+OpenMCL 1.1-pre-061231
+- The FASL version changed (old FASL files won't work with this
+  lisp version), as did the version information which tries to
+  keep the kernel in sync with heap images.
+  The binary incompatibility has to do with how a few pages of
+  low memory in the lisp kernel's address space are mapped and
+  used.  OpenMCL was generally assuming that these pages were
+  otherwise unused and could be used to map a small static data
+  area from the heap image file; on some platforms, the dynamic
+  linker may have already allocated data in those unused pages
+  before the lisp kernel even starts to run.  Fixing this involved
+  changing the address of that small static data area slightly,
+  and this caused the addresses of some objects contained within
+  that static data area - notably NIL - to change, as well.
+- This snapshot is otherwise just a set of bug fixes/work-in-progress
+  changes.
+- Even though no supported filesystem actually supports versioned files,
+  OpenMCL now tries to retain PATHNAME-VERSION informaton for physical
+  pathnames.  (The fact that it didn't caused several ANSI test failures.)
+  This change introduced/exposed a few other bugs; I think that I've
+  caught at least the most obvious ones, but it's possible that some
+  new pathname-related bugs have been introduced.
+- The cron job that runs on clozure.com and updates the ChangeLog from
+  CVS commit info stopped running as of a system upgrade in late November.
+  The problem was fixed a couple of weeks ago, so it's once again meaningful
+  to refer to the ChangeLog for details of bug fixes.
+- FSQRT and FSQRTS instructions are "optional" on the PPC.  In practice,
+  that often meant that they are implemented on chips made by IBM and
+  not on chips made by Motorola/FreeScale.  This version of OpenMCL
+  assumes that they're implemented and emulates them if they aren't.
+- OSX 10.2 (Jaguar) and earlier versions are officially no longer
+  supported.  (I honestly don't know if things have actually worked
+  on Jaguar in a while, but some recent changes are known not to
+  work on Jaguar and the kernel now inists on at least Panther on
+  startup.
 OpenMCL 1.1-pre-061205
 - This release is intended to package up the bug fixes since
   the 061110 tarballs.  There aren't too many changes in 
