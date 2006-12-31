@@ -14,44 +14,21 @@
 #   http://opensource.franz.com/preamble.html
 
 
-# For versions of GCC prior to 3.3, the option "-traditional-cpp" meant
-# "don't use precompiled headers", which was good advice since they didn't
-# work too well.  Beginning with GCC 3.3, the "-traditional-cpp" means 
-# "use a broken preprocessor", which is (in a sense) the opposite of what
-# it used to mean.
 
-# Try to determine the version of GCC in use.  Invoke gcc with the
-# -v flag, and look for a line containing the phrase "specs from" in
-# the output.  Use sed to extract the full pathname of ths specs file
-# printed in that line, then strip off the trailing "/specs".
-gccdir = $(shell $(CC) -v 2>&1 | grep "specs from" | sed -e 's/.*from //' -e 's|/specs||')
-# $(gccdir) is set to the directory containing the specs file, without the
-# trailing slash.  The make intrinsic 'notdir' will strip a leading directory
-# prefix from that pathname, leaving us with a string that should match
-# the gcc version number
-#gccversion:=$(notdir $(gccdir))
-#oldgcc:=$(shell expr $(gccversion) "<" "3.3")
-#ifeq ($(oldgcc),1)
-#BROKEN_PREPROCESSOR_WORKAROUND = -traditional-cpp
-#endif
 
 MDYNAMIC_NO_PIC = $(shell ($(CC) --help -v 2>&1 | grep -q -e "-mdynamic-no-pic") && /bin/echo "-mdynamic-no-pic")
 
-OPENMCL_MAJOR_VERSION=0
-OPENMCL_MINOR_VERSION=14
 
 VPATH = ..
 RM = /bin/rm
 LD = ld64
 
-### the  -pagezero_size and -seg1addr arguments below are critical; if
-### we accept the default pagezero size, we don't seem to be able to
-### mmap in the low 32 bits of the address space (at least the very
-### low end of that) and we may need to ensure that some addresses
-### are in that range.  (OK, so these exact values may be less than
-### critical ...)
 
-LDFLAGS = -arch x86_64 -dynamic  -o $@  -pagezero_size 0x1000 -seg1addr 0x8000
+### Current ld64 bugs include the claim that 0x1000 isn't a power of 2.
+### Gosh.  I always thought that it was.  Go know, right ?
+LDFLAGS = -arch x86_64 -dynamic  -o $@ -e start -pagezero_size 0x1000 -seg1addr 0x00001000
+
+
 AS = as
 M4 = gm4
 ###
