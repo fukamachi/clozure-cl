@@ -8,8 +8,8 @@ SEARCH_DIR(/lib); SEARCH_DIR(/usr/lib); SEARCH_DIR(/usr/local/lib); SEARCH_DIR(/
 VERSION {default { global : __trampoline_setup ;  } ;}
 SECTIONS
 {
-  PROVIDE (__executable_start = 0x00004000);
-  . = 0x00004000;
+  PROVIDE (__executable_start = 0x00001000);
+  . = 0x00001000;
   .pad : { pad.o(.text) }
   .subprims ALIGN(0x1000)    :  
   {
