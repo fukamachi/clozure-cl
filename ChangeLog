@@ -1,3 +1,38 @@
+2006-12-31 02:44  gb
+
+	* lisp-kernel/x86-spjump64.s: On Darwin, use a .space directive to
+	ensure that there's nothing interesting in the first few pages of
+	the address space (and ensure that those pages are mapped.)
+
+2006-12-31 02:43  gb
+
+	* lisp-kernel/darwinx8664/Makefile: Sadly, we can't use -sectalign
+	on x86-64 (ld64 does some floating-point arithmetic, fails to
+	account for roundoff error, and claims that 0x1000 isn't a power of
+	2.) If you can't say anything good about a linker, it's best not to
+	say anything at all.
+	
+	We can force the first segment to be mapped at 0x1000, and can
+	waste a few pages to ensure that all low-memory pages that the lisp
+	wants are mapped.
+
+2006-12-31 02:33  gb
+
+	* level-1/l1-pathnames.lisp: %SPLIT-COMPONENT: be a little more
+	defensive.
+
+2006-12-31 02:32  gb
+
+	* compiler/nx0.lisp: NX-FORM-TYPE: handle quoted constants.
+
+2006-12-31 02:29  gb
+
+	* xdump/faslenv.lisp: Bump $fasl-vers.
+
+2006-12-31 02:28  gb
+
+	* level-1/version.lisp: Bump; remove "Beta" designation.
+
 2006-12-29 20:13  gb
 
 	* compiler/X86/X8664/x8664-arch.lisp, lisp-kernel/area.h,
