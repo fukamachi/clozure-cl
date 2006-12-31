@@ -295,7 +295,7 @@
 
 (defun %split-component (thing &aux pos)
   ;"ab*cd*"  ->  "ab" "cd*"  
-  (if (or (null thing)(eq thing :unspecific)(null (setq pos (%path-mem "*" thing))))
+  (if (or (not (typep thing 'string))(null (setq pos (%path-mem "*" thing))))
     (values thing nil nil)
     (let* ((len (length thing)))
       (declare (fixnum len))
