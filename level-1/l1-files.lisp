@@ -370,40 +370,41 @@
    to the defaults."
   (if (null defaults)
     (namestring path)
-      (let* ((dir (pathname-directory path))
-             (nam (pathname-name path))
-             (typ (pathname-type path))
-	     (ver (pathname-version path))
-             (host (pathname-host path))
-	     (logical-p (neq host :unspecific))
-             (default-dir (pathname-directory defaults)))
-	;; enough-host-namestring
-        (setq host (if (and host
-			    (neq host :unspecific)
-			    (not (equalp host (pathname-host defaults))))
-                     (%str-cat host ":")
-                     ""))
-	;; enough-directory-namestring
-        (cond ((equalp dir default-dir)
-               (setq dir '(:relative)))
-              ((and dir default-dir
-                    (eq (car dir) :absolute) (eq (car default-dir) :absolute))
-               ; maybe make it relative to defaults
-	       (do ((p1 (cdr dir) (cdr p1))
-		    (p2 (cdr default-dir) (cdr p2)))
-		   ((or (null p2) (null p1) (not (equalp (car p1) (car p2))))
-		    (when (and (null p2) (neq p1 (cdr dir)))
-		      (setq dir (cons :relative p1)))))))
-	(setq dir (%directory-list-namestring dir logical-p))
-	;; enough-file-namestring
-	(when (equalp ver (pathname-version defaults))
-	  (setq ver nil))
-	(when (and (null ver) (equalp typ (pathname-type defaults)))
-	  (setq typ nil))
-	(when (and (null typ) (equalp nam (pathname-name defaults)))
-	  (setq nam nil))
-	(setq nam (file-namestring-from-parts nam typ ver))
-	(%str-cat host dir nam))))
+    (let* ((dir (pathname-directory path))
+           (nam (pathname-name path))
+           (typ (pathname-type path))
+           (ver (pathname-version path))
+           (host (pathname-host path))
+           (logical-p (neq host :unspecific))
+           (default-dir (pathname-directory defaults)))
+      ;; enough-host-namestring
+      (setq host (if (and host
+                          (neq host :unspecific)
+                          (not (equalp host (pathname-host defaults))))
+                   (%str-cat host ":")
+                   ""))
+      ;; enough-directory-namestring
+      (cond ((equalp dir default-dir)
+             (setq dir '(:relative)))
+            ((and dir default-dir
+                  (eq (car dir) :absolute) (eq (car default-dir) :absolute))
+                                        ; maybe make it relative to defaults
+             (do ((p1 (cdr dir) (cdr p1))
+                  (p2 (cdr default-dir) (cdr p2)))
+                 ((or (null p2) (null p1) (not (equalp (car p1) (car p2))))
+                  (when (and (null p2) (neq p1 (cdr dir)))
+                    (setq dir (cons :relative p1)))))))
+      (setq dir (%directory-list-namestring dir logical-p))
+      ;; enough-file-namestring
+      (when (or (equalp ver (pathname-version defaults))
+                (not logical-p))
+        (setq ver nil))
+      (when (and (null ver) (equalp typ (pathname-type defaults)))
+        (setq typ nil))
+      (when (and (null typ) (equalp nam (pathname-name defaults)))
+        (setq nam nil))
+      (setq nam (file-namestring-from-parts nam typ ver))
+      (%str-cat host dir nam))))
 
 (defun cons-pathname (dir name type &optional host version)
   (if (neq host :unspecific)
