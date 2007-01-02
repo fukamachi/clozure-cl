@@ -1,3 +1,15 @@
+2007-01-02 09:57  gb
+
+	* lib/macros.lisp: Keep fixing CTYPECASE.
+
+2007-01-02 09:57  gb
+
+	* level-1/l1-streams.lisp: DOH! STREAM-READ-LINE method on
+	BASIC-CHARACTER-INPUT-STREAM returns both values.
+	
+	"Composite" (two-way, concatenated, etc) streams need a close
+	protocol.
+
 2007-01-02 07:00  gb
 
 	* level-0/l0-pred.lisp: EQUAL on physical pathnames ignores the
