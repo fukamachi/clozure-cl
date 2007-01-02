@@ -1,3 +1,8 @@
+2007-01-01 23:41  gb
+
+	* level-1/l1-files.lisp: ENOUGH-NAMESTRING: don't incorporate
+	version into returned namestring for physical pathnames.
+
 2006-12-31 10:15  gb
 
 	* release-notes.txt: Update.
