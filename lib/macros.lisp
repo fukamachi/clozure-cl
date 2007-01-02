@@ -869,7 +869,7 @@ are no Forms, OR returns NIL."
         (setq types `(or ,@(nreverse types)))
         (if (eq construct 'etypecase)
             (push `(t (values (%err-disp #.$XWRONGTYPE ,key-var ',types))) body)
-            (push `(t (setf ,key-var (ensure-value-of-type  ,key-var ',types ',keyform))
+            (push `(t (setf ,keyform (ensure-value-of-type  ,key-var ',types ',keyform))
                       (go ,e-c-p)) body))))
     `(cond ,@(nreverse body))))
 
@@ -891,16 +891,16 @@ are no Forms, OR returns NIL."
        (declare (ignorable ,key-var))
        ,(typecase-aux key-var clauses 'etypecase))))
 
-(defmacro ctypecase (keyform &body clauses)
-  "CTYPECASE Keyform {(Type Form*)}*
+(defmacro ctypecase (keyplace &body clauses)
+  "CTYPECASE Key {(Type Form*)}*
   Evaluates the Forms in the first clause for which TYPEP of Keyform and Type
   is true. If no form is satisfied then a correctable error is signalled."
   (let ((key-var (gensym))
         (tag (gensym)))
     `(prog (,key-var)
-       (setq ,key-var ,keyform)
        ,tag
-       (return ,(typecase-aux key-var clauses tag keyform)))))
+       (setq ,key-var ,keyplace)
+       (return ,(typecase-aux key-var clauses tag keyplace)))))
 
 (defmacro destructuring-bind (lambda-list expression &body body)
   "Bind the variables in LAMBDA-LIST to the contents of ARG-LIST."
