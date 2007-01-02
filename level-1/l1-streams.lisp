@@ -3680,8 +3680,7 @@
 (defmethod stream-read-line ((stream basic-character-input-stream))
   (let* ((ioblock (basic-stream-ioblock stream)))
     (with-ioblock-input-locked (ioblock)
-      (values
-       (funcall (ioblock-read-line-function ioblock) ioblock)))))
+      (funcall (ioblock-read-line-function ioblock) ioblock))))
 
                              
 ;;; Synonym streams.
@@ -3742,9 +3741,21 @@
 (defun make-synonym-stream (symbol)
   (make-instance 'synonym-stream :symbol (require-type symbol 'symbol)))
 
+;;;
+(defclass composite-stream-mixin ()
+    ((open-p :initform t)))
+
+(defmethod close :after ((stream composite-stream-mixin) &key abort)
+  (declare (ignore abort))
+  (with-slots (open-p) stream
+    (setq open-p nil)))
+
+(defmethod open-stream-p ((stream composite-stream-mixin))
+  (slot-value stream 'open-p))
+
 
 ;;; Two-way streams.
-(defclass two-way-stream (fundamental-input-stream fundamental-output-stream)
+(defclass two-way-stream (composite-stream-mixin fundamental-input-stream fundamental-output-stream)
     ((input-stream :initarg :input-stream :accessor two-way-stream-input-stream)
      (output-stream :initarg :output-stream :accessor two-way-stream-output-stream)))
 
@@ -3902,8 +3913,9 @@
 
 ;;;concatenated-streams
 
-(defclass concatenated-stream (fundamental-input-stream)
-    ((stream :initarg :streams :accessor concatenated-stream-streams)))
+(defclass concatenated-stream (composite-stream-mixin fundamental-input-stream)
+    ((streams :initarg :streams :accessor concatenated-stream-streams)))
+
 
 (defun concatenated-stream-current-input-stream (s)
   (car (concatenated-stream-streams s)))
