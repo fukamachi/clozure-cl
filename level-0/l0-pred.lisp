@@ -373,17 +373,20 @@
 		(and (let* ((structname (%svref x 0)))
 		       (and (eq structname (%svref y 0))
 			    (or (eq structname 'pathname)
-				(eq structname 'logical-pathname))))
-		     (locally
-                         (declare (optimize (speed 3) (safety 0)))
-		       (let* ((x-size (uvsize x)))
-			 (declare (fixnum x-size))
-			 (if (= x-size (the fixnum (uvsize y)))
+				(eq structname 'logical-pathname)))
+                       (locally
+                           (declare (optimize (speed 3) (safety 0)))
+                         (let* ((x-size (uvsize x)))
+                           (declare (fixnum x-size))
+                           (when (= x-size (the fixnum (uvsize y)))
+                             ;; Ignore last (version) slot in physical pathnames.
+                             (when (eq structname 'pathname)
+                               (decf x-size))
                              (do* ((i 1 (1+ i)))
                                   ((= i x-size) t)
                                (declare (fixnum i))
                                (unless (equal (%svref x i) (%svref y i))
-                                 (return))))))))))))
+                                 (return)))))))))))))
 
 #+ppc32-target
 (progn
