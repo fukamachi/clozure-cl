@@ -777,10 +777,18 @@
   more efficient than RATIONALIZE, but it assumes that floating-point is
   completely accurate, giving a result that isn't as pretty."
   (if (floatp number)
-      (multiple-value-bind (s e sign) (integer-decode-float number)
-         (if (eq sign -1) (setq s (- s)))
-         (if (%iminusp e) (/ s (ash 1 (%i- 0 e))) (ash s e)))
-    (if (rationalp number) number
+    (multiple-value-bind (s e sign)
+        (number-case number
+          (short-float
+           (integer-decode-short-float number))
+          (double-float
+           (integer-decode-double-float number)))
+      (if (eq sign -1) (setq s (- s)))
+      (if (%iminusp e)
+        (/ s (ash 1 (%i- 0 e)))
+        (ash s e)))
+    (if (rationalp number)
+      number
       (report-bad-arg number 'real))))
 
 ; make power tables for floating point reader
