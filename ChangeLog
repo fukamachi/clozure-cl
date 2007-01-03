@@ -1,3 +1,23 @@
+2007-01-03 03:35  gb
+
+	* lib/sequences.lisp: Fix a few type errors, check for explicit
+	vector-type length earlier.
+
+2007-01-03 03:31  gb
+
+	* level-1/l1-files.lisp: %STD-NAME-COMPONENT, %STD-TYPE-COMPONENT:
+	preserved :WILD, don't map it to "*".
+
+2007-01-03 03:30  gb
+
+	* lib/pathnames.lisp: More whack-a-mole with pathnames
+	(specifically, preserving :WILD as name/type value and dealing with
+	the consequences of doing so.)
+
+2007-01-03 03:27  gb
+
+	* lib/numbers.lisp: Small (mostly cosmetic) change to RATIONAL.
+
 2007-01-02 09:57  gb
 
 	* lib/macros.lisp: Keep fixing CTYPECASE.
