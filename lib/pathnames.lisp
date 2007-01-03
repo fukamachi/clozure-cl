@@ -105,7 +105,7 @@
 	  (error "Failed to rename ~A to ~A: ~A"
 		 original new-name error))
 	(when (streamp file)
-	  (setf (file-stream-filename file)
+	  (setf (stream-filename file)
 		(namestring (native-to-pathname new-namestring))))
 	(values new-name original (truename new-name))))))
 
@@ -448,6 +448,8 @@
   (%path-str*= pstr pattern))
 
 (defun %file*= (name-pat type-pat pstr)
+  (if (eq name-pat :wild) (setq name-pat "*"))
+  (if (eq type-pat :wild) (setq type-pat "*"))
   (when (and (null name-pat) (null type-pat))
     (return-from %file*= T))
   (let* ((end (length pstr))
