@@ -809,8 +809,8 @@ a host-structure or string."
       name)))
 
 (defun %std-name-component (name)
-  (cond ((or (null name) (eq name :unspecific)) name)
-        ((eq name :wild) "*")
+  (cond ((or (null name) (eq name :unspecific) (eq name :wild)) name)
+        ((equal name "*") :wild)
         (t (%path-std-quotes name "/:;*" "/:;"))))
 
 ;A type is either NIL or a (possibly wildcarded, possibly empty) string.
@@ -850,8 +850,8 @@ a host-structure or string."
       (values nil end))))
 
 (defun %std-type-component (type)
-  (cond ((or (null type) (eq type :unspecific)) type)
-        ((eq type :wild) "*")
+  (cond ((or (null type) (eq type :unspecific) (eq type :wild)) type)
+        ((equal type "*") :wild)
         (t (%path-std-quotes type "./:;*" "./:;"))))
 
 (defun %std-name-and-type (native)
