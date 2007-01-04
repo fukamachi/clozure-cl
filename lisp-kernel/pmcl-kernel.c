@@ -45,6 +45,7 @@
 #include <sys/resource.h>
 #include <link.h>
 #include <elf.h>
+
 /* 
    The version of <asm/cputable.h> provided by some distributions will
    claim that <asm-ppc64/cputable.h> doesn't exist.  It may be present
@@ -1345,7 +1346,28 @@ lazarus()
     start_lisp(tcr, 0);
   }
 }
+
+#ifdef LINUX
+#ifdef X8664
+#include <asm/prctl.h>
+#include <sys/prctl.h>
+
+void
+ensure_gs_available(char *progname)
+{
+  LispObj fs_addr = 0L, gs_addr = 0L, cur_thread = (LispObj)pthread_self();
+  char *gnu_get_libc_version(void);
   
+  arch_prctl(ARCH_GET_GS, &gs_addr);
+  arch_prctl(ARCH_GET_FS, &fs_addr);
+  if ((gs_addr == cur_thread) && (fs_addr != cur_thread)) {
+    fprintf(stderr, "The installed C library - version %s - seems to be using the %%gs register for thread storage.\n\"%s\" cannot run, since it expects to be\nable to use that register for its own purposes.\n", gnu_get_libc_version(),progname);
+    _exit(1);
+  }
+}
+#endif
+#endif
+
 main(int argc, char *argv[], char *envp[], void *aux)
 {
   extern int page_size;
@@ -1365,6 +1387,11 @@ main(int argc, char *argv[], char *envp[], void *aux)
   real_executable_name = determine_executable_name(argv[0]);
   page_size = getpagesize();
 
+#ifdef LINUX
+#ifdef X8664
+  ensure_gs_available(real_executable_name);
+#endif
+#endif
 #if (defined(DARWIN) && defined(PPC64)) || defined(X8664)
   remap_spjump();
 #endif
