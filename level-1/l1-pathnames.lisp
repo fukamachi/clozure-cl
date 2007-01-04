@@ -108,9 +108,9 @@
         (cdr trans)))))
 
 (defun %component-match-p (name wild) 
-  (if (or (eq name :unspecific)(and (stringp name) (or  (string= name "*")(string= name "**"))))
+  (if (or (eq name :unspecific)(eq name :wild)(eq name :wild-inferiors)(and (stringp name) (or  (string= name "*")(string= name "**"))))
     (setq name nil))  
-  (if (or (eq wild :unspecific)(and (stringp wild) (or (string= wild "*")(string= wild "**"))))
+  (if (or (eq wild :unspecific)(eq wild :wild)(eq wild :wild-inferiors)(and (stringp wild) (or (string= wild "*")(string= wild "**"))))
     (setq wild nil))
   (cond ((null name) 
          (null wild))
