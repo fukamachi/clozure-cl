@@ -1,3 +1,23 @@
+2007-01-04 05:46  gb
+
+	* level-1/l1-pathnames.lisp: %component-match-p: handle :WILD,
+	:WILD-INFERIORS.
+
+2007-01-04 05:45  gb
+
+	* lisp-kernel/pmcl-kernel.c: Try to check for old libc versions
+	(which may use %gs instead of %fs for tls).
+
+2007-01-04 05:44  gb
+
+	* lib/numbers.lisp: Explicitly require NUMBER-CASE-MACRO.
+
+2007-01-04 05:44  gb
+
+	* level-0/l0-numbers.lisp:
+	fixnum-sfloat-compare,fixnum-dfloat-compare: if the fixnum can be
+	accurately represented in float, do so.
+
 2007-01-03 03:35  gb
 
 	* lib/sequences.lisp: Fix a few type errors, check for explicit
