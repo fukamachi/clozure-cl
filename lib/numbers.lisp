@@ -20,6 +20,7 @@
 
 (eval-when (:compile-toplevel :execute)
  (require :number-macros)
+ (require :number-case-macro)
  #+(and cross-compiling 64-bit-target)
  (declaim (ftype function %single-float-atanh %single-float-acosh
                  %single-float-asinh %single-float-tanh
