@@ -1,3 +1,14 @@
+2007-01-05 06:20  gb
+
+	* level-0/l0-cfm-support.lisp: OPEN-SHARED-LIBRARY: freebsd version
+	of #_dlopen doesn't return a link map, but calling #_dlinfo on the
+	result (with the right arg) does obtain a link map.
+	
+	Revive shared libraries on FreeBSD, but don't do the strange
+	Linux-specific re-opening there.  (It seems like it's possible to
+	#_dlopen something that already has a loaded link map - like the
+	FreeBSD dynamic linker - or something.)
+
 2007-01-04 05:46  gb
 
 	* level-1/l1-pathnames.lisp: %component-match-p: handle :WILD,
