@@ -1,3 +1,12 @@
+2007-01-05 16:16  gb
+
+	* level-0/l0-numbers.lisp: Fix typo (ppc32::, not ppc2::).
+
+2007-01-05 15:27  gb
+
+	* compiler/PPC/PPC32/ppc32-vinsns.lisp: Missing MISC-SET-C-S32 for
+	PPC32.
+
 2007-01-05 06:20  gb
 
 	* level-0/l0-cfm-support.lisp: OPEN-SHARED-LIBRARY: freebsd version
