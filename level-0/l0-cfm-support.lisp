@@ -285,12 +285,25 @@ return an object of type SHLIB that describes the library; if the library
 is already open, increment a reference count. If the library can't be
 loaded, signal a SIMPLE-ERROR which contains an often-cryptic message from
 the operating system."
-  (let* ((link-map  (with-cstrs ((name name))
-                      (ff-call
-		       (%kernel-import target::kernel-import-GetSharedLibrary)
-		       :address name
-		       :unsigned-fullword *dlopen-flags*
-		       :address))))
+  (let* ((link-map
+          (let* ((lib (with-cstrs ((name name))
+                        (ff-call
+                         (%kernel-import target::kernel-import-GetSharedLibrary)
+                         :address name
+                         :unsigned-fullword *dlopen-flags*
+                         :address))))
+            #+linux-target lib
+            #+freebsd-target (if (%null-ptr-p lib)
+                               lib
+                               (rlet ((p :address))
+                                 (if (eql 0 (ff-call
+                                             (foreign-symbol-entry "dlinfo")
+                                             :address lib
+                                             :int #$RTLD_DI_LINKMAP
+                                             :address p
+                                             :int))
+                                   (pref p :address)
+                                   (%null-ptr)))))))
     (if (%null-ptr-p link-map)
       (error "Error opening shared library ~s: ~a" name (dlerror))
       (prog1 (let* ((lib (shlib-from-map-entry link-map)))
@@ -648,7 +661,7 @@ return that address encapsulated in a MACPTR, else returns NIL."
 
 
 
-#+linux-target
+#+(or linux-target freebsd-target)
 (progn
 ;;; It's assumed that the set of libraries that the OS has open
 ;;; (accessible via the _dl_loaded global variable) is a subset of
@@ -676,6 +689,7 @@ return that address encapsulated in a MACPTR, else returns NIL."
 	      ;;; unless we open the library (which is, of course,
 	      ;;; already open ...)  ourselves, passing in the
 	      ;;; #$RTLD_GLOBAL flag.
+              #+linux-target
 	      (ff-call (%kernel-import target::kernel-import-GetSharedLibrary)
 		       :address soname
 		       :unsigned-fullword *dlopen-flags*
@@ -719,7 +733,7 @@ return that address encapsulated in a MACPTR, else returns NIL."
   (setq *statically-linked* (not (eql 0 (%get-kernel-global 'statically-linked))))
   (%revive-macptr *rtld-next*)
   (%revive-macptr *rtld-default*)
-  #+linux-target
+  #+(or linux-target freebsd-target)
   (unless *statically-linked*
     (setq *dladdr-entry* (foreign-symbol-entry "dladdr"))
     (revive-shared-libraries)
