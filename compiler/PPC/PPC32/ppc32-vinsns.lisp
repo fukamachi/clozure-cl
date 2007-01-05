@@ -111,6 +111,12 @@
                                      (idx :u32const)))
   (stw val (:apply + ppc32::misc-data-offset (:apply ash idx 2)) v))
 
+(define-ppc32-vinsn misc-set-c-s32 (()
+                                    ((val :s32)
+                                     (v :lisp)
+                                     (idx :u32const)))
+  (stw val (:apply + ppc32::misc-data-offset (:apply ash idx 2)) v))
+
 (define-ppc32-vinsn misc-set-u32 (()
                                   ((val :u32)
                                    (v :lisp)
