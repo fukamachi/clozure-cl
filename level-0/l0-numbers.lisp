@@ -466,7 +466,7 @@
   (declare (short-float sfloat) (fixnum int))
   (if (and (eq int 0)(= sfloat 0.0s0))
     0
-    (#+32-bit-target ppc2::with-stack-short-floats #+32-bit-target ((s1 int))
+    (#+32-bit-target ppc32::with-stack-short-floats #+32-bit-target ((s1 int))
      #-32-bit-target let* #-32-bit-target ((s1 (%int-to-sfloat int)))
      (declare (short-float s1))
      (if (eq (%truncate-short-float->fixnum s1) int)
