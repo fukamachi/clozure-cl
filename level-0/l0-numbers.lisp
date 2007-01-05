@@ -468,37 +468,38 @@
     0
     (#+32-bit-target ppc32::with-stack-short-floats #+32-bit-target ((s1 int))
      #-32-bit-target let* #-32-bit-target ((s1 (%int-to-sfloat int)))
-     (declare (short-float s1))
-     (if (eq (%truncate-short-float->fixnum s1) int)
-       (cond ((< s1 sfloat) -1)
-             ((= s1 sfloat) 0)
-             (t 1))
-       ;; Whatever we do here should have the effect
-       ;; of comparing the integer to the result of calling
-       ;; RATIONAL on the float.  We could probably
-       ;; skip the call to RATIONAL in more cases,
-       ;; but at least check the obvious ones here
-       ;; (e.g. different signs)
-       (multiple-value-bind (mantissa exponent sign)
-           (integer-decode-short-float sfloat)
-         (declare (type (integer -1 1) sign)
-                  (fixnum exponent))
-         (cond ((zerop int)
-                (- sign))
-               ((and (< int 0) (eql sign 1)) -1)
-               ((and (> int 0) (eql sign -1)) 1)
-               (t
-                ;; See RATIONAL.  Can probably avoid this if
-                ;; magnitudes are clearly dissimilar.
-                (if (= sign -1) (setq mantissa (- mantissa)))
-                (let* ((rat (if (< exponent 0)
-                              (/ mantissa (ash 1 (the fixnum (- exponent))))
-                              (ash mantissa exponent))))
-                  (if (< int rat)
-                    -1
-                    (if (eq int rat)
-                      0
-                      1))))))))))
+                     (locally
+                         (declare (short-float s1))
+                       (if (eq (%truncate-short-float->fixnum s1) int)
+                         (cond ((< s1 sfloat) -1)
+                               ((= s1 sfloat) 0)
+                               (t 1))
+                         ;; Whatever we do here should have the effect
+                         ;; of comparing the integer to the result of calling
+                         ;; RATIONAL on the float.  We could probably
+                         ;; skip the call to RATIONAL in more cases,
+                         ;; but at least check the obvious ones here
+                         ;; (e.g. different signs)
+                         (multiple-value-bind (mantissa exponent sign)
+                             (integer-decode-short-float sfloat)
+                           (declare (type (integer -1 1) sign)
+                                    (fixnum exponent))
+                           (cond ((zerop int)
+                                  (- sign))
+                                 ((and (< int 0) (eql sign 1)) -1)
+                                 ((and (> int 0) (eql sign -1)) 1)
+                                 (t
+                                  ;; See RATIONAL.  Can probably avoid this if
+                                  ;; magnitudes are clearly dissimilar.
+                                  (if (= sign -1) (setq mantissa (- mantissa)))
+                                  (let* ((rat (if (< exponent 0)
+                                                (/ mantissa (ash 1 (the fixnum (- exponent))))
+                                                (ash mantissa exponent))))
+                                    (if (< int rat)
+                                      -1
+                                      (if (eq int rat)
+                                        0
+                                        1)))))))))))
 
 
         
