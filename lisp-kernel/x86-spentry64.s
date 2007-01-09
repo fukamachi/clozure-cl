@@ -1336,7 +1336,9 @@ local_label(_nthrowv_do_unwind):
 	__(push catch_frame._save3(%temp0))
 	__(push catch_frame.pc(%temp0))
 	__(movq catch_frame.rbp(%temp0),%rbp)
+        __(movq catch_frame.xframe(%temp0),%stack_temp)
 	__(movq catch_frame.rsp(%temp0),%arg_x)
+        __(movq %stack_temp,%rcontext:tcr.xframe)
 	__(movq catch_frame.foreign_sp(%temp0),%stack_temp)
         __(movq %stack_temp,%rcontext:tcr.foreign_sp)        
 	/* Discard the catch frame, so we can build a temp frame   */
