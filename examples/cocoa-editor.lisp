@@ -1615,9 +1615,9 @@
   (release-lock (hi::buffer-gap-context-lock (hi::buffer-gap-context b)))) 
   
 (defun hi::document-begin-editing (document)
-  #-all-in-cocoa-thread
-  (send (slot-value document 'textstorage) 'begin-editing)
   #+all-in-cocoa-thread
+  (send (slot-value document 'textstorage) 'begin-editing)
+  #-all-in-cocoa-thread
   (send (slot-value document 'textstorage)
         :perform-selector-on-main-thread
         (@selector "beginEditing")
@@ -1630,9 +1630,9 @@
 
 
 (defun hi::document-end-editing (document)
-  #-all-in-cocoa-thread
-  (send (slot-value document 'textstorage) 'end-editing)
   #+all-in-cocoa-thread
+  (send (slot-value document 'textstorage) 'end-editing)
+  #-all-in-cocoa-thread
   (send (slot-value document 'textstorage)
         :perform-selector-on-main-thread
         (@selector "endEditing")
@@ -1859,6 +1859,7 @@
       (setf (slot-value doc 'textstorage) ts
             (hi::buffer-document buffer) doc))))
 
+;; This runs on the main thread.
 (define-objc-method ((:<BOOL> :revert-to-saved-from-file filename
                               :of-type filetype)
                      hemlock-editor-document)
