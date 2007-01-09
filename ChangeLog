@@ -1,3 +1,26 @@
+2007-01-08 22:12  gb
+
+	* examples/: objc-clos.lisp, objc-runtime.lisp, objc-support.lisp:
+	Revive some of the old GNUstep support; add partial ObjC 2.0
+	support (for 64-bit targets only, so far.)
+
+2007-01-08 22:11  gb
+
+	* examples/cocoa.lisp: Conditionalize for darwin-target, not
+	darwinppc-target.
+
+2007-01-08 22:10  gb
+
+	* examples/cocoa-listener.lisp: Disable background layout in the
+	listener; the whole two-thread scheme probably isn't viable, but
+	doing this seems to suppress a timing-related symptom.
+
+2007-01-08 22:09  gb
+
+	* examples/cocoa-editor.lisp: Document-begin-editing,
+	document-end-editing: both seem to have been conditionalized
+	backwards.
+
 2007-01-05 16:22  gb
 
 	* level-0/l0-numbers.lisp: Fix another typo ...
