@@ -1,3 +1,11 @@
+2007-01-09 11:33  gb
+
+	* lisp-kernel/x86-spentry64.s: When running an unwind-protect
+	cleanup and multiple values are being thrown, be sure to set
+	tcr.xframe from the target catch frame.  This is necessary on
+	general principles (GC safety), and especially necessary if the
+	cleanup form does a non-local exit.
+
 2007-01-08 22:12  gb
 
 	* examples/: objc-clos.lisp, objc-runtime.lisp, objc-support.lisp:
