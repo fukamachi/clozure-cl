@@ -285,12 +285,12 @@ p))))
 
 (defmethod print-object ((o objc:objc-object) stream)
   (if (objc-object-p o)
-      (print-unreadable-object (o stream :type t)
-        (format stream
-		(if (typep o 'ns::ns-string)
-		    "~s (#x~x)"
-		  "~a (#x~x)")
-		(nsobject-description o) (%ptr-to-int o)))
+    (print-unreadable-object (o stream :type t)
+      (format stream
+              (if (typep o 'ns::ns-string)
+                "~s (#x~x)"
+                "~a (#x~x)")
+              (nsobject-description o) (%ptr-to-int o)))
     (format stream "#<Bogus ObjC Object #x~X>" (%ptr-to-int o))))
 
 
@@ -392,7 +392,8 @@ p))))
          (bit-offset (dolist (c (class-direct-superclasses class) 0)
                        (when (typep c 'objc::objc-class)
                          (return
-                           (ash (pref c :objc_class.instance_size) 3))))))
+                           (ash (%objc-class-instance-size c)
+                            3))))))
     (unless
       (dolist (d foreign-dslotds t)
 	(if (not (foreign-direct-slot-definition-bit-offset d))
@@ -406,6 +407,7 @@ p))))
 ;;; This is only going to be called on a class created by the user;
 ;;; each foreign direct slotd's offset field should already have been
 ;;; set to the slot's bit offset.
+#-apple-objc-2.0
 (defun %make-objc-ivars (class)
   (let* ((start-offset (superclass-instance-size class))
 	 (foreign-dslotds (loop for s in (class-direct-slots class)
@@ -439,6 +441,12 @@ p))))
   ;; If C is a non-null ObjC class that contains an instance variable
   ;; named NAME, return that instance variable's offset,  else return
   ;; NIL.
+  #+apple-objc-2.0
+  (with-cstrs ((name name))
+    (with-macptrs ((ivar (#_class_getInstanceVariable c name)))
+      (unless (%null-ptr-p ivar)
+        (#_ivar_getOffset ivar))))
+  #-apple-objc-2.0
   (when (objc-class-p c)
     (with-macptrs ((ivars (pref c :objc_class.ivars)))
       (unless (%null-ptr-p ivars)
@@ -453,7 +461,10 @@ p))))
   (labels ((locate-objc-slot (name class)
 	     (unless (%null-ptr-p class)
 		 (or (%objc-ivar-offset-in-class name class)
-		     (with-macptrs ((super (pref class :objc_class.super_class)))
+		     (with-macptrs ((super #+apple-objc-2.0
+                                           (#_class_getSuperclass class)
+                                           #-apple-objc-2.0
+                                           (pref class :objc_class.super_class)))
 		       (unless (or (%null-ptr-p super) (eql super class))
 			 (locate-objc-slot name super)))))))
     (when (objc-class-p c)
@@ -789,10 +800,17 @@ p))))
 		   (class-of existing-metaclass))
 	       ;; A root metaclass has the corresponding class as
 	       ;; its superclass, and that class has no superclass.
-	       (with-macptrs ((super (pref metaclass :objc_class.super_class)))
+	       (with-macptrs ((super #+apple-objc-2.0
+                                     (#_class_getSuperclass metaclass)
+                                     #-apple-objc-2.0
+                                     (pref metaclass :objc_class.super_class)))
 		 (and (not (%null-ptr-p super))
 		      (not (%objc-metaclass-p super))
-		      (%null-ptr-p (pref super :objc_class.super_class)))))
+		      (%null-ptr-p
+                       #+apple-objc-2.0
+                       (#_class_getSuperclass super)
+                       #-apple-objc-2.0
+                       (pref super :objc_class.super_class)))))
 	;; Whew! it's ok to reinitialize the class.
 	(progn
 	  (apply #'reinitialize-instance class initargs)

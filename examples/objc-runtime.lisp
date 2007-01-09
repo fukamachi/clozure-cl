@@ -22,10 +22,9 @@
 ;;; systems.
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  #+darwinppc-target (pushnew :apple-objc *features*)
-  #+linuxppc-target (pushnew :gnu-objc *features*)
-  #-(or darwinppc-target linuxppc-target)
-  (error "Not sure what ObjC runtime system to use."))
+  #+darwin-target (pushnew :apple-objc *features*)
+  #+(and darwin-target 64-bit-target) (pushnew :apple-objc-2.0 *features*)
+  #-darwin-target (pushnew :gnu-objc *features*))
 
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
@@ -45,6 +44,7 @@
   #+apple-objc
   (progn
     (use-interface-dir :cocoa)
+    #-apple-objc-2.0
     (use-interface-dir :carbon))        ; need :carbon for things in this file
   #+gnu-objc
   (use-interface-dir :gnustep))
@@ -56,7 +56,7 @@
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (require "SPLAY-TREE")
   (require "NAME-TRANSLATION")
-  (require "PROCESS-OBJC-MODULES")
+  ;(require "PROCESS-OBJC-MODULES")
   (require "OBJC-CLOS"))
 
 (defloadvar *NSApp* nil )
@@ -346,54 +346,8 @@
        (create-void-nsthread))))
 
 
-(let* ((cfstring-sections (cons 0 nil))
-       (cfstring-sections-vector ()))
-  (defun reset-cfstring-sections ()
-    (setq cfstring-sections-vector nil)
-    (rplaca cfstring-sections 0)
-    (rplacd cfstring-sections nil))
-  (defun find-cfstring-sections ()
-    (let* ((image-count (#_ _dyld_image_count)))
-      (when (> image-count (car cfstring-sections))
-        (flet ((func (sectaddr size)
-                 (let* ((addr (%ptr-to-int sectaddr))
-                        (limit (+ addr size))
-                        (already (member addr (cdr cfstring-sections) :key #'car)))
-                   (if already
-                     (rplacd already limit)
-                     (push (cons addr limit) (cdr cfstring-sections))))))
-	(process-section-in-all-libraries
-	 #$SEG_DATA
-	 "__const"
-         #'func)
-        (process-section-in-all-libraries
-         #$SEG_DATA
-         "__cfstr"
-         #'func)))
-	(setf (car cfstring-sections) image-count)
-        (setq cfstring-sections-vector
-              (coerce (sort (copy-list (cdr cfstring-sections))
-                                    #'<
-                                    :key #'car)
-                      'vector))))
-  (defun pointer-in-cfstring-section-p (ptr)
-    (let* ((addr (%ptr-to-int ptr))
-           (min 0)
-           (max (1- (length cfstring-sections-vector))))
-      (do* ()
-           ((> min max))
-        (let* ((mid (ash (+ min max) -1))
-               (pair (svref cfstring-sections-vector mid))
-               (low (car pair))
-               (high (cdr pair)))
-          (if (and (>= addr low)
-                   (< addr high))
-            (return t)
-            (if (>= addr high)
-              (setq min (1+ mid))
-              (setq max (1- mid))))))))
-  (defun cfstring-sections ()
-    (cdr cfstring-sections)))
+(defun find-cfstring-sections ()
+  (warn "~s is obsolete" 'find-cfstring-sections))
 
 )
 
@@ -479,9 +433,7 @@
       (#_objc_lookup_class name)))
 
 
-(def-ccl-pointers cfstring-sections ()
-  (reset-cfstring-sections)
-  (find-cfstring-sections))
+
 
 #+apple-objc
 (progn
@@ -493,11 +445,22 @@
 ;;; These constants (offsets in the jmp_buf structure) come from
 ;;; the _setjmp.h header file in the Darwin LibC source.
 
+#+ppc32-target
+(progn
 (defconstant JMP-lr #x54 "link register (return address) offset in jmp_buf")
 #|(defconstant JMP-ctr #x5c "count register jmp_buf offset")|#
 (defconstant JMP-sp 0 "stack pointer offset in jmp_buf")
 (defconstant JMP-r13 8 "offset of r13 (which we clobber) in jmp_buf")
-(defconstant JMP-r14 12 "offset of r14 (which we also clobber) in jmp_buf")
+(defconstant JMP-r14 12 "offset of r14 (which we also clobber) in jmp_buf"))
+
+#+ppc64-target
+(progn
+(defconstant JMP-lr #xa8 "link register (return address) offset in jmp_buf")
+#|(defconstant JMP-ctr #x5c "count register jmp_buf offset")|#
+(defconstant JMP-sp 0 "stack pointer offset in jmp_buf")
+(defconstant JMP-r13 #x10 "offset of r13 (which we clobber) in jmp_buf")
+(defconstant JMP-r14 #x18 "offset of r14 (which we also clobber) in jmp_buf"))
+ 
 
 ;;; A malloc'ed pointer to two words of machine code.  The first
 ;;; instruction (rather obviously) copies r13 to r4.  A C function
@@ -622,7 +585,6 @@
     ;; Finally, iterate over all classes in the runtime world.
     ;; Register any class that's not found in the class map
     ;; as a "private" ObjC class.
-    (reset-objc-class-count)
     ;; Iterate over all classes in the runtime.  Those that
     ;; aren't already registered will get identified as
     ;; "private" (undeclared) ObjC classes.
@@ -644,21 +606,30 @@
 	 :key #'function-name)
     
 
+(defun %objc-class-instance-size (c)
+  #+apple-objc-2.0
+  (#_class_getInstanceSize c)
+  #-apple-objc-2.0
+  (pref c :objc_class.instance_size))
+
 (defun find-named-objc-superclass (class string)
   (unless (or (null string) (%null-ptr-p class))
-    (with-macptrs ((name (pref class :objc_class.name)))
+    (with-macptrs ((name #+apple-objc-2.0 (#_class_getName class)
+                         #-apple-objc-2.0 (pref class :objc_class.name)))
       (or
        (dotimes (i (length string) class)
          (let* ((b (%get-unsigned-byte name i)))
            (unless (eq b (char-code (schar string i)))
              (return))))
-       (find-named-objc-superclass (pref class :objc_class.super_class)
+       (find-named-objc-superclass #+apple-objc-2.0 (#_class_getSuperclass class)
+                                   #-apple-objc-2.0 (pref class :objc_class.super_class)
                                    string)))))
 
 (defun install-foreign-objc-class (class &optional (use-db t))
   (let* ((id (objc-class-id class)))
     (unless id
-      (let* ((name (%get-cstring (pref class :objc_class.name)))
+      (let* ((name (%get-cstring #+apple-objc-2.0 (#_class_getName class)
+                                 #-apple-objc-2.0 (pref class :objc_class.name)))
              (decl (get-objc-class-decl name use-db)))
         (if (null decl)
           (or (%get-private-objc-class class)
@@ -668,6 +639,9 @@
                   class (id->objc-class id))
             ;; If not mapped, map the superclass (if there is one.)
             (let* ((super (find-named-objc-superclass
+                           #+apple-objc-2.0
+                           (#_class_getSuperclass class)
+                           #-apple-objc-2.0
                            (pref class :objc_class.super_class)
                            (db-objc-class-info-superclass-name decl))))
               (unless (null super)
@@ -684,6 +658,9 @@
                 (unless (id->objc-metaclass-wrapper meta-id)
                   (let* ((meta-foreign-name
                           (%get-cstring
+                           #+apple-objc-2.0
+                           (#_class_getName meta)
+                           #-apple-objc-2.0
                            (pref meta :objc_class.name)))
                          (meta-name
                           (intern
@@ -967,6 +944,7 @@ argument lisp string."
 ;;; containing the message.  (This is an admitted modularity violation;
 ;;; there's a more portable but slower way to do this if we ever need to.)
 
+
 (defun lisp-string-from-sel (sel)
   (%get-cstring
    #+apple-objc sel
@@ -1090,15 +1068,23 @@ argument lisp string."
 
 
 ;;; The first 8 words of non-fp arguments get passed in R3-R10
+#+ppc-target
 (defvar *objc-gpr-offsets*
-  #(4 8 12 16 20 24 28 32))
+  #+32-bit-target
+  #(4 8 12 16 20 24 28 32)
+  #+64-bit-target
+  #(8 16 24 32 40 48 56 64)
+  )
 
 ;;; The first 13 fp arguments get passed in F1-F13 (and also "consume"
 ;;; a GPR or two.)  It's certainly possible for an FP arg and a non-
 ;;; FP arg to share the same "offset", and parameter offsets aren't
 ;;; strictly increasing.
 (defvar *objc-fpr-offsets*
-  #(36 44 52 60 68 76 84 92 100 108 116 124 132))
+  #+32-bit-target
+  #(36 44 52 60  68  76  84  92 100 108 116 124 132)
+  #+64-bit-target
+  #(68 76 84 92 100 108 116 124 132 140 148 156 164))
 
 ;;; Just to make things even more confusing: once we've filled in the
 ;;; first 8 words of the parameter area, args that aren't passed in
@@ -1202,7 +1188,7 @@ argument lisp string."
 		       (incf fprs-used)
 		       (incf gprs-used 1))
 		      (foreign-pointer-type
-		       (setq size 4 offset (current-gpr-arg-offset))
+		       (setq size target::node-size offset (current-gpr-arg-offset))
 		       (incf gprs-used))
 		      (foreign-integer-type
 		       (let* ((bits (foreign-type-bits arg)))
@@ -1242,6 +1228,7 @@ argument lisp string."
 
 ;;; Make a meta-class object (with no instance variables or class
 ;;; methods.)
+#-apple-objc-2.0
 (defun %make-basic-meta-class (nameptr superptr rootptr)
   #+apple-objc
   (let* ((method-vector (%make-method-vector)))
@@ -1272,6 +1259,7 @@ argument lisp string."
                :protocols (%null-ptr)
                :gc_object_type (%null-ptr)))
 
+#-apple-objc-2.0
 (defun %make-class-object (metaptr superptr nameptr ivars instance-size)
   #+apple-objc
   (let* ((method-vector (%make-method-vector)))
@@ -1299,11 +1287,23 @@ argument lisp string."
 		 :dtable (%null-ptr)
 		 :protocols (%null-ptr)))
 
+(defun make-objc-class-pair (superptr nameptr)
+  #+apple-objc-2.0
+  (#_objc_allocateClassPair superptr nameptr 0)
+  #-apple-objc-2.0
+  (%make-class-object
+   (%make-basic-meta-class nameptr superptr (@class "NSObject"))
+   superptr
+   nameptr
+   (%null-ptr)
+   0))
+
 (defun superclass-instance-size (class)
-  (with-macptrs ((super (pref class :objc_class.super_class)))
+  (with-macptrs ((super #+apple-objc-2.0 (#_class_getSuperclass class)
+                        #-apple-objc-2.0 (pref class :objc_class.super_class)))
     (if (%null-ptr-p super)
       0
-      (pref super :objc_class.instance_size))))
+      (%objc-class-instance-size super))))
 
 	
 
@@ -1323,10 +1323,14 @@ argument lisp string."
 )
 
 (defun %objc-metaclass-p (class)
+  #+apple-objc-2.0 (not (eql #$NO (#_class_isMetaClass class)))
+  #-apple-objc-2.0
   (logtest (pref class :objc_class.info)
 	   #+apple-objc #$CLS_META
 	   #+gnu-objc #$_CLS_META))
-	   
+
+;; No way to tell in Objc-2.0.  Does anything care ?
+#-apple-objc-2.0
 (defun %objc-class-posing-p (class)
   (logtest (pref class :objc_class.info)
 	   #+apple-objc #$CLS_POSING
@@ -1348,18 +1352,17 @@ argument lisp string."
       (error "An Objective C class with name ~s already exists." class-name))
     (let* ((nameptr (make-cstring class-name))
 	   (id (register-objc-class
-		(%make-class-object
-		 (%make-basic-meta-class nameptr superptr (@class "NSObject"))
-		 superptr
-		 nameptr
-		 (%null-ptr)
-		 0)))
+                (make-objc-class-pair superptr nameptr)
+))
 	   (meta-id (objc-class-id->objc-metaclass-id id))
 	   (meta (id->objc-metaclass meta-id))
 	   (class (id->objc-class id))
 	   (meta-name (intern (format nil "+~a" name)
 			      (symbol-package name)))
 	   (meta-super (canonicalize-registered-metaclass
+                        #+apple-objc-2.0
+                        (#_class_getSuperclass meta)
+                        #-apple-objc-2.0
 			(pref meta :objc_class.super_class))))
       (initialize-instance meta
 			 :name meta-name
@@ -1371,6 +1374,7 @@ argument lisp string."
 
 ;;; Set up the class's ivar_list and instance_size fields, then
 ;;; add the class to the ObjC runtime.
+#-apple-objc-2.0
 (defun %add-objc-class (class ivars instance-size)
   (setf
    (pref class :objc_class.ivars) ivars

@@ -7,29 +7,34 @@
 
 
 #+apple-objc
-(progn
-  (let* ((class-count 0))
-    (declare (fixnum class-count))
-    (defun reset-objc-class-count () (setq class-count 0))
-    (defun map-objc-classes (&optional (lookup-in-database-p t))
-      (let* ((n (#_objc_getClassList (%null-ptr) 0)))
-	(declare (fixnum n))
-	(when (> n class-count)
-	  (%stack-block ((buffer (the fixnum (ash n target::word-shift))))
-	    (#_objc_getClassList buffer n)
-            ;; We don't know that the first class-count classes are
-            ;; necessarily ones that we've seen before, so we should
-            ;; look at everything.  INSTALL-FOREIGN-OBJC-CLASS won't
-            ;; do much if the ObjC class is already known to CLOS.
-            (do* ((i 0 (1+ i)))
-                 ((= i n (setq class-count n)))
-              (declare (fixnum i))
-              (install-foreign-objc-class
-               (%get-ptr buffer (the fixnum  (ash i target::word-shift)))
-               lookup-in-database-p)))))))
-  (reset-objc-class-count)
-  (map-objc-classes)
-)
+(defun iterate-over-objc-classes (fn)
+  (let* ((n (#_objc_getClassList (%null-ptr) 0)))
+    (declare (fixnum n))
+    (%stack-block ((buffer (the fixnum (ash n target::word-shift))))
+      (#_objc_getClassList buffer n)
+      (do* ((i 0 (1+ i)))
+           ((= i n) (values))
+        (declare (fixnum i))
+        (funcall fn (%get-ptr buffer (the fixnum  (ash i target::word-shift))))))))
+
+#+gnu-objc
+(defun iterate-over-objc-classes (fn)
+  (rletZ ((enum-state :address))
+    (loop
+      (let* ((class (#_objc_next_class enum-state)))
+        (if (%null-ptr-p class)
+          (return)
+          (funcall fn class))))))
+          
+
+
+(defun map-objc-classes (&optional (lookup-in-database-p t))
+  (iterate-over-objc-classes
+   #'(lambda (class)
+       (install-foreign-objc-class class lookup-in-database-p))))
+  
+
+(map-objc-classes)
 
 #+gnu-objc
 (defun iterate-over-class-methods (class method-function)
@@ -301,8 +306,6 @@ NSObjects describe themselves in more detail than others."
                         (send (the ns:ns-bundle bundle) 'load)
                         (pushnew path *extension-framework-paths*
                                  :test #'equalp)
-                        (reset-cfstring-sections)
-                        (find-cfstring-sections)
                         (map-objc-classes))
                       (return winning)))))))))))
 
