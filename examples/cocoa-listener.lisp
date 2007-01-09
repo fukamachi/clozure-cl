@@ -224,6 +224,10 @@
 		      'hemlock-listener-window-controller
 		      :with-window window))
 	 (listener-name (hi::buffer-name (hemlock-document-buffer self))))
+    (let* ((layout-managers (send textstorage 'layout-managers)))
+      (dotimes (i (send layout-managers 'count))
+        (let* ((layout (send layout-managers :object-at-index i)))
+          (send layout :set-background-layout-enabled nil))))
     (send self :add-window-controller controller)
     (send controller 'release)
     (slet ((current-point (ns-make-point (or *next-listener-x-pos*
