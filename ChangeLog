@@ -1,3 +1,8 @@
+2007-01-10 15:50  gb
+
+	* compiler/PPC/ppc2.lisp: ppc2-vref1: lose extra arg to
+	double->heap vinsn.
+
 2007-01-09 11:33  gb
 
 	* lisp-kernel/x86-spentry64.s: When running an unwind-protect
