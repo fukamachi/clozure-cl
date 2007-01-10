@@ -1474,7 +1474,7 @@
                   (if (eq vreg-class hard-reg-class-fpr)
                     (<- fp-val)
                     (ensuring-node-target (target vreg)
-                      (! double->heap seg target fp-val))))
+                      (! double->heap target fp-val))))
                  ((:signed-64-bit-vector :fixnum-vector)
                   (if (and index-known-fixnum (<= index-known-fixnum (arch::target-max-64-bit-constant-index arch)))
                     (! misc-ref-c-s64 temp src index-known-fixnum)
@@ -3569,13 +3569,13 @@
                       (! copy-fpr dest src))))))))))))
   
 (defun ppc2-unreachable-store (&optional vreg)
-  ; I don't think that anything needs to be done here,
-  ; but leave this guy around until we're sure.
-  ; (PPC2-VPUSH-REGISTER will always vpush something, even
-  ; if code to -load- that "something" never gets generated.
-  ; If I'm right about this, that means that the compile-time
-  ; stack-discipline problem that this is supposed to deal
-  ; with can't happen.)
+  ;; I don't think that anything needs to be done here,
+  ;; but leave this guy around until we're sure.
+  ;; (PPC2-VPUSH-REGISTER will always vpush something, even
+  ;; if code to -load- that "something" never gets generated.
+  ;; If I'm right about this, that means that the compile-time
+  ;; stack-discipline problem that this is supposed to deal
+  ;; with can't happen.)
   (declare (ignore vreg))
   nil)
 
