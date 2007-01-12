@@ -2647,6 +2647,10 @@ or returns a pointer to a composite type."
     (destructuring-bind (type-name &rest accessors) (decompose-record-accessor accessor)
       (%foreign-access-form pointer (%foreign-type-or-record type-name) 0 accessors))))
 
+(defmacro paref (pointer type-name index)
+  (let* ((*target-ftd* (backend-target-foreign-type-data *target-backend*)))
+    (%foreign-array-access-form  pointer (%foreign-type-or-record type-name) index)))
+
 (defmacro rref (pointer accessor &key (storage :pointer storage-p))
   (when storage-p
     (warn "Use of :storage option ignored: ~a" storage))
