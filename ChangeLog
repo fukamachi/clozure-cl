@@ -1,3 +1,19 @@
+2007-01-11 23:58  gb
+
+	* compiler/PPC/ppc2.lisp: Transform (/ (* constant1 exp) constant2)
+	into (* (/ constant1 constant2) exp).  Not very general, but makes
+	some foreign address arithmetic better.
+
+2007-01-11 23:56  gb
+
+	* lib/macros.lisp: Simple PAREF: (paref pointer
+	foreign-pointer-or-array-type index) does simple arithmetic for
+	you.
+
+2007-01-11 23:54  gb
+
+	* lib/foreign-types.lisp: %FOREIGN-ARRAY-ACCESS-FORM.
+
 2007-01-10 15:50  gb
 
 	* compiler/PPC/ppc2.lisp: ppc2-vref1: lose extra arg to
