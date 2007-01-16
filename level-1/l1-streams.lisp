@@ -3659,12 +3659,12 @@
       (values
        (funcall (ioblock-unread-char-function ioblock) ioblock char)))))
 
-(defmethod stream-read-ivector ((s basic-character-input-stream)
+(defmethod stream-read-ivector ((s basic-binary-input-stream)
 				iv start nb)
   (let* ((ioblock (basic-stream-ioblock s)))
     (with-ioblock-input-locked (ioblock)
       (values
-       (%ioblock-character-in-ivect ioblock iv start nb)))))
+       (%ioblock-binary-in-ivect ioblock iv start nb)))))
 
 (defmethod stream-read-vector ((stream basic-character-input-stream)
 			       vector start end)
@@ -4933,6 +4933,7 @@
           (%ioblock-out-ivect ioblock iv start length)))))
 
 
+#+bad-idea
 (defmethod stream-read-ivector ((s buffered-character-input-stream-mixin)
 				iv start nb)
   (with-stream-ioblock-input (ioblock s :speedy t)
