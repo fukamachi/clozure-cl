@@ -28,6 +28,7 @@
     :clozure
     :ansi-cl
     :unix
+    :openmcl-unicode-strings
     ;; Threads and MOP stuff is pretty redundant.
     :openmcl-native-threads
     :openmcl-partial-mop
