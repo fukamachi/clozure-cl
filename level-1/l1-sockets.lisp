@@ -681,7 +681,7 @@ the socket is not connected."))
   
 (defun make-tcp-stream-socket (fd &key remote-host
 				  remote-port
-				  format
+				  (format :bivalent)
 				  (class 'tcp-stream)
                                   (basic t)
                                   external-format
@@ -693,7 +693,7 @@ the socket is not connected."))
 
 (defun make-file-stream-socket (fd &key remote-filename
                                    external-format
-                                   format
+                                   (format :bivalent)
                                    (class 'file-socket-stream)
                                    (basic t)
                                    &allow-other-keys)
