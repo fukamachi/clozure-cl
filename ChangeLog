@@ -1,3 +1,19 @@
+2007-01-16 02:01  gb
+
+	* level-1/l1-streams.lisp: Make sure that STREAM-READ-IVECTOR and
+	STREAM-WRITE-IVECTOR are defined on binary stream classes.  (These
+	functions make less sense for character streams/strings than they
+	used to.)
+
+2007-01-16 01:39  gb
+
+	* level-1/l1-sockets.lisp: Ensure that the :FORMAT argument
+	defaults to :BIVALENT
+
+2007-01-16 01:37  gb
+
+	* level-0/l0-init.lisp: Put :OPENMCL-UNICODE-STRINGS on *FEATURES*.
+
 2007-01-11 23:58  gb
 
 	* compiler/PPC/ppc2.lisp: Transform (/ (* constant1 exp) constant2)
