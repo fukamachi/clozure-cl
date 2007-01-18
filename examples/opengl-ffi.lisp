@@ -21,7 +21,7 @@
   #+linux-target
   (dolist (lib '("libGL.so" "libGLU.so" "libglut.so"))
     (open-shared-library lib))
-  #+darwinppc-target
+  #+darwin-target
   (open-shared-library "GLUT.framework/GLUT")
   )
 
@@ -116,7 +116,7 @@
 (ccl:process-run-function
  "OpenGL main thread"
  #'(lambda ()
-     #+darwinppc-target
+     #+darwin-target
      (progn
        ;;; In OSX, a "run loop" is a data structure that
        ;;; describes how event-handling code should block
