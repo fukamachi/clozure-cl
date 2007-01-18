@@ -9,7 +9,7 @@
 (define-objc-method ((:unsigned length) ns-lisp-string)
     (length (ns-lisp-string-string self)))
 
-(define-objc-method ((:unichar :character-at-index (unsigned index))
+(define-objc-method ((:unichar :character-at-index (:<NSUI>nteger index))
 		     ns-lisp-string)
   (char-code (schar (ns-lisp-string-string self) index)))
 
@@ -89,8 +89,8 @@
     (or (%null-ptr-p item)
         (our-frame-label-p self item)))
 
-(define-objc-method ((:int :outline-view view
-                           :number-of-children-of-item item)
+(define-objc-method ((:<NSI>nteger :outline-view view
+                                   :number-of-children-of-item item)
                      backtrace-window-controller)
     (declare (ignore view))
     (let* ((inspector (backtrace-controller-inspector self)))
@@ -109,7 +109,7 @@
             (t -1))))
              
 (define-objc-method ((:id :outline-view view
-                          :child (:int index)
+                          :child (:<NSI>nteger index)
                           :of-item item)
                      backtrace-window-controller)
     (declare (ignore view))

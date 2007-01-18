@@ -17,6 +17,13 @@
   (pushnew :all-in-cocoa-thread *features*)
   (use-interface-dir :cocoa))
 
+;;; In the double-float case, this is probably way too small.
+;;; Traditionally, it's (approximately) the point at which
+;;; a single-float stops being able to accurately represent
+;;; integral values.
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defconstant large-number-for-text (float 1.0f7 +cgfloat-zero+)))
+
 (def-cocoa-default *editor-rows* :int 24 "Initial height of editor windows, in characters")
 (def-cocoa-default *editor-columns* :int 80 "Initial width of editor windows, in characters")
 
@@ -255,7 +262,7 @@
 
 ;;; Return the length of the abstract string, i.e., the number of
 ;;; characters in the buffer (including implicit newlines.)
-(define-objc-method ((:unsigned length)
+(define-objc-method ((:<NSUI>nteger length)
 		     hemlock-buffer-string)
   (let* ((cache (hemlock-buffer-string-cache self)))
     (or (buffer-cache-buflen cache)
@@ -267,10 +274,10 @@
 
 ;;; Return the character at the specified index (as a :unichar.)
 
-(define-objc-method ((:unichar :character-at-index (unsigned index))
+(define-objc-method ((:unichar :character-at-index (:<NSUI>nteger index))
 		     hemlock-buffer-string)
   #+debug
-  (#_NSLog #@"Character at index: %d" :unsigned index)
+  (#_NSLog #@"Character at index: %d" :<NSUI>nteger index)
   (char-code (hemlock-char-at-index (hemlock-buffer-string-cache self) index)))
 
 
@@ -283,8 +290,8 @@
 	  (hi::buffer-gap-context (buffer-cache-buffer cache))))
     #+debug
     (#_NSLog #@"get characters: %d/%d"
-             :unsigned index
-             :unsigned length)
+             :<NSUI>nteger index
+             :<NSUI>nteger length)
     (multiple-value-bind (line idx) (update-line-cache-for-index cache index)
       (let* ((len (hemlock::line-length line)))
         (do* ((i 0 (1+ i))
@@ -301,9 +308,9 @@
                        len (hi::line-length line)
                   idx 0))))))))
 
-(define-objc-method ((:void :get-line-start ((:* :unsigned) startptr)
-                            :end ((:* :unsigned) endptr)
-                            :contents-end ((:* :unsigned) contents-endptr)
+(define-objc-method ((:void :get-line-start ((:* :<NSUI>nteger) startptr)
+                            :end ((:* :<NSUI>nteger) endptr)
+                            :contents-end ((:* :<NSUI>nteger) contents-endptr)
                             :for-range (:<NSR>ange r))
                      hemlock-buffer-string)
   (let* ((cache (hemlock-buffer-string-cache self))
@@ -406,7 +413,7 @@
      (append-edits :foreign-type :int))
   (:metaclass ns:+ns-object))
 
-(define-objc-method ((:unsigned :line-break-before-index (:unsigned index)
+(define-objc-method ((:<NSUI>nteger :line-break-before-index (:<NSUI>nteger index)
                                 :within-range (:<NSR>ange r))
                      hemlock-text-storage)
   (#_NSLog #@"Line break before index: %d within range: %@"
@@ -511,7 +518,8 @@
 			(make-buffer-cache)
 			buffer))))
 
-(define-objc-method ((:id :attributes-at-index (:unsigned index)
+(define-objc-method ((:id :attributes-at-index (#+apple-objc-2.0 :<NSUI>nteger
+                                                #-apple-objc-2.0 :unsigned index)
 			  :effective-range ((* :<NSR>ange) rangeptr))
 		     hemlock-text-storage)
   #+debug
@@ -993,7 +1001,7 @@
                                    buffer pane))
                       (hi::buffer-modeline-fields buffer)))))
 	(send (%make-nsstring string)
-	      :draw-at-point (ns-make-point 0.0f0 0.0f0)
+	      :draw-at-point (ns-make-point +cgfloat-zero+ +cgfloat-zero+)
 	      :with-attributes *modeline-text-attributes*)))))
 
 ;;; Draw the underlying buffer's modeline string on a white background
@@ -1140,11 +1148,11 @@
 	(send layout 'release)
 	(slet* ((contentsize (send scrollview 'content-size))
 		(containersize (ns-make-size
-				1.0f7
-				1.0f7))
+				large-number-for-text
+				large-number-for-text))
 		(tv-frame (ns-make-rect
-			   0.0f0
-			   0.0f0
+			   +cgfloat-zero+
+			   +cgfloat-zero+
 			   (pref contentsize :<NSS>ize.width)
 			   (pref contentsize :<NSS>ize.height))))
           (let* ((container (send (make-objc-instance
@@ -1158,9 +1166,9 @@
 			     'autorelease)))
               (send layout :set-delegate tv)
 	      (send tv :set-min-size (ns-make-size
-				      0.0f0
+				      +cgfloat-zero+
 				      (pref contentsize :<NSS>ize.height)))
-	      (send tv :set-max-size (ns-make-size 1.0f7 1.0f7))
+	      (send tv :set-max-size (ns-make-size large-number-for-text large-number-for-text))
 	      (send tv :set-rich-text nil)
 	      (send tv :set-horizontally-resizable t)
 	      (send tv :set-vertically-resizable t) 
@@ -1240,7 +1248,7 @@
                                     :with-frame frame)))
       (send box :set-autoresizing-mask #$NSViewWidthSizable)
       (slet* ((box-frame (send box 'bounds))
-              (containersize (ns-make-size 1.0f7 (pref box-frame :<NSR>ect.size.height))))
+              (containersize (ns-make-size large-number-for-text (pref box-frame :<NSR>ect.size.height))))
         (let* ((clipview (make-objc-instance "NSClipView"
                                              :with-frame box-frame)))
           (send clipview :set-autoresizing-mask (logior #$NSViewWidthSizable
@@ -1271,7 +1279,7 @@
                                              :with-frame box-frame
                                              :text-container container)))
               (send echo :set-min-size (pref box-frame :<NSR>ect.size))
-              (send echo :set-max-size (ns-make-size 1.0f7 (pref box-frame :<NSR>ect.size)))
+              (send echo :set-max-size (ns-make-size large-number-for-text (pref box-frame :<NSR>ect.size)))
               (send echo :set-rich-text nil)
               (send echo :set-horizontally-resizable t)
               (send echo :set-vertically-resizable nil)
@@ -1615,9 +1623,9 @@
   (release-lock (hi::buffer-gap-context-lock (hi::buffer-gap-context b)))) 
   
 (defun hi::document-begin-editing (document)
-  #+all-in-cocoa-thread
-  (send (slot-value document 'textstorage) 'begin-editing)
   #-all-in-cocoa-thread
+  (send (slot-value document 'textstorage) 'begin-editing)
+  #+all-in-cocoa-thread
   (send (slot-value document 'textstorage)
         :perform-selector-on-main-thread
         (@selector "beginEditing")
@@ -1630,9 +1638,9 @@
 
 
 (defun hi::document-end-editing (document)
-  #+all-in-cocoa-thread
-  (send (slot-value document 'textstorage) 'end-editing)
   #-all-in-cocoa-thread
+  (send (slot-value document 'textstorage) 'end-editing)
+  #+all-in-cocoa-thread
   (send (slot-value document 'textstorage)
         :perform-selector-on-main-thread
         (@selector "endEditing")
@@ -1781,8 +1789,12 @@
 (defun size-of-char-in-font (f)
   (let* ((sf (send f 'screen-font)))
     (if (%null-ptr-p sf) (setq sf f))
-    (values (send sf 'default-line-height-for-font)
-	    (send sf :width-of-string #@" "))))
+    (values (fround
+             (+ (- (send sf 'ascender)
+                   (send sf 'descender))
+                (send sf 'leading)))
+            (slet ((s (send sf 'maximum-advancement)))
+              (fround (pref s :<NSS>ize.width))))))
          
 
 
@@ -1797,10 +1809,10 @@
                                                'line-fragment-padding)))))
       (when (send scrollview 'has-vertical-scroller)
 	(send scrollview :set-vertical-line-scroll char-height)
-	(send scrollview :set-vertical-page-scroll 0.0f0 #|char-height|#))
+	(send scrollview :set-vertical-page-scroll +cgfloat-zero+ #|char-height|#))
       (when (send scrollview 'has-horizontal-scroller)
 	(send scrollview :set-horizontal-line-scroll char-width)
-	(send scrollview :set-horizontal-page-scroll 0.0f0 #|char-width|#))
+	(send scrollview :set-horizontal-page-scroll +cgfloat-zero+ #|char-width|#))
       (slet ((sv-size
 	      (send (@class ns-scroll-view)
 		    :frame-size-for-content-size tv-size
@@ -2031,9 +2043,11 @@
     (send self :add-window-controller controller)
     (send controller 'release)
     (slet ((current-point (ns-make-point (or *next-editor-x-pos*
-                                             *initial-editor-x-pos*)
+                                             (float *initial-editor-x-pos*
+                                                    +cgfloat-zero+))
                                          (or *next-editor-y-pos*
-                                             *initial-editor-y-pos*))))
+                                             (float *initial-editor-y-pos*
+                                                    +cgfloat-zero+)))))
       (slet ((new-point (send window
                               :cascade-top-left-from-point current-point)))
             (setf *next-editor-x-pos* (pref new-point :<NSP>oint.x)
