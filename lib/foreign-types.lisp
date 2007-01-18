@@ -53,7 +53,8 @@
   (interface-package-name ())
   (external-function-definitions (make-hash-table :test #'eq))
   (dirlist (make-dll-header))
-  (attributes ()))
+  (attributes ())
+  (ff-call-expand-function ()))
 
 
 
@@ -67,7 +68,21 @@
                     '(:bits-per-word #+64-bit-target 64 #+32-bit-target 32
                       :signed-char #+darwinppc-target t #-darwinppc-target nil
                       :struct-by-value #+darwinppc-target t #-darwinppc-target nil
-                      :prepend-underscores #+darwinppc-target t #-darwinppc-target nil)))
+                      :struct-return-in-registers #+(or (and darwinppc-target 64-bit-target)) t #-(or (and darwinppc-target 64-bit-target)) nil
+                      :struct-return-explicit  #+(or (and darwinppc-target 64-bit-target)) t #-(or (and darwinppc-target 64-bit-target)) nil
+                      :struct-by-value-by-field  #+(or (and darwinppc-target 64-bit-target)) t #-(or (and darwinppc-target 64-bit-target)) nil
+                    
+                      :prepend-underscores #+darwinppc-target t #-darwinppc-target nil)
+                    :ff-call-expand-function
+                    #+(and darwinppc-target 32-bit-target) 'ppc32::darwin-expand-ff-call
+                    #+(and darwinppc-target 64-bit-target) 'ppc64::darwin-expand-ff-call
+                    #+(and linuxppc-target 32-bit-target) 'ppc32::linux-expand-ff-call
+                    #+(and linuxppc-target 64-bit-target) 'ppc64::linux-expand-ff-call
+                    #+linuxx8664-target 'x8664::linux-expand-ff-call
+                    #+darwinx8664-target 'x8664:::darwin-expand-ff-call
+                    #+freebsdx8664-target 'x8664:::freebsd-expand-ff-call 
+  
+                    ))
                     
 (defvar *target-ftd* *host-ftd*)
 (setf (backend-target-foreign-type-data *host-backend*)
@@ -1305,7 +1320,9 @@ result-type-specifer is :VOID or NIL"
 				 rettype)))))
 	(let* ((spec (car a))
 	       (val (cadr a)))
-	  (representation (foreign-type-to-representation-type spec))
+          (if (eq spec :registers)
+            (representation spec)
+            (representation (foreign-type-to-representation-type spec)))
 	(representation val)))
     `(%ff-call ,entry ,@(representation)))))
 	
@@ -1428,6 +1445,7 @@ result-type-specifer is :VOID or NIL"
          (cond ((<= bits 8) (if signed :signed-byte :unsigned-byte))
                ((<= bits 16) (if signed :signed-halfword :unsigned-halfword))
                ((<= bits 32) (if signed :signed-fullword :unsigned-fullword))
+               ((<= bits 64) (if signed :signed-doubleword :unsigned-doubleword))
                (t `(:record ,bits)))))
       (foreign-float-type
        (ecase (foreign-float-type-bits foreign-type)
