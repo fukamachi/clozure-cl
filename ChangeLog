@@ -1,3 +1,123 @@
+2007-01-18 04:17  gb
+
+	* examples/bridge.lisp: Some word-size conditionalization.  Will
+	need more work to handle struct return/asssignment correctly on all
+	platforms.
+
+2007-01-18 04:15  gb
+
+	* examples/: cocoa-editor.lisp, cocoa-backtrace.lisp: Use CGFloat,
+	type casts, etc.  Likwise for :<NSI>nteger, :<NSUI>nteger.
+
+2007-01-18 04:13  gb
+
+	* examples/: cocoa-prefs.lisp, cocoa-listener.lisp: Use CGFloat,
+	type casts, etc.
+
+2007-01-18 04:12  gb
+
+	* examples/cocoa-window.lisp: Use CGFloat, type casts, etc.  Avoid
+	deprecated NSFont stuff.
+
+2007-01-18 04:11  gb
+
+	* examples/objc-clos.lisp: Handle ivars, class
+	creation/initialization differently for ObjC 2.0.
+
+2007-01-18 04:10  gb
+
+	* examples/objc-runtime.lisp: More ObjC 2.0, ppc64 changes.
+
+2007-01-18 04:09  gb
+
+	* examples/objc-support.lisp: Note which protocols are actually
+	used when walking classes.  (There doesn't seem to be a good way of
+	finding a Protocol object pre-objc-2.0, and we may need to test
+	protocol compliance to disambiguate message sends in some cases.)
+
+2007-01-18 04:07  gb
+
+	* examples/opengl-ffi.lisp: Conditionalize for darwin (not
+	necessarily darwinppc).
+
+2007-01-18 04:06  gb
+
+	* examples/addressbook.lisp: Conditionalize for darwin (not
+	necessarily darwinppc).  May want to conditionalize for bundle
+	executable name, as well.
+
+2007-01-18 04:05  gb
+
+	* compiler/PPC/PPC64/ppc64-arch.lisp: WITH-FFCALL-RESULTS.  Start
+	to sketch out structure return code (structures are often
+	"returned" by returning field values in registers pn DarwinPPC64.)
+
+2007-01-18 04:04  gb
+
+	* compiler/PPC/PPC64/ppc64-backend.lisp: New ftd stuff; new
+	attributes for structure args/results.
+
+2007-01-18 04:03  gb
+
+	* compiler/PPC/PPC64/ppc64-vinsns.lisp: ffcall-returning registers.
+	 (Will need this for other platforms, too.)
+
+2007-01-18 04:01  gb
+
+	* lib/macros.lisp: Arch-specific macro interface for
+	WITH-FFCALL-RESULTS.
+
+2007-01-18 04:00  gb
+
+	* lib/db-io.lisp: Handle the case of an encoded structure type as a
+	return value.
+
+2007-01-18 04:00  gb
+
+	* lisp-kernel/: ppc-spentry.s, ppc-spjump.s:
+	.SPpoweropen_ffcall_return_registers.
+
+2007-01-18 03:59  gb
+
+	* library/parse-ffi.lisp: At least optionally, make structure
+	return explicit (expecting it to be handled by higher-level code.)
+
+2007-01-18 03:58  gb
+
+	* lib/foreign-types.lisp: ff-call-expand-function in ftd.  Don't
+	try to type-expand :registers <exp> form in EXTERNAL-CALL.
+
+2007-01-18 03:55  gb
+
+	* level-0/PPC/ppc-misc.lisp: Get the contents of the register that
+	may hold OS thread context.
+
+2007-01-18 03:54  gb
+
+	* compiler/PPC/PPC32/ppc32-backend.lisp: ff-call-expander function
+	in ftd.
+
+2007-01-18 03:53  gb
+
+	* compiler/PPC/PPC32/ppc32-arch.lisp: WITH-FFCALL-RESULTS arch
+	macro.
+
+2007-01-18 03:52  gb
+
+	* compiler/PPC/ppc2.lisp: Poweropen ff-calls might need to return
+	all possible result regs.  (Maybe poweropen syscall, too.)
+
+2007-01-18 03:51  gb
+
+	* compiler/PPC/ppc-arch.lisp: Replace unused subprim with
+	.SPpoweropen-ff-call-return-registers.
+
+2007-01-18 03:50  gb
+
+	* compiler/nx1.lisp: Support :registers <exp> in %ff-call; when
+	supported, backend will return all (potential) result registers in
+	buffer at <exp>.
+
 2007-01-16 02:01  gb
 
 	* level-1/l1-streams.lisp: Make sure that STREAM-READ-IVECTOR and
