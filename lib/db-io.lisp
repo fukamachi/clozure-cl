@@ -559,23 +559,26 @@ satisfy the optional predicate PREDICATE."
               i (1+ i))))))
 
 (defun decode-arguments (string)
-  (let* ((result (cdr (assoc (schar string 0) *arg-spec-encoding*)))
-         (args ()))
-    (do* ((i 1 (1+ i)))
-         ((= i (length string)) (values (nreverse args) result))
-      (declare (fixnum i))
-      (let* ((ch (schar string i))
-	     (val (if (or (eql ch #\r) (eql ch #\R) (eql ch #\t))
-		    (let* ((namelen (char-code (schar string (incf i))))
-			   (name (make-string namelen)))
-		      (dotimes (k namelen)
-			(setf (schar name k)
-			      (schar string (incf i))))
-		      (if (eql ch #\R)
-			 name
-			 (escape-foreign-name name)))
-		    (cdr (assoc ch *arg-spec-encoding*)))))
-      (push val args)))))
+  (let* ((result nil))
+    (collect ((args))
+      (do* ((i 0 (1+ i)))
+           ((= i (length string)) (values (args) result))
+        (declare (fixnum i))
+        (let* ((ch (schar string i))
+               (val (if (or (eql ch #\r) (eql ch #\R) (eql ch #\t))
+                      (let* ((namelen (char-code (schar string (incf i))))
+                             (name (make-string namelen)))
+                        (dotimes (k namelen)
+                          (setf (schar name k)
+                                (schar string (incf i))))
+                        (if (eql ch #\R)
+                          name
+                          (escape-foreign-name name)))
+                      (cdr (assoc ch *arg-spec-encoding*)))))
+          (if result
+            (args val)
+            (setq result val)))))))
+
 
 ;;; encoded external function looks like:
 ;;; byte min-args
@@ -839,7 +842,8 @@ satisfy the optional predicate PREDICATE."
   methods                               ; all methods
   ambiguous-methods                     ; partitioned by signature
   req-args
-  flags)
+  flags
+  protocol-methods)
 
 (defstruct objc-method-info
   message-info
