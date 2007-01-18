@@ -8215,81 +8215,86 @@
 (defun ppc2-poweropen-foreign-args (seg argspecs argvals)
   (with-ppc-local-vinsn-macros (seg)
     (let* ((fp-loads ())
-           (nextarg 0))
-    ;; Evaluate each form into the C frame, according to the matching
-    ;; argspec.  Remember type and arg offset of any FP args, since FP
-    ;; regs will have to be loaded later.
-    (do* ((specs argspecs (cdr specs))
-          (vals argvals (cdr vals)))
-         ((null specs))
-      (declare (list specs vals))
-      (let* ((valform (car vals))
-             (spec (car specs))
-             (longval (ppc2-long-constant-p valform))
-             (absptr (acode-absolute-ptr-p valform)))
-        (case spec
-          ((:signed-doubleword :unsigned-doubleword)
-           (ppc2-one-targeted-reg-form seg valform ($ ppc::arg_z))
-           (if (eq spec :signed-doubleword)
-             (! gets64)
-             (! getu64))
-           (! set-c-arg ($ ppc::imm0) nextarg)
-           (target-arch-case
-            (:ppc32
-             (incf nextarg)
-             (! set-c-arg ($ ppc::imm1) nextarg))
-            (:ppc64)))
-          (:double-float
-           (let* ((df ($ ppc::fp1 :class :fpr :mode :double-float)))
-             (ppc2-one-targeted-reg-form seg valform df)
-             (! set-double-c-arg df nextarg)            
-             (push (cons :double-float nextarg) fp-loads)
-             (incf nextarg)))
-          (:single-float
-           (let* ((sf ($ ppc::fp1 :class :fpr :mode :single-float)))
-             (ppc2-one-targeted-reg-form seg valform sf)
-             (! set-single-c-arg sf nextarg)
-             (push (cons :single-float nextarg) fp-loads)))
-          (:address
-           (with-imm-target ()
-             (ptr :address)
-             (if absptr
-               (ppc2-lri seg ptr absptr)
-               (ppc2-one-targeted-reg-form seg valform ptr))
-             (! set-c-arg ptr nextarg)))
-          (t
-           (if (typep spec 'unsigned-byte)
-             (progn
-               (with-imm-target () (ptr :address)
-                 (ppc2-one-targeted-reg-form seg valform ptr)
-                 (with-imm-temps (ptr) (r)
-                   (dotimes (i spec)
-                     (target-arch-case
-                      (:ppc32
-                       (! mem-ref-c-fullword r ptr (ash i ppc32::word-shift)))
-                      (:ppc64
-                       (! mem-ref-c-doubleword r ptr (ash i ppc64::word-shift))))
-                     (! set-c-arg r nextarg)
-                     (incf nextarg))))
-               (decf nextarg))
+           (nextarg 0)
+           (return-registers nil))
+      ;; Evaluate each form into the C frame, according to the matching
+      ;; argspec.  Remember type and arg offset of any FP args, since FP
+      ;; regs will have to be loaded later.
+      (do* ((specs argspecs (cdr specs))
+            (vals argvals (cdr vals)))
+           ((null specs) (if return-registers (ppc2-pop-register seg ($ ppc::arg_y))))
+        (declare (list specs vals))
+        (let* ((valform (car vals))
+               (spec (car specs))
+               (longval (ppc2-long-constant-p valform))
+               (absptr (acode-absolute-ptr-p valform)))
+          (case spec
+            (:registers
+             (setq return-registers t)
+             (ppc2-push-register seg (ppc2-one-untargeted-reg-form seg valform ppc::arg_z)))
+            ((:signed-doubleword :unsigned-doubleword)
+             (ppc2-one-targeted-reg-form seg valform ($ ppc::arg_z))
+             (if (eq spec :signed-doubleword)
+               (! gets64)
+               (! getu64))
+             (! set-c-arg ($ ppc::imm0) nextarg)
+             (target-arch-case
+              (:ppc32
+               (incf nextarg)
+               (! set-c-arg ($ ppc::imm1) nextarg))
+              (:ppc64)))
+            (:double-float
+             (let* ((df ($ ppc::fp1 :class :fpr :mode :double-float)))
+               (ppc2-one-targeted-reg-form seg valform df)
+               (! set-double-c-arg df nextarg)            
+               (push (cons :double-float nextarg) fp-loads)
+               (incf nextarg)))
+            (:single-float
+             (let* ((sf ($ ppc::fp1 :class :fpr :mode :single-float)))
+               (ppc2-one-targeted-reg-form seg valform sf)
+               (! set-single-c-arg sf nextarg)
+               (push (cons :single-float nextarg) fp-loads)))
+            (:address
              (with-imm-target ()
-               (valreg :natural)
-               (let* ((reg valreg))
-                 (if longval
-                   (ppc2-lri seg valreg longval)
-                   (setq reg (ppc2-unboxed-integer-arg-to-reg seg valform valreg spec)))
-                 (! set-c-arg reg nextarg))))))
-        (incf nextarg)))
-    (do* ((fpreg ppc::fp1 (1+ fpreg))
-          (reloads (nreverse fp-loads) (cdr reloads)))
-         ((or (null reloads) (= fpreg ppc::fp14)))
-      (declare (list reloads) (fixnum fpreg))
-      (let* ((reload (car reloads))
-             (size (car reload))
-             (from (cdr reload)))
-        (if (eq size :double-float)
-          (! reload-double-c-arg fpreg from)
-          (! reload-single-c-arg fpreg from)))))))
+                 (ptr :address)
+               (if absptr
+                 (ppc2-lri seg ptr absptr)
+                 (ppc2-one-targeted-reg-form seg valform ptr))
+               (! set-c-arg ptr nextarg)))
+            (t
+             (if (typep spec 'unsigned-byte)
+               (progn
+                 (with-imm-target () (ptr :address)
+                   (ppc2-one-targeted-reg-form seg valform ptr)
+                   (with-imm-temps (ptr) (r)
+                     (dotimes (i spec)
+                       (target-arch-case
+                        (:ppc32
+                         (! mem-ref-c-fullword r ptr (ash i ppc32::word-shift)))
+                        (:ppc64
+                         (! mem-ref-c-doubleword r ptr (ash i ppc64::word-shift))))
+                       (! set-c-arg r nextarg)
+                       (incf nextarg))))
+                 (decf nextarg))
+               (with-imm-target ()
+                   (valreg :natural)
+                 (let* ((reg valreg))
+                   (if longval
+                     (ppc2-lri seg valreg longval)
+                     (setq reg (ppc2-unboxed-integer-arg-to-reg seg valform valreg spec)))
+                   (! set-c-arg reg nextarg))))))
+          (incf nextarg)))
+      (do* ((fpreg ppc::fp1 (1+ fpreg))
+            (reloads (nreverse fp-loads) (cdr reloads)))
+           ((or (null reloads) (= fpreg ppc::fp14)))
+        (declare (list reloads) (fixnum fpreg))
+        (let* ((reload (car reloads))
+               (size (car reload))
+               (from (cdr reload)))
+          (if (eq size :double-float)
+            (! reload-double-c-arg fpreg from)
+            (! reload-single-c-arg fpreg from))))
+      return-registers)))
 
 (defun ppc2-poweropen-foreign-return (seg vreg xfer resultspec)
   (with-ppc-local-vinsn-macros (seg vreg xfer)
@@ -8554,7 +8559,8 @@
 (defppc2 ppc2-poweropen-ff-call poweropen-ff-call (seg vreg xfer address argspecs argvals resultspec &optional monitor-exception-ports)
   (let* ((*ppc2-vstack* *ppc2-vstack*)
          (*ppc2-top-vstack-lcell* *ppc2-top-vstack-lcell*)
-         (*ppc2-cstack* *ppc2-cstack*))
+         (*ppc2-cstack* *ppc2-cstack*)
+         (return-registers nil))
     (declare (fixnum nextarg))
     (! alloc-c-frame (the fixnum
                        (+ (the fixnum (length argvals)) 
@@ -8575,11 +8581,13 @@
                              argspecs)))))
     (ppc2-open-undo $undo-ppc-c-frame)
     (ppc2-vpush-register seg (ppc2-one-untargeted-reg-form seg address ppc::arg_z))
-    (ppc2-poweropen-foreign-args seg argspecs argvals)
+    (setq return-registers (ppc2-poweropen-foreign-args seg argspecs argvals))
     (ppc2-vpop-register seg ppc::arg_z)
-    (if monitor-exception-ports
-      (! poweropen-ff-callX)
-      (! poweropen-ff-call))
+    (if return-registers
+      (! poweropen-ff-call-regs)
+      (if monitor-exception-ports
+        (! poweropen-ff-callX)
+        (! poweropen-ff-call)))
     (ppc2-close-undo)
     (when vreg
       (cond ((eq resultspec :void) (<- nil))
