@@ -98,7 +98,7 @@
       (call-next-method)
       (let* ((e (send (@class ns-event)
 		      :other-event-with-type #$NSApplicationDefined
-		      :location (ns-make-point 0.0e0 0.0e0)
+		      :location (ns-make-point +cgfloat-zero+ +cgfloat-zero+)
 		      :modifier-flags 0
 		      :timestamp 0.0d0
 		      :window-number 0
@@ -137,46 +137,6 @@
     ;;; of the event's data1 attribute.
     (funcall (appkit-interrupt-function (send e 'data1)))
     (send-super :send-event e)))
-
-;;; This is a reverse-engineered version of most of -[NSApplication terminate],
-;;; split off this way because we don't necessarily want to just do
-;;  (#_exit 0) when we've shut down the Cocoa UI.
-#+apple-objc
-(define-objc-method ((:void shutdown)
-		     lisp-application)
-  (unless (eql (pref self :<NSA>pplication._app<F>lags._app<D>ying) #$YES)
-    (if (eql #$NO (external-call "__runningOnAppKitThread" :<BOOL>))
-      (send self
-	    :perform-selector-on-main-thread (@selector "shutdown")
-	    :with-object (%null-ptr)
-	    :wait-until-done nil)
-      (progn
-	(setf (pref self :<NSA>pplication._app<F>lags._app<D>ying) #$YES)
-	(send (send (@class ns-notification-center) 'default-center)
-	      :post-notification-name #@"NSApplicationWillTerminateNotification"
-	      :object self)
-        ;; Remove self as the observer of all notifications (the
-        ;; precise set of notifications for which it's registered
-        ;; may vary from release to release
-	(send (send (@class ns-notification-center) 'default-center)
-	      :remove-observer self
-	      :name (%null-ptr)
-	      :object (%null-ptr))
-	(objc-message-send (@class ns-menu) "_saveTornOffMenus" :void)
-	(send (send (@class ns-user-defaults) 'standard-user-defaults)
-	      'synchronize)
-	(objc-message-send (@class ns-pasteboard) 
-			   "_provideAllPromisedData" :void)
-	(objc-message-send (send (@class ns-help-manager) 'shared-help-manager)
-			   "_cleanupHelpForQuit" :void)
-        ;; See what happens when you muck around in Things You Shouldn't
-        ;; Know About ?
-        (let* ((addr (or (foreign-symbol-address
-                          "__NSKeyboardUIHotKeysUnregister")
-                         (foreign-symbol-address
-                          "__NSKeyboardUIHotKeysCleanup"))))
-          (if addr (ff-call addr :void)))
-	(send (the ns-application self) :stop (%null-ptr))))))
 
 
 
@@ -269,12 +229,12 @@
 			  (size *default-font-size*)
 			  (attributes ()))
 				
-  (setq size (float size 0.0f0))
+  (setq size (float size +cgfloat-zero+))
   (with-cstrs ((name name))
     (with-autorelease-pool
-	(rletz ((matrix (:array :float 6)))
-	  (setf (%get-single-float matrix 0) size
-		(%get-single-float matrix 12) size)
+	(rletz ((matrix (:array :<CGF>loat 6)))
+	  (setf (paref matrix (:* :<CGF>loat) 0) size
+                (paref matrix (:* :<CGF>loat) 3) size)
           (let* ((fontname (send (@class ns-string) :string-with-c-string name))
 		 (font (send (@class ns-font)
                               :font-with-name fontname :matrix matrix))
@@ -304,8 +264,9 @@
 ;;; Create a paragraph style, mostly so that we can set tabs reasonably.
 (defun create-paragraph-style (font line-break-mode)
   (let* ((p (make-objc-instance 'ns-mutable-paragraph-style))
-	 (charwidth (send (send font 'screen-font)
-			  :width-of-string #@" ")))
+	 (charwidth (slet ((advance
+                            (send font 'maximum-advancement)))
+                      (fround (pref advance :<NSS>ize.width)))))
     (send p
 	  :set-line-break-mode
 	  (ecase line-break-mode
@@ -391,7 +352,11 @@
                          (accepts-mouse-moved-events nil)
                          (auto-display t)
                          (activate t))
-  (rlet ((frame :<NSR>ect :origin.x (float x) :origin.y (float y) :size.width (float width) :size.height (float height)))
+  (rlet ((frame :<NSR>ect
+           :origin.x (float x +cgfloat-zero+)
+           :origin.y (float y +cgfloat-zero+)
+           :size.width (float width +cgfloat-zero+)
+           :size.height (float height +cgfloat-zero+)))
     (let* ((stylemask
             (logior #$NSTitledWindowMask
                     (if closable #$NSClosableWindowMask 0)
