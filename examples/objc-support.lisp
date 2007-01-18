@@ -5,6 +5,15 @@
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (require "BRIDGE"))
 
+#-apple-objc-2.0
+(progn
+  (def-foreign-type :<CGF>loat :float)
+  (def-foreign-type :<NSUI>nteger :unsigned)'
+  (def-foreign-type :<NSI>nteger :signed))
+
+(defconstant +cgfloat-zero+
+  #+(and apple-objc-2.0 64-bit-target) 0.0d0
+  #-(and apple-objc-2.0 64-bit-target) 0.0f0)
 
 #+apple-objc
 (defun iterate-over-objc-classes (fn)
@@ -25,12 +34,41 @@
         (if (%null-ptr-p class)
           (return)
           (funcall fn class))))))
-          
 
+(defun %note-protocol (p)
+  (with-macptrs ((cname (objc-message-send p "name" :address)))
+    (let* ((namelen (%cstrlen cname))
+           (name (make-string namelen)))
+      (declare (dynamic-extent name))
+      (%str-from-ptr cname namelen name)
+      (unless (gethash name *objc-protocols*)
+        (setf (gethash (subseq name 0) *objc-protocols*)
+              (%inc-ptr p 0))))))
+
+(defun note-class-protocols (class)
+  #-apple-objc-2.0
+  (do* ((protocols (pref class :objc_class.protocols)
+                   (pref protocols :objc_protocol_list.next)))
+       ((%null-ptr-p protocols))
+    (let* ((count (pref protocols :objc_protocol_list.count)))
+      (with-macptrs ((list (pref protocols :objc_protocol_list.list)))
+        (dotimes (i count)
+          (with-macptrs ((p (paref list (:* (:* (:struct :<P>rotocol))) i)))
+            (%note-protocol p))))))
+  #+apple-objc-2.0
+  (rlet ((p-out-count :int))
+    (with-macptrs ((protocols (#_class_copyProtocolList class p-out-count)))
+      (let* ((n (pref p-out-count :int)))
+        (dotimes (i n)
+          (with-macptrs ((p (paref protocols (:* (:* (:struct :<P>rotocol))) i)))
+            (%note-protocol p))))
+      (unless (%null-ptr-p protocols) (#_free protocols)))))
+            
 
 (defun map-objc-classes (&optional (lookup-in-database-p t))
   (iterate-over-objc-classes
    #'(lambda (class)
+       (note-class-protocols class)
        (install-foreign-objc-class class lookup-in-database-p))))
   
 
@@ -310,7 +348,12 @@ NSObjects describe themselves in more detail than others."
                       (return winning)))))))))))
 
                       
-                                  
+(defmethod print-object ((p ns:protocol) stream)
+  (print-unreadable-object (p stream :type t)
+    (format stream "~a (#x~x)"
+            (%get-cstring (send p 'name))
+            (%ptr-to-int p))))
+
                                          
 
 
