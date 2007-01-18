@@ -77,7 +77,7 @@
     (cond ((stringp f)
 	   ;; (STRING-with-N-colons ARG1 ... ARGN {LIST}) 
 	   (let* ((n (count #\: (the simple-string f)))
-                  (message-info (get-objc-message-info f))
+                  (message-info (need-objc-message-info f))
 		  (args (rest args))
 		  (nargs (length args)))
 	     (cond ((and (= nargs 1)
@@ -91,7 +91,7 @@
 	   ;; (KEY1 ARG1 ... KEYN ARGN {LIST}) or (KEY LIST)
 	   (let ((nargs (length args)))
 	     (cond ((and (= nargs 2) (consp l)
-                         (let* ((info (get-objc-message-info
+                         (let* ((info (need-objc-message-info
                                        (lisp-to-objc-message (list f)))))
                            (getf (objc-message-info-flags info)
                                  :accepts-varargs)))
@@ -217,7 +217,7 @@
   (setq rspec (fudge-objc-type rspec))
   (if (numberp rspec) 
     (> rspec 1)
-    (> (ensure-foreign-type-bits (parse-foreign-type rspec)) 32)))
+    (> (ensure-foreign-type-bits (parse-foreign-type rspec)) target::nbits-in-word)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -374,13 +374,18 @@
                              (mapcar #'reduce-to-ffi-type
                                      (objc-method-info-arglist m)))))))
       (let* ((methods (objc-message-info-methods message-info))
+             (signatures ())
+             (protocol-methods)
              (signature-alist ()))
         (dolist (m methods)
-          (let* ((signature (ensure-method-signature m))
-                 (pair (assoc signature signature-alist :test #'equal)))
-            (if pair
-              (push m (cdr pair))
-              (push (cons signature (list m)) signature-alist))))
+          (let* ((signature (ensure-method-signature m)))
+            (pushnew signature signatures :test #'equal)
+            (if (getf (objc-method-info-flags m) :protocol)
+              (push m protocol-methods)
+              (let* ((pair (assoc signature signature-alist :test #'equal)))
+                (if pair
+                  (push m (cdr pair))
+                  (push (cons signature (list m)) signature-alist))))))
         (setf (objc-message-info-ambiguous-methods message-info)
               (mapcar #'cdr
                       (sort signature-alist
@@ -388,7 +393,9 @@
                                 (< (length (cdr x))
                                    (length (cdr y)))))))
         (setf (objc-message-info-flags message-info) nil)
-        (when (cdr (objc-message-info-ambiguous-methods message-info))
+        (setf (objc-message-info-protocol-methods message-info)
+              protocol-methods)
+        (when (cdr signatures)
           (setf (getf (objc-message-info-flags message-info) :ambiguous) t))
         (let* ((first-method (car methods))
                (first-sig (objc-method-info-signature first-method))
@@ -436,6 +443,10 @@
           (setf (gethash message-name *objc-message-info*) info)
           (postprocess-objc-message-info info)
           info))))
+
+(defun need-objc-message-info (message-name)
+  (or (get-objc-message-info message-name)
+      (error "Undeclared message: ~s" message-name)))
 
 ;;; Should be called after using new interfaces that may define
 ;;; new methods on existing messages.
@@ -557,7 +568,7 @@
 		       (translate-foreign-arg-type ftype)))))
 	     (if (and (consp translated) (eq (first translated) :record))
 	       #+apple-objc
-	       (/ (second translated) 32)
+	       (ceiling (second translated) target::nbits-in-word)
 	       #+gnu-objc `(:* ,ftype)
 	       translated))))
     (nconc
@@ -614,17 +625,18 @@
         (let* ((ambiguous (getf (objc-message-info-flags message-info) :ambiguous))
                (methods (objc-message-info-methods message-info))
                (method (if (not ambiguous) (car methods))))
-          (if ambiguous
+          (when ambiguous
             (let* ((class (if sclassname 
                             (find-objc-class sclassname)
                             (get-objc-class-from-declaration (declared-type o env)))))
               (if class
                 (dolist (m methods)
-                  (let* ((mclass (or (get-objc-method-info-class m)
-                                     (error "Can't find ObjC class named ~s"
-                                            (objc-method-info-class-name m)))))
-                    (when (and class (subtypep class mclass))
-                      (return (setq method m))))))))
+                  (unless (getf (objc-method-info-flags m) :protocol)
+                    (let* ((mclass (or (get-objc-method-info-class m)
+                                       (error "Can't find ObjC class named ~s"
+                                              (objc-method-info-class-name m)))))
+                      (when (and class (subtypep class mclass))
+                        (return (setq method m)))))))))
           (if method
             (build-call-from-method-info method
                                          args
@@ -745,7 +757,8 @@
                         receiver
                         msg
                         s
-                        super)
+                        super
+                        protocol-methods)
   (flet ((method-class-name (m)
            (let* ((mclass (get-objc-method-info-class m)))
              (unless mclass
@@ -753,11 +766,23 @@
                       (objc-method-info-class-name m)))
              (class-name mclass))))
     (collect ((clauses))
+      (let* ((protocol (gensym)))
+        (dolist (method protocol-methods)
+          (let* ((protocol-name (objc-method-info-class-name method)))
+            (clauses `((let* ((,protocol (lookup-objc-protocol ,protocol-name)))
+                         (and ,protocol
+                              (not (zerop (objc-message-send ,receiver
+                                                             "conformsToProtocol:"
+                                                             :address ,protocol
+                                                             :<BOOL>)))))
+                       ,(build-internal-call-from-method-info
+                         method args vargs receiver msg s super))))))
       (do* ((methods ambiguous-methods (cdr methods)))
            ((null (cdr methods))
+            (when ambiguous-methods
             (clauses `(t
                        ,(build-internal-call-from-method-info
-                         (caar methods) args vargs receiver msg s super))))
+                         (caar methods) args vargs receiver msg s super)))))
         (clauses `(,(if (cdar methods)
                         `(or ,@(mapcar #'(lambda (m)
                                            `(typep ,receiver
@@ -779,7 +804,8 @@
                     receiver
                     msg
                     s
-                    super)))
+                    super
+                    (objc-message-info-protocol-methods message-info))))
     `(with-ns-exceptions-as-errors
       (rlet ,svarforms
         ,@sinitforms
