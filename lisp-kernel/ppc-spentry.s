@@ -1425,8 +1425,9 @@ _spentry(poweropen_ffcall)
 	__(str(fn,lisp_frame.savefn(save2)))
 	__(str(loc_pc,lisp_frame.savelr(save2)))
 	__(str(vsp,lisp_frame.savevsp(save2)))
+        __(mr nargs,arg_z)
        	__(bne cr7,1f)
-	__(ldr(arg_z,macptr.address(arg_z)))
+	__(ldr(nargs,macptr.address(arg_z)))
 1:
 	__(ldr(save3,tcr.cs_area(rcontext)))
 	__(str(save2,area.active(save3)))
@@ -1441,12 +1442,12 @@ _spentry(poweropen_ffcall)
 	__(li r4,TCR_STATE_FOREIGN)
 	__(str(r4,tcr.valence(rcontext)))
         __ifdef([rTOC])
-         __(ld rTOC,8(arg_z))
-         __(ld arg_z,0(arg_z))
+         __(ld rTOC,8(nargs))
+         __(ld nargs,0(nargs))
         __else
 	 __(li rcontext,0)
         __endif
-	__(mtctr arg_z)
+	__(mtctr nargs)
 	__(ldr(r3,c_frame.param0(sp)))
 	__(ldr(r4,c_frame.param1(sp)))
 	__(ldr(r5,c_frame.param2(sp)))
@@ -1457,11 +1458,88 @@ _spentry(poweropen_ffcall)
 	__(ldr(r10,c_frame.param7(sp)))
 	/* Darwin is allegedly very picky about what register points */
 	/* to the function on entry.  */
-	__(mr r12,arg_z)
+	__(mr r12,nargs)
 	__(bctrl)
 	__(b FF_call_return_common)
 
-	
+/* Just like poweropen_ffcall, only we save all argument(result)
+   registers in a buffer passed in arg_y on entry before returning
+   to lisp.  (We have to do this in the ffcall glue here, because
+   r9 and r10 - at least - are overloaded as dedicated lisp registers */
+_spentry(poweropen_ffcall_return_registers)
+	__(mflr loc_pc)
+	__(vpush_saveregs())		/* Now we can use save0-save7 to point to stacks  */
+        __(ldr(save7,macptr.address(arg_y)))
+	__(mr save0,rcontext)	/* or address globals.  */
+	__(extract_typecode(imm0,arg_z))
+	__(cmpri(cr7,imm0,subtag_macptr))
+	__(ldr(save1,0(sp)))	/* bottom of reserved lisp frame  */
+	__(la save2,-lisp_frame.size(save1))	/* top of lisp frame */
+        __(zero_doublewords save2,0,lisp_frame.size)
+	__(str(save1,lisp_frame.backlink(save2)))
+	__(str(save2,c_frame.backlink(sp)))
+	__(str(fn,lisp_frame.savefn(save2)))
+	__(str(loc_pc,lisp_frame.savelr(save2)))
+	__(str(vsp,lisp_frame.savevsp(save2)))
+        __(mr nargs,arg_z)
+       	__(bne cr7,1f)
+	__(ldr(nargs,macptr.address(arg_z)))
+1:
+	__(ldr(save3,tcr.cs_area(rcontext)))
+	__(str(save2,area.active(save3)))
+	__(str(allocptr,tcr.save_allocptr(rcontext)))
+	__(str(allocbase,tcr.save_allocbase(rcontext)))
+	__(str(tsp,tcr.save_tsp(rcontext)))
+	__(str(vsp,tcr.save_vsp(rcontext)))
+	__(str(rzero,tcr.ffi_exception(rcontext)))
+	__(mffs f0)
+	__(stfd f0,tcr.lisp_fpscr(rcontext))	/* remember lisp's fpscr  */
+	__(mtfsf 0xff,fp_zero)	/* zero foreign fpscr  */
+	__(li r4,TCR_STATE_FOREIGN)
+	__(str(r4,tcr.valence(rcontext)))
+        __ifdef([rTOC])
+         __(ld rTOC,8(nargs))
+         __(ld nargs,0(nargs))
+        __else
+	 __(li rcontext,0)
+        __endif
+	__(mtctr nargs)
+	__(ldr(r3,c_frame.param0(sp)))
+	__(ldr(r4,c_frame.param1(sp)))
+	__(ldr(r5,c_frame.param2(sp)))
+	__(ldr(r6,c_frame.param3(sp)))
+	__(ldr(r7,c_frame.param4(sp)))
+	__(ldr(r8,c_frame.param5(sp)))
+	__(ldr(r9,c_frame.param6(sp)))
+	__(ldr(r10,c_frame.param7(sp)))
+	/* Darwin is allegedly very picky about what register points */
+	/* to the function on entry.  */
+	__(mr r12,nargs)
+	__(bctrl)
+        __(str(r3,0*node_size(save7)))        
+        __(str(r4,1*node_size(save7)))        
+        __(str(r5,2*node_size(save7)))        
+        __(str(r6,3*node_size(save7)))        
+        __(str(r7,4*node_size(save7)))        
+        __(str(r8,5*node_size(save7)))        
+        __(str(r9,6*node_size(save7)))        
+        __(str(r10,7*node_size(save7)))
+        __(stfd f1,((8*node_size)+(0*8))(save7))
+        __(stfd f2,((8*node_size)+(1*8))(save7))
+        __(stfd f3,((8*node_size)+(2*8))(save7))
+        __(stfd f4,((8*node_size)+(3*8))(save7))
+        __(stfd f5,((8*node_size)+(4*8))(save7))
+        __(stfd f6,((8*node_size)+(5*8))(save7))
+        __(stfd f7,((8*node_size)+(6*8))(save7))
+        __(stfd f8,((8*node_size)+(7*8))(save7))
+        __(stfd f9,((8*node_size)+(8*8))(save7))
+        __(stfd f10,((8*node_size)+(9*8))(save7))
+        __(stfd f11,((8*node_size)+(10*8))(save7))
+        __(stfd f12,((8*node_size)+(11*8))(save7))
+        __(stfd f13,((8*node_size)+(12*8))(save7))
+	__(b FF_call_return_common)
+
+        	
 /* Signal an error synchronously, via %ERR-DISP.  */
 /* If %ERR-DISP isn't fbound, it'd be nice to print a message  */
 /* on the C runtime stderr.  */
@@ -6690,8 +6768,6 @@ _spentry(aset3)
 
 
         
-_spentry(unused_4)
-         __(b _SPbreakpoint)
 
 _spentry(unused_5)
          __(b _SPbreakpoint)

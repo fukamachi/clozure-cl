@@ -172,7 +172,7 @@ C(spjump_start):
         _spjump(mvpasssym)
         _spjump(aref3)
         _spjump(aset3)
-        _spjump(unused_4)
+        _spjump(poweropen_ffcall_return_registers)
         _spjump(unused_5)
         _spjump(unused_6)
         _spjump(unbind_interrupt_level)
