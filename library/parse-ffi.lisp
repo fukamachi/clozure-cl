@@ -17,6 +17,7 @@
 (in-package "CCL")
 
 (defvar *parse-ffi-target-ftd* *target-ftd*)
+(defvar *ffi-struct-return-explicit* nil)
 (defvar *ffi-lisp-readtable* (copy-readtable nil))
 (defvar *ffi-ordinal* -1)
 (defpackage "C" (:use))
@@ -643,10 +644,13 @@
     (if (eq (car (last args)) *ffi-void-reference*)
       (setq args (butlast args)))
     (when (ffi-record-type-p retval)
-      (push retval args)
-      (push `(:pointer ,retval) (ffi-function-arglist ffi-function))
-      (setf (ffi-function-return-value ffi-function) *ffi-void-reference*)
-      (setq retval *ffi-void-reference*))
+      (if *ffi-struct-return-explicit*
+        (format t "~& explicit struct return for ~s" ffi-function)
+        (progn
+          (push retval args)
+          (push `(:pointer ,retval) (ffi-function-arglist ffi-function))
+          (setf (ffi-function-return-value ffi-function) *ffi-void-reference*)
+          (setq retval *ffi-void-reference*))))
     (dolist (arg args) (ensure-referenced-type-defined arg))
     (ensure-referenced-type-defined retval)
     (record-global-function ffi-function)))
@@ -711,6 +715,7 @@
          (*parse-ffi-target-ftd* ftd)
          (*target-ftd* ftd)
          (*target-backend* backend)
+         (*ffi-struct-return-explicit* (getf (ftd-attributes ftd) :struct-return-explicit))
 	 (d (use-interface-dir dirname ftd))
 	 (interface-dir (merge-pathnames
 			 (interface-dir-subdir d)
