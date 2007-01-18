@@ -1009,4 +1009,14 @@
   @done
   (blr))
 
+;;; r13 contains thread context on Linux/Darwin PPC64.
+;;; That's maintained in r2 on LinuxPPC32, and not maintained
+;;; in a GPR on DarwinPPC32
+(defppclapfunction %get-os-context ()
+  #+ppc64-target (mr arg_z 13)
+  #+linuxppc32-target (mr arg_z 2)
+  #+darinppc32-target (mr arg_z 0)
+  (blr))
+
+
 ; end of ppc-misc.lisp
