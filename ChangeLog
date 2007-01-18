@@ -1,3 +1,7 @@
+2007-01-18 04:35  gb
+
+	* level-1/version.lisp: Bump.
+
 2007-01-18 04:17  gb
 
 	* examples/bridge.lisp: Some word-size conditionalization.  Will
