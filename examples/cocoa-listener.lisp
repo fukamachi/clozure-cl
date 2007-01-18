@@ -146,10 +146,10 @@
 
 (defmethod textview-background-color ((doc hemlock-listener-document))
   (send (find-class 'ns:ns-color)
-        :color-with-calibrated-red *listener-background-red-component*
-        :green *listener-background-green-component*
-        :blue *listener-background-blue-component*
-        :alpha *listener-background-alpha-component*))
+        :color-with-calibrated-red (float *listener-background-red-component* +cgfloat-zero+)
+        :green (float *listener-background-green-component* +cgfloat-zero+)
+        :blue (float *listener-background-blue-component* +cgfloat-zero+)
+        :alpha (float *listener-background-alpha-component* +cgfloat-zero+)))
 
 
 (defun hemlock::listener-document-send-string (document string)
@@ -231,9 +231,11 @@
     (send self :add-window-controller controller)
     (send controller 'release)
     (slet ((current-point (ns-make-point (or *next-listener-x-pos*
-                                             *initial-listener-x-pos*)
+                                             (float *initial-listener-x-pos*
+                                                    +cgfloat-zero+))
                                          (or *next-listener-y-pos*
-                                             *initial-listener-y-pos*))))
+                                             (float *initial-listener-y-pos*
+                                                    +cgfloat-zero+)))))
       (slet ((new-point (send window
                               :cascade-top-left-from-point current-point)))
         (setf *next-listener-x-pos* (pref new-point :<NSP>oint.x)

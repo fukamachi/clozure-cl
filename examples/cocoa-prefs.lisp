@@ -59,14 +59,14 @@
   (let* ((scrollview (prefs-view-scroll-view self)))
     (slet* ((contentsize (send scrollview 'content-size))
             (form-frame (ns-make-rect
-                         0.0f0
-                         0.0f0
+                         +cgfloat-zero+
+                         +cgfloat-zero+
                          (pref contentsize :<NSS>ize.width)
                          (pref contentsize :<NSS>ize.height))))
       (let* ((form (make-objc-instance 'ns:ns-form :with-frame form-frame)))
         (send form :set-scrollable t)
-        (send form :set-intercell-spacing (ns-make-size 1.0f0 4.0f0))
-        (send form :set-cell-size (ns-make-size 500.0f0 22.0f0))
+        (send form :set-intercell-spacing (ns-make-size (float 1.0f0 +cgfloat-zero+) (float 4.0f0 +cgfloat-zero+)))
+        (send form :set-cell-size (ns-make-size (float 500.0f0 +cgfloat-zero+) (float 22.0f0 +cgfloat-zero+)))
         (setf (prefs-view-form self) form)
         (send scrollview :set-document-view form)
         form))))
@@ -148,7 +148,10 @@
 (define-objc-method ((:id :init-with-frame (:<NSR>ect frame))
                      prefs-view)
     (send-super :init-with-frame frame)
-  (slet ((scroll-frame (ns-make-rect 20.0f0 40.0f0 (- (pref frame :<NSR>ect.size.width) 40.0f0) (- (pref frame :<NSR>ect.size.height) 60.0f0))))
+  (slet ((scroll-frame (ns-make-rect (float 20.0f0 +cgfloat-zero+)
+                                     (float 40.0f0 +cgfloat-zero+)
+                                     (- (pref frame :<NSR>ect.size.width) 40.0f0)
+                                     (- (pref frame :<NSR>ect.size.height) 60.0f0))))
     (let* ((scrollview (make-objc-instance 'ns:ns-scroll-view
                                            :with-frame scroll-frame))
            (scroll-content (send scrollview 'content-view))) 
@@ -161,13 +164,16 @@
 					       #$NSViewHeightSizable))
       (send scroll-content :set-autoresizes-subviews t)
       (setf (slot-value self 'scroll-view) scrollview)
-      (slet ((revert-frame (ns-make-rect 20.0f0 10.0f0 80.0f0 20.0f0))
+      (slet ((revert-frame (ns-make-rect (float 20.0f0 +cgfloat-zero+)
+                                         (float 10.0f0 +cgfloat-zero+)
+                                         (float 80.0f0 +cgfloat-zero+)
+                                         (float 20.0f0 +cgfloat-zero+)))
              (commit-frame (ns-make-rect (- (+ (pref frame :<NSR>ect.origin.x)
                                                (pref frame :<NSR>ect.size.width))
                                             (+ 80.0f0 20.0f0))
-                                         10.0f0
-                                         80.0f0
-                                         20.0f0)))
+                                         (float 10.0f0 +cgfloat-zero+)
+                                         (float 80.0f0 +cgfloat-zero+)
+                                         (float 20.0f0 +cgfloat-zero+))))
         (let* ((commit-button (make-objc-instance
                                'ns:ns-button
                                :with-frame commit-frame))
