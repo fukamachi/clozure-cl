@@ -3895,6 +3895,8 @@
 
 (define-ppc64-subprim-call-vinsn (poweropen-ff-call) .SPpoweropen-ffcall)
 
+(define-ppc64-subprim-call-vinsn (poweropen-ff-call-regs) .SPpoweropen-ffcall-return-registers)
+
 (define-ppc64-subprim-call-vinsn (poweropen-ff-callX) .SPpoweropen-ffcallX)
 
 (define-ppc64-subprim-call-vinsn (bind-interrupt-level-0) .SPbind-interrupt-level-0)
