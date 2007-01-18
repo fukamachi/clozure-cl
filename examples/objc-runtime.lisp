@@ -44,7 +44,6 @@
   #+apple-objc
   (progn
     (use-interface-dir :cocoa)
-    #-apple-objc-2.0
     (use-interface-dir :carbon))        ; need :carbon for things in this file
   #+gnu-objc
   (use-interface-dir :gnustep))
@@ -61,12 +60,24 @@
 
 (defloadvar *NSApp* nil )
 
+;;; Apple ObjC 2.0 provides (#_objc_getProtocol name).  In other
+;;; runtimes, there doesn't seem to be any way to find a Protocol
+;;; object given its name.  We need to be able to ask at runtime
+;;; whether a given object conforms to a protocol in order to
+;;; know when a protocol method is ambiguous, at least when the
+;;; message contains ambiguous methods and some methods are protocol
+;;; methods
+(defloadvar *objc-protocols* (make-hash-table :test #'equal))
+
+(defun lookup-objc-protocol (name)
+  (values (gethash name *objc-protocols*)))
 
 (defun ensure-objc-classptr-resolved (classptr)
   #+apple-objc (declare (ignore classptr))
   #+gnu-objc
   (unless (logtest #$_CLS_RESOLV (pref classptr :objc_class.info))
     (external-call "__objc_resolve_class_links" :void)))
+
 
 
 (defstruct private-objc-class-info
@@ -450,35 +461,38 @@
 (defconstant JMP-lr #x54 "link register (return address) offset in jmp_buf")
 #|(defconstant JMP-ctr #x5c "count register jmp_buf offset")|#
 (defconstant JMP-sp 0 "stack pointer offset in jmp_buf")
-(defconstant JMP-r13 8 "offset of r13 (which we clobber) in jmp_buf")
-(defconstant JMP-r14 12 "offset of r14 (which we also clobber) in jmp_buf"))
+(defconstant JMP-r14 12 "offset of r14 (which we clobber) in jmp_buf")
+(defconstant JMP-r15 16 "offset of r14 (which we also clobber) in jmp_buf"))
 
 #+ppc64-target
 (progn
 (defconstant JMP-lr #xa8 "link register (return address) offset in jmp_buf")
 #|(defconstant JMP-ctr #x5c "count register jmp_buf offset")|#
 (defconstant JMP-sp 0 "stack pointer offset in jmp_buf")
-(defconstant JMP-r13 #x10 "offset of r13 (which we clobber) in jmp_buf")
-(defconstant JMP-r14 #x18 "offset of r14 (which we also clobber) in jmp_buf"))
+(defconstant JMP-r13 #x10 "offset of r13 (which we preserve) in jmp_buf")
+(defconstant JMP-r14 #x18 "offset of r14 (which we clobber) in jmp_buf")
+(defconstant JMP-r15 #x20 "offset of r15 (which we also clobber) in jmp_buf"))
  
 
-;;; A malloc'ed pointer to two words of machine code.  The first
-;;; instruction (rather obviously) copies r13 to r4.  A C function
-;;; passes its second argument in r4, but since r4 isn't saved in a
-;;; jmp_buf, we have to do this copy.  The second instruction just
-;;; jumps to the address in the count register, which is where we
-;;; really wanted to go in the first place.
+;;; A malloc'ed pointer to thre words of machine code.  The first
+;;; instruction copies the address of the trampoline callback from r14
+;;; to the count register.  The second instruction (rather obviously)
+;;; copies r15 to r4.  A C function passes its second argument in r4,
+;;; but since r4 isn't saved in a jmp_buf, we have to do this copy.
+;;; The second instruction just jumps to the address in the count
+;;; register, which is where we really wanted to go in the first
+;;; place.
 
 (macrolet ((ppc-lap-word (instruction-form)
              (uvref (uvref (compile nil
                                     `(lambda (&lap 0)
                                       (ppc-lap-function () ((?? 0))
                                        ,instruction-form)))
-                           0) 0)))
+                           0) #+ppc64-target 1 #+ppc32-target 0)))
   (defloadvar *setjmp-catch-lr-code*
       (let* ((p (malloc 12)))
         (setf (%get-unsigned-long p 0) (ppc-lap-word (mtctr 14))
-              (%get-unsigned-long p 4) (ppc-lap-word (mr 4 13))
+              (%get-unsigned-long p 4) (ppc-lap-word (mr 4 15))
               (%get-unsigned-long p 8) (ppc-lap-word (bctr)))
         ;;; Force this code out of the data cache and into memory, so
         ;;; that it'll get loaded into the icache.
@@ -498,11 +512,13 @@
 ;;; Initialize a jmp_buf so that when it's #_longjmp-ed to, it'll
 ;;; wind up calling THROW-TO-CATCH-FRAME with the specified catch
 ;;; frame as its second argument.  The C frame used here is just
-;; an empty C stack frame from which the callback will be called.
+;;; an empty C stack frame from which the callback will be called.
 
 (defun %associate-jmp-buf-with-catch-frame (jmp-buf catch-frame c-frame)
   (%set-object jmp-buf JMP-sp c-frame)
-  (%set-object jmp-buf JMP-r13 catch-frame)
+  (%set-object jmp-buf JMP-r15 catch-frame)
+  #+ppc64-target
+  (%set-object jmp-buf JMP-r13 (%get-os-context))
   (setf (%get-ptr jmp-buf JMP-lr) *setjmp-catch-lr-code*
         (%get-ptr jmp-buf JMP-r14) throw-to-catch-frame)
   t)
@@ -564,20 +580,17 @@
 			  (when (objc-class-p s) (return s))))
 		 (meta-id (objc-class-id->objc-metaclass-id i))
 		 (m (id->objc-metaclass meta-id)))
+            (let* ((class (make-objc-class-pair super (make-cstring (objc-class-id-foreign-name i))))
+                   (meta (pref class #+apple-objc :objc_class.isa
+                               #+gnu-objc :objc-class.class_pointer)))
 	    (unless (splay-tree-get metaclass-map m)
 	      (%revive-macptr m)
-	      (%setf-macptr m (%make-basic-meta-class
-			       (make-cstring (objc-metaclass-id-foreign-name meta-id))
-			       super
-			       (find-class 'ns::ns-object)))
+	      (%setf-macptr m meta)
 	      (splay-tree-put metaclass-map m meta-id))
-	    (%setf-macptr c (%make-class-object
-			     m
-			     super
-			     (make-cstring (objc-class-id-foreign-name i))
-			     (%null-ptr)
-			     0))
-
+	    (%setf-macptr c class))
+            #+apple-objc-2.0
+            (%add-objc-class c)
+            #-apple-objc-2.0
 	    (multiple-value-bind (ivars instance-size)
 		(%make-objc-ivars c)
 	      (%add-objc-class c ivars instance-size)
@@ -1224,7 +1237,7 @@ argument lisp string."
 	  (%get-signed-long method-vector 8) 0
 	  (%get-signed-long method-vector 12) -1)
     method-vector))
-  
+
 
 ;;; Make a meta-class object (with no instance variables or class
 ;;; methods.)
@@ -1405,6 +1418,9 @@ argument lisp string."
 	  (pref class :objc_class.info) (logior #$_CLS_RESOLV (pref class :objc_class.info)))
     (#___objc_exec_class m)))
 
+#+apple-objc-2.0
+(defun %add-objc-class (class)
+  (#_objc_registerClassPair class))
 
 (defun %make-nsstring (string)
   (with-cstrs ((s string))
@@ -1433,23 +1449,14 @@ argument lisp string."
       (if idx (id->objc-class  idx)))))
 
 
-#+apple-objc
-(defun zone-pointer-size (p)
-  (with-macptrs ((zone (#_malloc_zone_from_ptr p)))
-    (unless (%null-ptr-p zone)
-      (let* ((size (ff-call (pref zone :malloc_zone_t.size)
-			    :address zone
-			    :address p
-			    :int)))
-	(declare (fixnum size))
-	(unless (zerop size)
-	  size)))))
+
 
 (defun objc-private-class-id (classptr)
   (let* ((info (%get-private-objc-class classptr)))
     (when info
       (or (private-objc-class-info-declared-ancestor info)
-          (with-macptrs ((super (pref classptr :objc_class.super_class)))
+          (with-macptrs ((super #+apple-objc-2.0 (#_class_getSuperclass classptr)
+                                #-apple-objc-2.0 (pref classptr :objc_class.super_class)))
             (loop
               (when (%null-ptr-p super)
                 (return))
@@ -1457,7 +1464,8 @@ argument lisp string."
                 (if id
                   (return (setf (private-objc-class-info-declared-ancestor info)
                                 id))
-                  (%setf-macptr super (pref super :objc_class.super_class))))))))))
+                  (%setf-macptr super #+apple-objc-2.0 (#_class_getSuperclass super)
+                                #-apple-objc-2.0 (pref super :objc_class.super_class))))))))))
 
 (defun objc-class-or-private-class-id (classptr)
   (or (objc-class-id classptr)
@@ -1465,14 +1473,15 @@ argument lisp string."
 
 
 (defun %objc-instance-class-index (p)
-  (if (with-macptrs (q)
-        (safe-get-ptr p q)
-        (not (%null-ptr-p q)))
-    (with-macptrs ((parent #+apple-objc (pref p :objc_object.isa)
-                           #+gnu-objc (pref p :objc_object.class_pointer)))
-      (or
-       (objc-class-id parent)
-       (objc-private-class-id parent)))))
+  (unless (%null-ptr-p p)
+    (if (with-macptrs (q)
+          (safe-get-ptr p q)
+          (not (%null-ptr-p q)))
+      (with-macptrs ((parent #+apple-objc (pref p :objc_object.isa)
+                             #+gnu-objc (pref p :objc_object.class_pointer)))
+        (or
+         (objc-class-id parent)
+         (objc-private-class-id parent))))))
 
 
 ;;; If an instance, return (values :INSTANCE <class>)
@@ -1533,33 +1542,44 @@ argument lisp string."
 	      
 
 (defun %add-objc-method (classptr selector typestring imp)
-  #+apple-objc
-  (#_class_addMethods classptr
-		      (%mlist-containing classptr selector typestring imp))
-  #+gnu-objc
+  #+apple-objc-2.0
+  (with-cstrs ((typestring typestring))
+    (or (not (eql #$NO (#_class_addMethod classptr selector imp typestring)))
+        (let* ((m (if (objc-metaclass-p classptr)
+                    (#_class_getClassMethod classptr selector)
+                    (#_class_getInstanceMethod classptr selector))))
+          (if (not (%null-ptr-p m))
+            (#_method_setImplementation m imp)
+            (error "Can't add ~s method to class ~s" selector typestring)))))
+  #-apple-objc-2.0
+  (progn
+    #+apple-objc
+    (#_class_addMethods classptr
+                        (%mlist-containing classptr selector typestring imp))
+    #+gnu-objc
   ;;; We have to do this ourselves, and have to do it with the runtime
   ;;; mutex held.
-  (with-gnu-objc-mutex-locked (*gnu-objc-runtime-mutex*)
-    (let* ((ctypestring (make-cstring typestring))
-	   (new-mlist nil))
-      (with-macptrs ((method (external-call "search_for_method_in_list"
-			      :address (pref classptr :objc_class.methods)
-			      :address selector
-			      :address)))
-	(when (%null-ptr-p method)
-	  (setq new-mlist (make-record :objc_method_list :method_count 1))
-	  (%setf-macptr method (pref new-mlist :objc_method_list.method_list)))
-	(setf (pref method :objc_method.method_name) selector
-	      (pref method :objc_method.method_types) ctypestring
-	      (pref method :objc_method.method_imp) imp)
-	(if new-mlist
-	  (external-call "GSObjCAddMethods"
-			 :address classptr
-			 :address new-mlist
-			 :void)
-	  (external-call "__objc_update_dispatch_table_for_class"
-			 :address classptr
-			 :void))))))
+    (with-gnu-objc-mutex-locked (*gnu-objc-runtime-mutex*)
+      (let* ((ctypestring (make-cstring typestring))
+             (new-mlist nil))
+        (with-macptrs ((method (external-call "search_for_method_in_list"
+                                              :address (pref classptr :objc_class.methods)
+                                              :address selector
+                                              :address)))
+          (when (%null-ptr-p method)
+            (setq new-mlist (make-record :objc_method_list :method_count 1))
+            (%setf-macptr method (pref new-mlist :objc_method_list.method_list)))
+          (setf (pref method :objc_method.method_name) selector
+                (pref method :objc_method.method_types) ctypestring
+                (pref method :objc_method.method_imp) imp)
+          (if new-mlist
+            (external-call "GSObjCAddMethods"
+                           :address classptr
+                           :address new-mlist
+                           :void)
+            (external-call "__objc_update_dispatch_table_for_class"
+                           :address classptr
+                           :void)))))))
 
 (defvar *lisp-objc-methods* (make-hash-table :test #'eq))
 
@@ -1756,13 +1776,21 @@ argument lisp string."
               ,@decls
               (rlet ((,super :objc_super
                        #+apple-objc :receiver #+gnu-objc :self ,self
-                       :class
+                       #+apple-objc-2.0 :super_class #-apple-objc-2.0 :class
                        ,@(if class-p
+                             #+apple-objc-2.0
+                             `((external-call "_class_getSuperclass"
+                                :address (pref (@class ,class-name) :objc_class.isa) :address))
+                             #-apple-objc-2.0
                              `((pref
                                 (pref (@class ,class-name)
                                  #+apple-objc :objc_class.isa
                                  #+gnu-objc :objc_class.super_class )
                                 :objc_class.super_class))
+                             #+apple-objc-2.0
+                             `((external-call "_class_getSuperclass"
+                                :address (@class ,class-name) :address))
+                             #-apple-objc-2.0
                              `((pref (@class ,class-name) :objc_class.super_class)))))
                 (macrolet ((send-super (msg &rest args &environment env) 
                              (make-optimized-send nil msg args env nil ',super ,class-name))
@@ -1791,21 +1819,7 @@ argument lisp string."
   (objc-method-definition-form t selector-arg class-arg body env))
 
 (defun class-get-instance-method (class sel)
-  #+apple-objc (let* ((p (#_class_getInstanceMethod class sel)))
-                 (if (%null-ptr-p p)                   
-                   (unless (logtest #$CLS_INITIALIZED (pref (pref class :objc_class.isa)  :objc_class.info))
-                     ;; Do this for effect; ignore the :<IMP> it returns.
-                     ;; (It should cause the CLS_NEED_BIND flag to turn itself
-                     ;; off after the class has been initialized; we need
-                     ;; the class and all superclasses to have been initialized,
-                     ;; so that we can find category methods via
-                     ;; #_class_getInstanceMethod.
-                     (external-call "_class_lookupMethod"
-                                    :id class
-                                    :<SEL> sel
-                                    :address)
-                     (%setf-macptr p (#_class_getInstanceMethod class sel))))
-                 p)
+  #+apple-objc (#_class_getInstanceMethod class sel)
   #+gnu-objc (#_class_get_instance_method class sel))
 
 (defun class-get-class-method (class sel)
@@ -1841,22 +1855,6 @@ argument lisp string."
          :key #'function-name)
 )
 
-;;; Return a typestring and offset as multiple values.
-
-(defun objc-get-method-argument-info (m i)
-  #+apple-objc
-  (%stack-block ((type 4) (offset 4))
-    (#_method_getArgumentInfo m i type offset)
-    (values (%get-cstring (%get-ptr type)) (%get-signed-long offset)))
-  #+gnu-objc
-  (progn
-    (with-macptrs ((typespec (#_objc_skip_argspec (pref m :objc_method.method_types))))
-      (dotimes (j i (values (%get-cstring typespec)
-			    (#_strtol (#_objc_skip_typespec typespec)
-				      (%null-ptr)
-				      10.)))
-	(%setf-macptr typespec (#_objc_skip_argspec typespec))))))
-
   
 
 
@@ -1891,6 +1889,41 @@ argument lisp string."
     (unless (%null-ptr-p cstring)
       (%get-cstring cstring))))
 
+#+apple-objc-2.0
+;;; This isn't defined in headers; it's sort of considered a built-in
+;;; type by the ObjC frontend.  (See also the ObjC runtime source.)
+(eval-when (:compile_toplevel :execute)
+  (def-foreign-type nil
+      (:struct :_objc_exception_data
+        (:buf :jmp_buf)
+        (:pointers (:array :address 4)))))
+
+;;; Apple's mechanism for maintaining per-thread exception handler
+;;; state isn't thread safe, which suggests that we should probably
+;;; install our own callbacks via #_objc_exception_set_functions.
+;;; It's 2007.
+
+#+apple-objc-2.0
+(defmacro with-ns-exceptions-as-errors (&body body)
+  (let* ((data (gensym))
+         (cframe (gensym)))
+    `(rletZ ((,data :_objc_exception_data))
+      (unwind-protect
+           (progn
+             (#_objc_exception_try_enter ,data)
+               (catch ,data
+               (with-c-frame ,cframe
+                 (%associate-jmp-buf-with-catch-frame
+                  ,data
+                  (%fixnum-ref (%current-tcr) target::tcr.catch-top)
+                  ,cframe)
+                 (progn
+                   ,@body))))
+        (check-ns-exception ,data)))))
+                 
+             
+    
+#-apple-objc-2.0
 (defmacro with-ns-exceptions-as-errors (&body body)
   #+apple-objc
   (let* ((nshandler (gensym))
@@ -1912,7 +1945,14 @@ argument lisp string."
   `(progn ,@body)
   )
 
-#+apple-objc
+#+apple-objc-2.0
+(defun check-ns-exception (data)
+  (with-macptrs ((exception (#_objc_exception_extract data)))
+    (if (%null-ptr-p exception)
+      (#_objc_exception_try_exit data)
+      (error (ns-exception->lisp-condition (%inc-ptr exception 0))))))
+
+#+(and apple-objc (not apple-objc-2.0))
 (defun check-ns-exception (nshandler)
   (with-macptrs ((exception (external-call "__NSExceptionObjectFromHandler2"
                                            :address nshandler
