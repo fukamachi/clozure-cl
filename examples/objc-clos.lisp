@@ -294,6 +294,10 @@ p))))
     (format stream "#<Bogus ObjC Object #x~X>" (%ptr-to-int o))))
 
 
+
+  
+
+
 (defun make-objc-class-object-slots-vector (class meta)
   (let* ((n (1+ (length (extract-instance-effective-slotds meta))))
 	 (slots (allocate-typed-vector :slot-vector n (%slot-unbound-marker))))
@@ -385,6 +389,7 @@ p))))
       (setq bit-offset (+ bit-offset (foreign-type-bits ftype))))))
 
 (defmethod (setf class-direct-slots) :before (dslotds (class objc::objc-class))
+  #-apple-objc-2.0
   (let* ((foreign-dslotds
 	  (loop for d in dslotds
 		when (typep d 'foreign-direct-slot-definition)
@@ -393,12 +398,34 @@ p))))
                        (when (typep c 'objc::objc-class)
                          (return
                            (ash (%objc-class-instance-size c)
-                            3))))))
+                                3))))))
     (unless
-      (dolist (d foreign-dslotds t)
-	(if (not (foreign-direct-slot-definition-bit-offset d))
-	  (return nil)))
-      (set-objc-foreign-direct-slot-offsets foreign-dslotds bit-offset))))
+        (dolist (d foreign-dslotds t)
+          (if (not (foreign-direct-slot-definition-bit-offset d))
+            (return nil)))
+      (set-objc-foreign-direct-slot-offsets foreign-dslotds bit-offset)))
+  #+apple-objc-2.0
+  ;; Add ivars for each foreign direct slot, then ask the runtime for
+  ;; the ivar's byte offset.  (Note that the ObjC 2.0 ivar initialization
+  ;; protocol doesn't seem to offer support for bitfield-valued ivars.)
+  (dolist (dslotd dslotds)
+    (when (typep dslotd 'foreign-direct-slot-definition)
+      (let* ((string (lisp-defined-slot-name-to-objc-slot-name (slot-definition-name dslotd)))
+             (type (foreign-slot-definition-foreign-type dslotd))
+             (encoding (progn
+                         (ensure-foreign-type-bits type)
+                         (encode-objc-type type)))
+             (size (ceiling (foreign-type-bits type) 8))
+             (align (round (log (ceiling (foreign-type-alignment type) 8) 2))))
+        (with-cstrs ((name string)
+                     (encoding encoding))
+          (unless (eql #$NO (#_class_addIvar class name size align encoding))
+            (with-macptrs ((ivar (#_class_getInstanceVariable class name)))
+              (unless (%null-ptr-p ivar)
+                (let* ((offset (#_ivar_getOffset ivar)))
+                  (setf (foreign-direct-slot-definition-bit-offset dslotd)
+                        (ash offset 3)))))))))))
+
 					       
 
 (defun lisp-defined-slot-name-to-objc-slot-name (lisp-name)
@@ -436,6 +463,8 @@ p))))
 		(pref ivar :objc_ivar.ivar_type) (make-cstring encoding)
 		(pref ivar :objc_ivar.ivar_offset) (ash offset -3))
           (incf offset (foreign-type-bits type))))))))
+  
+  
 
 (defun %objc-ivar-offset-in-class (name c)
   ;; If C is a non-null ObjC class that contains an instance variable
@@ -741,9 +770,12 @@ p))))
 (defmethod initialize-instance :after ((class objc:objc-class) &rest initargs)
   (declare (ignore initargs))
   (unless (slot-value class 'foreign)
+    #-apple-objc-2.0
     (multiple-value-bind (ivars instance-size)
 	(%make-objc-ivars class)
-      (%add-objc-class class ivars instance-size))))
+      (%add-objc-class class ivars instance-size))
+    #+apple-objc-2.0
+    (%add-objc-class class)))
 
 (defmethod shared-initialize ((instance objc:objc-object) slot-names 
 			      &rest initargs)
