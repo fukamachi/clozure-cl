@@ -903,4 +903,9 @@
 (defppc32archmacro ccl::function-vector-to-function (v)
   v)
 
+(defppc32archmacro ccl::with-ffcall-results ((buf) &body body)
+  (let* ((size (+ (* 8 4) (* 31 8))))
+    `(%stack-block ((,buf ,size))
+      ,@body)))
+
 (provide "PPC32-ARCH")
