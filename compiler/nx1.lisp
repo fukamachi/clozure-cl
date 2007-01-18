@@ -1333,8 +1333,9 @@
              ((:linuxx8664 :freebsdx8664 :darwinx8664) (%nx1-operator syscall))))))
 
 (defun nx1-ff-call-internal (address-expression arg-specs-and-result-spec operator )
-  (let* ((specs ())
+  (let* ((specs ())         
          (vals ())
+         (register-spec-seen nil)
 	 (darwin-target-p (or (eql operator (%nx1-operator poweropen-syscall))
 			      (eql operator (%nx1-operator poweropen-ff-call))))
 	 (monitor (eq (car arg-specs-and-result-spec) :monitor-exception-ports))
@@ -1354,7 +1355,14 @@
           (progn 
             (push arg-keyword specs)
             (push value vals))
-	   (error "Unknown argument spec: ~s" arg-keyword))))
+          (if (eq arg-keyword :registers)
+            (if register-spec-seen
+              (error "duplicate :registers in ~s" arg-specs-and-result-spec)
+              (progn
+                (setq register-spec-seen t)
+                (push arg-keyword specs)
+                (push value vals)))
+            (error "Unknown argument spec: ~s" arg-keyword)))))
     (unless (or (eq result-spec :void)
 		(memq result-spec *arg-spec-keywords*))
       (error "Unknown result spec: ~s" result-spec))
