@@ -269,10 +269,19 @@
                #+darwinppc-target
                '(:signed-char t
                  :struct-by-value t
+                 :struct-return-in-registers t
+                 :struct-return-explicit t
+                 :struct-by-value-by-field t
                  :prepend-underscores t
                  :bits-per-word  64)
                #+linuxppc-target
-               '(:bits-per-word  64))))
+               '(:bits-per-word  64)
+               :ff-call-expand-function
+               #+linuxppc-target
+               'ppc64::linux-expand-ff-call
+               #+darwinppc-target
+               'ppc64::darwin-expand-ff-call
+               )))
     (install-standard-foreign-types ftd)
     (use-interface-dir :libc ftd)
     (setf (backend-target-foreign-type-data *ppc64-backend*) ftd)))
