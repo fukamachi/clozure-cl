@@ -420,7 +420,13 @@
                  :bits-per-word  32
                  :poweropen-alignment t)
                #+linuxppc-target
-               '(:bits-per-word 32))))
+               '(:bits-per-word 32)
+               :ff-call-expand-function
+               #+linuxppc-target
+               'ppc32::linux-expand-ff-call
+               #+darwinppc-target
+               'ppc32::darwin-expand-ff-call
+               )))
     (install-standard-foreign-types ftd)
     (use-interface-dir :libc ftd)
     (setf (backend-target-foreign-type-data *ppc32-backend*) ftd)))
