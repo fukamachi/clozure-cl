@@ -480,7 +480,7 @@
          (defppcsubprim .SPmvpasssym)
          (defppcsubprim .SParef3)
          (defppcsubprim .SPaset3)
-         (defppcsubprim .SPunused-4)
+         (defppcsubprim .SPpoweropen-ffcall-return-registers)
          (defppcsubprim .SPunused-5)
          (defppcsubprim .SPunused-6)
          (defppcsubprim .SPunbind-interrupt-level)
