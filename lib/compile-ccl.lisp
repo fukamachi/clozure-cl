@@ -127,10 +127,18 @@
     ))
 
 (defun target-env-modules (&optional (target
-				      (backend-target-arch-name
-				       *host-backend*)))
-  (declare (ignore target))
-  *env-modules*)
+				      (backend-name *host-backend*)))
+  (append *env-modules*
+          (list
+           (ecase target
+             (:linuxppc32 'ffi-linuxppc32)
+             (:darwinppc32 'ffi-darwinppc32)
+             (:darwinppc64 'ffi-darwinppc64)
+             (:linuxppc64 'ffi-linuxppc64)
+             (:linuxx8664 'ffi-linuxx8664)
+             (:darwinx8664 'ffi-darwinx8664)
+             (:freebsdx8664 'ffi-freebsdx8664)))))
+
 
 (defun target-compiler-modules (&optional (target
 					   (backend-target-arch-name
@@ -161,9 +169,11 @@
             (:x8664 '(x86-backtrace x86-disassemble)))))
 	  
 
-(defun target-lib-modules (&optional (target
-				      (backend-target-arch-name *target-backend*)))
-  (append (target-env-modules target) (target-other-lib-modules target)))
+(defun target-lib-modules (&optional (backend-name
+                                      (backend-name *host-backend*)))
+  (let* ((backend (or (find-backend backend-name) *host-backend*))
+         (arch-name (backend-target-arch-name backend)))
+    (append (target-env-modules backend-name) (target-other-lib-modules arch-name))))
 
 
 (defparameter *code-modules*
@@ -380,7 +390,7 @@
     (target-compile-modules *compiler-modules* target force)
     (target-compile-modules (target-compiler-modules arch) target force)
     (target-compile-modules (target-level-1-modules target) target force)
-    (target-compile-modules (target-lib-modules arch) target force)
+    (target-compile-modules (target-lib-modules target) target force)
     (target-compile-modules *aux-modules* target force)
     (target-compile-modules *code-modules* target force)
     (target-compile-modules (target-xdev-modules arch) target force)))
