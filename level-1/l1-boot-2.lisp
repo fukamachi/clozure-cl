@@ -26,7 +26,7 @@
 				  (string name)
                                   (namestring (backend-target-fasl-pathname
                                                *target-backend*)))))
-	       `(let* ((*loading-file-source-file* *loading-file-source-file*))
+       `(let* ((*loading-file-source-file* *loading-file-source-file*))
                  (%fasload ,namestring))))
 	   (bin-load (name)
 	     (let* ((namestring
@@ -226,6 +226,22 @@ present and false otherwise. This variable shouldn't be set by user code.")
       
 
       (bin-load-provide "FOREIGN-TYPES" "foreign-types")
+
+      #+(and ppc32-target linux-target)
+      (bin-load-provide "FFI-LINUXPPC32" "ffi-linuxppc32")
+      #+(and ppc32-target darwin-target)
+      (bin-load-provide "FFI-DARWINPPC32" "ffi-darwinppc32")
+      #+(and ppc64-target darwin-target)
+      (bin-load-provide "FFI-DARWINPPC64" "ffi-darwinppc64")
+      #+(and ppc64-target linux-target)
+      (bin-load-provide "FFI-LINUXPPC64" "ffi-linuxppc64")
+      #+(and x8664-target linux-target)  
+      (bin-load-provide "FFI-LINUXX8664" "ffi-linuxx8664")
+      #+(and x8664-target darwin-target)  
+      (bin-load-provide "FFI-DARWINX8664" "ffi-darwinx8664")
+      #+(and x8664-target freebsd-target)  
+      (bin-load-provide "FFI-FREEBSDX8664" "ffi-freebsdx8664")
+      
       (bin-load-provide "DB-IO" "db-io")
       
       (bin-load-provide "CASE-ERROR" "case-error")
