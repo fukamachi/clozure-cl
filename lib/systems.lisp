@@ -41,21 +41,6 @@
     (l1-unicode       "ccl:l1f;l1-unicode"       ("ccl:l1;l1-unicode.lisp"))
     
     (l1-streams       "ccl:l1f;l1-streams"       ("ccl:l1;l1-streams.lisp"))
-    (l1-windows       "ccl:l1f;l1-windows"       ("ccl:l1;l1-windows.lisp"))
-    (fredenv          "ccl:bin;fredenv"          ("ccl:lib;fredenv.lisp"))
-    (l1-edwin         "ccl:l1f;l1-edwin"         ("ccl:l1;l1-edwin.lisp"
-                                                  "ccl:lib;fredenv.lisp"))
-    (l1-ed-lds        "ccl:l1f;l1-ed-lds"        ("ccl:l1;l1-ed-lds.lisp"
-                                                  "ccl:lib;fredenv.lisp"))
-    (l1-edcmd         "ccl:l1f;l1-edcmd"         ("ccl:l1;l1-edcmd.lisp"
-                                                  "ccl:lib;fredenv.lisp"))
-    (script-manager   "ccl:l1f;script-manager"   ("ccl:l1;script-manager.lisp"))
-    (l1-edfrec        "ccl:l1f;l1-edfrec"        ("ccl:l1;l1-edfrec.lisp"
-                                                  "ccl:lib;fredenv.lisp"))
-    (l1-edbuf         "ccl:l1f;l1-edbuf"         ("ccl:l1;l1-edbuf.lisp"
-                                                  "ccl:lib;fredenv.lisp"))
-    (l1-listener      "ccl:l1f;l1-listener"      ("ccl:l1;l1-listener.lisp"
-                                                  "ccl:lib;fredenv.lisp"))
     (l1-events        "ccl:l1f;l1-events"        ("ccl:l1;l1-events.lisp"))
     (ppc-trap-support "ccl:l1f;ppc-trap-support" ("ccl:l1;ppc-trap-support.lisp"))
     (x86-trap-support "ccl:l1f;x86-trap-support" ("ccl:l1;x86-trap-support.lisp"))
@@ -146,6 +131,14 @@
     (macros           "ccl:bin;macros"           ("ccl:lib;macros.lisp"))
     (defstruct-macros "ccl:bin;defstruct-macros" ("ccl:lib;defstruct-macros.lisp"))
     (foreign-types    "ccl:bin;foreign-types"    ("ccl:lib;foreign-types.lisp"))
+    (ffi-linuxppc32   "ccl:bin;ffi-linuxppc32"   ("ccl:lib;ffi-linuxppc32.lisp"))
+    (ffi-darwinppc32  "ccl:bin;ffi-darwinppc32"  ("ccl:lib;ffi-darwinppc32.lisp"))
+    (ffi-darwinppc64  "ccl:bin;ffi-darwinppc64"  ("ccl:lib;ffi-darwinppc64.lisp"))
+    (ffi-linuxppc64   "ccl:bin;ffi-linuxppc64"   ("ccl:lib;ffi-linuxppc64.lisp"))
+    (ffi-linuxx8664   "ccl:bin;ffi-linuxx8664"   ("ccl:lib;ffi-linuxx8664.lisp"))
+    (ffi-darwinx8664  "ccl:bin;ffi-darwinx8664"  ("ccl:lib;ffi-darwinx8664.lisp"))
+    (ffi-freebsdx8664 "ccl:bin;ffi-freebsdx8664" ("ccl:lib;ffi-freebsdx8664.lisp"))
+    
     (db-io            "ccl:bin;db-io"            ("ccl:lib;db-io.lisp"))
     (hash             "ccl:bin;hash"             ("ccl:lib;hash.lisp"))
     (nfcomp           "ccl:bin;nfcomp"           ("ccl:lib;nfcomp.lisp"))
