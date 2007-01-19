@@ -1,3 +1,22 @@
+2007-01-18 23:15  gb
+
+	* level-1/l1-boot-2.lisp: Load with the new ffi-backend fasls.
+
+2007-01-18 23:15  gb
+
+	* lib/compile-ccl.lisp: Deal with the new ffi-backend sources.
+
+2007-01-18 23:15  gb
+
+	* lib/systems.lisp: Add the new ffi-backend sources.
+
+2007-01-18 23:14  gb
+
+	* lib/: ffi-darwinppc32.lisp, ffi-darwinppc64.lisp,
+	ffi-darwinx8664.lisp, ffi-freebsdx8664.lisp, ffi-linuxppc32.lisp,
+	ffi-linuxppc64.lisp, ffi-linuxx8664.lisp: New (so far, empty)
+	files.
+
 2007-01-18 04:35  gb
 
 	* level-1/version.lisp: Bump.
