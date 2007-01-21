@@ -74,14 +74,7 @@
                     
                       :prepend-underscores #+darwinppc-target t #-darwinppc-target nil)
                     :ff-call-expand-function
-                    #+(and darwinppc-target 32-bit-target) 'ppc32::darwin-expand-ff-call
-                    #+(and darwinppc-target 64-bit-target) 'ppc64::darwin-expand-ff-call
-                    #+(and linuxppc-target 32-bit-target) 'ppc32::linux-expand-ff-call
-                    #+(and linuxppc-target 64-bit-target) 'ppc64::linux-expand-ff-call
-                    #+linuxx8664-target 'x8664::linux-expand-ff-call
-                    #+darwinx8664-target 'x8664:::darwin-expand-ff-call
-                    #+freebsdx8664-target 'x8664:::freebsd-expand-ff-call 
-  
+                    'os::expand-ff-call 
                     ))
                     
 (defvar *target-ftd* *host-ftd*)
@@ -329,7 +322,9 @@ list, NIL otherwise."
 
 
 (defmethod make-load-form ((s foreign-type) &optional env)
-  (make-load-form-saving-slots s :environment env))
+  (if (eq s *void-foreign-type*)
+    '*void-foreign-type*
+    (make-load-form-saving-slots s :environment env)))
 
 
 
@@ -1504,11 +1499,13 @@ result-type-specifer is :VOID or NIL"
   (if (or (member f *foreign-representation-type-keywords*)
 	  (typep f 'unsigned-byte))
     f
-    (let* ((ftype (parse-foreign-type f)))
+    (let* ((ftype (if (typep f 'foreign-type)
+                    f
+                    (parse-foreign-type f))))
       (or
        (and (eq (foreign-type-class ftype) 'root) :void)	 
        (typecase ftype
-	 (foreign-pointer-type :address)
+	 ((or foreign-pointer-type foreign-array-type) :address)
 	 (foreign-double-float-type :double-float)
 	 (foreign-single-float-type :single-float)
 	 (foreign-integer-type
@@ -1531,7 +1528,7 @@ result-type-specifer is :VOID or NIL"
 		    :unsigned-fullword
 		    (if (<= bits 64)
 		      :unsigned-doubleword)))))))
-	 ((or foreign-record-type foreign-array-type)
+	 (foreign-record-type
           (if (getf (ftd-attributes *target-ftd*)
                   :struct-by-value)
             (let* ((bits (ensure-foreign-type-bits ftype)))
