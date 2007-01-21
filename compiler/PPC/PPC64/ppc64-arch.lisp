@@ -976,37 +976,6 @@
     `(ccl::%stack-block ((,buf ,size))
       ,@body)))
 
-#+darwinppc-target
-#+notyet
-(defun struct-from-regbuf (type-name structptr regbuf)
-  (let* ((type (ccl::%foreign-type-or-record type-name)))
-    (unless (typep type 'ccl::foreign-record-type)
-      (error "Not a structure type : ~s" type-name))
-    (let* ((bits (ccl::ensure-foreign-type-bits type)))
-      (ccl::collect ((forms))
-        (cond ((= bits 128)             ;(and (eql day 'tuesday) ...)
-               (forms `(setf (ccl::%%get-signed-longlong ,structptr 0)
-                        (ccl::%%get-signed-longlong ,regbuf 0)
-                        (ccl::%%get-signed-longlong ,structptr 8)
-                        (ccl::%%get-signed-longlong ,regbuf 8))))
-              (t
-               (let* ((gpr-offset 0)
-                      (fpr-offset (* 8 8))
-                      (bit-offset 0)
-                      (fields (ccl::foreign-record-type-fields type)))
-                 (ccl::collect ((bit-offset)
-                                (field-width))
-                   (flet ((next-gpr-offset ()
-                            (prog1 gpr-offset
-                              (incf gpr-offset 8)))
-                          (next-fpr-offset ()
-                            (prog1 fpr-offset
-                              (incf gpr-offset 8)
-                              (incf fptr-offset 8))))
-                     (flet ((assign-field (f)
-                              (let* ((field-type (ccl::foreign-record-field-type field))))))
-                       (dolist (field fields)
-                       
-                   )))))))))))
+
                               
 (provide "PPC64-ARCH")
