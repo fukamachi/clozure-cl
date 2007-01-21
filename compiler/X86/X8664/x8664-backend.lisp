@@ -269,8 +269,7 @@
                           :attributes '(:bits-per-word  64
                                         :struct-by-value t)
                           :ff-call-expand-function
-                          'x86-linux64::expand-ff-call
-                          :))
+                          (intern "EXPAND-FF-CALL" "X86-LINUX64")))
                 (:darwinx8664
                   (make-ftd :interface-db-directory "ccl:darwin-x86-headers64;"
                           :interface-package-name "X86-DARWIN64"
@@ -279,14 +278,14 @@
                                         :struct-by-value t
                                         :prepend-underscore t)
                           :ff-call-expand-function
-                          'x86-darwin64::expand-ff-call))
+                          (intern "EXPAND-FF-CALL" "X86-DARWIN64")))
                  (:freebsdx8664
                   (make-ftd :interface-db-directory "ccl:freebsd-headers64;"
                             :interface-package-name "X86-FREEBSD64"
                             :attributes '(:bits-per-word  64
                                           :struct-by-value t)
                           :ff-call-expand-function
-                          'x86-freebsd64::expand-ff-call)))))
+                          (intern "EXPAND-FF-CALL" "X86-FREEBSD64"))))))
         (install-standard-foreign-types ftd)
     (use-interface-dir :libc ftd)
     (setf (backend-target-foreign-type-data backend) ftd))))
