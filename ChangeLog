@@ -1,3 +1,18 @@
+2007-01-21 06:46  gb
+
+	* compiler/PPC/PPC64/ppc64-arch.lisp: WITH-FFCALL-RESULTS needs
+	space for 13 float registers, not 31.
+
+2007-01-21 06:45  gb
+
+	* compiler/X86/X8664/x8664-arch.lisp: WITH-FFCALL-RESULTS for
+	x86-64.
+
+2007-01-21 06:38  gb
+
+	* compiler/X86/x862.lisp: ff-call: handle n-word struct-by-value,
+	register return without typos.
+
 2007-01-21 06:15  gb
 
 	* compiler/X86/x862.lisp: ff-call: handle n-word struct-by-value,
