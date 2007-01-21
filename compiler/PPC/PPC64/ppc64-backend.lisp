@@ -278,9 +278,9 @@
                '(:bits-per-word  64)
                :ff-call-expand-function
                #+linuxppc-target
-               'ppc64::linux-expand-ff-call
+               'linux64::expand-ff-call
                #+darwinppc-target
-               'ppc64::darwin-expand-ff-call
+               'darwin64::expand-ff-call
                )))
     (install-standard-foreign-types ftd)
     (use-interface-dir :libc ftd)

@@ -370,8 +370,8 @@
 		'(:powerpc :ppc-target :darwin-target :darwinppc-target :ppc32-target :32-bit-target :big-endian-target)
 		:target-fasl-pathname (make-pathname :type "dfsl")
 		:target-platform (logior platform-word-size-32
-                                             platform-cpu-ppc
-                                             platform-os-darwin)
+                                         platform-cpu-ppc
+                                         platform-os-darwin)
 		:target-os :darwinppc
 		:name :darwinppc32
 		:target-arch-name :ppc32
@@ -423,9 +423,9 @@
                '(:bits-per-word 32)
                :ff-call-expand-function
                #+linuxppc-target
-               'ppc32::linux-expand-ff-call
+               'linux32::expand-ff-call
                #+darwinppc-target
-               'ppc32::darwin-expand-ff-call
+               'darwin32::expand-ff-call
                )))
     (install-standard-foreign-types ftd)
     (use-interface-dir :libc ftd)
