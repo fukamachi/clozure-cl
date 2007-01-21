@@ -1,3 +1,10 @@
+2007-01-20 22:31  gb
+
+	* lib/ffi-linuxppc64.lisp: 4 down.  Whether 2 or 3 to go depends on
+	your perspective (and on how close x86-64 Linux and x86-64 FreeBSD
+	are to each other.  I'd guess that they're pretty close, and that
+	x86-64 Darwin is random.)
+
 2007-01-20 21:55  gb
 
 	* lib/ffi-linuxppc32.lisp: Pretty simple.  3 down, 4 to go.
