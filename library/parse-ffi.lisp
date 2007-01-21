@@ -644,13 +644,11 @@
     (if (eq (car (last args)) *ffi-void-reference*)
       (setq args (butlast args)))
     (when (ffi-record-type-p retval)
-      (if *ffi-struct-return-explicit*
-        (format t "~& explicit struct return for ~s" ffi-function)
-        (progn
-          (push retval args)
-          (push `(:pointer ,retval) (ffi-function-arglist ffi-function))
-          (setf (ffi-function-return-value ffi-function) *ffi-void-reference*)
-          (setq retval *ffi-void-reference*))))
+      (unless *ffi-struct-return-explicit*
+        (push retval args)
+        (push `(:pointer ,retval) (ffi-function-arglist ffi-function))
+        (setf (ffi-function-return-value ffi-function) *ffi-void-reference*)
+        (setq retval *ffi-void-reference*)))
     (dolist (arg args) (ensure-referenced-type-defined arg))
     (ensure-referenced-type-defined retval)
     (record-global-function ffi-function)))
