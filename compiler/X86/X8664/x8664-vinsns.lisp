@@ -3492,6 +3492,8 @@
 
 (define-x8664-subprim-call-vinsn (ff-call)  .SPffcall)
 
+(define-x8664-subprim-call-vinsn (ff-call-return-registers)  .SPffcall-return-registers)
+
 (define-x8664-subprim-call-vinsn (syscall)  .SPsyscall)
 
 (define-x8664-subprim-call-vinsn (setqsym) .SPsetqsym)
