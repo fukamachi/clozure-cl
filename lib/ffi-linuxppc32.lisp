@@ -36,7 +36,7 @@
            (> (ensure-foreign-type-bits ftype) 64)))))
 
 
-(defun linux32::expand-ff-call (callform args)
+(defun linux32::expand-ff-call (callform args &key (arg-coerce #'null-coerce-foreign-arg) (result-coerce #'null-coerce-foreign-result))
   (let* ((result-type-spec (or (car (last args)) :void))
          (enclosing-form nil)
          (result-form nil))
@@ -61,7 +61,7 @@
                     enclosing-form `(setf (%%get-unsigned-longlong ,result-form))))))
         (unless (evenp (length args))
           (error "~s should be an even-length list of alternating foreign types and values" args))        
-                (do* ((args args (cddr args)))
+        (do* ((args args (cddr args)))
              ((null args))
           (let* ((arg-type-spec (car args))
                  (arg-value-form (cadr args)))
@@ -78,9 +78,9 @@
                     (argforms arg-value-form))
                   (progn
                     (argforms (foreign-type-to-representation-type ftype))
-                    (argforms arg-value-form)))))))
+                    (argforms (funcall arg-coerce arg-type-spec arg-value-form))))))))
         (argforms (foreign-type-to-representation-type result-type))
-        (let* ((call `(,@callform ,@(argforms))))
+        (let* ((call (funcall result-coerce result-type-spec `(,@callform ,@(argforms)))))
           (if enclosing-form
             `(,@enclosing-form ,call)
             call))))))

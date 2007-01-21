@@ -35,7 +35,7 @@
                     (parse-foreign-type rtype))))
       (typep ftype 'foreign-record-type))))
 
-(defun linux64::expand-ff-call (callform args)
+(defun linux64::expand-ff-call (callform args &key (arg-coerce #'null-coerce-foreign-arg) (result-coerce #'null-coerce-foreign-result))
   (let* ((result-type-spec (or (car (last args)) :void)))
     (multiple-value-bind (result-type error)
         (parse-foreign-type result-type-spec)
@@ -74,6 +74,6 @@
                         (argforms arg-value-form))))
                   (progn
                     (argforms (foreign-type-to-representation-type ftype))
-                    (argforms arg-value-form)))))))
+                    (argforms (funcall arg-coerce arg-type-spec arg-value-form))))))))
         (argforms (foreign-type-to-representation-type result-type))
-        `(,@callform ,@(argforms))))))
+        (funcall result-coerce result-type-spec `(,@callform ,@(argforms)))))))
