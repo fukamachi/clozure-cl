@@ -1,3 +1,25 @@
+2007-01-21 06:15  gb
+
+	* compiler/X86/x862.lisp: ff-call: handle n-word struct-by-value,
+	register return.
+
+2007-01-21 06:14  gb
+
+	* compiler/nx1.lisp: Don't assume that passing a structure by value
+	in N words is Darwin-specific.	(LinuxPPC32 is probably the only
+	platform that doesn't support the convention.)
+
+2007-01-21 06:12  gb
+
+	* compiler/X86/X8664/x8664-arch.lisp: .SPffcall-return-registers
+	replaces .SPunused-4.
+
+2007-01-21 06:10  gb
+
+	* lisp-kernel/: x86-spentry64.s, x86-spjump64.s:
+	.SPffcall_return_registers (just returns %rax/rdx, %xmm0/%xmm1). 
+	(replaces .SPunused_4).
+
 2007-01-21 00:05  gb
 
 	* lib/: ffi-linuxppc32.lisp, ffi-linuxppc64.lisp: Use
