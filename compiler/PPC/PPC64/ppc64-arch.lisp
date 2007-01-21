@@ -972,7 +972,7 @@
   v)
 
 (defppc64archmacro ccl::with-ffcall-results ((buf) &body body)
-  (let* ((size (+ (* 8 8) (* 31 8))))
+  (let* ((size (+ (* 8 8) (* 13 8))))
     `(ccl::%stack-block ((,buf ,size))
       ,@body)))
 
