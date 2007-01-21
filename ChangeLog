@@ -1,3 +1,7 @@
+2007-01-20 21:55  gb
+
+	* lib/ffi-linuxppc32.lisp: Pretty simple.  3 down, 4 to go.
+
 2007-01-20 19:34  gb
 
 	* compiler/X86/X8664/x8664-backend.lisp: Package prefixes.  D'oh!
