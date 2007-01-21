@@ -1,3 +1,18 @@
+2007-01-21 00:05  gb
+
+	* lib/: ffi-linuxppc32.lisp, ffi-linuxppc64.lisp: Use
+	argument/result coercion functions in os::expand-ff-call.
+
+2007-01-20 23:53  gb
+
+	* lib/: ffi-darwinppc32.lisp, ffi-darwinppc64.lisp: Coerce arg,
+	results when expanding an ff-call.
+
+2007-01-20 23:52  gb
+
+	* lib/foreign-types.lisp: Default (no-op) functions for coercing
+	foreign args, results.
+
 2007-01-20 22:31  gb
 
 	* lib/ffi-linuxppc64.lisp: 4 down.  Whether 2 or 3 to go depends on
