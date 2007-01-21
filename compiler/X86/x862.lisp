@@ -8441,7 +8441,10 @@
                (absptr (acode-absolute-ptr-p valform)))
           (case spec
             (:registers
-             (x862-vpush-register seg (x862-one-untargeted-reg-form seg valform x8664::arg_z)))
+             (let* ((reg (x862-one-untargeted-reg-form seg valform x8664::arg_z)))
+               (unless *x862-reckless*
+                 (! trap-unless-macptr reg))
+               (x862-vpush-register seg reg)))
             (:double-float
              (let* ((df ($ x8664::fp1 :class :fpr :mode :double-float)))
                (incf nfpr-args)
@@ -8513,7 +8516,7 @@
         (x862-vpop-register seg ($ x8664::arg_z)))
       (x862-lri seg x8664::rax (min 8 nfpr-args))
       (if return-registers
-        (! ff-call-returning-registers)
+        (! ff-call-return-registers)
         (! ff-call) )
       (x862-close-undo)
       (when vreg
