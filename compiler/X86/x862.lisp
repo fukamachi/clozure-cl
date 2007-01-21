@@ -8395,7 +8395,8 @@
          (nfpr-args 0)
          (ngpr-args 0)
          (simple-foreign-args nil)
-         (fp-loads ()))
+         (fp-loads ())
+         (return-registers ()))
       (declare (fixnum  nshort-floats ndouble-floats nfpr-args ngpr-args narg-words
                         gpr-offset other-offset single-float-offset double-float-offset))
       (dolist (argspec argspecs)
@@ -8408,9 +8409,14 @@
                          (if (<= nfpr-args 8)
                            (incf nsingle-floats)
                            (incf nother-words)))
-          (t (incf ngpr-args)
-             (if (> ngpr-args 6)
-               (incf nother-words)))))
+          (:registers (setq return-registers t))
+          (t
+           (if (typep argspec 'unsigned-byte)
+             (incf nother-words argspec)
+             (progn
+               (incf ngpr-args)
+               (if (> ngpr-args 6)
+                 (incf nother-words)))))))
       (let* ((total-words (+ nother-words nsingle-floats ndouble-floats)))
         (when (null argspecs)
           (setq simple-foreign-args t))
@@ -8434,6 +8440,8 @@
                (spec (car specs))
                (absptr (acode-absolute-ptr-p valform)))
           (case spec
+            (:registers
+             (x862-vpush-register seg (x862-one-untargeted-reg-form seg valform x8664::arg_z)))
             (:double-float
              (let* ((df ($ x8664::fp1 :class :fpr :mode :double-float)))
                (incf nfpr-args)
@@ -8470,15 +8478,24 @@
                       (! set-c-arg ptr other-offset)
                       (incf other-offset)))))
             (t
-             (with-imm-target () (valreg :natural)
-                (let* ((reg (x862-unboxed-integer-arg-to-reg seg valform valreg spec)))
-                  (incf ngpr-args)
-                  (cond ((<= ngpr-args 6)
-                         (! set-c-arg reg gpr-offset)
-                         (incf gpr-offset))
-                        (t
-                         (! set-c-arg reg other-offset)
-                         (incf other-offset)))))))))
+             (if (typep spec 'unsigned-byte)
+               (progn
+                 (with-imm-target () (ptr :address)
+                   (x862-one-targeted-reg-form seg valform ptr)
+                   (with-imm-target (ptr) (r :natural)
+                     (dotimes (i spec)
+                       (! mem-ref-c-doubleword r ptr (ash i x8664::word-shift))
+                       (! set-c-arg r other-offset)
+                       (incf other-offset)))))               
+               (with-imm-target () (valreg :natural)
+                 (let* ((reg (x862-unboxed-integer-arg-to-reg seg valform valreg spec)))
+                   (incf ngpr-args)
+                   (cond ((<= ngpr-args 6)
+                          (! set-c-arg reg gpr-offset)
+                          (incf gpr-offset))
+                         (t
+                          (! set-c-arg reg other-offset)
+                          (incf other-offset))))))))))
       (do* ((fpreg x8664::fp0 (1+ fpreg))
             (reloads (nreverse fp-loads) (cdr reloads)))
            ((or (null reloads) (= fpreg x8664::fp8)))
@@ -8489,11 +8506,15 @@
           (if (eq size :double-float)
             (! reload-double-c-arg ($ fpreg :class :fpr :mode :double-float) from)
             (! reload-single-c-arg ($ fpreg :class :fpr :mode :single-float) from))))
+      (if use-registers
+        (x862-vpop-register seg ($ x8664::arg_y)))
       (if simple-foreign-args
         (x862-one-targeted-reg-form seg address x8664::arg_z)
         (x862-vpop-register seg ($ x8664::arg_z)))
       (x862-lri seg x8664::rax (min 8 nfpr-args))
-      (! ff-call) 
+      (if use-registers
+        (! ff-call-returning-registers)
+        (! ff-call) )
       (x862-close-undo)
       (when vreg
         (cond ((eq resultspec :void) (<- nil))
