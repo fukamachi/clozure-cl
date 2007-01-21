@@ -1111,20 +1111,10 @@ unsigned IP address."
 (defun c_socket (domain type protocol)
   #-linuxppc-target
   (syscall syscalls::socket domain type protocol)
-  #+linuxppc-target
-  (progn
-    #+ppc32-target
-    (%stack-block ((params 12))
-      (setf (%get-long params 0) domain
-            (%get-long params 4) type
-            (%get-long params 8) protocol)
-      (syscall syscalls::socketcall 1 params))
-    #+ppc64-target
-    (%stack-block ((params 24))
-      (setf (%%get-unsigned-longlong params 0) domain
-            (%%get-unsigned-longlong params 8) type
-            (%%get-unsigned-longlong params 16) protocol)
-      (syscall syscalls::socketcall 1 params))))
+  (rlet ((params (:array :unsigned-long 3)))
+    (setf (paref params (:* :unsigned-long) 0) domain
+          (paref params (:* :unsigned-long) 1) type
+          (paref params (:* :unsigned-long) 2) protocol)))
 
 (defun init-unix-sockaddr (addr path)
   (macrolet ((sockaddr_un-path-len ()
