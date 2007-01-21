@@ -546,17 +546,7 @@ satisfy the optional predicate PREDICATE."
     (#\l . :unsigned-doubleword)
     (#\r . :record)))
 
-(defun encode-arguments (args result string)
-  (let* ((i 1))
-    (flet ((encoded-arg (thing)
-             (if thing
-               (or (car (rassoc thing *arg-spec-encoding*))
-                   (return-from encode-arguments nil))
-               #\Space)))
-      (setf (schar string 0) (encoded-arg result))
-      (dolist (arg args t)
-        (setf (schar string i) (encoded-arg arg)
-              i (1+ i))))))
+
 
 (defun decode-arguments (string)
   (let* ((result nil))
@@ -565,15 +555,17 @@ satisfy the optional predicate PREDICATE."
            ((= i (length string)) (values (args) result))
         (declare (fixnum i))
         (let* ((ch (schar string i))
-               (val (if (or (eql ch #\r) (eql ch #\R) (eql ch #\t))
+               (val (if (or (eql ch #\r) (eql ch #\u) (eql ch #\t))
                       (let* ((namelen (char-code (schar string (incf i))))
                              (name (make-string namelen)))
                         (dotimes (k namelen)
                           (setf (schar name k)
                                 (schar string (incf i))))
-                        (if (eql ch #\R)
-                          name
-                          (escape-foreign-name name)))
+                        (if (eql ch #\r)
+                          `(:struct ,(escape-foreign-name name))
+                          (if (eql ch #\u)
+                            `(:union ,(escape-foreign-name name))
+                            name)))
                       (cdr (assoc ch *arg-spec-encoding*)))))
           (if result
             (args val)
@@ -1278,7 +1270,10 @@ satisfy the optional predicate PREDICATE."
     ((:struct :union)
      (if (getf (ftd-attributes *target-ftd*) :struct-by-value)
        (if return-value-p `(#\a)
-			  `(#\r ,@(encode-name (ffi-struct-reference (cadr spec)))))
+			  `(,(if (eq (car spec) :struct)
+                                 #\r
+                                 #\u)
+                            ,@(encode-name (ffi-struct-reference (cadr spec)))))
        `(#\a)))
     (:typedef
      (let* ((typedef (cadr spec))
