@@ -162,7 +162,7 @@
                  `(progn ,@(forms) nil))))))))
                                   
 
-(defun darwin64::expand-ff-call (callform args)
+(defun darwin64::expand-ff-call (callform args &key (arg-coerce #'null-coerce-foreign-arg) (result-coerce #'null-coerce-foreign-result))
   (let* ((result-type-spec (or (car (last args)) :void))
          (regbuf nil)
          (result-temp nil)
@@ -233,9 +233,9 @@
                           (do-fields ftype (foreign-record-type-fields ftype) nil)))
                       (progn
                         (argforms (foreign-type-to-representation-type ftype))
-                        (argforms arg-value-form)))))))
+                        (argforms (funcall arg-coerce arg-type-spec arg-value-form))))))))
             (argforms (foreign-type-to-representation-type result-type))
-            (let* ((call `(,@callform ,@(argforms))))
+            (let* ((call (funcall result-coerce result-type-spec `(,@callform ,@(argforms)))))
               (when structure-arg-temp
                 (setq call `(let* ((,structure-arg-temp (%null-ptr)))
                              (declare (dynamic-extent ,structure-arg-temp)

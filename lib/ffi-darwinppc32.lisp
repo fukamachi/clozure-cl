@@ -56,7 +56,7 @@
 ;;; as a sequence of N 32-bit words; %ff-call understands an unsigned
 ;;; integer argument "type" specifier to denote this.
 
-(defun darwin32::expand-ff-call (callform args)
+(defun darwin32::expand-ff-call (callform args &key (arg-coerce #'null-coerce-foreign-arg) (result-coerce #'null-coerce-foreign-result))
   (let* ((result-type-spec (or (car (last args)) :void))
          (enclosing-form nil))
     (multiple-value-bind (result-type error)
@@ -105,9 +105,9 @@
                         (argforms arg-value-form))))
                   (progn
                     (argforms (foreign-type-to-representation-type ftype))
-                    (argforms arg-value-form)))))))
+                    (argforms (funcall arg-coerce arg-type-spec arg-value-form))))))))
         (argforms (foreign-type-to-representation-type result-type))
-        (let* ((call `(,@callform ,@(argforms))))
+        (let* ((call (funcall result-coerce result-type-spec `(,@callform ,@(argforms)))))
           (if enclosing-form
             `(,@enclosing-form ,call)
             call))))))
