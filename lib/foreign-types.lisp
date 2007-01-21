@@ -1495,6 +1495,14 @@ result-type-specifer is :VOID or NIL"
     :single-float :double-float
     :void))
 
+(defun null-coerce-foreign-arg (arg-type-keyword argform)
+  (declare (ignore arg-type-keyword))
+  argform)
+
+(defun null-coerce-foreign-result (result-type-keyword resultform)
+  (declare (ignore result-type-keyword))
+  resultform)
+
 (defun foreign-type-to-representation-type (f)
   (if (or (member f *foreign-representation-type-keywords*)
 	  (typep f 'unsigned-byte))
