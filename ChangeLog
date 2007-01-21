@@ -1,3 +1,25 @@
+2007-01-21 08:32  gb
+
+	* compiler/X86/x862.lisp: Name vinsn ff-call-return-registers (not
+	"-returning-").
+	
+	Typecheck the :registers arg.
+
+2007-01-21 08:32  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: ff-call-return-registers.
+
+2007-01-21 08:31  gb
+
+	* compiler/X86/X8664/x8664-arch.lisp: WITH-FFCALL-RESULTS: zero the
+	stack-block.
+
+2007-01-21 08:31  gb
+
+	* lisp-kernel/x86-spentry64.s: Don't use save3 in
+	.SPffcall_return_registers (save3 = r11); use save2 (= r13)
+	instead.
+
 2007-01-21 06:46  gb
 
 	* compiler/PPC/PPC64/ppc64-arch.lisp: WITH-FFCALL-RESULTS needs
