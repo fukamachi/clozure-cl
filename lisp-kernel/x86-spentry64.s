@@ -4083,6 +4083,117 @@ _spentry(ffcall)
 	__(jmp *%ra0)
 _endsubp(ffcall)
 
+_spentry(ffcall_return_registers)
+        /* Unbox %arg_z.  It's either a fixnum or macptr (or bignum) ;
+          if not a fixnum, get the first word */
+        __(unbox_fixnum(%arg_z,%imm0))
+	__(testb $fixnummask,%arg_z_b)
+        __(je 0f)
+        __(movq macptr.address(%arg_z),%imm0)
+0:              
+	/* Save lisp registers   */
+	__(push %temp0)
+	__(push %temp1)
+	__(push %temp2)
+	__(push %arg_x)
+	__(push %arg_y)
+	__(push %arg_z)
+	__(push %save0)
+	__(push %save1)
+	__(push %save2)
+	__(push %save3)
+        __(movq macptr.address(%arg_y),%save3)
+	__(push %fn)
+	__(push %ra0)
+	__(push %rbp)
+	__(movq %rsp,%rbp)
+	__(movq %rsp,%rcontext:tcr.save_vsp)
+        __(movq %rbp,%rcontext:tcr.save_rbp)
+        __(movq %rcontext:tcr.foreign_sp,%rsp)
+	__(stmxcsr %rcontext:tcr.lisp_mxcsr)
+	__(movq $TCR_STATE_FOREIGN,%rcontext:tcr.valence)
+	__(emms)
+	__(ldmxcsr %rcontext:tcr.foreign_mxcsr)
+	__(movq (%rsp),%rbp)
+        __ifdef([DARWIN_GS_HACK])
+         /* At this point, %imm0=%rax is live (contains
+            the entrypoint); the lisp registers are
+            all saved, and the foreign arguments are
+            on the foreign stack (about to be popped
+            off).  Save the linear TCR address in %save0/%r15
+            so that we can restore it later, and preserve
+            the entrypoint somewhere where C won't bash it.
+            Note that dereferencing the entrypoint from
+            foreign code has never been safe (unless it's
+            a fixnum */
+         __(save_tcr_linear(%save0))
+         __(movq %imm0,%save1)
+         __(set_foreign_gs_base())
+         __(movq %save1,%imm0)
+        __endif
+	__(addq $2*node_size,%rsp)
+	__(pop %rdi)
+	__(pop %rsi)
+	__(pop %rdx)
+	__(pop %rcx)
+	__(pop %r8)
+	__(pop %r9)
+	__(call *%rax)
+        __(movq %rax,(%save3))
+        __(movq %rdx,8(%save3))
+        __(movsd %xmm0,16(%save3))
+        __(movsd %xmm1,24(%save3))
+	__(movq %rbp,%rsp)
+        __ifdef([DARWIN_GS_HACK])
+         /* %rax/%rdx contains the return value (maybe), %save0 still
+            contains the linear tcr address.  Preserve %rax/%rdx here. */
+         __(set_gs_base(%save0))
+         __(movq (%save3),%rax)
+         __(movq 8(%save3),%rdx)
+         __(movsd 16(%save3),%xmm0)
+         __(movsd 24(%save3),%xmm1)
+        __endif
+	__(movq %rsp,%rcontext:tcr.foreign_sp)        
+	__(clr %save3)
+	__(clr %save2)
+	__(clr %save1)
+	__(clr %save0)
+	__(clr %arg_z)
+	__(clr %arg_y)
+	__(clr %arg_x)
+	__(clr %temp2)
+	__(clr %temp1)
+	__(clr %temp0)
+	__(clr %fn)
+	__(clr %ra0)
+	__(pxor %fpzero,%fpzero)
+        /* Darwin's math library seems to be pretty casual
+           about causing spurious FP exceptions */
+        __ifdef([DARWIN])
+         __(movl %arg_x_l,%rcontext:tcr.ffi_exception)
+        __else
+         __(stmxcsr %rcontext:tcr.ffi_exception)
+        __endif
+	__(movq $TCR_STATE_LISP,%rcontext:tcr.valence)
+	__(movq %rcontext:tcr.save_vsp,%rsp)
+	__(pop %rbp)
+	__(pop %ra0)
+	__(pop %fn)
+	__(pop %save3)
+	__(pop %save2)
+	__(pop %save1)
+	__(pop %save0)
+	__(pop %arg_z)
+	__(pop %arg_y)
+	__(pop %arg_x)
+	__(pop %temp2)
+	__(pop %temp1)
+	__(ldmxcsr %rcontext:tcr.lisp_mxcsr)
+	__(check_pending_interrupt(%temp0))
+	__(pop %temp0)
+	__(jmp *%ra0)
+_endsubp(ffcall_returning_registers)
+        
 _spentry(syscall)
 	/* Save lisp registers   */
 	__(push %temp0)
@@ -4555,9 +4666,6 @@ _endsubp(breakpoint)
 
 		
 
-
-_spentry(unused_4)
-_endsubp(unused_4)
 
 _spentry(unused_5)
 _endsubp(unused_5)
