@@ -1,3 +1,38 @@
+2007-01-20 19:34  gb
+
+	* compiler/X86/X8664/x8664-backend.lisp: Package prefixes.  D'oh!
+
+2007-01-20 19:25  gb
+
+	* compiler/X86/X8664/x8664-backend.lisp: Add references to the
+	right os::ff-call-expander.
+
+2007-01-20 19:24  gb
+
+	* compiler/PPC/PPC64/ppc64-arch.lisp: Remove some wip code.
+
+2007-01-20 19:24  gb
+
+	* compiler/PPC/: PPC32/ppc32-backend.lisp,
+	PPC64/ppc64-backend.lisp: Use os::expand-ff-call, for each value of
+	OS.
+
+2007-01-20 19:23  gb
+
+	* level-1/l1-sockets.lisp: Saw an opportunity to use PAREF;
+	probably several more.
+
+2007-01-20 19:22  gb
+
+	* lib/ffi-darwinppc64.lisp: Two down, 5 to go.
+
+2007-01-20 19:21  gb
+
+	* lib/ffi-darwinppc32.lisp: Looks mostly right; might need to be
+	extended to handle coercions at the Cocoa level, and probably needs
+	some cooperation from %EXTERNAL-CALL-EXPANDER (e.g., what's
+	installed by #_).
+
 2007-01-20 19:18  gb
 
 	* lib/db-io.lisp: Encode, decode union types in arglists.
