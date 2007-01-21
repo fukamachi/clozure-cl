@@ -1278,7 +1278,7 @@
 (defx8664archmacro ccl::with-ffcall-results ((buf) &body body)
   ;; Reserve space for rax,rdx,xmm0,xmm1 only.
   (let* ((size (+ (* 2 8) (* 2 8))))
-    `(ccl::%stack-block ((,buf ,size))
+    `(ccl::%stack-block ((,buf ,size :clear t))
       ,@body)))
   
 
