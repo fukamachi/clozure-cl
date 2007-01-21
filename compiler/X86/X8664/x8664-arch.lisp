@@ -1275,5 +1275,12 @@
 (defx8664archmacro ccl::function-vector-to-function (v)
   `(ccl::%function-vector-to-function ,v))
 
+(defx8664archmacro ccl::with-ffcall-results ((buf) &body body)
+  ;; Reserve space for rax,rdx,xmm0,xmm1 only.
+  (let* ((size (+ (* 2 8) (* 2 8))))
+    `(ccl::%stack-block ((,buf ,size))
+      ,@body)))
+  
+
 
 (provide "X8664-ARCH")
