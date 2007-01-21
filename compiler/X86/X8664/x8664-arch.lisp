@@ -1078,7 +1078,7 @@
          (defx8664subprim .SPmvpasssym)
          (defx8664subprim .SParef3)
          (defx8664subprim .SPaset3)
-         (defx8664subprim .SPunused-4)
+         (defx8664subprim .SPffcall-return-registers)
          (defx8664subprim .SPunused-5)
          (defx8664subprim .SPunused-6)
          (defx8664subprim .SPunbind-interrupt-level)
