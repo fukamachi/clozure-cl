@@ -1336,8 +1336,6 @@
   (let* ((specs ())         
          (vals ())
          (register-spec-seen nil)
-	 (darwin-target-p (or (eql operator (%nx1-operator poweropen-syscall))
-			      (eql operator (%nx1-operator poweropen-ff-call))))
 	 (monitor (eq (car arg-specs-and-result-spec) :monitor-exception-ports))
          (arg-specs (butlast arg-specs-and-result-spec))
          (result-spec (car (last arg-specs-and-result-spec))))
@@ -1350,8 +1348,7 @@
       (let* ((arg-keyword (pop arg-specs))
 	     (value (pop arg-specs)))
         (if (or (memq arg-keyword *arg-spec-keywords*)
-		(and darwin-target-p
-		     (typep arg-keyword 'unsigned-byte)))
+		(typep arg-keyword 'unsigned-byte))
           (progn 
             (push arg-keyword specs)
             (push value vals))
