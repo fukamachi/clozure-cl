@@ -8506,13 +8506,13 @@
           (if (eq size :double-float)
             (! reload-double-c-arg ($ fpreg :class :fpr :mode :double-float) from)
             (! reload-single-c-arg ($ fpreg :class :fpr :mode :single-float) from))))
-      (if use-registers
+      (if return-registers
         (x862-vpop-register seg ($ x8664::arg_y)))
       (if simple-foreign-args
         (x862-one-targeted-reg-form seg address x8664::arg_z)
         (x862-vpop-register seg ($ x8664::arg_z)))
       (x862-lri seg x8664::rax (min 8 nfpr-args))
-      (if use-registers
+      (if return-registers
         (! ff-call-returning-registers)
         (! ff-call) )
       (x862-close-undo)
