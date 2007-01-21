@@ -1,3 +1,18 @@
+2007-01-20 19:18  gb
+
+	* lib/db-io.lisp: Encode, decode union types in arglists.
+
+2007-01-20 19:17  gb
+
+	* lib/foreign-types.lisp: ftd's :ff-call-expand-function is
+	os::expand-ff-call.
+	
+	Canonicalize the :void type a bit better.
+
+2007-01-20 19:16  gb
+
+	* library/parse-ffi.lisp: Remove the debugging FORMAT call.
+
 2007-01-18 23:15  gb
 
 	* level-1/l1-boot-2.lisp: Load with the new ffi-backend fasls.
