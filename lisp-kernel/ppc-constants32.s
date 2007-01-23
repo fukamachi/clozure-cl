@@ -550,6 +550,7 @@ sym_vbit_const_mask = (1<<sym_vbit_const)
 	 _field(save_gprs,19*4) /* r13-r31 */
 	 _dword(save_fp_zero)	/* for fp_zero */
 	 _dword(save_fps32conv)
+         _field(save_fprs,13*8)
 	_ends
 
 
