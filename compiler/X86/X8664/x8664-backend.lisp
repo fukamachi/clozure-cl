@@ -295,6 +295,199 @@
 
 (pushnew *x8664-backend* *known-backends* :key #'backend-name)
 
+;;; FFI stuff.  Seems to be shared by Darwin/Linux/FreeBSD.
+
+;;; A returned structure is passed as an invisible first argument if
+;;; it's more than 2 doublewords long or if it contains unaligned fields.
+;;; Not clear how the latter case can happen, so this just checks for
+;;; the first.
+(defun x8664::record-type-returns-structure-as-first-arg (rtype)
+  (when (and rtype
+             (not (typep rtype 'unsigned-byte))
+             (not (member rtype *foreign-representation-type-keywords*
+                          :test #'eq)))
+    (let* ((ftype (if (typep rtype 'foreign-type)
+                    rtype
+                    (parse-foreign-type rtype))))
+      (> (ensure-foreign-type-bits ftype) 128))))
+
+;;; On x8664, structures can be passed by value:
+;;;  a) in memory, if they're more than 128 bits in size or if there aren't
+;;;     enough of the right kind of register to pass them entirely in registers.
+;;;  b) as a series of 64-bit chunks, passed in GPRs if any component of the
+;;;     chunk is a non FLOAT or in FPRs otherwise.
+;;; Note that this means that a chunk consisting of two SINGLE-FLOATs would
+;;; be passed in the low 64 bit of an SSE (xmm) register.
+
+(defun x8664::field-is-of-class-integer (field)
+  ;; Return true if field is of "class" integer or if it's a record
+  ;; type of class integer.  (See the System V AMD64 ABI document for
+  ;; a convoluted definition of field "classes".)
+  (let* ((ftype (foreign-record-field-type field)))
+    (typecase ftype
+      ((or foreign-integer-type foreign-pointer-type) t)
+      (foreign-record-type (dolist (f (foreign-record-type-fields ftype))
+                             (when (x8664::field-is-of-class-integer f)
+                               (return t))))
+      (otherwise nil))))
+
+(defun x8664::classify-8byte (field-list bit-limit)
+  ;; CDR down the fields in FIELD-LIST until we find a field of class integer,
+  ;; hit the end of the list, or find a field whose offset is >= BIT-LIMIT.
+  ;; In the first case, return :INTEGER.  In other cases, return :FLOAT.
+  (dolist (field field-list :float)
+    (if (<= bit-limit (foreign-record-field-offset field))
+      (return :float)
+      (if (x8664::field-is-of-class-integer field)
+        (return :integer)))))
+
+;;; Return a first value :memory, :integer, or::float and a second
+;;; value of NIL, :integer, or :float according to how the structure
+;;; RTYPE should ideally be passed or returned.  Note that the caller
+;;; may decide to turn this to :memory if there aren't enough
+;;; available registers of the right class when passing an instance of
+;;; this structure type.
+(defun x8664::classify-record-type (rtype)
+  (let* ((nbits (ensure-foreign-type-bits rtype))
+         (fields (foreign-record-type-fields rtype)))
+    (cond ((> nbits 128) (values :memory nil))
+          ((<= nbits 64) (values (x8664::classify-8byte fields 64) nil))
+          (t (values (x8664::classify-8byte fields 64)
+               (do* ()
+                    ((>= (foreign-record-field-offset (car fields)) 64)
+                     (x8664::classify-8byte fields 128))
+                 (setq fields (cdr fields))))))))
+
+(defun x8664::struct-from-regbuf-values (r rtype regbuf)
+  (multiple-value-bind (first second)
+      (x8664::classify-record-type rtype)
+    (let* ((gpr-offset 0)
+           (fpr-offset 16))
+      (collect ((forms))
+        (case first
+          (:integer (forms `(setf (%%get-unsigned-longlong ,r 0)
+                             (%%get-unsigned-longlong ,regbuf 0)))
+                    (setq gpr-offset 8))
+          (:float (forms `(setf (%%get-unsigned-longlong ,r 0)
+                             (%%get-unsigned-longlong ,regbuf 16)))
+                  (setf fpr-offset 24)))
+        (case second
+          (:integer (forms `(setf (%%get-unsigned-longlong ,r 8)
+                             (%%get-unsigned-longlong ,regbuf ,gpr-offset))))
+          (:float (forms `(setf (%%get-unsigned-longlong ,r 8)
+                             (%%get-unsigned-longlong ,regbuf ,fpr-offset)))))
+        `(progn ,@(forms))))))
+
+(defun x8664::expand-ff-call (callform args &key (arg-coerce #'null-coerce-foreign-arg) (result-coerce #'null-coerce-foreign-result))
+  (let* ((result-type-spec (or (car (last args)) :void))
+         (regbuf nil)
+         (result-temp nil)
+         (result-form nil)
+         (struct-result-type nil)
+         (structure-arg-temp nil))
+    (multiple-value-bind (result-type error)
+        (parse-foreign-type result-type-spec)
+      (if error
+        (setq result-type-spec :void result-type *void-foreign-type*)
+        (setq args (butlast args)))
+      (collect ((argforms))
+        (when (eq (car args) :monitor-exception-ports)
+          (argforms (pop args)))
+        (when (typep result-type 'foreign-record-type)
+          (setq result-form (pop args)
+                struct-result-type result-type
+                result-type *void-foreign-type*
+                result-type-spec :void)
+          (if (x8664::record-type-returns-structure-as-first-arg struct-result-type)
+            (progn
+              (argforms :address)
+              (argforms result-form))
+            (progn
+              (setq regbuf (gensym)
+                    result-temp (gensym))
+              (argforms :registers)
+              (argforms regbuf))))
+        (let* ((valform nil))
+                      (unless (evenp (length args))
+              (error "~s should be an even-length list of alternating foreign types and values" args))
+            (do* ((args args (cddr args))
+                  (remaining-gprs 6)
+                  (remaining-fprs 8))
+                 ((null args))
+              (let* ((arg-type-spec (car args))
+                     (arg-value-form (cadr args)))
+                (if (or (member arg-type-spec *foreign-representation-type-keywords*
+                                :test #'eq)
+                        (typep arg-type-spec 'unsigned-byte))
+                  (progn
+                    (argforms arg-type-spec)
+                    (argforms arg-value-form))
+                  (let* ((ftype (parse-foreign-type arg-type-spec)))
+                    (if (typep ftype 'foreign-record-type)
+                      (multiple-value-bind (first8 second8)
+                          (x8664::classify-record-type ftype)
+                        (let* ((gprs remaining-gprs)
+                               (fprs remaining-fprs))
+                          (case first8
+                            (:integer (if (< (decf gprs) 0) (setq first8 :memory)))
+                            (:float (if (< (decf fprs) 0) (setq first8 :memory))))
+                          (case second8
+                            (:integer (if (< (decf gprs) 0) (setq first8 :memory)))
+                            (:float (if (< (decf fprs) 0) (setq first8 :memory)))))
+                        (if (eq first8 :memory)
+                          (progn
+                            (argforms (ceiling (foreign-record-type-bits ftype) 64))
+                            (argforms arg-value-form))
+                          (progn
+                            (if second8
+                              (progn
+                                (unless structure-arg-temp
+                                  (setq structure-arg-temp (gensym)))
+                                (setq valform `(%setf-macptr ,structure-arg-temp ,arg-value-form)))
+                              (setq valform arg-value-form))
+                            (if (eq first8 :float)
+                              (progn
+                                (decf remaining-fprs)
+                                (argforms :double-float)
+                                (argforms `(%get-double-float ,valform 0)))
+                              (progn
+                                (decf remaining-gprs)
+                                (argforms :unsigned-doubleword)
+                                (argforms `(%%get-unsigned-longlong ,valform 0))))
+                            (when second8
+                              (if (eq second8 :float)
+                                (progn
+                                (decf remaining-fprs)
+                                (argforms :double-float)
+                                (argforms `(%get-double-float ,valform 8)))
+                              (progn
+                                (decf remaining-gprs)
+                                (argforms :unsigned-doubleword)
+                                (argforms `(%%get-unsigned-longlong ,valform 8))))))))
+                      (let* ((rtype (foreign-type-to-representation-type ftype)))
+                        (if (or (eq rtype :singlefloat) (eq rtype :double-float))
+                          (decf remaining-fprs)
+                          (decf remaining-gprs))
+                        (argforms rtype)
+                        (argforms (funcall arg-coerce arg-type-spec arg-value-form))))))))
+            (argforms (foreign-type-to-representation-type result-type))
+            (let* ((call (funcall result-coerce result-type-spec `(,@callform ,@(argforms)))))
+              (when structure-arg-temp
+                (setq call `(let* ((,structure-arg-temp (%null-ptr)))
+                             (declare (dynamic-extent ,structure-arg-temp)
+                                      (type macptr ,structure-arg-temp))
+                             ,call)))
+              (if regbuf
+                `(let* ((,result-temp (%null-ptr)))
+                  (declare (dynamic-extent ,result-temp)
+                           (type macptr ,result-temp))
+                  (%setf-macptr ,result-temp ,result-form)
+                  (%stack-block ((,regbuf (+ (* 2 8) (* 2 8))))
+                    ,call
+                    ,(x8664::struct-from-regbuf-values result-temp struct-result-type regbuf)))
+                call)))))))
+
+
 #+x8664-target
 (require "X8664-VINSNS")
 
