@@ -1301,6 +1301,9 @@ each arg as a foreign argument of type indicated by the corresponding
 arg-type-specifier. Returns the foreign function result (coerced to a
 Lisp object of type indicated by result-type-specifier), or NIL if
 result-type-specifer is :VOID or NIL"
+  (funcall (ftd-ff-call-expand-function *target-ftd*)
+           `(%ff-call ,entry) args)
+  #+nil          
   (let* ((monitor (eq (car args) :monitor-exception-ports)))
     (when monitor
       (setq args (cdr args)))
