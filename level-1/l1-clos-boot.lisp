@@ -1852,7 +1852,7 @@ to replace that class with ~s" name old-class new-class)
               *t-class*
               (find-class 'word-vector)
               (find-class 'unsigned-word-vector)
-              (find-class 'base-string)
+              (find-class 'base-string) ;old
               (find-class 'byte-vector)
               (find-class 'unsigned-byte-vector)
               (find-class 'bit-vector)))
@@ -1870,7 +1870,7 @@ to replace that class with ~s" name old-class new-class)
               *t-class*
               *t-class*
               *t-class*
-              *t-class*
+              (find-class 'base-string)
               (find-class 'long-vector)
               (find-class 'unsigned-long-vector)
               (find-class 'short-float-vector)))
@@ -2164,7 +2164,7 @@ to replace that class with ~s" name old-class new-class)
                              (idx (ash subtype (- x8664::ntagbits))))
                         (cond ((= class x8664::fulltag-immheader-0)
                                (%svref *immheader-0-classes* idx))
-                              ((= class x8664::fulltag-immheader-0)
+                              ((= class x8664::fulltag-immheader-1)
                                (%svref *immheader-1-classes* idx))
                               ((= class x8664::fulltag-immheader-2)
                                (%svref *immheader-2-classes* idx))
