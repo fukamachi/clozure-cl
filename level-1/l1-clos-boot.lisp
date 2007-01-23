@@ -1793,10 +1793,10 @@ to replace that class with ~s" name old-class new-class)
             (find-class 'unsigned-long-vector)
             (find-class 'long-vector)
             (find-class 'fixnum-vector)
-            *t-class*                   ;(find-class 'new-base-string)
+            (find-class 'base-string)
             (find-class 'unsigned-byte-vector)
             (find-class 'byte-vector)
-            (find-class 'base-string)
+            *t-class*                   ; old base-string
             (find-class 'unsigned-word-vector)
             (find-class 'word-vector)
             (find-class 'double-float-vector)
@@ -1826,7 +1826,7 @@ to replace that class with ~s" name old-class new-class)
             (find-class 'double-float-vector)
             (find-class 'base-string)
             *t-class*
-            *t-class*
+            (find-class 'base-string)
             *t-class*
             *t-class*
             *t-class*
