@@ -286,15 +286,15 @@
 #+poweropen-target
 (defun defcallback-body-ppc32-poweropen (stack-ptr lets dynamic-extent-names decls body return-type error-return error-delta #+poweropen-target fp-arg-ptr)
   (let* ((result (gensym))
-         (offset (case return-type
-                   ((:single-float :double-float)
-                    8)
-                   (t 0)))
+         (return-ptr (case return-type
+                       ((:single-float :double-float)
+                        fp-arg-ptr)
+                       (t stack-ptr)))
          (condition-name (if (atom error-return) 'error (car error-return)))
          (error-return-function (if (atom error-return) error-return (cadr error-return)))
          (body
-   	  `(%stack-block ((,fp-arg-ptr (* 8 13)))
-            (%get-fp-arg-regs ,fp-arg-ptr)
+   	  `(with-macptrs ((,fp-arg-ptr))
+            (%setf-macptr ,fp-arg-ptr (%get-ptr ,stack-ptr (- ppc32::c-frame.unused-1 ppc32::c-frame.param0)))
             (let ,lets
               (declare (dynamic-extent ,@dynamic-extent-names))
               ,@decls
@@ -314,7 +314,7 @@
                                  (:signed-doubleword '%%get-signed-longlong)
                                  (:unsigned-doubleword '%%get-unsigned-longlong)
                                  ((:double-float :single-float) '%get-double-float)
-                                 (t  '%get-long)) ,stack-ptr ,offset) ,result)))))))
+                                 (t  '%get-long)) ,return-ptr 0) ,result)))))))
     (if error-return
       (let* ((cond (gensym)))
         `(handler-case ,body
