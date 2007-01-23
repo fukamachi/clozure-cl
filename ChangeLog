@@ -1,3 +1,8 @@
+2007-01-23 15:14  gb
+
+	* lib/foreign-types.lisp: FF-CALL implemented in terms of the new
+	ftd hook.
+
 2007-01-23 07:19  gb
 
 	* level-1/l1-clos-boot.lisp: ppc32, ppc64 also had trouble with
