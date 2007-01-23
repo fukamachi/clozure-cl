@@ -14,3 +14,15 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
+(in-package "CCL")
+
+;;; It looks like x86-64 Linux, FreeBSD, and Darwin all share the same
+;;; ABI.
+
+(defun x86-freebsd64::record-type-returns-structure-as-first-arg (rtype)
+  (x8664::record-type-returns-structure-as-first-arg rtype))
+
+
+
+(defun x86-freebsd64::expand-ff-call (callform args &key (arg-coerce #'null-coerce-foreign-arg) (result-coerce #'null-coerce-foreign-result))
+  (x8664::expand-ff-call callform args :arg-coerce arg-coerce :result-coerce result-coerce))
