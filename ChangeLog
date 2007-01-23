@@ -1,3 +1,24 @@
+2007-01-23 07:19  gb
+
+	* level-1/l1-clos-boot.lisp: ppc32, ppc64 also had trouble with
+	(CLASS-OF non-simple-string).
+
+2007-01-23 07:02  gb
+
+	* level-1/l1-clos-boot.lisp: x8664 class-of: typo in non-simple
+	array case, needed new string definition.
+
+2007-01-23 07:01  gb
+
+	* lib/: ffi-darwinx8664.lisp, ffi-freebsdx8664.lisp,
+	ffi-linuxx8664.lisp: Define ffi stuff in terms of common things in
+	compiler/X86/X8664/x8664-backend.
+
+2007-01-23 06:59  gb
+
+	* compiler/X86/X8664/x8664-backend.lisp: Define (common) x8664 ffi
+	stuff here.
+
 2007-01-21 08:32  gb
 
 	* compiler/X86/x862.lisp: Name vinsn ff-call-return-registers (not
