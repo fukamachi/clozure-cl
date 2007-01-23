@@ -1,3 +1,21 @@
+2007-01-23 15:28  gb
+
+	* compiler/PPC/: PPC32/ppc32-backend.lisp,
+	PPC64/ppc64-backend.lisp: Get FPRs from where subprim saved them. 
+	Return FPRs in the same place.	(Will need to re-work all of this
+	for platform-dependent structure stuff.)
+
+2007-01-23 15:26  gb
+
+	* lisp-kernel/ppc-spentry.s: poweropen-callback, callbackX; save fp
+	args here.  Return all (arg) GPRs and FPRs (needs cooperation from
+	the lisp side.)
+
+2007-01-23 15:21  gb
+
+	* lisp-kernel/: ppc-constants32.s, ppc-constants64.s: Add room in
+	c_reg_save for saved fp args (f1-f13).
+
 2007-01-23 15:14  gb
 
 	* lib/foreign-types.lisp: FF-CALL implemented in terms of the new
