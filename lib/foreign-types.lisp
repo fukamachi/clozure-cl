@@ -54,7 +54,10 @@
   (external-function-definitions (make-hash-table :test #'eq))
   (dirlist (make-dll-header))
   (attributes ())
-  (ff-call-expand-function ()))
+  (ff-call-expand-function ())
+  (ff-call-struct-return-by-implicit-arg-function ())
+  (callback-bindings-function ())
+  (callback-return-value-function ()))
 
 
 
@@ -74,7 +77,13 @@
                     
                       :prepend-underscores #+darwinppc-target t #-darwinppc-target nil)
                     :ff-call-expand-function
-                    'os::expand-ff-call 
+                    'os::expand-ff-call
+                    :ff-call-struct-return-by-implicit-arg-function
+                    'os::record-type-returns-structure-as-first-arg
+                    :callback-bindings-function
+                    'os::generate-callback-bindings
+                    :callback-return-value-function
+                    'os::generate-callback-return-value
                     ))
                     
 (defvar *target-ftd* *host-ftd*)
