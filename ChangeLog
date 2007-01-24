@@ -1,3 +1,14 @@
+2007-01-24 02:39  gb
+
+	* compiler/: PPC/PPC32/ppc32-backend.lisp,
+	PPC/PPC64/ppc64-backend.lisp, X86/X8664/x8664-backend.lisp: Stubs
+	for new FTD functions.
+
+2007-01-24 02:28  gb
+
+	* lib/foreign-types.lisp: A few more fields (for callbacks) in ftd
+	defstruct.
+
 2007-01-23 15:28  gb
 
 	* compiler/PPC/: PPC32/ppc32-backend.lisp,
