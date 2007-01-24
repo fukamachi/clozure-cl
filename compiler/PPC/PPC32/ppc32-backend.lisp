@@ -426,6 +426,21 @@
                'linux32::expand-ff-call
                #+darwinppc-target
                'darwin32::expand-ff-call
+               :ff-call-struct-return-by-implicit-arg-function
+               #+linuxppc-target
+               linux32::record-type-returns-structure-as-first-arg
+               #+darwinppc-target
+               darwin32::record-type-returns-structure-as-first-arg
+               :callback-bindings-function
+               #+linuxppc-target
+               linux32::generate-callback-bindings
+               #+darwinppc-target
+               darwin32::generate-callback-bindings
+               :callback-return-value-function
+               #+linuxppc-target
+               linux32::generate-callback-return-value
+               #+darwinppc-target
+               darwin32::generate-callback-return-value
                )))
     (install-standard-foreign-types ftd)
     (use-interface-dir :libc ftd)

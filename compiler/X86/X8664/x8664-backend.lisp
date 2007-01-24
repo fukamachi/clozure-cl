@@ -265,30 +265,51 @@
               (case name
                 (:linuxx8664
                  (make-ftd :interface-db-directory "ccl:x86-headers64;"
-                          :interface-package-name "X86-LINUX64"
-                          :attributes '(:bits-per-word  64
-                                        :struct-by-value t)
-                          :ff-call-expand-function
-                          (intern "EXPAND-FF-CALL" "X86-LINUX64")))
+                           :interface-package-name "X86-LINUX64"
+                           :attributes '(:bits-per-word  64
+                                         :struct-by-value t)
+                           :ff-call-expand-function
+                           (intern "EXPAND-FF-CALL" "X86-LINUX64")
+                           :ff-call-struct-return-by-implicit-arg-function
+                           (intern "RECORD-TYPE-RETURNS-STRUCTURE-AS-FIRST-ARG"
+                                   "X86-LINUX64")
+                           :callback-bindings-function
+                           (intern "GENERATE-CALLBACK-BINDINGS" "X86-LINUX64")
+                           :callback-return-value-function
+                           (intern "GENERATE-CALLBACK-RETURN-VALU" "X86-LINUX64")))
                 (:darwinx8664
-                  (make-ftd :interface-db-directory "ccl:darwin-x86-headers64;"
-                          :interface-package-name "X86-DARWIN64"
-                          :attributes '(:bits-per-word  64
-                                        :signed-char t
-                                        :struct-by-value t
-                                        :prepend-underscore t)
-                          :ff-call-expand-function
-                          (intern "EXPAND-FF-CALL" "X86-DARWIN64")))
-                 (:freebsdx8664
-                  (make-ftd :interface-db-directory "ccl:freebsd-headers64;"
-                            :interface-package-name "X86-FREEBSD64"
-                            :attributes '(:bits-per-word  64
-                                          :struct-by-value t)
-                          :ff-call-expand-function
-                          (intern "EXPAND-FF-CALL" "X86-FREEBSD64"))))))
+                 (make-ftd :interface-db-directory "ccl:darwin-x86-headers64;"
+                           :interface-package-name "X86-DARWIN64"
+                           :attributes '(:bits-per-word  64
+                                         :signed-char t
+                                         :struct-by-value t
+                                         :prepend-underscore t)
+                           :ff-call-expand-function
+                           (intern "EXPAND-FF-CALL" "X86-DARWIN64")
+                           :ff-call-struct-return-by-implicit-arg-function
+                           (intern "RECORD-TYPE-RETURNS-STRUCTURE-AS-FIRST-ARG"
+                                   "X86-DARWIN64")
+                           :callback-bindings-function
+                           (intern "GENERATE-CALLBACK-BINDINGS" "X86-DARWIN64")
+                           :callback-return-value-function
+                           (intern "GENERATE-CALLBACK-RETURN-VALU" "X86-DARWIN64")))
+                (:freebsdx8664
+                 (make-ftd :interface-db-directory "ccl:freebsd-headers64;"
+                           :interface-package-name "X86-FREEBSD64"
+                           :attributes '(:bits-per-word  64
+                                         :struct-by-value t)
+                           :ff-call-expand-function
+                           (intern "EXPAND-FF-CALL" "X86-FREEBSD64")
+                           :ff-call-struct-return-by-implicit-arg-function
+                           (intern "RECORD-TYPE-RETURNS-STRUCTURE-AS-FIRST-ARG"
+                                   "X86-FREEBSD64")
+                           :callback-bindings-function
+                           (intern "GENERATE-CALLBACK-BINDINGS" "X86-FREEBS64")
+                           :callback-return-value-function
+                           (intern "GENERATE-CALLBACK-RETURN-VALU" "X86-FREEBSD64"))))))
         (install-standard-foreign-types ftd)
-    (use-interface-dir :libc ftd)
-    (setf (backend-target-foreign-type-data backend) ftd))))
+        (use-interface-dir :libc ftd)
+        (setf (backend-target-foreign-type-data backend) ftd))))
 
 #-x8664-target
 (setup-x8664-ftd *x8664-backend*)
