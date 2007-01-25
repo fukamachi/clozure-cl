@@ -1,3 +1,8 @@
+2007-01-24 23:41  gb
+
+	* lib/ffi-linuxppc32.lisp: First cut at callback-bindings thing;
+	may not even compile.
+
 2007-01-24 02:39  gb
 
 	* compiler/: PPC/PPC32/ppc32-backend.lisp,
