@@ -388,22 +388,23 @@ list, NIL otherwise."
            (error "Unknown foreign type: ~S" type))))))
 
 (defun auxiliary-foreign-type (kind name &optional (ftd *target-ftd*))
-  (flet ((aux-defn-matches (x)
-	   (and (eq (first x) kind) (eq (second x) name))))
-    (let ((in-auxiliaries
-	   (or (find-if #'aux-defn-matches *new-auxiliary-types*)
-	       (find-if #'aux-defn-matches *auxiliary-type-definitions*))))
-      (if in-auxiliaries
-	  (values (third in-auxiliaries) t)
-	  (ecase kind
-	    (:struct
-	     (info-foreign-type-struct name ftd))
-	    (:union
-	     (info-foreign-type-union name ftd))
-	    (:enum
-	     (info-foreign-type-enum name ftd)))))))
+  (or
+   (ecase kind
+     (:struct
+      (info-foreign-type-struct name ftd))
+     (:union
+      (info-foreign-type-union name ftd))
+     (:enum
+      (info-foreign-type-enum name ftd)))
+   (flet ((aux-defn-matches (x)
+            (and (eq (first x) kind) (eq (second x) name))))
+     (let ((in-auxiliaries
+            (or (find-if #'aux-defn-matches *new-auxiliary-types*)
+                (find-if #'aux-defn-matches *auxiliary-type-definitions*))))
+       (if in-auxiliaries
+         (values (third in-auxiliaries) t))))))
 
-(defun %set-auxiliary-foreign-type (kind name defn)
+(defun %set-auxiliary-foreign-type (kind name defn &optional (ftd *target-ftd*))
   (flet ((aux-defn-matches (x)
 	   (and (eq (first x) kind) (eq (second x) name))))
     (when (find-if #'aux-defn-matches *new-auxiliary-types*)
@@ -411,6 +412,13 @@ list, NIL otherwise."
     (when (find-if #'aux-defn-matches *auxiliary-type-definitions*)
       (error "Attempt to shadow definition of ~A ~S." kind name)))
   (push (list kind name defn) *new-auxiliary-types*)
+  (ecase kind
+    (:struct
+     (setf (info-foreign-type-struct name ftd) defn))
+    (:union
+     (setf (info-foreign-type-union name ftd) defn))
+    (:enum
+     (setf (info-foreign-type-enum name ftd) defn)))
   defn)
 
 (defsetf auxiliary-foreign-type %set-auxiliary-foreign-type)
