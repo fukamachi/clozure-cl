@@ -1,3 +1,20 @@
+2007-01-25 04:37  gb
+
+	* lib/foreign-types.lisp: Never fully understood the concept
+	"auxiliary" foreign types, but try to canonicalize intermediate
+	struct/union/enum references, so that (EQ (PARSE-FOREIGN-TYPE
+	'(:STRUCT :FOO))     (PARSE-FOREIGN-TYPE '(:STRUCT :FOO))) is more
+	likely to return T (e.g., something registered in the FTD.
+	
+	It seems clear that this is the right thing when the structure
+	reference is in global scope; I'm not sure what it'd mean for that
+	not to be the case.
+
+2007-01-25 04:32  gb
+
+	* lib/ffi-linuxppc32.lisp: More plausible callback-bindings
+	callback.
+
 2007-01-24 23:41  gb
 
 	* lib/ffi-linuxppc32.lisp: First cut at callback-bindings thing;
