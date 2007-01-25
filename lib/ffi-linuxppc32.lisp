@@ -84,3 +84,95 @@
           (if enclosing-form
             `(,@enclosing-form ,call)
             call))))))
+
+;;; Return N values:
+;;; A list of RLET bindings
+;;; A list of LET* bindings
+;;; A list of DYNAMIC-EXTENT declarations for the LET* bindings
+;;; A list of initializaton forms for (some) structure args
+;;; A FOREIGN-TYPE representing the "actual" return type.
+(defun linux32::generate-callback-bindings (stack-ptr argvars argspecs result-spec struct-result-name)
+  (collect ((lets)
+            (rlets)
+            (dynamic-extent-names))
+    (let* ((rtype (parse-foreign-type result-spec)))
+      (when (typep rtype 'foreign-record-type)
+        (let* ((bits (ensure-foreign-type-bits rtype)))
+          (if (<= bits 64)
+            (rlets (list struct-result-name (foreign-record-type-name rtype)))
+            (setq argvars (cons struct-result-name argvars)
+                  argspecs (cons :address argspecs)
+                  rtype *void-foreign-type))))
+          (let* ((offset  96)
+                 (gpr 0)
+                 (fpr 32))
+            (do* ((argvars argvars (cdr argvars))
+                  (argspecs argspecs (cdr argspecs)))
+                 ((null argvars)
+                  (values (rlets) (lets) (dynamic-extent-names) (inits) rtype))
+              (let* ((name (car argvars))
+                     (spec (car argspecs))
+                     (nextgpr gpr)
+                     (nextfpr fpr)
+                     (nextoffset offset)
+                     (target gpr)
+                     (bias 0)
+                     (argtype (parse-foreign-type spec)))
+                (if (typep argtype 'foreign-record-type)
+                  (setq spec :address))
+                (let* ((access-form
+                        `(,(case spec
+                                 (:single-float
+				   (incf nextfpr 8)
+				   (if (< fpr 96)
+				     (setq target fpr)
+				     (setq target (+ offset (logand offset 4))
+					   nextoffset (+ target 8)))
+				   '%get-single-float-from-double-ptr)
+				  (:double-float
+				   (incf nextfpr 8)
+				   (if (< fpr 96)
+				     (setq target fpr)
+				     (setq target (+ offset (logand offset 4))
+					   nextoffset (+ target 8)))
+				   '%get-double-float)
+				  (:signed-doubleword
+				   (if (< gpr 56)
+				     (setq target (+ gpr (logand gpr 4))
+					   nextgpr (+ 8 target))
+				     (setq target (+ offset (logand offset 4))
+					   nextoffset (+ 8 offset)))
+				   '%%get-signed-longlong)
+				  (:unsigned-doubleword
+				   (if (< gpr 56)
+				     (setq target (+ gpr (logand gpr 4))
+					   nextgpr (+ 8 target))
+				     (setq target (+ offset (logand offset 4))
+					   nextoffset (+ 8 offset)))
+				   '%%get-unsigned-longlong)
+				  (t
+				   (incf nextgpr 4)
+				   (if (< gpr 64)
+				     (setq target gpr)
+				     (setq target offset nextoffset (+ offset 4)))
+				   (ecase type
+				     (:signed-fullword '%get-signed-long)
+				     (:signed-halfword (setq bias 2) '%get-signed-word)
+				     (:signed-byte (setq bias 3) '%get-signed-byte)
+				     (:unsigned-fullword '%get-unsigned-long)
+				     (:unsigned-halfword (setq bias 2) '%get-unsigned-word)
+				     (:unsigned-byte (setq bias 3) '%get-unsigned-byte)
+				     (:address '%get-ptr))))
+                          ,stack-ptr
+                          ,(+ target bias))))
+                  (lets (list name access-form))
+                  (when (eq spec :address)
+                    (dynamic-extent-names name))
+                  (setq gpr nextgpr fpr nextfpr offset nextoffset)))))
+          (values (rlets)
+                  (lets)
+                  (dynamic-extent-names)
+                  nil
+                  rtype))))
+                
+                 
