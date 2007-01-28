@@ -1,3 +1,13 @@
+2007-01-28 03:21  gb
+
+	* lib/ffi-linuxppc32.lisp: Remove some typos.  Need to pass
+	dynamic-extent, other decls separately.
+
+2007-01-28 03:20  gb
+
+	* compiler/PPC/PPC32/ppc32-backend.lisp: Fix some of this stuff;
+	use the new (ftd-based) scheme.
+
 2007-01-28 01:43  gb
 
 	* compiler/PPC/PPC64/ppc64-backend.lisp: Fix some typos.  (This
