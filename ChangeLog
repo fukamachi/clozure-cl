@@ -1,3 +1,14 @@
+2007-01-28 01:43  gb
+
+	* compiler/PPC/PPC64/ppc64-backend.lisp: Fix some typos.  (This
+	code's getting replaced, but fix 'em anyway.)
+
+2007-01-28 01:42  gb
+
+	* lib/db-io.lisp: If a .cdb file can't be opened, show the
+	translated pathname and mention the fact that this might indicate a
+	problem with "ccl:"'s logical translations.
+
 2007-01-25 04:37  gb
 
 	* lib/foreign-types.lisp: Never fully understood the concept
