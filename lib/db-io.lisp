@@ -380,7 +380,7 @@
                           :pathname (namestring pathname))))
       (cdb-check-trailer cdb))
     (progn
-      (warn "Interface file ~s does not exist." pathname)
+      (warn "Interface file ~s does not exist.~%This may mean that that the \"ccl:\" logical-pathname host has not been properly initialized. " (translate-logical-pathname pathname))
       (make-cdb :fid nil :pathname (namestring pathname)))))
 
 (defun cdb-check-trailer (cdb)
