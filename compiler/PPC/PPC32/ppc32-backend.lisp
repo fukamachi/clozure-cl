@@ -27,19 +27,23 @@
 (defun define-ppc32-eabi-callback (name args body env)
   (let* ((stack-word (gensym))
          (stack-ptr (gensym))
-         (arg-names ())
-         (arg-types ())
-         (return-type :void)
+         (result-type-spec :void)
          (args args)
          (woi nil)
 	 (monitor nil)
-         (dynamic-extent-names ())
+         (need-struct-arg)
+         (struct-return-arg-name)
          (error-return nil))
+    (collect ((arg-names)
+              (arg-specs))
+      (let* ((spec (car (last args)))
+             (rtype (ignore-errors (parse-foreign-type spec))))
+        (setq need-struct-arg (typep rtype 'foreign-record-type))
+        (if rtype
+          (setq result-type-spec spec args (butlast args))))
+      
     (loop
       (when (null args) (return))
-      (when (null (cdr args))
-        (setq return-type (car args))
-        (return))
       (if (eq (car args) :without-interrupts)
         (setq woi (cadr args) args (cddr args))
 	(if (eq (car args) :monitor-exception-ports)
@@ -49,127 +53,63 @@
                   (warn "~s not yet implemented on this platform"
                         :error-return)
                   args (cddr args))
+            (if need-struct-arg
+              (setq struct-return-arg-name (pop args) need-struct-arg nil)
             (progn
-              (push (foreign-type-to-representation-type (pop args)) arg-types)
-              (push (pop args) arg-names))))))
-    (setq arg-names (nreverse arg-names)
-          arg-types (nreverse arg-types))
-    (setq return-type (foreign-type-to-representation-type return-type))
-    (when (eq return-type :void)
-      (setq return-type nil))
-    (let* ((offset  96)
-           (gpr 0)
-           (fpr 32)
-           (need-stack-pointer (or arg-names return-type error-return))
-           (lets
-             (mapcar
-	      #'(lambda (name type)
-		  (let* ((nextgpr gpr)
-			 (nextfpr fpr)
-			 (nextoffset offset)
-			 (target gpr)
-			 (bias 0))
-		    (prog1
-			(list name
-			      `(,
-				(case type
-				  (:single-float
-				   (incf nextfpr 8)
-				   (if (< fpr 96)
-				     (setq target fpr)
-				     (setq target (+ offset (logand offset 4))
-					   nextoffset (+ target 8)))
-				   '%get-single-float-from-double-ptr)
-				  (:double-float
-				   (incf nextfpr 8)
-				   (if (< fpr 96)
-				     (setq target fpr)
-				     (setq target (+ offset (logand offset 4))
-					   nextoffset (+ target 8)))
-				   '%get-double-float)
-				  (:signed-doubleword
-				   (if (< gpr 56)
-				     (setq target (+ gpr (logand gpr 4))
-					   nextgpr (+ 8 target))
-				     (setq target (+ offset (logand offset 4))
-					   nextoffset (+ 8 offset)))
-				   '%%get-signed-longlong)
-				  (:unsigned-doubleword
-				   (if (< gpr 56)
-				     (setq target (+ gpr (logand gpr 4))
-					   nextgpr (+ 8 target))
-				     (setq target (+ offset (logand offset 4))
-					   nextoffset (+ 8 offset)))
-				   '%%get-unsigned-longlong)
-				  (t
-				   (incf nextgpr 4)
-				   (if (< gpr 64)
-				     (setq target gpr)
-				     (setq target offset nextoffset (+ offset 4)))
-				   (ecase type
-				     (:signed-fullword '%get-signed-long)
-				     (:signed-halfword (setq bias 2) '%get-signed-word)
-				     (:signed-byte (setq bias 3) '%get-signed-byte)
-				     (:unsigned-fullword '%get-unsigned-long)
-				     (:unsigned-halfword (setq bias 2) '%get-unsigned-word)
-				     (:unsigned-byte (setq bias 3) '%get-unsigned-byte)
-				     (:address '%get-ptr))))
-				,stack-ptr
-				(+ ,target ,bias)))
-		      (when (eq type :address)
-			(push name dynamic-extent-names))
-		      (setq gpr nextgpr fpr nextfpr offset nextoffset))))
-	      arg-names arg-types)))
-      (multiple-value-bind (body decls doc) (parse-body body env t)
-        `(progn
-           (declaim (special ,name))
-           (define-callback-function
-             (nfunction ,name
-                        (lambda (,stack-word)
-                          (declare (ignorable ,stack-word))
-                          (block ,name
-                            (with-macptrs (,@(and need-stack-pointer (list `(,stack-ptr))))
-                              ,(when need-stack-pointer
-                                 `(%setf-macptr-to-object ,stack-ptr ,stack-word))
-                              ,(defcallback-body  stack-ptr lets dynamic-extent-names
-                                                 decls body return-type error-return
-                                                 0
-                                                 )))))
-             ,doc
-             ,woi
-	     ,monitor))))))
+              (arg-specs (pop args))
+              (arg-names (pop args))))))))
+      (multiple-value-bind (rlets lets dynamic-extent-names inits foreign-return-type)
+          (funcall (ftd-callback-bindings-function *target-ftd*)
+                   stack-ptr (arg-names) (arg-specs) result-type-spec struct-return-arg-name)
+        (multiple-value-bind (body decls doc) (parse-body body env t)
+          `(progn
+            (declaim (special ,name))
+            (define-callback-function
+                (nfunction ,name
+                 (lambda (,stack-word)
+                   (declare (ignorable ,stack-word))
+                   (block ,name
+                     (with-macptrs ((,stack-ptr))
+                       (%setf-macptr-to-object ,stack-ptr ,stack-word)
+                       ,(defcallback-body  stack-ptr
+                                           lets
+                                           rlets
+                                           inits
+                                           `(declare (dynamic-extent ,@dynamic-extent-names))
+                                           decls
+                                           body
+                                           foreign-return-type
+                                           struct-return-arg-name
+                                           error-return
+                                           0
+                                           )))))
+                ,doc
+              ,woi
+              ,monitor)))))))
 
 #+eabi-target
-(defun defcallback-body-ppc32-eabi (stack-ptr lets dynamic-extent-names decls body return-type error-return error-delta)
+(defun defcallback-body-ppc32-eabi (stack-ptr lets rlets inits dynamic-extent-decls other-decls body return-type struct-return-arg error-return error-delta)
   (let* ((result (gensym))
-         (offset (case return-type
-                   ((:single-float :double-float)
-                    8)
-                   (t 0)))
          (condition-name (if (atom error-return) 'error (car error-return)))
          (error-return-function (if (atom error-return) error-return (cadr error-return)))
          (body
-   	  `(progn
+   	  `(rlet ,rlets
             (let ,lets
-              (declare (dynamic-extent ,@dynamic-extent-names))
-              ,@decls
-
+              ,dynamic-extent-decls
+              ,@other-decls
+              ,@inits
               (let ((,result (progn ,@body)))
                 (declare (ignorable ,result))
                 ,@(progn
                    ;; Coerce SINGLE-FLOAT result to DOUBLE-FLOAT
-                   (when (eq return-type :single-float)
+                   (when (typep return-type 'foreign-single-float-type)
                      (setq result `(float ,result 0.0d0)))
                    nil)
-
-                ,(when return-type
-                       `(setf (,
-                               (case return-type
-                                 (:address '%get-ptr)
-                                 (:signed-doubleword '%%get-signed-longlong)
-                                 (:unsigned-doubleword '%%get-unsigned-longlong)
-                                 ((:double-float :single-float) '%get-double-float)
-                                 (t '%get-long)) ,stack-ptr ,offset) ,result)))))))
+                ,(funcall (ftd-callback-return-value-function *target-ftd*)
+                          stack-ptr
+                          result
+                          return-type
+                          struct-return-arg))))))
     (if error-return
       (let* ((cond (gensym)))
         `(handler-case ,body
