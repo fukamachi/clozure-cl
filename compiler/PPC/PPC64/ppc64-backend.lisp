@@ -143,7 +143,8 @@
          (condition-name (if (atom error-return) 'error (car error-return)))
          (error-return-function (if (atom error-return) error-return (cadr error-return)))
          (body
-   	  `(with-macptrs ((,fp-arg-ptr (%get-ptr ,stack-ptr (- ppc64::c-frame.unused-1 ppc64::c-frame.param0)))) 
+   	  `(with-macptrs ((,fp-arg-ptr (%get-ptr ,stack-ptr (- ppc64::c-frame.unused-1 ppc64::c-frame.param0))))
+            (declare (ignorable ,fp-arg-ptr))
             (let ,lets
               (declare (dynamic-extent ,@dynamic-extent-names))
               ,@decls
@@ -163,7 +164,7 @@
                                  (:signed-doubleword '%%get-signed-longlong)
                                  (:unsigned-doubleword '%%get-unsigned-longlong)
                                  ((:double-float :single-float) '%get-double-float)
-                                 (t '%%get-signed-longlon )) ,result-ptr 0) ,result)))))))
+                                 (t '%%get-signed-longlong )) ,result-ptr 0) ,result)))))))
     (if error-return
       (let* ((cond (gensym)))
         `(handler-case ,body
