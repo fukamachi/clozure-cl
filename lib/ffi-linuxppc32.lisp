@@ -171,11 +171,11 @@
                                             ((<= bits 16)
                                              (setq bias 2)
                                              (if signed
-                                               '%get-signed-word '
+                                               '%get-signed-word 
                                                '%get-unsigned-word))
                                             ((<= bits 32)
                                              (if signed
-                                               '%get-signed-long '
+                                               '%get-signed-long 
                                                '%get-unsigned-long))
                                             (t
                                              (error "Don't know how to access foreign argument of type ~s" (unparse-foreign-type argtype))))))
@@ -187,5 +187,25 @@
                   (when (eq spec :address)
                     (dynamic-extent-names name))
                   (setq gpr nextgpr fpr nextfpr offset nextoffset))))))))
-                
+
+(defun linux32::generate-callback-return-value (stack-ptr result return-type struct-return-arg)
+  (unless (eq return-type *void-foreign-type*)
+    (let* ((return-type-keyword
+            (if (typep return-type 'foreign-record-type)
+              (progn
+                (setq result `(%%get-unsigned-longlong ,struct-return-arg 0))
+                :unsigned-doubleword)
+              (foreign-type-to-representation-type return-type)))
+           (offset (case return-type-keyword
+                   ((:single-float :double-float)
+                    8)
+                   (t 0))))
+      `(setf (,
+              (case return-type-keyword
+                (:address '%get-ptr)
+                (:signed-doubleword '%%get-signed-longlong)
+                (:unsigned-doubleword '%%get-unsigned-longlong)
+                ((:double-float :single-float) '%get-double-float)
+                (t '%get-long)) ,stack-ptr ,offset) ,result))))
+      
                  
