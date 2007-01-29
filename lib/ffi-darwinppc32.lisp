@@ -247,3 +247,4 @@
                                  (:unsigned-fullword '^get-unsigned-long)
                                  (t '%get-long )
                                  ) ,result-ptr 0) ,result))))
+
