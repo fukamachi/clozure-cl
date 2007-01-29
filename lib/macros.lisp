@@ -2356,6 +2356,72 @@ defcallback returns the callback pointer, e.g., the value of name."
   (push (cons type fn) *trace-print-functions*))
 
 (defun define-callback (name args body env)
+  #+linuxppc-target
+  (let* ((stack-word (gensym))
+         (stack-ptr (gensym))
+         (fp-args-ptr (gensym))
+         (result-type-spec :void)
+         (args args)
+         (woi nil)
+	 (monitor nil)
+         (need-struct-arg)
+         (struct-return-arg-name)
+         (error-return nil))
+    (collect ((arg-names)
+              (arg-specs))
+      (let* ((spec (car (last args)))
+             (rtype (ignore-errors (parse-foreign-type spec))))
+        (setq need-struct-arg (typep rtype 'foreign-record-type))
+        (if rtype
+          (setq result-type-spec spec args (butlast args))))
+      (loop
+        (when (null args) (return))
+        (if (eq (car args) :without-interrupts)
+          (setq woi (cadr args) args (cddr args))
+          (if (eq (car args) :monitor-exception-ports)
+            (setq monitor (cadr args) args (cddr args))
+            
+            (if (eq (car args) :error-return)
+              (setq error-return
+                    (cadr args)                  
+                    args (cddr args))
+              (if need-struct-arg
+                (setq struct-return-arg-name (pop args) need-struct-arg nil)
+                (progn
+                  (arg-specs (pop args))
+                  (arg-names (pop args))))))))
+      (multiple-value-bind (rlets lets dynamic-extent-names inits foreign-return-type fp-args-form error-return-offset)
+          (funcall (ftd-callback-bindings-function *target-ftd*)
+                   stack-ptr fp-args-ptr (arg-names) (arg-specs) result-type-spec struct-return-arg-name)
+        (multiple-value-bind (body decls doc) (parse-body body env t)
+          `(progn
+            (declaim (special ,name))
+            (define-callback-function
+                (nfunction ,name
+                 (lambda (,stack-word)
+                   (declare (ignorable ,stack-word))
+                   (block ,name
+                     (with-macptrs ((,stack-ptr))
+                       (%setf-macptr-to-object ,stack-ptr ,stack-word)
+                       (with-macptrs (,@(when fp-args-form
+                                             `((,fp-args-ptr ,fp-args-form))))
+                         ,(defcallback-body  stack-ptr
+                                             fp-args-ptr
+                                             lets
+                                             rlets
+                                             inits
+                                             `(declare (dynamic-extent ,@dynamic-extent-names))
+                                             decls
+                                             body
+                                             foreign-return-type
+                                             struct-return-arg-name
+                                             error-return
+                                             error-return-offset
+                                             ))))))
+                ,doc
+              ,woi
+              ,monitor))))))
+  #-linuxppc-target
   (funcall (backend-define-callback *target-backend*)
            name
            args
@@ -2364,6 +2430,37 @@ defcallback returns the callback pointer, e.g., the value of name."
 
 
 (defun defcallback-body (&rest args)
+  (declare (dynamic-extent args))
+  #+linuxppc-target
+  (destructuring-bind (stack-ptr fp-args-ptr lets rlets inits dynamic-extent-decls other-decls body return-type struct-return-arg error-return error-delta) args
+      (let* ((result (gensym))
+         (condition-name (if (atom error-return) 'error (car error-return)))
+         (error-return-function (if (atom error-return) error-return (cadr error-return)))
+         (body
+   	  `(rlet ,rlets
+            (let ,lets
+              ,dynamic-extent-decls
+              ,@other-decls
+              ,@inits
+              (let ((,result (progn ,@body)))
+                (declare (ignorable ,result))
+                ,@(progn
+                   ;; Coerce SINGLE-FLOAT result to DOUBLE-FLOAT
+                   (when (typep return-type 'foreign-single-float-type)
+                     (setq result `(float ,result 0.0d0)))
+                   nil)
+                ,(funcall (ftd-callback-return-value-function *target-ftd*)
+                          stack-ptr
+                          fp-args-ptr
+                          result
+                          return-type
+                          struct-return-arg))))))
+    (if error-return
+      (let* ((cond (gensym)))
+        `(handler-case ,body
+          (,condition-name (,cond) (,error-return-function ,cond ,stack-ptr (%inc-ptr ,stack-ptr ,error-delta)))))
+      body)))
+  #-linuxppc-target
   (apply (backend-defcallback-body *target-backend*) args))
 
 
