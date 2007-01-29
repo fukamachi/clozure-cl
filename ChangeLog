@@ -1,3 +1,24 @@
+2007-01-29 04:37  gb
+
+	* lib/ffi-darwinppc32.lisp: Flesh out darwinppc32 callback stuff.
+
+2007-01-29 04:37  gb
+
+	* lib/ffi-linuxppc64.lisp: Fix some typos/bugs; more likely remain.
+
+2007-01-29 04:36  gb
+
+	* lib/foreign-types.lisp: REQUIRE-FOREIGN-TYPE-BITS.
+
+2007-01-29 04:36  gb
+
+	* lib/macros.lisp: Use new callback scheme for darwinppc32, too.
+
+2007-01-29 04:36  gb
+
+	* compiler/PPC/PPC32/ppc32-backend.lisp: No more (old) callback
+	stuff here.
+
 2007-01-29 02:33  gb
 
 	* lib/ffi-darwinppc32.lisp: Flesh out the new callback stuff.
