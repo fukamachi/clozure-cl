@@ -2356,7 +2356,7 @@ defcallback returns the callback pointer, e.g., the value of name."
   (push (cons type fn) *trace-print-functions*))
 
 (defun define-callback (name args body env)
-  #+(or linuxppc-target (and darwinppc-target 32-bit-target))
+  #+ppc-target
   (let* ((stack-word (gensym))
          (stack-ptr (gensym))
          (fp-args-ptr (gensym))
@@ -2421,7 +2421,7 @@ defcallback returns the callback pointer, e.g., the value of name."
                 ,doc
               ,woi
               ,monitor))))))
-  #-(or linuxppc-target (and darwinppc-target 32-bit-target))
+  #-ppc-target
   (funcall (backend-define-callback *target-backend*)
            name
            args
@@ -2431,7 +2431,7 @@ defcallback returns the callback pointer, e.g., the value of name."
 
 (defun defcallback-body (&rest args)
   (declare (dynamic-extent args))
-  #+(or linuxppc-target (and darwinppc-target 32-bit-target))
+  #+ppc-target
   (destructuring-bind (stack-ptr fp-args-ptr lets rlets inits dynamic-extent-decls other-decls body return-type struct-return-arg error-return error-delta) args
       (let* ((result (gensym))
          (condition-name (if (atom error-return) 'error (car error-return)))
@@ -2460,7 +2460,7 @@ defcallback returns the callback pointer, e.g., the value of name."
         `(handler-case ,body
           (,condition-name (,cond) (,error-return-function ,cond ,stack-ptr (%inc-ptr ,stack-ptr ,error-delta)))))
       body)))
-  #-(or linuxppc-target (and darwinppc-target 32-bit-target))
+  #-ppc-target
   (apply (backend-defcallback-body *target-backend*) args))
 
 
