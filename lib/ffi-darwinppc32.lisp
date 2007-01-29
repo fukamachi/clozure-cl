@@ -20,7 +20,7 @@
 ;;; of that field.
 (defun darwin32::record-type-has-single-scalar-field (record-type)
   (when (eq (foreign-record-type-kind record-type) :struct)
-    (ensure-foreign-type-bits record-type)
+    (require-foreign-type-bits record-type)
     (let* ((fields (foreign-record-type-fields record-type)))
       (when (null (cdr fields))
         (let* ((f0 (car fields))
@@ -202,7 +202,7 @@
                                (error "Don't know how to access foreign argument of type ~s" (unparse-foreign-type argtype))))))
                      ,(if use-fp-args fp-args-ptr stack-ptr)
                      ,(if use-fp-args (* 8 (1- fp-arg-num))
-                          `(+ ,offset ,bias)))))                   
+                          (+ offset bias)))))                   
           (let* ((name (car argvars))
                  (spec (car argspecs))
                  (argtype (parse-foreign-type spec)))
@@ -211,9 +211,10 @@
                 (if type0
                   (progn
                     (rlets (list name (foreign-record-type-name argtype)))
-                    (inits `(setf ,(%foreign-access-form name rtype 0 (foreign-record-field-name (car (foreign-record-type-fields argtype))))
-                             (next-scalar-arg type0))))
-                  (lets (list name (next-scalar-arg argtype)))))
+                    (inits `(setf ,(%foreign-access-form name type0 0 nil)
+                             ,(next-scalar-arg type0))))
+                  (progn (setq delta (* (ceiling (foreign-record-type-bits argtype) 32) 4))
+                    (lets (list name `(%inc-ptr ,stack-ptr ,offset ))))))
               (lets (list name (next-scalar-arg argtype))))
             (when (or (typep argtype 'foreign-pointer-type)
                       (typep argtype 'foreign-array-type))
@@ -227,9 +228,9 @@
       ;;; a single scalar field.
       (let* ((field0 (car (foreign-record-type-fields return-type))))
         (setq result (%foreign-access-form struct-return-arg
-                                           return-type
+                                           (foreign-record-field-type field0)
                                            0
-                                           (foreign-record-field-name field0))
+                                           nil)
               return-type (foreign-record-field-type field0))))
     (let* ((return-type-keyword (foreign-type-to-representation-type return-type))
            (result-ptr (case return-type-keyword
@@ -242,7 +243,6 @@
                                  (:signed-doubleword '%%get-signed-longlong)
                                  (:unsigned-doubleword '%%get-unsigned-longlong)
                                  ((:double-float :single-float)
-                                  (setq stack-ptr `(%get-ptr ,stack-ptr ,(- ppc64::c-frame.unused-1 ppc64::c-frame.param0)))
                                   '%get-double-float)
                                  (:unsigned-fullword '^get-unsigned-long)
                                  (t '%get-long )
