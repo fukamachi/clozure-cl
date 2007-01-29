@@ -1200,6 +1200,10 @@ Which one name refers to depends on foreign-type-spec in the obvious manner."
 				      (foreign-type-alignment element-type))
 			(reduce #'* dims))))))))
 
+(defun require-foreign-type-bits (type)
+  (or (ensure-foreign-type-bits type)
+      (error "Can't determine attributes of foreign type ~s" type)))
+
 (defun %find-foreign-record (name)
   (or (info-foreign-type-struct name)
       (info-foreign-type-union name)
