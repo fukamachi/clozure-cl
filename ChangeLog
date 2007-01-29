@@ -1,3 +1,15 @@
+2007-01-29 07:27  gb
+
+	* lib/macros.lisp: Enable new callback stuff on #+ppc-target.
+
+2007-01-29 07:27  gb
+
+	* lib/ffi-darwinppc64.lisp: new callback stuff.
+
+2007-01-29 07:27  gb
+
+	* lib/ffi-darwinppc32.lisp: typos-r-us.
+
 2007-01-29 04:37  gb
 
 	* lib/ffi-darwinppc32.lisp: Flesh out darwinppc32 callback stuff.
