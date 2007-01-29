@@ -1,3 +1,19 @@
+2007-01-28 21:47  gb
+
+	* lib/: ffi-linuxppc32.lisp, ffi-linuxppc64.lisp: Flesh things out
+	a bit more, change the API, get things working ... still a moving
+	target.
+
+2007-01-28 21:46  gb
+
+	* lib/macros.lisp: For linuxppc, use the new callback mechanism. 
+	(Other platforms still need more bootstrapping.)
+
+2007-01-28 21:44  gb
+
+	* compiler/PPC/PPC32/ppc32-backend.lisp: Lose the old eabi-callback
+	stuff; linuxppc 32/64-bit callbacks now use the new scheme.
+
 2007-01-28 03:21  gb
 
 	* lib/ffi-linuxppc32.lisp: Remove some typos.  Need to pass
