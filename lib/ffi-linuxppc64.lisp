@@ -108,7 +108,7 @@
                  (argtype (parse-foreign-type spec))
                  (bits (ensure-foreign-type-bits argtype)))
             (if (and (typep argtype 'foreign-record-type)
-                     (< bits 63))
+                     (< bits 64))
               (progn
                 (rlets (list name (foreign-record-type-name argtype)))
                 (inits `(setf (%%get-unsigned-longlong ,name 0)
@@ -139,6 +139,9 @@
                           ((or (typep argtype 'foreign-pointer-type)
                                (typep argtype 'foreign-array-type))
                            '%get-ptr)
+                          ((typep argtype 'foreign-record-type)
+                           (setq delta (* (ceiling bits 64) 8))
+                           '%inc-ptr)
                           (t
                            (cond ((typep argtype 'foreign-integer-type)
                                   (let* ((bits (foreign-integer-type-bits argtype))
