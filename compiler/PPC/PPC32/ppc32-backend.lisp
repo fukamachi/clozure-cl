@@ -25,150 +25,6 @@
 
 
 
-#+poweropen-target
-(defun define-ppc32-poweropen-callback (name args body env)
-  (let* ((stack-word (gensym))
-         (stack-ptr (gensym))
-         (fp-arg-regs (gensym))
-         (fp-arg-num 0)
-         (arg-names ())
-         (arg-types ())
-         (return-type :void)
-         (args args)
-         (woi nil)
-	 (monitor nil)
-         (dynamic-extent-names ())
-         (error-return nil))
-    (loop
-      (when (null args) (return))
-      (when (null (cdr args))
-        (setq return-type (car args))
-        (return))
-      (if (eq (car args) :without-interrupts)
-        (setq woi (cadr args) args (cddr args))
-	(if (eq (car args) :monitor-exception-ports)
-	  (setq monitor (cadr args) args (cddr args))
-          (if (eq (car args) :error-return)
-            (setq error-return
-                  (cadr args)
-                  args (cddr args))
-            (progn
-              (push (foreign-type-to-representation-type (pop args)) arg-types)
-              (push (pop args) arg-names))))))
-    (setq arg-names (nreverse arg-names)
-          arg-types (nreverse arg-types))
-    (setq return-type (foreign-type-to-representation-type return-type))
-    (when (eq return-type :void)
-      (setq return-type nil))
-    (let* ((offset 0)
-           (need-stack-pointer (or arg-names return-type error-return))
-           (lets
-             (mapcar
-	      #'(lambda (name type)
-		  (let* ((delta 4)
-			 (bias 0)
-                         (use-fp-args nil))
-		    (prog1
-			(list name
-			      `(,
-				(if (typep type 'unsigned-byte)
-				  (progn (setq delta (* 4 type)) '%inc-ptr)
-				  (ecase type
-				    (:single-float
-                                     (if (< (incf fp-arg-num) 14)
-                                       (progn
-                                         (setq use-fp-args t)
-                                         '%get-single-float-from-double-ptr)
-                                       '%get-single-float))
-				    (:double-float
-                                     (setq delta 8)
-                                     (if (< (incf fp-arg-num) 14)
-                                       (setq use-fp-args t))
-                                     '%get-double-float)
-				    (:signed-doubleword (setq delta 8) '%%get-signed-longlong)
-				    (:signed-fullword
-                                     (setq bias 0)
-                                     '%get-signed-long)
-				    (:signed-halfword (setq bias 2)
-                                                      '%get-signed-word)
-				    (:signed-byte (setq bias 3)
-                                                  '%get-signed-byte)
-				    (:unsigned-doubleword (setq delta 8) '%%get-unsigned-longlong)
-				    (:unsigned-fullword
-                                     (setq bias 0)
-                                     '%get-unsigned-long)
-				    (:unsigned-halfword
-                                     (setq bias 2)
-                                     '%get-unsigned-word)
-				    (:unsigned-byte
-                                     (setq bias 3)
-                                     '%get-unsigned-byte)
-				    (:address '%get-ptr)))
-				,(if use-fp-args fp-arg-regs stack-ptr)
-				,(if use-fp-args (* 8 (1- fp-arg-num))
-                                     `(+ ,offset ,bias))))
-		      (when (or (eq type :address)
-				(typep type 'unsigned-byte))
-			(push name dynamic-extent-names))
-		      (incf offset delta))))
-	      arg-names arg-types)))
-      (multiple-value-bind (body decls doc) (parse-body body env t)
-        `(progn
-           (declaim (special ,name))
-           (define-callback-function
-             (nfunction ,name
-                        (lambda (,stack-word)
-                          (declare (ignorable ,stack-word))
-                          (block ,name
-                            (with-macptrs (,@(and need-stack-pointer (list `(,stack-ptr))))
-                              ,(when need-stack-pointer
-                                 `(%setf-macptr-to-object ,stack-ptr ,stack-word))
-                              ,(defcallback-body  stack-ptr lets dynamic-extent-names
-                                                 decls body return-type error-return
-                                                 (- ppc32::c-frame.savelr ppc32::c-frame.param0)
-                                                 fp-arg-regs
-                                                 )))))
-             ,doc
-             ,woi
-	     ,monitor))))))
-
-#+poweropen-target
-(defun defcallback-body-ppc32-poweropen (stack-ptr lets dynamic-extent-names decls body return-type error-return error-delta #+poweropen-target fp-arg-ptr)
-  (let* ((result (gensym))
-         (return-ptr (case return-type
-                       ((:single-float :double-float)
-                        fp-arg-ptr)
-                       (t stack-ptr)))
-         (condition-name (if (atom error-return) 'error (car error-return)))
-         (error-return-function (if (atom error-return) error-return (cadr error-return)))
-         (body
-   	  `(with-macptrs ((,fp-arg-ptr))
-            (%setf-macptr ,fp-arg-ptr (%get-ptr ,stack-ptr (- ppc32::c-frame.unused-1 ppc32::c-frame.param0)))
-            (let ,lets
-              (declare (dynamic-extent ,@dynamic-extent-names))
-              ,@decls
-
-              (let ((,result (progn ,@body)))
-                (declare (ignorable ,result))
-                ,@(progn
-                   ;; Coerce SINGLE-FLOAT result to DOUBLE-FLOAT
-                   (when (eq return-type :single-float)
-                     (setq result `(float ,result 0.0d0)))
-                   nil)
-
-                ,(when return-type
-                       `(setf (,
-                               (case return-type
-                                 (:address '%get-ptr)
-                                 (:signed-doubleword '%%get-signed-longlong)
-                                 (:unsigned-doubleword '%%get-unsigned-longlong)
-                                 ((:double-float :single-float) '%get-double-float)
-                                 (t  '%get-long)) ,return-ptr 0) ,result)))))))
-    (if error-return
-      (let* ((cond (gensym)))
-        `(handler-case ,body
-          (,condition-name (,cond) (,error-return-function ,cond ,stack-ptr (%inc-ptr ,stack-ptr ,error-delta)))))
-      body)))
 
 (defvar *ppc32-vinsn-templates* (make-hash-table :test #'eq))
 
@@ -199,9 +55,7 @@
 		:name :linuxppc32
 		:target-arch-name :ppc32
 		:target-foreign-type-data nil
-                :target-arch ppc32::*ppc32-target-arch*
-                :define-callback 'define-ppc32-eabi-callback
-                :defcallback-body 'defcallback-body-ppc32-eabi))
+                :target-arch ppc32::*ppc32-target-arch*))
 
 
 #+darwinppc-target
@@ -225,9 +79,7 @@
 		:name :darwinppc32
 		:target-arch-name :ppc32
 		:target-foreign-type-data nil
-                :target-arch ppc32::*ppc32-target-arch*
-                :define-callback 'define-ppc32-poweropen-callback
-                :defcallback-body 'defcallback-body-ppc32-poweropen))
+                :target-arch ppc32::*ppc32-target-arch*))
 
 #+linuxppc-target
 (pushnew *linuxppc32-backend* *known-ppc32-backends* :key #'backend-name)
