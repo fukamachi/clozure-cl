@@ -85,13 +85,17 @@
             `(,@enclosing-form ,call)
             call))))))
 
-;;; Return N values:
+;;; Return 7 values:
 ;;; A list of RLET bindings
 ;;; A list of LET* bindings
 ;;; A list of DYNAMIC-EXTENT declarations for the LET* bindings
 ;;; A list of initializaton forms for (some) structure args
 ;;; A FOREIGN-TYPE representing the "actual" return type.
-(defun linux32::generate-callback-bindings (stack-ptr argvars argspecs result-spec struct-result-name)
+;;; A form which can be used to initialize FP-ARGS-PTR, relative
+;;;  to STACK-PTR.  (This is unused on linuxppc32.)
+;;; The byte offset of the foreign return address, relative to STACK-PTR
+(defun linux32::generate-callback-bindings (stack-ptr fp-args-ptr argvars argspecs result-spec struct-result-name)
+  (declare (ignore fp-args-ptr))
   (collect ((lets)
             (rlets)
             (dynamic-extent-names))
@@ -109,7 +113,7 @@
             (do* ((argvars argvars (cdr argvars))
                   (argspecs argspecs (cdr argspecs)))
                  ((null argvars)
-                  (values (rlets) (lets) (dynamic-extent-names) nil rtype))
+                  (values (rlets) (lets) (dynamic-extent-names) nil rtype nil 0 #|wrong|#))
               (let* ((name (car argvars))
                      (spec (car argspecs))
                      (nextgpr gpr)
@@ -188,7 +192,8 @@
                     (dynamic-extent-names name))
                   (setq gpr nextgpr fpr nextfpr offset nextoffset))))))))
 
-(defun linux32::generate-callback-return-value (stack-ptr result return-type struct-return-arg)
+(defun linux32::generate-callback-return-value (stack-ptr fp-args-ptr result return-type struct-return-arg)
+  (declare (ignore fp-args-ptr))
   (unless (eq return-type *void-foreign-type*)
     (let* ((return-type-keyword
             (if (typep return-type 'foreign-record-type)
