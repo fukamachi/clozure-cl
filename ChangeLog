@@ -1,3 +1,7 @@
+2007-01-29 02:33  gb
+
+	* lib/ffi-darwinppc32.lisp: Flesh out the new callback stuff.
+
 2007-01-28 21:47  gb
 
 	* lib/: ffi-linuxppc32.lisp, ffi-linuxppc64.lisp: Flesh things out
