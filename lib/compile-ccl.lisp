@@ -500,9 +500,12 @@
                                         (status exit-code)
                                         (external-process-status 
                                          (run-program "make"
-                                                      (list "-k" "-C"
+                                                      (list "-k" "-C" 
                                                             (format nil "lisp-kernel/~a"
-                                                                    (kernel-build-directory)))
+                                                                    (kernel-build-directory))
+                                                            "-j"
+                                                            
+                                                            (format nil "~d" (1+ (cpu-count))))
                                                       :output s
                                                       :error s))
                                       (if (and (eq :exited status) (zerop exit-code))
