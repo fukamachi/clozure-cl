@@ -1,3 +1,19 @@
+2007-01-30 07:02  gb
+
+	* lisp-kernel/x86-spentry64.s: .SPcallback returns rax/rdx,
+	xmm0/xmm1.
+
+2007-01-30 07:01  gb
+
+	* lib/macros.lisp: Use new callback interface unconditionally.	(A
+	day's work turned into 2 weeks, somehow.)
+
+2007-01-30 07:00  gb
+
+	* compiler/X86/X8664/x8664-backend.lisp, lib/ffi-darwinx8664.lisp,
+	lib/ffi-freebsdx8664.lisp, lib/ffi-linuxx8664.lisp: New callback
+	stuff for x8664 (all platfroms appear to use the same ABI.)
+
 2007-01-30 03:26  gb
 
 	* level-0/X86/x86-misc.lisp: Don't use boxed "disp" for
