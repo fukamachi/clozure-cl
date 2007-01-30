@@ -1,3 +1,8 @@
+2007-01-30 03:26  gb
+
+	* level-0/X86/x86-misc.lisp: Don't use boxed "disp" for
+	displacement in %ATOMIC-INCF-NODE.
+
 2007-01-29 07:27  gb
 
 	* lib/macros.lisp: Enable new callback stuff on #+ppc-target.
