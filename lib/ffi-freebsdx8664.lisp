@@ -26,3 +26,9 @@
 
 (defun x86-freebsd64::expand-ff-call (callform args &key (arg-coerce #'null-coerce-foreign-arg) (result-coerce #'null-coerce-foreign-result))
   (x8664::expand-ff-call callform args :arg-coerce arg-coerce :result-coerce result-coerce))
+
+(defun x86-freebsd64::generate-callback-bindings (stack-ptr fp-args-ptr argvars argspecs result-spec struct-return-name)
+  (x8664::generate-callback-bindings stack-ptr fp-args-ptr argvars argspecs result-spec struct-return-name))
+
+(defun x86-freebsd64::generate-callback-return-value (stack-ptr fp-args-ptr result return-type struct-return-arg)
+  (x8664::generate-callback-return-value stack-ptr fp-args-ptr result return-type struct-return-arg))

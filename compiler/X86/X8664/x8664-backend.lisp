@@ -23,113 +23,6 @@
   (require "X8664ENV"))
 
 
-(defun define-x8664-callback (name args body env)
-  (let* ((stack-word (gensym))
-         (stack-ptr (gensym))
-         (gpr-arg-num 0)
-         (gpr-arg-offset -8)
-         (fpr-arg-num 0)
-         (fpr-arg-offset -56)
-         (memory-arg-offset 16)
-         (arg-names ())
-         (arg-types ())
-         (return-type :void)
-         (args args)
-         (woi nil)
-         (dynamic-extent-names ()))
-    (loop
-      (when (null args) (return))
-      (when (null (cdr args))
-        (setq return-type (car args))
-        (return))
-      (if (eq (car args) :without-interrupts)
-        (setq woi (cadr args) args (cddr args))
-        (if (eq (car args) :error-return)
-          (error ":error-return not yet supported on this target")
-          (progn
-            (push (foreign-type-to-representation-type (pop args)) arg-types)
-            (push (pop args) arg-names)))))
-    (setq arg-names (nreverse arg-names)
-          arg-types (nreverse arg-types))
-    (setq return-type (foreign-type-to-representation-type return-type))
-    (when (eq return-type :void)
-      (setq return-type nil))
-    (let* ((lets
-            (flet ((next-gpr ()
-                     (if (<= (incf gpr-arg-num) 6)
-                       (prog1
-                           gpr-arg-offset
-                         (decf gpr-arg-offset 8))
-                       (prog1
-                           memory-arg-offset
-                         (incf memory-arg-offset 8))))
-                   (next-fpr ()
-                       (if (<= (incf fpr-arg-num) 8)
-                         (prog1
-                             fpr-arg-offset
-                           (decf fpr-arg-offset 8))
-                         (prog1
-                             memory-arg-offset
-                           (incf memory-arg-offset 8)))))
-              (mapcar
-               #'(lambda (name type)
-                   (let* ((fp nil))
-                     (list name
-                           `(,
-                             (ecase type
-                               (:single-float (setq fp t) '%get-single-float)
-                               (:double-float (setq fp t) '%get-double-float)
-                               (:signed-doubleword  '%%get-signed-longlong)
-                               (:signed-fullword '%get-signed-long)
-                               (:signed-halfword '%get-signed-word)
-                               (:signed-byte '%get-signed-byte)
-                               (:unsigned-doubleword '%%get-unsigned-longlong)
-                               (:unsigned-fullword '%get-unsigned-long)
-                               (:unsigned-halfword '%get-unsigned-word)
-                               (:unsigned-byte '%get-unsigned-byte)
-                               (:address
-                                (push name dynamic-extent-names)
-                                '%get-ptr))
-                             ,stack-ptr
-                             ,(if fp (next-fpr) (next-gpr))))))
-	      arg-names arg-types))))
-      (multiple-value-bind (body decls doc) (parse-body body env t)
-        `(progn
-           (declaim (special ,name))
-           (define-callback-function
-             (nfunction ,name
-                        (lambda (,stack-word)
-                          (declare (ignorable ,stack-word))
-                            (with-macptrs (,stack-ptr)
-                              (%setf-macptr-to-object ,stack-ptr ,stack-word)
-                              ,(defcallback-body  stack-ptr lets dynamic-extent-names
-                                                 decls `((block ,name ,@body)) return-type))))
-             ,doc
-             ,woi))))))
-
-(defun defcallback-body-x8664 (stack-ptr lets dynamic-extent-names decls body return-type)
-  (let* ((result (gensym))
-         (result-offset -8)
-         (body
-   	  `(let ,lets
-              (declare (dynamic-extent ,@dynamic-extent-names))
-              ,@decls
-
-              (let ((,result (progn ,@body)))
-                (declare (ignorable ,result))
-                ,(when return-type
-                       `(setf (,
-                               (case return-type
-                                 (:address '%get-ptr)
-                                 (:signed-doubleword '%%get-signed-longlong)
-                                 (:unsigned-doubleword '%%get-unsigned-longlong)
-                                 (:double-float '%get-double-float)
-                                 (:single-float '%get-single-float)
-                                 (t  '%%get-signed-longlong))
-                               ,stack-ptr ,result-offset) ,result))))))
-      body))
-
-
 (defvar *x8664-vinsn-templates* (make-hash-table :test #'eq))
 
 
@@ -164,8 +57,6 @@
 
 
                 :target-arch x8664::*x8664-target-arch*
-                :define-callback 'define-x8664-callback
-                :defcallback-body 'defcallback-body-x8664
                 :lisp-context-register x8664::gs
                 ))
 
@@ -195,8 +86,6 @@
 		:target-arch-name :x8664
 		:target-foreign-type-data nil
                 :target-arch x8664::*x8664-target-arch*
-                :define-callback 'define-x8664-callback
-                :defcallback-body 'defcallback-body-x8664
                 ;; Overload %gs until Apple straightens things out.
                 :lisp-context-register x8664::gs
                 ))
@@ -225,8 +114,6 @@
 		:target-arch-name :x8664
 		:target-foreign-type-data nil
                 :target-arch x8664::*x8664-target-arch*
-                :define-callback 'define-x8664-callback
-                :defcallback-body 'defcallback-body-x8664
                 :platform-syscall-mask (logior platform-os-freebsd platform-cpu-x86 platform-word-size-64)
                 :lisp-context-register x8664::gs
                 ))
@@ -507,6 +394,135 @@
                     ,call
                     ,(x8664::struct-from-regbuf-values result-temp struct-result-type regbuf)))
                 call)))))))
+
+
+;;; Return 7 values:
+;;; A list of RLET bindings
+;;; A list of LET* bindings
+;;; A list of DYNAMIC-EXTENT declarations for the LET* bindings
+;;; A list of initializaton forms for (some) structure args
+;;; A FOREIGN-TYPE representing the "actual" return type.
+;;; A form which can be used to initialize FP-ARGS-PTR, relative
+;;;  to STACK-PTR.  (This is unused on linuxppc32.)
+;;; The byte offset of the foreign return address, relative to STACK-PTR
+
+(defun x8664::generate-callback-bindings (stack-ptr fp-args-ptr argvars argspecs result-spec struct-result-name)
+  (declare (ignore fp-args-ptr))
+  (collect ((lets)
+            (rlets)
+            (inits)
+            (dynamic-extent-names))
+    (let* ((rtype (parse-foreign-type result-spec)))
+      (when (typep rtype 'foreign-record-type)
+        (if (x8664::record-type-returns-structure-as-first-arg rtype)
+          (setq argvars (cons struct-result-name argvars)
+                argspecs (cons :address argspecs)
+                rtype *void-foreign-type*)
+          (rlets (list struct-result-name (foreign-record-type-name rtype)))))
+      (do* ((argvars argvars (cdr argvars))
+            (argspecs argspecs (cdr argspecs))
+            (gpr-arg-num 0)
+            (gpr-arg-offset -8)
+            (fpr-arg-num 0)
+            (fpr-arg-offset -56)
+            (memory-arg-offset 16)
+            (fp nil nil))
+           ((null argvars)
+            (values (rlets) (lets) (dynamic-extent-names) (inits) rtype nil 8))
+        (flet ((next-gpr ()
+                 (if (<= (incf gpr-arg-num) 6)
+                   (prog1
+                       gpr-arg-offset
+                     (decf gpr-arg-offset 8))
+                   (prog1
+                       memory-arg-offset
+                     (incf memory-arg-offset 8))))
+               (next-fpr ()
+                 (if (<= (incf fpr-arg-num) 8)
+                   (prog1
+                       fpr-arg-offset
+                     (decf fpr-arg-offset 8))
+                   (prog1
+                       memory-arg-offset
+                     (incf memory-arg-offset 8)))))
+          (let* ((name (car argvars))
+                 (spec (car argspecs))
+                 (argtype (parse-foreign-type spec))
+                 (bits (require-foreign-type-bits argtype)))
+            (if (typep argtype 'foreign-record-type)
+              (multiple-value-bind (first8 second8)
+                  (x8664::classify-record-type argtype)
+                (let* ((gprs (- 6 gpr-arg-num))
+                       (fprs (- 8 fpr-arg-num)))
+                  (case first8
+                    (:integer (if (< (decf gprs) 0) (setq first8 :memory)))
+                    (:float (if (< (decf fprs) 0) (setq first8 :memory))))
+                  (case second8
+                    (:integer (if (< (decf gprs) 0) (setq first8 :memory)))
+                    (:float (if (< (decf fprs) 0) (setq first8 :memory)))))
+                (if (eq first8 :memory)
+                  (progn
+                    (lets (list name `(%inc-ptr ,stack-ptr ,(prog1 memory-arg-offset
+                                                                   (incf memory-arg-offset (* 8 (ceiling bits 64)))))))
+                         (dynamic-extent-names name))
+                  (progn
+                    (rlets (list name (foreign-record-type-name argtype)))
+                    (inits `(setf (%%get-unsigned-longlong ,name 0)
+                             (%%get-unsigned-long-long ,stack-ptr ,(if (eq first8 :integer) (next-gpr) (next-fpr)))))
+                    (if second8
+                      (inits `(setf (%%get-unsigned-longlong ,name 8)
+                             (%%get-unsigned-long-long ,stack-ptr ,(if (eq second8 :integer) (next-gpr) (next-fpr)))))))))
+                (lets (list name
+                            `(,
+                             (ecase (foreign-type-to-representation-type argtype)
+                               (:single-float (setq fp t) '%get-single-float)
+                               (:double-float (setq fp t) '%get-double-float)
+                               (:signed-doubleword  '%%get-signed-longlong)
+                               (:signed-fullword '%get-signed-long)
+                               (:signed-halfword '%get-signed-word)
+                               (:signed-byte '%get-signed-byte)
+                               (:unsigned-doubleword '%%get-unsigned-longlong)
+                               (:unsigned-fullword '%get-unsigned-long)
+                               (:unsigned-halfword '%get-unsigned-word)
+                               (:unsigned-byte '%get-unsigned-byte)
+                               (:address
+                                (dynamic-extent-names name)
+                                '%get-ptr))
+                             ,stack-ptr
+                             ,(if fp (next-fpr) (next-gpr))))))))))))
+
+(defun x8664::generate-callback-return-value (stack-ptr fp-args-ptr result return-type struct-return-arg)
+  (declare (ignore fp-args-ptr))
+  (unless (eq return-type *void-foreign-type*)
+    (let* ((gpr-offset -8)
+           (fpr-offset -24))
+      (if (typep return-type 'foreign-record-type)
+      ;;; Would have been mapped to :VOID unless record-type was <= 128 bits.
+        (collect ((forms))
+          (multiple-value-bind (first8 second8)
+              (x8664::classify-record-type return-type)
+            (forms `(setf (%%get-signed-longlong ,stack-ptr ,(if (eq first8 :integer) gpr-offset fpr-offset))
+                     (%%get-signed-longlong ,struct-return-arg 0)))
+            (when second8
+              (if (eq first8 :integer) (decf gpr-offset 8) (decf fpr-offset 8))
+              (forms `(setf (%%get-signed-longlong ,stack-ptr ,(if (eq first8 :integer) gpr-offset fpr-offset))
+                       (%%get-signed-longlong ,struct-return-arg 8))))
+            `(progn ,@(forms))))
+        (let* ((return-type-keyword (foreign-type-to-representation-type return-type))
+               (offset (case return-type-keyword
+                         ((:single-float :double-float) fpr-offset)
+                         (t gpr-offset))))
+          `(setf (,
+                  (case return-type-keyword
+                    (:address '%get-ptr)
+                    (:signed-doubleword '%%get-signed-longlong)
+                    (:unsigned-doubleword '%%get-unsigned-longlong)
+                    ((:double-float :single-float)
+                     '%get-double-float)
+                    (:unsigned-fullword '%get-unsigned-long)
+                    (t '%%get-signed-longlong )
+                    ) ,stack-ptr ,offset) ,result))))))
+
 
 
 #+x8664-target
