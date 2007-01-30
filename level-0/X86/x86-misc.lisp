@@ -425,10 +425,10 @@
   (check-nargs 3)
   (unbox-fixnum disp imm1)
   @again
-  (movq (@ (% node) (% disp)) (% rax))
+  (movq (@ (% node) (% imm1)) (% rax))
   (lea (@ (% rax) (% by)) (% arg_z))
   (lock)
-  (cmpxchgq (% arg_z) (@ (% node) (% disp)))
+  (cmpxchgq (% arg_z) (@ (% node) (% imm1)))
   (jne @again)
   (single-value-return))
 
