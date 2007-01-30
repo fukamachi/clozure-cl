@@ -1,3 +1,11 @@
+2007-01-30 08:20  gb
+
+	* level-1/version.lisp: Bump.
+
+2007-01-30 08:20  gb
+
+	* lib/compile-ccl.lisp: Use make -j to build kernel.
+
 2007-01-30 07:02  gb
 
 	* lisp-kernel/x86-spentry64.s: .SPcallback returns rax/rdx,
