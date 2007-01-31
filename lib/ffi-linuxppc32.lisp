@@ -19,11 +19,9 @@
 ;;; LinuxPPC32:
 ;;; Structures are never actually passed by value; the caller
 ;;; instead passes a pointer to the structure or a copy of it.
-;;; Structures whose size is 8 bytes or less are returned in r3/r4;
-;;; this happens rarely enough that we can probably get away with
-;;; boxing an :UNSIGNED-DOUBLEWORD and storing it in the structure-return
-;;; argument.
-
+;;; In the EABI (which Linux uses, as opposed to the SVR4 ABI)
+;;; structures are always "returned" by passing a pointer to
+;;; a caller-allocated structure in the first argument.
 (defun linux32::record-type-returns-structure-as-first-arg (rtype)
   (when (and rtype
              (not (typep rtype 'unsigned-byte))
@@ -32,8 +30,7 @@
     (let* ((ftype (if (typep rtype 'foreign-type)
                     rtype
                     (parse-foreign-type rtype))))
-      (and (typep ftype 'foreign-record-type)
-           (> (ensure-foreign-type-bits ftype) 64)))))
+      (typep ftype 'foreign-record-type))))
 
 
 (defun linux32::expand-ff-call (callform args &key (arg-coerce #'null-coerce-foreign-arg) (result-coerce #'null-coerce-foreign-result))
@@ -49,16 +46,18 @@
         (when (eq (car args) :monitor-exception-ports)
           (argforms (pop args)))
         (when (typep result-type 'foreign-record-type)
+          (setq result-form (pop args))
           (if (linux32::record-type-returns-structure-as-first-arg result-type)
             (progn
               (setq result-type *void-foreign-type*
                     result-type-spec :void)
               (argforms :address)
               (argforms result-form))
+            ;; This only happens in the SVR4 ABI.
             (progn
               (setq result-type (parse-foreign-type :unsigned-doubleword)
                     result-type-spec :unsigned-doubleword
-                    enclosing-form `(setf (%%get-unsigned-longlong ,result-form))))))
+                    enclosing-form `(setf (%%get-unsigned-longlong ,result-form 0))))))
         (unless (evenp (length args))
           (error "~s should be an even-length list of alternating foreign types and values" args))        
         (do* ((args args (cddr args)))
