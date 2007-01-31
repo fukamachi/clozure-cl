@@ -52,6 +52,7 @@
 
 ;;; Run this every 10 ticks.  (There seem to be about 100 ticks
 ;;; per second.)
+#-openmcl-native-threads
 (def-load-pointers gtk-task ()
   (%install-periodic-task 'gtk-task
 			  #'(lambda ()
