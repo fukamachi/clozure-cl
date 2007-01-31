@@ -1,3 +1,9 @@
+2007-01-31 15:38  gb
+
+	* library/chud-metering.lisp: Tweak a little, so that it might work
+	on darwinppc64 (and on darwinx8664 when purify does something
+	there.)
+
 2007-01-31 15:06  gb
 
 	* darwin-headers/libc/C/populate.sh: Add dlfcn.h.
