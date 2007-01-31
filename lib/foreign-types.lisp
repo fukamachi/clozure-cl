@@ -1420,38 +1420,43 @@ result-type-specifer is :VOID or NIL"
 (defun %external-call-expander (whole env)
   (declare (ignore env))
   (destructuring-bind (name &rest args) whole
-    (let* ((info (or (gethash name (ftd-external-function-definitions
-				    *target-ftd*))
-		     (error "Unknown external-function: ~s" name)))
-	   (external-name (efd-entry-name info))
-	   (arg-specs (efd-arg-specs info))
-	   (result (efd-result-spec info))
-	   (monitor (eq (car args) :monitor-exception-ports)))
-      (when monitor
-	(setq args (cdr args)))
-      (do* ((call (if monitor '(:monitor-exception-ports) ()))
-	    (specs arg-specs (cdr specs))
-	    (args args (cdr args)))
-	   ((null specs)
-	    (if args
-	      (error "Extra arguments in ~s" call)
-	      `(external-call ,external-name ,@(nreverse (cons result call)))))
-	(let* ((spec (car specs)))
-	  (cond ((eq spec :void)
-		 ;; must be last arg-spec; remaining args should be
-		 ;; keyword/value pairs
-		 (unless (evenp (length args))
-		   (error "Remaining arguments should be keyword/value pairs: ~s"
-			  args))
-		 (do* ()
-		      ((null args))
-		   (push (pop args) call)
-		   (push (pop args) call)))
-		(t
-		 (push spec call)
-		 (if args
-		   (push (car args) call)
-		   (error "Missing arguments in ~s" whole)))))))))
+    (collect ((call))
+      (let* ((info (or (gethash name (ftd-external-function-definitions
+                                      *target-ftd*))
+                       (error "Unknown external-function: ~s" name)))
+             (external-name (efd-entry-name info))
+             (arg-specs (efd-arg-specs info))
+             (result (efd-result-spec info))
+             (monitor (eq (car args) :monitor-exception-ports)))
+        (when monitor
+          (setq args (cdr args))
+          (call :monitor-exception-ports))
+        (let* ((rtype (parse-foreign-type result)))
+          (if (typep rtype 'foreign-record-type)
+            (call (pop args))))
+        (do* ((specs arg-specs (cdr specs))
+              (args args (cdr args)))
+             ((null specs)
+              (call result)
+              (if args
+                (error "Extra arguments in ~s" (call))
+                `(external-call ,external-name ,@(call))))
+          (let* ((spec (car specs)))
+            (cond ((eq spec :void)
+                   ;; must be last arg-spec; remaining args should be
+                   ;; keyword/value pairs
+                   (unless (evenp (length args))
+                     (error "Remaining arguments should be keyword/value pairs: ~s"
+                            args))
+                   (do* ()
+                        ((null args))
+                     (call (pop args))
+                     (call (pop args))))
+                  (t
+                   (call spec)
+                   (if args
+                     (call (car args))
+                     (error "Missing arguments in ~s" whole))))))))))
 
 (defun translate-foreign-arg-type (foreign-type-spec)
   (let* ((foreign-type (parse-foreign-type foreign-type-spec)))
