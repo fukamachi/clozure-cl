@@ -17,6 +17,11 @@
 ;;; Some of this is based on work done by Dan Knapp and Hamilton Link
 ;;; (and possibly others.)
 
+;;; CHUD 4.4.3-5 claims to offer 64-bit support; however, the library
+;;; which provides the API to control CHUD metering functions still
+;;; seems to be 32-bit only.  Conditionalization for x86-64 and
+;;; for 64-bit targets is (so far) just an exercise.
+
 (defpackage "CHUD"
   (:use "CL" "CCL")
   (:export "METER" "PREPARE-METERING" "*SPATCH-DIRECTORY-PATH*"
