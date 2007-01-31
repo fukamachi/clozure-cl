@@ -1,3 +1,32 @@
+2007-01-30 21:58  gb
+
+	* level-0/l0-bignum64.lisp: BIGNUM-NEGATE-TO-POINTER.
+
+2007-01-30 21:58  gb
+
+	* x86-headers64/gmp/: .cvsignore, C/.cvsignore, C/populate.sh: new
+	file
+
+2007-01-30 21:49  gb
+
+	* level-1/l1-sockets.lisp: Learn to conditionalize! It's easy and
+	fun!
+
+2007-01-30 21:40  gb
+
+	* library/openmcl-gtk-support.lisp: Conditionalize out the
+	event-polling task.
+
+2007-01-30 21:36  gb
+
+	* headers64/: gl/.cvsignore, gl/C/.cvsignore, gl/C/populate.sh,
+	gnome2/.cvsignore, gnome2/C/.cvsignore, gnome2/C/populate.sh,
+	gtk2/.cvsignore, gtk2/C/.cvsignore, gtk2/C/populate.sh: new file
+
+2007-01-30 21:35  gb
+
+	* headers/gl/C/populate.sh: process glu.h
+
 2007-01-30 17:47  gb
 
 	* library/parse-ffi.lisp: Always encode explicit structure-typed
