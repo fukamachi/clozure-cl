@@ -1,3 +1,7 @@
+2007-01-31 02:49  gb
+
+	* level-0/PPC/PPC32/ppc32-bignum.lisp: BIGNUM-NEGATE-TO-PTR.
+
 2007-01-30 22:53  gb
 
 	* freebsd-headers64/: gtk2/C/.cvsignore, gtk2/C/populate.sh,
