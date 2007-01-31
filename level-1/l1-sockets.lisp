@@ -1105,6 +1105,7 @@ unsigned IP address."
 (defun c_socket (domain type protocol)
   #-linuxppc-target
   (syscall syscalls::socket domain type protocol)
+  #+linuxppc-target
   (rlet ((params (:array :unsigned-long 3)))
     (setf (paref params (:* :unsigned-long) 0) domain
           (paref params (:* :unsigned-long) 1) type
