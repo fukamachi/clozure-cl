@@ -71,7 +71,8 @@ is NIL, USER-HOMEDIR-PATHNAME is used instead.")
          (major (ldb (byte 8 24) version))
          (minor (ldb (byte 8 12) version)))
     (or (and (>= major *chud-supported-major-version*)
-             (>= minor *chud-supported-minor-version*))
+             (when (= major *chud-supported-major-version*)
+               (>= minor *chud-supported-minor-version*)))
         (warn "The installed CHUD framework is version ~d.~d.  ~
 The minimum version supported by this interface is ~d.~d."
               major minor *chud-supported-major-version*
@@ -115,7 +116,9 @@ The minimum version supported by this interface is ~d.~d."
 
 (defun get-readonly-area-bounds ()
   (ccl::do-gc-areas (a)
-    (when (eql(ccl::%fixnum-ref a target::area.code) ccl::area-readonly)
+    (when (eql(ccl::%fixnum-ref a target::area.code)
+              #+ppc-target ccl::area-readonly
+              #+x8664-target ccl::area-managed-static)
       (return
         (values (ash (ccl::%fixnum-ref a target::area.low) target::fixnumshift)
                 (ash (ccl::%fixnum-ref a target::area.active) target::fixnumshift))))))
@@ -128,21 +131,24 @@ The minimum version supported by this interface is ~d.~d."
   (let* ((code-vector (uvref fn 0))
          (startaddr (+ (ccl::%address-of code-vector)
                        target::misc-data-offset))
-         (endaddr (+ startaddr (* 4 (uvsize code-vector)))))
+         (endaddr (+ startaddr (* target::node-size (uvsize code-vector)))))
     ;; i hope all lisp sym characters are allowed... we'll see
     (format stream "{~%~@
                         ~a~@
-                        0x~8,'0x~@
-                        0x~8,'0x~@
+                        ~@?~@
+                        ~@?~@
                         }~%"
             (safe-shark-function-name fn)
+            #+32-bit-target "0x~8,'0x" #+64-bit-target "0x~16,'0x"
             startaddr
+            #+32-bit-target "0x~8,'0x" #+64-bit-target "0x~16,'0x"
             endaddr)))
 
 (defun identify-functions-with-pure-code (pure-low pure-high)
   (let* ((hash (make-hash-table :test #'eq)))
     (ccl::%map-lfuns #'(lambda (f)
-                         (let* ((code-vector (ccl:uvref f 0))
+                         (let* ((code-vector #+ppc-target (ccl:uvref f 0)
+                                             #+x8664-target (ccl::function-to-function-vector f))
                                 (startaddr (+ (ccl::%address-of code-vector)
                                               target::misc-data-offset)))
                            (when (and (>= startaddr pure-low)
@@ -165,8 +171,10 @@ The minimum version supported by this interface is ~d.~d."
                  hash)
         (sort functions
               #'(lambda (x y)
-                  (< (ccl::%address-of (uvref x 0))
-                     (ccl::%address-of (uvref y 0)))))))))
+                  (< (ccl::%address-of #+ppc-target (uvref x 0)
+                                       #+x8664-target x)
+                     (ccl::%address-of #+ppc-target (uvref y 0)
+                                       #+x8664-target y))))))))
         
                            
 (defun generate-shark-spatch-file ()
