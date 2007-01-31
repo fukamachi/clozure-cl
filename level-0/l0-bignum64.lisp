@@ -2013,6 +2013,19 @@
         (setf (bignum-ref res i) result-digit
               carry carry-out)))))
 
+(defun bignum-negate-to-pointer (big len res)
+  (declare (fixnum len))
+  (let* ((carry 1))
+    (do* ((i 0 (1+ i))
+          (j 0 (+ j 4)))
+         ((= i len) carry)
+      (declare (fixnum i))
+      (multiple-value-bind (result-digit carry-out)
+          (%add-with-carry (%lognot (bignum-ref big i)) 0 carry)
+        (setf (%get-unsigned-long res j) result-digit
+              carry carry-out)))))
+  
+
 (defun %bignum-count-trailing-zero-bits (bignum)
   (let* ((count 0))
     (dotimes (i (%bignum-length bignum))
