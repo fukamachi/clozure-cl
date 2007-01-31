@@ -679,29 +679,23 @@ the socket is not connected."))
     (%socket-connect fd sockaddr (record-length :sockaddr_un))))
          
   
-(defun make-tcp-stream-socket (fd &key remote-host
-				  remote-port
-				  (format :bivalent)
-				  (class 'tcp-stream)
-                                  (basic t)
-                                  external-format
+(defun make-tcp-stream-socket (fd &rest keys
+                                  &key remote-host
+				  remote-port				  
 				  &allow-other-keys)
   (inet-connect fd
 		(host-as-inet-host remote-host)
 		(port-as-inet-port remote-port "tcp"))
-  (make-tcp-stream fd :format format :external-format external-format :class class :basic basic))
+  (apply #'make-tcp-stream fd keys))
 
-(defun make-file-stream-socket (fd &key remote-filename
-                                   external-format
-                                   (format :bivalent)
-                                   (class 'file-socket-stream)
-                                   (basic t)
+(defun make-file-stream-socket (fd &rest keys
+                                   &key remote-filename
                                    &allow-other-keys)
   (file-socket-connect fd remote-filename)
-  (make-file-socket-stream fd :format format :external-format external-format :class class :basic basic))
+  (apply #'make-file-socket-stream fd keys))
 
 
-(defun make-tcp-stream (fd &key format external-format (class 'tcp-stream) sharing (basic t) &allow-other-keys)
+(defun make-tcp-stream (fd &key (format :bivalent) external-format (class 'tcp-stream) sharing (basic t) &allow-other-keys)
   (let* ((external-format (normalize-external-format :socket external-format)))
     (let ((element-type (ecase format
                           ((nil :text) 'character)
@@ -718,7 +712,7 @@ the socket is not connected."))
                       :line-termination (external-format-line-termination external-format)
                       :basic basic))))
 
-(defun make-file-socket-stream (fd &key format external-format (class 'file-socket-stream)  sharing basic &allow-other-keys)
+(defun make-file-socket-stream (fd &key (format :bivalent) external-format (class 'file-socket-stream)  sharing basic &allow-other-keys)
   (let* ((external-format (normalize-external-format :socket external-format)))
   
     (let ((element-type (ecase format
@@ -1114,7 +1108,8 @@ unsigned IP address."
   (rlet ((params (:array :unsigned-long 3)))
     (setf (paref params (:* :unsigned-long) 0) domain
           (paref params (:* :unsigned-long) 1) type
-          (paref params (:* :unsigned-long) 2) protocol)))
+          (paref params (:* :unsigned-long) 2) protocol)
+    (syscall syscalls::socketcall 1 params)))
 
 (defun init-unix-sockaddr (addr path)
   (macrolet ((sockaddr_un-path-len ()
