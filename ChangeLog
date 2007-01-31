@@ -1,3 +1,40 @@
+2007-01-30 17:47  gb
+
+	* library/parse-ffi.lisp: Always encode explicit structure-typed
+	function return values.
+	
+	Note when we see one, for now.
+
+2007-01-30 17:45  gb
+
+	* lib/foreign-types.lisp: %EXTERNAL-CALL-EXPANDER allows/requires a
+	leading argument to be paired with a structure-typed return-type.
+
+2007-01-30 17:43  gb
+
+	* lib/ffi-linuxppc32.lisp: linuxppc32 always returns structures via
+	the first-arg hack.
+
+2007-01-30 17:42  gb
+
+	* lib/db-io.lisp: Bump *interface-abi-version*, but continue to
+	support the old version.
+	
+	Don't check the :struct-by-value flag when encoding function
+	args/results.  (That decision's made above our pay grade now.)
+	
+	When reading a :struct/:union definition, try to update an existing
+	defintion rather than consing up a new one (this matters if the
+	record is anonymous.)
+
+2007-01-30 17:39  gb
+
+	* level-1/l1-sockets.lisp: Try to ensure that the :FORMAT argument
+	gets passed to MAKE-TCP-STREAM-SOCKET and MAKE-FILE-STREAM-SOCKET
+	correctly.
+	
+	Fix c_socket for #+linuxppc.
+
 2007-01-30 08:20  gb
 
 	* level-1/version.lisp: Bump.
