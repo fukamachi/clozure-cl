@@ -1,3 +1,7 @@
+2007-01-31 15:06  gb
+
+	* darwin-headers/libc/C/populate.sh: Add dlfcn.h.
+
 2007-01-31 02:49  gb
 
 	* level-0/PPC/PPC32/ppc32-bignum.lisp: BIGNUM-NEGATE-TO-PTR.
