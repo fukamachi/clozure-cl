@@ -37,7 +37,8 @@
 
 (in-package "CCL")
 
-(defparameter *interface-abi-version* 1)
+(defparameter *interface-abi-version* 2)
+(defparameter *min-interface-abi-version* 1)
 
 (defconstant cdb-hash-mask (1- (ash 1 29)))
 
@@ -400,7 +401,9 @@
                    (version (ignore-errors (read s))))
               (if (equal sig "OpenMCL Interface File")
                 (if (eq target (backend-name *target-backend*))
-                  (if (eql version *interface-abi-version*)
+                  (if (and version
+                           (>= version *min-interface-abi-version*)
+                           (<=  version *interface-abi-version*))
                     cdb
                     (error-with-cdb "Wrong interface ABI version. Expected ~d, got ~d" *interface-abi-version* version))
                   cdb #+nil(error-with-cdb "Wrong target."))
@@ -1268,13 +1271,10 @@ satisfy the optional predicate PREDICATE."
 		      `(#\l)
 		      '(#\?)))))))))))
     ((:struct :union)
-     (if (getf (ftd-attributes *target-ftd*) :struct-by-value)
-       (if return-value-p `(#\a)
-			  `(,(if (eq (car spec) :struct)
-                                 #\r
-                                 #\u)
-                            ,@(encode-name (ffi-struct-reference (cadr spec)))))
-       `(#\a)))
+     `(,(if (eq (car spec) :struct)
+                #\r
+                #\u)
+           ,@(encode-name (ffi-struct-reference (cadr spec)))))
     (:typedef
      (let* ((typedef (cadr spec))
 	    (type (ffi-typedef-type typedef)))
@@ -1651,7 +1651,7 @@ satisfy the optional predicate PREDICATE."
 	  (foreign-record-type-alt-align rtype) alt-align)
     rtype))
 
-(defun %decode-record-type (buf p ftd)
+(defun %decode-record-type (buf p ftd already)
   (declare (type macptr buf) (fixnum p))
   (let* ((rbyte (%get-unsigned-byte buf p))
 	 (rcode (ldb encoded-type-type-byte rbyte))
@@ -1666,31 +1666,32 @@ satisfy the optional predicate PREDICATE."
           (t
            (%decode-name buf (1+ p))))
       (%determine-record-attributes
-       (if name
-         (if (eql rcode encoded-type-named-struct-ref)
-           (or (info-foreign-type-struct name)
-               (setf (info-foreign-type-struct name)
-                     (make-foreign-record-type :kind :struct :name name)))
-           (or (info-foreign-type-union name)
-               (setf (info-foreign-type-union name)
-                     (make-foreign-record-type :kind :union :name name))))
-         (make-foreign-record-type
-          :kind (if (eql rcode encoded-type-anon-struct-ref)
-                  :struct
-                  :union)
-          :name name))
+       (or already
+           (if name
+             (if (eql rcode encoded-type-named-struct-ref)
+               (or (info-foreign-type-struct name)
+                   (setf (info-foreign-type-struct name)
+                         (make-foreign-record-type :kind :struct :name name)))
+               (or (info-foreign-type-union name)
+                   (setf (info-foreign-type-union name)
+                         (make-foreign-record-type :kind :union :name name))))
+             (make-foreign-record-type
+              :kind (if (eql rcode encoded-type-anon-struct-ref)
+                      :struct
+                      :union)
+              :name name)))
        (%decode-field-list buf q ftd)
        alt-align))))
 
-(defun extract-db-record (datum ftd)
+(defun extract-db-record (datum ftd already)
   (let* ((data (pref datum :cdb-datum.data)))
     (unless (%null-ptr-p data)
       (prog1
-	  (%decode-record-type data 0 ftd)
+	  (%decode-record-type data 0 ftd already)
 	(cdb-free data)))))
 
 
-(defun %load-foreign-record (cdb name ftd)
+(defun %load-foreign-record (cdb name ftd already)
   (when cdb
     (with-cstrs ((string (string name)))
       (rlet ((contents :cdb-datum)
@@ -1700,10 +1701,14 @@ satisfy the optional predicate PREDICATE."
               (pref contents :cdb-datum.data) (%null-ptr)
               (pref contents :cdb-datum.size) 0)
         (cdb-get cdb key contents)
-        (extract-db-record contents ftd)))))
+        (extract-db-record contents ftd already)))))
 
 (defun load-record (name &optional (ftd *target-ftd*))
-  (let* ((name (unescape-foreign-name name)))
+  ;; Try to destructively modify any info we already have.  Use the
+  ;; "escaped" name (keyword) for the lookup here.
+  (let* ((already (or (info-foreign-type-struct name ftd)
+                      (info-foreign-type-union name ftd)))
+         (name (unescape-foreign-name name)))
     (do-interface-dirs (d)
-      (let* ((r (%load-foreign-record (db-records d) name ftd)))
+      (let* ((r (%load-foreign-record (db-records d) name ftd already)))
 	(when r (return r))))))
