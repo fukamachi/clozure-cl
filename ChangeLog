@@ -1,3 +1,15 @@
+2007-01-30 22:53  gb
+
+	* freebsd-headers64/: gtk2/C/.cvsignore, gtk2/C/populate.sh,
+	gl/C/.cvsignore, gl/C/populate.sh, gnome2/.cvsignore,
+	gnome2/C/.cvsignore, gnome2/C/populate.sh, gtk2/.cvsignore,
+	gl/.cvsignore: new files.
+
+2007-01-30 22:21  gb
+
+	* freebsd-headers64/gmp/: C/.cvsignore, C/populate.sh, .cvsignore:
+	new files.
+
 2007-01-30 21:58  gb
 
 	* level-0/l0-bignum64.lisp: BIGNUM-NEGATE-TO-POINTER.
