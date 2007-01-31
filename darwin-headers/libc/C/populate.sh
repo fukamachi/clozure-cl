@@ -26,6 +26,7 @@ h-to-ffi.sh /Developer/SDKs/MacOSX10.4u.sdk/usr/include/device/device_types.h
 h-to-ffi.sh -include /Developer/SDKs/MacOSX10.4u.sdk/usr/include/sys/types.h /Developer/SDKs/MacOSX10.4u.sdk/usr/include/dirent.h
 h-to-ffi.sh /Developer/SDKs/MacOSX10.4u.sdk/usr/include/disktab.h
 h-to-ffi.sh /Developer/SDKs/MacOSX10.4u.sdk/usr/include/DNSServiceDiscovery/DNSServiceDiscovery.h
+h-to-ffi.sh /Developer/SDKs/MacOSX10.4u.sdk/usr/include/dlfcn.h
 h-to-ffi.sh /Developer/SDKs/MacOSX10.4u.sdk/usr/include/err.h
 h-to-ffi.sh /Developer/SDKs/MacOSX10.4u.sdk/usr/include/errno.h
 h-to-ffi.sh /Developer/SDKs/MacOSX10.4u.sdk/usr/include/eti.h
