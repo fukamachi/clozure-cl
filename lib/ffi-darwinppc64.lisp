@@ -333,7 +333,7 @@
                   (%setf-macptr ,result-temp ,result-form)
                   (%stack-block ((,regbuf (+ (* 8 8) (* 8 13))))
                     ,call
-                    ,(darwin64::struct-from-regbuf-values result-temp struct-result-type regbuf)))
+                    ,@(darwin64::struct-from-regbuf-values result-temp struct-result-type regbuf)))
                 call))))))))
             
             
