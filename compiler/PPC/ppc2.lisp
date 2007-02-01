@@ -8283,7 +8283,7 @@
                      (ppc2-lri seg valreg longval)
                      (setq reg (ppc2-unboxed-integer-arg-to-reg seg valform valreg spec)))
                    (! set-c-arg reg nextarg))))))
-          (incf nextarg)))
+          (unless (eq spec :registers)(incf nextarg))))
       (do* ((fpreg ppc::fp1 (1+ fpreg))
             (reloads (nreverse fp-loads) (cdr reloads)))
            ((or (null reloads) (= fpreg ppc::fp14)))
