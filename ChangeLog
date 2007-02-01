@@ -1,3 +1,18 @@
+2007-01-31 22:47  gb
+
+	* lib/ffi-darwinppc64.lisp: Needed ,@ to return assign structure
+	components from registers.
+
+2007-01-31 22:45  gb
+
+	* lib/db-io.lisp: UNESCAPE-FOREIGN-NAME: strings with no angle
+	brackets are returned verbatim, not downcased.
+
+2007-01-31 22:44  gb
+
+	* level-0/PPC/ppc-def.lisp: Runtime version of 64-bit %ff-call
+	accepts :registers.
+
 2007-01-31 16:36  gb
 
 	* darwin-headers64/chud/: .cvsignore, C/.cvsignore, C/populate.sh:
