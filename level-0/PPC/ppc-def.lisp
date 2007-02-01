@@ -1005,16 +1005,19 @@ result-type-keyword is :VOID or NIL"
       (ba .SPmakes64))
 
   ;;; This is just here so that we can jump to a subprim from lisp.
-    (defppclapfunction %do-ff-call ((monitor arg_y) (entry arg_z))
-      (cmpdi monitor nil)
-      (beqa .SPpoweropen-ffcall)
+    (defppclapfunction %do-ff-call ((monitor arg_x) (regbuf arg_y) (entry arg_z))
+      (cmpdi cr0 regbuf nil)
+      (cmpdi cr1 monitor nil)
+      (bnea cr0 .SPpoweropen-ffcall-return-registers)
+      (beqa cr1 .SPpoweropen-ffcall)
       (ba .SPpoweropen-ffcallx))
   
     (defun %ff-call (entry &rest specs-and-vals)
       (declare (dynamic-extent specs-and-vals))
       (let* ((len (length specs-and-vals))
              (total-words 0)
-             (monitor (eq (car specs-and-vals) :monitor-exception-ports)))
+             (monitor (eq (car specs-and-vals) :monitor-exception-ports))
+             (registers nil))
         (declare (fixnum len total-words))
         (when monitor
           (decf len)
@@ -1035,6 +1038,7 @@ result-type-keyword is :VOID or NIL"
                   ((= i nargs))
                (declare (fixnum i))
                (case spec
+                 (:registers nil)
                  ((:address :unsigned-doubleword :signed-doubleword
                             :single-float :double-float
                             :signed-fullword :unsigned-fullword
@@ -1059,6 +1063,7 @@ result-type-keyword is :VOID or NIL"
                             ((= i nargs))
                          (declare (fixnum i))
                          (case spec
+                           (:registers (setq registers val))
                            (:address (setf (%get-ptr argptr offset) val)
                                      (incf offset 8))
                            ((:signed-doubleword :signed-fullword :signed-halfword
@@ -1089,7 +1094,7 @@ result-type-keyword is :VOID or NIL"
                                 (incf p 8)
                                 (incf offset 8))))))
                        (%load-fp-arg-regs n-fp-args fp-args)
-                       (%do-ff-call monitor entry)
+                       (%do-ff-call monitor registers entry)
                        (values (%%ff-result result-spec)))))))))))
 
     )
