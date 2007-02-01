@@ -1,3 +1,27 @@
+2007-01-31 16:36  gb
+
+	* darwin-headers64/chud/: .cvsignore, C/.cvsignore, C/populate.sh:
+	New (and, so far, useless) files.
+
+2007-01-31 16:35  gb
+
+	* library/chud-metering.lisp: Add a comment; CHUD.Framework still
+	seems to be 32-bit only.
+
+2007-01-31 16:34  gb
+
+	* darwin-headers64/libc/C/.cvsignore: Ignore ./Developer.
+
+2007-01-31 16:34  gb
+
+	* darwin-headers64/libc/C/populate.sh: Use SDK; add dlfcn.h.
+
+2007-01-31 16:33  gb
+
+	* lib/db-io.lisp: Tweak the warning given if CDB-OPEN fails:
+	missing cdb file: dog bytes man; missing parent directory is more
+	newsworthy.
+
 2007-01-31 15:38  gb
 
 	* library/chud-metering.lisp: Tweak a little, so that it might work
