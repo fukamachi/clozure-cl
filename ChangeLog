@@ -1,3 +1,8 @@
+2007-01-31 23:26  gb
+
+	* compiler/PPC/ppc2.lisp: Don't treat :registers arg as a real
+	argument in ppc2-poweropen-foreign-args.
+
 2007-01-31 22:47  gb
 
 	* lib/ffi-darwinppc64.lisp: Needed ,@ to return assign structure
