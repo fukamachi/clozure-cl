@@ -1434,11 +1434,13 @@ satisfy the optional predicate PREDICATE."
    *keyword-package*))
 
 (defun unescape-foreign-name (key)
-  (let* ((string (string key))
+  (let* ((string (if (typep key 'symbol)
+                   (string-downcase key)
+                   (string key)))
 	 (nbrackets (count #\< string)))
     (declare (fixnum nbrackets))
     (if (zerop nbrackets)
-      (string-downcase string)
+      string
       (let* ((len (length string))
 	     (out (make-string (- len (* 2 nbrackets))))
 	     (j 0)
