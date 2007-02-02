@@ -1,3 +1,12 @@
+2007-02-02 02:17  gb
+
+	* darwin-headers/addressbook/C/populate.sh: Specify the SDK to use.
+	 (Setting "SDK=" will hopefully work with older version of xcode.)
+
+2007-02-02 02:15  gb
+
+	* darwin-headers/addressbook/C/.cvsignore: Ignore ./Developer.
+
 2007-01-31 23:26  gb
 
 	* compiler/PPC/ppc2.lisp: Don't treat :registers arg as a real
