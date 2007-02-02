@@ -1,3 +1,35 @@
+2007-02-02 02:32  gb
+
+	* examples/: bridge.lisp, objc-clos.lisp, objc-runtime.lisp,
+	objc-support.lisp: Start to integrate with FFI changes.  No more
+	%SEND, process and precompile "init" messages when interfaces are
+	accessed.  (Note: should try to handle varargs init messages, even
+	if we have to call %FF-CALL at runtime.)
+
+2007-02-02 02:31  gb
+
+	* examples/: addressbook.lisp, webkit.lisp: Change the
+	initialization code a bit.
+
+2007-02-02 02:27  gb
+
+	* lib/foreign-types.lisp: Try to fix another case involving
+	"auxiliary types".
+	
+	I think that the concept of auxiliary types might make sense in a
+	context like:
+	
+	(def-foreign-type nil	(:struct :foo	  (:a :int)	(:b
+	(:struct :bar (:x :int) (:y :int)))))
+	
+	In that case, :struct :bar is local to the definition.	In the
+	similar case:
+	
+	(def-foreign-type nil	(:struct :foo	  (:a :int)	(:b
+	(:struct :bar))))
+	
+	:BAR is presumably defined (globally) elsewhere.
+
 2007-02-02 02:17  gb
 
 	* darwin-headers/addressbook/C/populate.sh: Specify the SDK to use.
