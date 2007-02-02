@@ -952,6 +952,63 @@ argument lisp string."
   (declare (ignore env))
   `(load-objc-selector ,(objc-selector-name s)))
 
+
+;;; Convert a Lisp object X to a desired foreign type FTYPE 
+;;; The following conversions are currently done:
+;;;   - T/NIL => #$YES/#$NO
+;;;   - NIL => (%null-ptr)
+;;;   - Lisp string => NSString
+;;;   - Lisp numbers  => SINGLE-FLOAT when possible
+
+(defmacro coerce-to-bool (x)
+  (let ((x-temp (gensym)))
+    `(let ((,x-temp ,x))
+       (if (or (eq ,x-temp 0) (null ,x-temp)) #.#$NO #.#$YES))))
+
+(defmacro coerce-to-address (x)
+  (let ((x-temp (gensym)))
+    `(let ((,x-temp ,x))
+       (cond ((null ,x-temp) (%null-ptr))
+	     ((stringp ,x-temp) (%make-nsstring ,x-temp))
+	     (t ,x-temp)))))
+
+(defmacro coerce-to-foreign-type (x ftype)
+   (cond ((and (constantp x) (constantp ftype))
+          (case ftype
+            (:id (if (null x) `(%null-ptr) (coerce-to-address x)))
+            (:<BOOL> (coerce-to-bool (eval x)))
+            (t x)))
+         ((constantp ftype)
+          (case ftype
+            (:id `(coerce-to-address ,x))
+            (:<BOOL> `(coerce-to-bool ,x))
+            (t x)))
+         (t `(case ,(if (atom ftype) ftype)
+               (:id (coerce-to-address ,x))
+               (:<BOOL> (coerce-to-bool ,x))
+               (t ,x)))))
+
+(defun objc-arg-coerce (typespec arg)
+  (coerce-to-foreign-type arg typespec))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;                       Boolean Return Hackery                           ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; Convert a foreign object X to T or NIL 
+
+(defun coerce-from-bool (x)
+  (cond
+   ((eq x #$NO) nil)
+   ((eq x #$YES) t)
+   (t (error "Cannot coerce ~S to T or NIL" x))))
+
+(defun objc-result-coerce (type result)
+  (cond ((eq type :<BOOL>)
+         `(coerce-from-bool ,result))
+        (t result)))
+
 ;;; Add a faster way to get the message from a SEL by taking advantage of the
 ;;; fact that a selector is really just a canonicalized, interned C string
 ;;; containing the message.  (This is an admitted modularity violation;
@@ -975,10 +1032,11 @@ argument lisp string."
   (when (evenp (length argspecs))
     (setq argspecs (append argspecs '(:id))))
   #+apple-objc
-  `(external-call "_objc_msgSend"
-    :id ,receiver
-    :<SEL> (@selector ,selector-name)
-    ,@argspecs)
+  (funcall (ftd-ff-call-expand-function *target-ftd*)
+           `(external-call "_objc_msgSend")
+           `(:id ,receiver :<SEL> (@selector ,selector-name) ,@argspecs)
+           :arg-coerce 'objc-arg-coerce
+           :result-coerce 'objc-result-coerce)  
   #+gnu-objc
     (let* ((r (gensym))
 	 (s (gensym))
@@ -989,26 +1047,47 @@ argument lisp string."
 					:id ,r
 					:<SEL> ,s
 					:<IMP>)))
-      (ff-call ,imp :id ,r :<SEL> ,s ,@argspecs))))
+      (funcall (ftd-ff-call-expand-function *target-ftd*)
+       `(%ff-call ,imp)
+       `(:id ,receiver :<SEL> (@selector ,selector-name) ,@argspecs)
+       :arg-coerce 'objc-arg-coerce
+       :result-coerce 'objc-result-coerce))))
 
-;;; A method that returns a structure (whose size is > 4 bytes on
-;;; darwin, in all cases on linuxppc) does so by copying the structure
-;;; into a pointer passed as its first argument; that means that we
-;;; have to invoke the method via #_objc_msgSend_stret in the #+apple-objc
-;;; case.
+;;; A method that returns a structure does so by platform-dependent
+;;; means.  One of those means (which is fairly common) is to pass a
+;;; pointer to an instance of a structure type as a first argument to
+;;; the method implementation function (thereby making SELF the second
+;;; argument, etc.), but whether or not it's actually done that way
+;;; depends on the platform and on the structure type.  The special
+;;; variable CCL::*TARGET-FTD* holds a structure (of type
+;;; CCL::FOREIGN-TYPE-DATA) which describes some static attributes of
+;;; the foreign type system on the target platform and contains some
+;;; functions which can determine dynamic ABI attributes.  One such
+;;; function can be used to determine whether or not the "invisible
+;;; first arg" convention is used to return structures of a given
+;;; foreign type; another function in *TARGET-FTD* can be used to
+;;; construct a foreign function call form that handles
+;;; structure-return and structure-types-as-arguments details.  In the
+;;; Apple ObjC runtime, #_objc_msgSend_stret must be used if the
+;;; invisible-first-argument convention is used to return a structure
+;;; and must NOT be used otherwise. (The Darwin ppc64 and all
+;;; supported x86-64 ABIs often use more complicated structure return
+;;; conventions than ppc32 Darwin or ppc Linux.)  We should use
+;;; OBJC-MESSAGE-SEND-STRET to send any message that returns a
+;;; structure or union, regardless of how that structure return is
+;;; actually implemented.
 
 (defmacro objc-message-send-stret (structptr receiver selector-name &rest argspecs)
-  (if (evenp (length argspecs))
-    (setq argspecs (append argspecs '(:void)))
-    (unless (member (car (last argspecs)) '(:void nil))
-      (error "Invalid result spec for structure return: ~s"
-	     (car (last argspecs)))))
-  #+apple-objc
-  `(external-call "_objc_msgSend_stret"
-    :address ,structptr
-    :id ,receiver
-    :<SEL> (@selector ,selector-name)
-    ,@argspecs)
+    #+apple-objc
+    (let* ((return-typespec (car (last argspecs)))
+           (entry-name (if (funcall (ftd-ff-call-struct-return-by-implicit-arg-function *target-ftd*) return-typespec)
+                         "_objc_msgSend_stret"
+                         "_objc-msgSend")))
+      (funcall (ftd-ff-call-expand-function *target-ftd*)
+               `(%ff-call (external ,entry-name))
+               `(,structptr :id ,receiver :<SEL> (@selector ,selector-name) ,@argspecs)
+               :arg-coerce 'objc-arg-coerce
+               :result-coerce 'objc-result-coerce))
     #+gnu-objc
     (let* ((r (gensym))
 	 (s (gensym))
@@ -1019,7 +1098,11 @@ argument lisp string."
 					 :id ,r
 					 :<SEL> ,s
 					 :<IMP>)))
-      (ff-call ,imp :address ,structptr :id ,r :<SEL> ,s ,@argspecs))))
+      ,      (funcall (ftd-ff-call-expand-function *target-ftd*)
+               `(%ff-call ,imp)
+              `(,structptr :id , :<SEL> ,s ,@argspecs)
+               :arg-coerce 'objc-arg-coerce
+               :result-coerce 'objc-result-coerce))))
 
 ;;; #_objc_msgSendSuper is similar to #_objc_msgSend; its first argument
 ;;; is a pointer to a structure of type objc_super {self,  the defining
@@ -1029,10 +1112,11 @@ argument lisp string."
   (when (evenp (length argspecs))
     (setq argspecs (append argspecs '(:id))))
   #+apple-objc
-  `(external-call "_objc_msgSendSuper"
-    :address ,super
-    :<SEL> (@selector ,selector-name)
-    ,@argspecs)
+  (funcall (ftd-ff-call-expand-function *target-ftd*)
+           `(%ff-call (external "_objc_msgSendSuper"))
+           `(:address ,super :<SEL> (@selector ,selector-name) ,@argspecs)
+           :arg-coerce 'objc-arg-coerce
+           :result-coerce 'objc-result-coerce)
   #+gnu-objc
   (let* ((sup (gensym))
 	 (sel (gensym))
@@ -1043,25 +1127,25 @@ argument lisp string."
 					 :<S>uper_t ,sup
 					 :<SEL> ,sel
 					 :<IMP>)))
-      (ff-call ,imp
-       :id (pref ,sup :<S>uper.self)
-       :<SEL> ,sel
-       ,@argspecs))))
+  (funcall (ftd-ff-call-expand-function *target-ftd*)
+   `(%ff-call ,imp)
+   `(:id (pref ,sup :<S>uper.self)
+     :<SEL> ,sel
+     ,@argspecs)))))
 
-;;; Send to superclass method, returning a structure.
+;;; Send to superclass method, returning a structure. See above.
 (defmacro objc-message-send-super-stret
     (structptr super selector-name &rest argspecs)
-  (if (evenp (length argspecs))
-    (setq argspecs (append argspecs '(:void)))
-    (unless (member (car (last argspecs)) '(:void nil))
-      (error "Invalid result spec for structure return: ~s"
-	     (car (last argspecs)))))
   #+apple-objc
-  `(external-call "_objc_msgSendSuper_stret"
-    :address ,structptr
-    :address ,super
-    :<SEL> (@selector ,selector-name)
-    ,@argspecs)
+    (let* ((return-typespec (car (last argspecs)))
+           (entry-name (if (funcall (ftd-ff-call-struct-return-by-implicit-arg-function *target-ftd*) return-typespec)
+                         "_objc_msgSendSuper_stret"
+                         "_objc-msgSendSuper")))
+      (funcall (ftd-ff-call-expand-function *target-ftd*)
+               `(%ff-call (external ,entry-name))
+               `(,structptr :address ,super :<SEL> (@selector ,selector-name) ,@argspecs)
+               :arg-coerce 'objc-arg-coerce
+               :result-coerce 'objc-result-coerce))
   #+gnu-objc
   (let* ((sup (gensym))
 	 (sel (gensym))
@@ -1072,8 +1156,9 @@ argument lisp string."
 					 :<S>uper_t ,sup
 					 :<SEL> ,sel
 					 :<IMP>)))
-      (ff-call ,imp
-       :address ,structptr
+      (funcall (ftd-ff-call-expand-function *target-ftd*)
+       `(%ff-call ,imp)
+       ,structptr
        :id (pref ,sup :<S>uper.self)
        :<SEL> ,sel
        ,@argspecs))))
@@ -1428,6 +1513,165 @@ argument lisp string."
      (objc-message-send (find-class 'ns:ns-string) "alloc")
      "initWithCString:" :address s)))
 
+
+(let* ((objc-init-message-args (make-array 10 :fill-pointer 0 :adjustable t)))
+  (defun %objc-init-message-arg (n)
+    (let* ((len (length objc-init-message-args)))
+      (do* ((i len (1+ i)))
+           ((> i n) (aref objc-init-message-args n))
+        (vector-push-extend (intern (format nil "ARG~d" i)) objc-init-message-args)))))
+
+(defun objc-init-message-arglist (n)
+  (collect ((args))
+    (dotimes (i n (args)) (args (%objc-init-message-arg i)))))
+
+
+(defun %make-objc-init-function-for-signature (signature)
+  ;; No structure returns or send-supers involved.
+  (let* ((types (cdr signature))
+         (args (objc-init-message-arglist (length types))))
+    (collect ((call))
+      (dolist (arg args)
+        (let* ((type (pop types)))
+          (call type)
+          (case type
+            (:<BOOL> (call `(coerce-to-bool ,arg)))
+            (:id (call `(coerce-to-address ,arg)))
+            (otherwise (call arg)))))
+      ;; all "init" messages return :id
+      (call :id)
+      (compile nil
+               `(lambda (self selector ,@args)
+                 #+apple-objc
+                 (external-call "_objc_msgSend"
+                  :id self
+                  :<SEL> (%get-selector selector)
+                  ,@(call))
+                 #+gnu-objc
+                 (let* ((s (%get-selector selector))
+                        (imp (external-call "objc_msg_lookup"
+                                            :id self
+                                            :<SEL> s
+                                            :<IMP>)))
+                   (ff-call imp :id self :<SEL> s ,@(call))))))))
+
+(defstruct objc-init-method-signature-info
+  signature
+  function)
+
+(defvar *objc-init-method-signatures* (make-hash-table :test #'equal)
+  "Maps signature lists to OBJC-INIT-METHOD-SIGNATURE-INFO structures.")
+
+(defun get-objc-init-method-signature-info (list)
+  (or (gethash list *objc-init-method-signatures*)
+      (setf (gethash list *objc-init-method-signatures*)
+            (make-objc-init-method-signature-info
+             :signature list
+             :function (%make-objc-init-function-for-signature list)))))
+
+(defstruct objc-init-message-info
+  selector
+  method-signature-alist
+  )
+
+(defvar  *objc-init-messages-for-message-names* (make-hash-table :test #'equal)
+  "Maps from init message names to OBJC-INIT-MESSAGE-INFO structures.")
+
+(defun register-objc-init-message (message-info)
+  (when (dolist (m (objc-message-info-methods message-info))
+          (unless (getf (objc-method-info-flags m) :protocol)
+            (let* ((sig (objc-method-info-signature m)))
+              (unless (eq (car (last sig)) :void)
+                (when (eq :id (car (objc-method-info-signature m)))
+                  (return t))))))
+    (let* ((name (objc-message-info-message-name message-info))
+           (init-info
+            (or (gethash name *objc-init-messages-for-message-names*)
+                (setf (gethash name *objc-init-messages-for-message-names*)
+                      (make-objc-init-message-info
+                       :selector (load-objc-selector name)
+                       :method-signature-alist nil))))
+           (alist (objc-init-message-info-method-signature-alist init-info)))
+      (dolist (m (objc-message-info-methods message-info))
+        (let* ((sig (objc-method-info-signature m)))
+          (when (and (eq :id (car sig))
+                     (not (getf (objc-method-info-flags m) :protocol)))
+            ;; Looks like a real init method.
+            (let* ((class (canonicalize-registered-class (lookup-objc-class (objc-method-info-class-name m))))
+                   (siginfo (get-objc-init-method-signature-info sig))
+                   (pair (assoc siginfo alist :test #'eq)))
+              (if (null pair)
+                (push (cons siginfo (list class)) alist)
+                (pushnew class (cdr pair) :test #'eq))))))
+      (setf (objc-init-message-info-method-signature-alist init-info) alist)
+      init-info)))
+
+(defun send-init-message-with-info (instance init-info args)
+  (let* ((selector (objc-init-message-info-selector init-info))
+         (alist (objc-init-message-info-method-signature-alist init-info))
+         (pair (do* ((alist alist (cdr alist)))
+                    ((null (cdr alist))
+                     (car alist)
+                     (let* ((pair (car alist)))
+                       (dolist (class (cdr pair))
+                         (when (typep instance class)
+                           (return pair))))))))
+    (with-ns-exceptions-as-errors
+        (apply (objc-init-method-signature-info-function (car pair))
+               instance
+               selector
+               args))))
+                                                       
+
+;;; Register init-message-info for all known init messages.  (A
+;;; message is an "init message" if it starts with the string "init",
+;;; accepts a fixed number of arguments, and has at least one declared
+;;; method that returns :ID and is not a protocol method.
+(defun register-objc-init-messages ()
+  (do-interface-dirs (d)
+    (dolist (init (cdb-enumerate-keys (db-objc-methods d)
+                                      #'(lambda (string)
+                                          (string= string "init" :end1 (min (length string) 4)))))
+      (register-objc-init-message (get-objc-message-info init)))))
+
+    
+(defvar *objc-init-messages-for-init-keywords* (make-hash-table :test #'equal)
+  "Maps from lists of init keywords to OBJC-INIT-MESSAGE structures")
+
+(defun send-objc-init-message-with-info (instance init-info args)
+  (let* ((selector (objc-init-message-info-selector init-info))
+         (alist (objc-init-message-info-method-signature-alist init-info))
+         (pair (do* ((alist alist (cdr alist)))
+                    ((null (cdr alist))
+                     (car alist)
+                     (let* ((pair (car alist)))
+                       (dolist (class (cdr pair))
+                         (when (typep instance class)
+                           (return pair))))))))
+    (with-ns-exceptions-as-errors
+        (apply (objc-init-method-signature-info-function (car pair))
+               instance
+               selector
+               args))))
+
+
+(defun send-objc-init-message (instance init-keywords args)
+  (let* ((info (gethash init-keywords *objc-init-messages-for-init-keywords*)))
+    (unless info
+      (let* ((name (lisp-to-objc-init init-keywords))
+             (name-info (gethash name *objc-init-messages-for-message-names*)))
+        (unless name-info
+          (error "Unknown ObjC init message: ~s" name))
+        (setf (gethash init-keywords *objc-init-messages-for-init-keywords*)
+              (setq info name-info))))
+    (send-objc-init-message-with-info instance info args)))    
+                   
+(defun allocate-objc-object (class)
+  (send class 'alloc))
+  
+
+                  
+
 ;;; Return the "canonical" version of P iff it's a known ObjC class
 (defun objc-class-p (p)
   (if (typep p 'macptr)
@@ -1708,17 +1952,16 @@ argument lisp string."
 		 selector (lisp-to-objc-message (components)))))
 	(t (bad-selector "general failure")))
       ;; If the result type is of the form (:STRUCT <typespec> <name>),
-      ;; make <name> be the first argument (of type :address) and
-      ;; make the resulttype :void
+      ;; make <name> be the first argument.
       (when (and (consp resulttype)
 		 (eq (car resulttype) :struct))
 	(destructuring-bind (typespec name) (cdr resulttype)
-	(if (and (typep name 'symbol)
-		 (typep (parse-foreign-type `(:struct ,typespec))
-			'foreign-record-type))
-          (setq struct-return name
-                resulttype `(:struct ,typespec))
-	  (bad-selector "Bad struct return type"))))
+          (let* ((rtype (%foreign-type-or-record typespec)))
+            (if (and (typep name 'symbol)
+                     (typep rtype 'foreign-record-type))
+              (setq struct-return name
+                    resulttype (unparse-foreign-type rtype))
+              (bad-selector "Bad struct return type")))))
       (values selector
 	      class-name
 	      resulttype
@@ -1764,8 +2007,7 @@ argument lisp string."
 	       (super (gensym "SUPER"))
 	       (params `(:id ,self :<sel> ,_cmd)))
           (when struct-return
-            (setq params `(:address ,struct-return ,@params)
-                  resulttype :void))
+            (push struct-return params))
           (setq params (nconc params argspecs))
 	  `(progn
 	    (defcallback ,impname
@@ -1796,12 +2038,7 @@ argument lisp string."
                              (make-optimized-send nil msg args env nil ',super ,class-name))
                            (send-super/stret (s msg &rest args &environment env) 
                              (make-optimized-send nil msg args env s ',super ,class-name)))
-                  (flet ((%send-super (msg &rest args)
-                           (make-general-send nil msg args nil ,super ,class-name))
-                         (%send-super/stret (s msg &rest args)
-                           (make-general-send nil msg args s ,super ,class-name))
-                         (super () ,super))
-                    ,@body))))
+                  ,@body)))
 	    (%define-lisp-objc-method
 	     ',impname
 	     ,class-name

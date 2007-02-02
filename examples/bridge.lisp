@@ -358,8 +358,9 @@
 (defvar *objc-message-info* (make-hash-table :test #'equal :size 500))
 
 (defun result-type-requires-structure-return (result-type)
-  (and (typep result-type 'foreign-record-type)
-       (> (ensure-foreign-type-bits result-type) 32)))
+  ;; Use objc-msg-send-stret for all methods that return
+  ;; record types.
+  (typep result-type 'foreign-record-type))
 
 (defun postprocess-objc-message-info (message-info)
   (flet ((reduce-to-ffi-type (ftype)
@@ -454,7 +455,9 @@
   (maphash #'(lambda (message-name info)
                (lookup-objc-message-info message-name info)
                (postprocess-objc-message-info info))
-           *objc-message-info*))
+           *objc-message-info*)
+  ;; Update info about init messages.
+  (register-objc-init-messages))
 
 
 ;;; Of the method declarations (OBJC-METHOD-INFO structures) associated
@@ -495,9 +498,6 @@
 
 
 
-
-
-
 ;;; TRANSLATE-FOREIGN-ARG-TYPE doesn't accept :VOID
 
 (defun translate-foreign-result-type (ftype)
@@ -507,87 +507,8 @@
     (translate-foreign-arg-type ftype)))
 
 
-;;; Convert a Lisp object X to a desired foreign type FTYPE 
-;;; The following conversions are currently done:
-;;;   - T/NIL => #$YES/#$NO
-;;;   - NIL => (%null-ptr)
-;;;   - Lisp string => NSString
-;;;   - Lisp numbers  => SINGLE-FLOAT when possible
-
-(defmacro coerce-to-bool (x)
-  (let ((x-temp (gensym)))
-    `(let ((,x-temp ,x))
-       (if (or (eq ,x-temp 0) (null ,x-temp)) #$NO #$YES))))
-
-(defmacro coerce-to-address (x)
-  (let ((x-temp (gensym)))
-    `(let ((,x-temp ,x))
-       (cond ((null ,x-temp) (%null-ptr))
-	     ((stringp ,x-temp) (%make-nsstring ,x-temp))
-	     (t ,x-temp)))))
-
-(defmacro coerce-to-foreign-type (x ftype)
-   (cond ((and (constantp x) (constantp ftype))
-          (case ftype
-            (:id (if (null x) `(%null-ptr) (coerce-to-address x)))
-            (:<BOOL> (coerce-to-bool (eval x)))
-            (t x)))
-         ((constantp ftype)
-          (case ftype
-            (:id `(coerce-to-address ,x))
-            (:<BOOL> `(coerce-to-bool ,x))
-            (t x)))
-         (t `(case ,(if (atom ftype) ftype)
-               (:id (coerce-to-address ,x))
-               (:<BOOL> (coerce-to-bool ,x))
-               (t ,x)))))
-
-;;; Convert a foreign object X to T or NIL 
-
-(defun coerce-from-bool (x)
-  (cond
-   ((eq x #$NO) nil)
-   ((eq x #$YES) t)
-   (t (error "Cannot coerce ~S to T or NIL" x))))
 
 
-;;; Convert a set of ARGS with given foreign types to an argspec suitable 
-;;; for %FF-CALL 
-
-(defun convert-to-argspecs (argtypes result-ftype args evalargs)
-  (setq argtypes (mapcar #'fudge-objc-type argtypes))
-  (setq result-ftype (fudge-objc-type result-ftype))
-  (flet ((foo (ftype &optional for-result)
-	   (let* ((translated
-		   (if (member ftype
-			       '(:unsigned-doubleword :signed-doubleword) 
-			       :test #'eq)
-		       ftype
-		     (if for-result
-			 (translate-foreign-result-type ftype)
-		       (translate-foreign-arg-type ftype)))))
-	     (if (and (consp translated) (eq (first translated) :record))
-	       #+apple-objc
-	       (ceiling (second translated) target::nbits-in-word)
-	       #+gnu-objc `(:* ,ftype)
-	       translated))))
-    (nconc
-     (loop
-       for a in args
-       for ftype in argtypes
-       do (ensure-foreign-type-bits (parse-foreign-type ftype))
-       append (list (foo ftype) 
-                    (if evalargs
-                      (coerce-to-foreign-type a
-					      #+apple-objc ftype
-					      #+gnu-objc (foo ftype))
-                      `(coerce-to-foreign-type ,a #+apple-objc ,ftype #+gnu-objc ,(foo ftype)))))
-     (list (foo result-ftype t)))))
- 
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;                       Boolean Return Hackery                           ;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;                        Invoking ObjC Methods                           ;;;;
@@ -826,10 +747,7 @@
         (let* ((reptype (if (objc-id-type-p (car argtypes)) :id (car reptypes)))
                (arg (car args)))
           (specs reptype)
-          (case reptype
-            (:<BOOL> (specs `(coerce-to-bool ,arg)))
-            (:id (specs `(coerce-to-address ,arg)))
-            (t (specs arg)))))
+          (specs arg)))
       ;;(break "~& arglist = ~s" arglist)
       (if (result-type-requires-structure-return
            (objc-method-info-result-type method-info))
@@ -846,9 +764,7 @@
                  (form (if super
                          `(objc-message-send-super ,super ,msg ,@arglist ,result-spec)
                          `(objc-message-send ,o ,msg ,@arglist ,result-spec))))
-            (if (eq result-spec :<BOOL>)
-              `(coerce-from-bool ,form)
-              form)))))))
+            form))))))
   
 (defun build-call-from-method-info (method-info args vargs o  msg  svarforms sinitforms s super)
   `(with-ns-exceptions-as-errors
@@ -863,108 +779,6 @@
         s
         super))))
 
-
-
-;;; The %SEND and %SEND/STRET functions for sending general messages 
-
-(defmacro make-general-send (o msg args &optional s super sclassname)
-  (declare (ignorable sclassname))
-  `(let ((vargs nil))
-     (with-ns-exceptions-as-errors
-      ;; Ensure that MSG is a string
-      (multiple-value-setq (msg args vargs) (%parse-message (cons ,msg ,args)))
-      (check-type ,msg string)          ; What else could it be ?
-      (let* ((message-info (get-objc-message-info ,msg))
-             (message-accepts-varargs
-              (getf (objc-message-info-flags message-info)
-                                    :accepts-varargs)))
-        ;; If a vararg exists, make sure that the message can accept it
-        (when (and vargs (not message-accepts-varargs))
-          (error "Message ~S cannot accept a variable number of arguments" msg))
-        ;; Lookup method signature.  We can do a runtime type dispatch
-        ;; on the receiver (if there's any ambiguity) even if we're doing
-        ;; some flavor of SEND-SUPER, since the next method must have
-        ;; the same type signature as the receiver.
-        (let* ((method-info (%lookup-objc-method-info message-info ,o))
-               (sel (get-selector ,msg)))
-          ;; Check arg count
-          (unless (= (length ,args) (objc-message-info-req-args message-info))
-            (error "Message ~S requires ~a ~d args, but ~d were provided."
-                   (if vargs "at least" "exactly")
-                   (objc-message-info-req-args message-info)
-                   (length args)))
-          ;; Get method type signature
-          (let* ((mtsig (objc-method-info-signature method-info))
-                 (argtypes (rest mtsig))
-                 (result-type (first mtsig))
-                 (argspecs1 (convert-to-argspecs argtypes result-type ,args t))
-                 (argspecs (append (butlast argspecs1) vargs (last argspecs1)))
-                 (result-spec (first (last argspecs))))
-            ;; Yes, we're doing all of this at runtime.  Don't even get
-            ;; me started on %FF-CALL.
-            ;; Call method
-            (if (requires-stret-p result-spec)
-	      ,(if (null s)
-		   ;; STRET required but not provided
-		   `(error "The message ~S must be sent using SEND/STRET" ,msg)
-                   ;; STRET required and provided
-                   (if (null super)
-		     ;; Regular stret send, invoke objc_msgSend_stret 
-		     `(progn
-                       (apply #'%ff-call
-                        (%reference-external-entry-point 
-                         (load-time-value 
-                          (external "_objc_msgSend_stret")))
-                        :address ,s
-                        :address ,o
-                        :address sel
-                        (progn (setf (car (last argspecs)) :void) argspecs))
-                       ,s)
-                     ;; Stret send to super, invoke objc_msgSendSuper_stret
-                     `(progn 
-                       (apply #'%ff-call
-                        (%reference-external-entry-point 
-                         (load-time-value 
-                          (external "_objc_msgSendSuper_stret")))
-                        :address ,s
-                        :address ,super
-                        :address sel
-                        (progn (setf (car (last argspecs)) :void) argspecs)))))
-              ,(if (null s)
-                   ;; STRET not required and not provided
-                   (if (null super)
-		     ;; Regular send, invoke objc_msgSend
-		     `(let ((r (apply #'%ff-call
-				      (%reference-external-entry-point 
-				       (load-time-value 
-					(external "_objc_msgSend")))
-				      :address ,o
-				      :address sel
-				      argspecs)))
-                       (if (eq result-type :<BOOL>)
-                         (coerce-from-bool r)
-                         r))
-		  ;;; Send to super, invoke objc_msgSendSuper
-                     `(let ((r (apply #'%ff-call
-                                      (%reference-external-entry-point 
-                                       (load-time-value 
-                                        (external "_objc_msgSendSuper")))
-                                      :address ,super
-                                      :address sel
-                                      argspecs)))
-                       (if (eq result-type :<BOOL>)
-                         (coerce-from-bool r)
-                         r)))
-                   ;; STRET not required but provided
-                   `(error "The message ~S must be sent using SEND" msg)))))))))
-
-(defun %send (o msg &rest args)
-  (declare (optimize (speed 3)) (dynamic-extent args))
-  (make-general-send o msg args))
-  
-(defun %send/stret (s o msg &rest args)
-  (declare (optimize (speed 3)) (dynamic-extent args))
-  (make-general-send o msg args s))
  
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -979,12 +793,9 @@
     (declare (dynamic-extent ks vs))
     (when (not (stringp cname))
       (setf cname (lisp-to-objc-classname cname)))
-    (apply #'%send 
-           (send (find-objc-class cname) 'alloc)
-           (lisp-to-objc-init ks)
-           vs)))
-
-
+    (send-objc-init-message (send (find-objc-class cname) 'alloc)
+                            ks
+                            vs)))
 
 ;;; Provide the BRIDGE module
 

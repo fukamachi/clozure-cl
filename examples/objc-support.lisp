@@ -73,6 +73,7 @@
   
 
 (map-objc-classes)
+(register-objc-init-messages)
 
 #+gnu-objc
 (defun iterate-over-class-methods (class method-function)

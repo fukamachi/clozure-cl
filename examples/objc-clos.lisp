@@ -746,8 +746,7 @@ p))))
 	  (multiple-value-bind (ks vs) (keys-and-vals (remove-slot-initargs
 						       class
 						       initargs))
-	    ; The second %SEND below should be SEND eventually
-	    (apply #'%send (%send class 'alloc) (lisp-to-objc-init ks) vs))))
+	    (send-objc-init-message (allocate-objc-object class) ks vs))))
     (unless (%null-ptr-p instance)
       (let* ((raw-ptr (raw-macptr-for-instance instance)) 
 	     (slot-vector (create-foreign-instance-slot-vector class)))
