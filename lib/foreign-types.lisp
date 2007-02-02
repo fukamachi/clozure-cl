@@ -968,20 +968,18 @@ Which one name refers to depends on foreign-type-spec in the obvious manner."
 
 (defun parse-foreign-record-type (kind name fields)
   (if fields
-      (let* ((old (and name (auxiliary-foreign-type kind name)))
-	     (result (if (or (null old)
-			     (foreign-record-type-fields old))
-			 (make-foreign-record-type :name name :kind kind)
-			 old)))
-	(when (and name (not (eq old result)))
-	  (setf (auxiliary-foreign-type kind name) result))
-	(parse-foreign-record-fields result fields)
-	result)
-      (if name
-	  (or (auxiliary-foreign-type kind name)
-	      (setf (auxiliary-foreign-type kind name)
-		    (make-foreign-record-type :name name :kind kind)))
-	  (make-foreign-record-type :kind kind))))
+    (let* ((old (and name (auxiliary-foreign-type kind name)))
+           (result (or old
+                       (make-foreign-record-type :name name :kind kind))))
+      (when (and name (not (eq old result)))
+        (setf (auxiliary-foreign-type kind name) result))
+      (parse-foreign-record-fields result fields)
+      result)
+    (if name
+      (or (auxiliary-foreign-type kind name)
+          (setf (auxiliary-foreign-type kind name)
+                (make-foreign-record-type :name name :kind kind)))
+      (make-foreign-record-type :kind kind))))
 
 ;;; PARSE-FOREIGN-RECORD-FIELDS -- internal
 ;;;
