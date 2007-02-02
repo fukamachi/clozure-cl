@@ -1,3 +1,4 @@
+
 ;;;-*-Mode: LISP; Package: CCL -*-
 
 (in-package "CCL")
@@ -22,7 +23,8 @@
   (defun check-for-webkit ()
     (if checked-for-webkit
       webkit-loaded
-      (load-objc-extension-framework "WebKit"))))
+      (setq checked-for-webkit t
+            webkit-loaded (load-objc-extension-framework "WebKit")))))
 
 (defun require-webkit () 
   (or (check-for-webkit)
