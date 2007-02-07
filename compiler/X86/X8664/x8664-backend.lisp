@@ -163,7 +163,7 @@
                            :callback-bindings-function
                            (intern "GENERATE-CALLBACK-BINDINGS" "X86-LINUX64")
                            :callback-return-value-function
-                           (intern "GENERATE-CALLBACK-RETURN-VALU" "X86-LINUX64")))
+                           (intern "GENERATE-CALLBACK-RETURN-VALUE" "X86-LINUX64")))
                 (:darwinx8664
                  (make-ftd :interface-db-directory "ccl:darwin-x86-headers64;"
                            :interface-package-name "X86-DARWIN64"
@@ -179,7 +179,7 @@
                            :callback-bindings-function
                            (intern "GENERATE-CALLBACK-BINDINGS" "X86-DARWIN64")
                            :callback-return-value-function
-                           (intern "GENERATE-CALLBACK-RETURN-VALU" "X86-DARWIN64")))
+                           (intern "GENERATE-CALLBACK-RETURN-VALUE" "X86-DARWIN64")))
                 (:freebsdx8664
                  (make-ftd :interface-db-directory "ccl:freebsd-headers64;"
                            :interface-package-name "X86-FREEBSD64"
@@ -193,7 +193,7 @@
                            :callback-bindings-function
                            (intern "GENERATE-CALLBACK-BINDINGS" "X86-FREEBS64")
                            :callback-return-value-function
-                           (intern "GENERATE-CALLBACK-RETURN-VALU" "X86-FREEBSD64"))))))
+                           (intern "GENERATE-CALLBACK-RETURN-VALUE" "X86-FREEBSD64"))))))
         (install-standard-foreign-types ftd)
         (use-interface-dir :libc ftd)
         (setf (backend-target-foreign-type-data backend) ftd))))
