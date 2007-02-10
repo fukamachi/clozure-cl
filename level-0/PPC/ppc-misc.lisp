@@ -296,6 +296,7 @@
 
 
 (defppclapfunction values ()
+  (:arglist (&rest values))
   (vpush-argregs)
   (add temp0 nargs vsp)
   (ba .SPvalues))
