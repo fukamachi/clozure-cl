@@ -49,7 +49,7 @@
 (defvar *ppc-lap-regsave-addr* ())
 (defvar *ppc-lap-regsave-label* ())
 (defparameter *ppc-lwz-instruction* (svref ppc::*ppc-opcodes* (gethash "LWZ" ppc::*ppc-opcode-numbers*)))
-
+(defvar *ppc-lap-lfun-bits* 0)
 
 
 
@@ -88,11 +88,12 @@
              (*ppc-lap-regsave-label* ())
              (*ppc-lap-regsave-reg* ())
              (*ppc-lap-regsave-addr* ())
-             (*ppc-lap-constants* ()))
+             (*ppc-lap-constants* ())
+             (*ppc-lap-lfun-bits* bits))
         (dolist (form body)
           (ppc-lap-form form))
         #+ppc-lap-scheduler (ppc-schedule-instuctions)       ; before resolving branch targets
-        (ppc-lap-generate-code name (ppc-lap-encode-regsave-info (ppc-lap-do-labels)) bits))))
+        (ppc-lap-generate-code name (ppc-lap-encode-regsave-info (ppc-lap-do-labels)) *ppc-lap-lfun-bits*))))
 
 ;;; Any conditional branch that the compiler generates is currently just of the form
 ;;; BT or BF, but it'd be nice to recognize all of the other extended branch mnemonics
@@ -391,7 +392,8 @@
                  (setq *ppc-lap-regsave-label* (emit-lap-label (gensym))
                        *ppc-lap-regsave-reg* regno
                        *ppc-lap-regsave-addr* (- (+ addrexp)
-                                                 (* 4 (1+ (- ppc::save0 regno))))))))))))))
+                                                 (* 4 (1+ (- ppc::save0 regno))))))))))))
+    (:arglist (setq *ppc-lap-lfun-bits* (encode-lambda-list (cadr form))))))
 
        
 (defun ppc-lap-form (form)
