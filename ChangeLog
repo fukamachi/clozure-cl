@@ -1,3 +1,61 @@
+2007-02-10 22:34  gb
+
+	* examples/cocoa-window.lisp: Some indentation changes and slight
+	reorganization of the code; shouldn't be any functional/semantic
+	changes.
+
+2007-02-10 22:30  gb
+
+	* examples/: cocoa-editor.lisp, cocoa-prefs.lisp,
+	cocoa-typeout.lisp: Need to ensure that floats are CG-FLOATs when
+	appropriate; other changes for 64-bit platforms, Objc-2.0.
+
+2007-02-10 22:28  gb
+
+	* examples/: webkit.lisp, tiny.lisp: Need to ensure that floats are
+	CG-FLOATs when appropriate.
+
+2007-02-10 22:28  gb
+
+	* hemlock/bin/openmcl/.cvsignore: Ignore fasls for all platforms.
+
+2007-02-10 22:28  gb
+
+	* level-0/X86/x86-misc.lisp: VALUES uses :ARGLIST pseudo-op.
+
+2007-02-10 22:27  gb
+
+	* lib/: ffi-linuxppc64.lisp, ffi-darwinppc32.lisp,
+	ffi-darwinppc64.lisp, ffi-linuxppc32.lisp: EXPAND-FF-CALL:
+	ignore-errors when trying to parse the last arglist form as a
+	foreign type.
+
+2007-02-10 22:26  gb
+
+	* lib/foreign-types.lisp: Pretty much commited to the new FF-CALL
+	expansion ...
+
+2007-02-10 22:26  gb
+
+	* lisp-kernel/x86-spentry64.s: Preserve %rax when doing ff-call;
+	use %rdx and %r11 to hold target address.
+
+2007-02-10 22:23  gb
+
+	* library/pty.lisp: Unicode stuff when accessing control char
+	array; conditionalize for #+darwin-target, not just
+	#+darwinppc-target.
+
+2007-02-10 22:22  gb
+
+	* level-1/l1-callbacks.lisp: Fix a comment (defcallback isn't
+	ppc-specific; the comment dated from the days of 68K MCL.)
+
+2007-02-10 22:21  gb
+
+	* compiler/X86/X8664/x8664-backend.lisp: Fix some typos; do struct
+	return 32 bits at a time, to avoid consing little bignums.
+
 2007-02-10 22:15  gb
 
 	* compiler/X86/x86-lap.lisp: Support :arglist directive.
