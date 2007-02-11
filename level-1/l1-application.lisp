@@ -242,7 +242,8 @@ Default version returns OpenMCL version info."
            :keyword :quiet
            :may-take-operand nil
            :allow-multiple nil)
-          ))))
+          ))
+   (initial-listener-process :initform nil)))
 
 (defparameter *application*
   (make-instance 'lisp-development-system))
@@ -275,21 +276,24 @@ Default version returns OpenMCL version info."
 (defmethod toplevel-function ((a lisp-development-system) init-file)
   (call-next-method)
   (let* ((sr (input-stream-shared-resource *terminal-input*)))
-    (make-mcl-listener-process
-     "listener"
-     *terminal-input*
-     *terminal-output*
-     #'(lambda () (when sr (setf (shared-resource-primary-owner sr)
-				 *initial-process*)))
-     :initial-function
-     #'(lambda ()
-	 (startup-ccl (and *load-lisp-init-file* init-file))
-	 (listener-function)
-	 nil)
-     :close-streams nil
-     :control-stack-size *initial-listener-default-control-stack-size*
-     :value-stack-size *initial-listener-default-value-stack-size*
-     :temp-stack-size *initial-listener-default-temp-stack-size*))
+    (with-slots (initial-listener-process) a
+      (setq initial-listener-process
+            (make-mcl-listener-process
+             "listener"
+             *terminal-input*
+             *terminal-output*
+             #'(lambda () (when sr (setf (shared-resource-primary-owner sr)
+                                         *initial-process*)))
+             :initial-function
+             #'(lambda ()
+                 (startup-ccl (and *load-lisp-init-file* init-file))
+                 (listener-function)
+                 nil)
+             :close-streams nil
+             :control-stack-size *initial-listener-default-control-stack-size*
+             :value-stack-size *initial-listener-default-value-stack-size*
+             :temp-stack-size *initial-listener-default-temp-stack-size*
+             :process initial-listener-process))))
   (%set-toplevel #'(lambda ()
                      (with-standard-abort-handling nil 
                        (loop
