@@ -1,3 +1,34 @@
+2007-02-11 00:01  gb
+
+	* examples/objc-support.lisp: Deftype for CF-FLOAT.
+	
+	Handle callback-error-returns on x86-64.
+
+2007-02-11 00:00  gb
+
+	* examples/objc-runtime.lisp: Pointer comparisons in splay trees
+	use %ptr<, to hide word-size differences.
+	
+	__NSConstantStringClassReference isn't what it used to be, so look
+	up NSConstantStringClass the hard way.
+	
+	Handle ns-exception/lisp-error stuff on x86-64.
+	
+	Do arg/result coercions differently.  Does any code depend on
+	COERCE-TO-ADDRESS behavior ?  (It can cause extra consing of
+	MACPTRs).
+	
+	Use the new FFI interface for message-sends, callbacks to try to
+	hide platform-specific ABI issues.
+	
+	The _deallocate-hook mechanism - which never really worked -
+	probably can't work on Objc-2.0.
+
+2007-02-10 23:54  gb
+
+	* examples/bridge.lisp: Make structure return-type explicit in
+	objc-message-send calls in send/stret and variants.
+
 2007-02-10 22:34  gb
 
 	* examples/cocoa-window.lisp: Some indentation changes and slight
