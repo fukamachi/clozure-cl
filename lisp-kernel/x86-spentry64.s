@@ -3980,10 +3980,10 @@ _endsubp(builtin_aref1)
 _spentry(ffcall)
         /* Unbox %arg_z.  It's either a fixnum or macptr (or bignum) ;
           if not a fixnum, get the first word */
-        __(unbox_fixnum(%arg_z,%imm0))
+        __(unbox_fixnum(%arg_z,%imm1))
 	__(testb $fixnummask,%arg_z_b)
         __(je 0f)
-        __(movq macptr.address(%arg_z),%imm0)
+        __(movq macptr.address(%arg_z),%imm1)
 0:              
 	/* Save lisp registers   */
 	__(push %temp0)
@@ -4009,8 +4009,9 @@ _spentry(ffcall)
 	__(ldmxcsr %rcontext:tcr.foreign_mxcsr)
 	__(movq (%rsp),%rbp)
         __ifdef([DARWIN_GS_HACK])
-         /* At this point, %imm0=%rax is live (contains
-            the entrypoint); the lisp registers are
+         /* At this point, %imm1=%rdx is live (contains
+            the entrypoint) and %imm0.b=%al contains
+            info about xmm register arguments; the lisp registers are
             all saved, and the foreign arguments are
             on the foreign stack (about to be popped
             off).  Save the linear TCR address in %save0/%r15
@@ -4020,18 +4021,21 @@ _spentry(ffcall)
             foreign code has never been safe (unless it's
             a fixnum */
          __(save_tcr_linear(%save0))
-         __(movq %imm0,%save1)
+         __(movq %imm1,%save1)
+         __(movq %imm0,%save2)
          __(set_foreign_gs_base())
-         __(movq %save1,%imm0)
+         __(movq %save1,%imm1)
+         __(movq %save2,%imm0)
         __endif
 	__(addq $2*node_size,%rsp)
+        __(movq %imm1,%r11)
 	__(pop %rdi)
 	__(pop %rsi)
 	__(pop %rdx)
 	__(pop %rcx)
 	__(pop %r8)
 	__(pop %r9)
-	__(call *%rax)
+	__(call *%r11)
 	__(movq %rbp,%rsp)
         __ifdef([DARWIN_GS_HACK])
          /* %rax/%rdx contains the return value (maybe), %save0 still
@@ -4086,10 +4090,10 @@ _endsubp(ffcall)
 _spentry(ffcall_return_registers)
         /* Unbox %arg_z.  It's either a fixnum or macptr (or bignum) ;
           if not a fixnum, get the first word */
-        __(unbox_fixnum(%arg_z,%imm0))
+        __(unbox_fixnum(%arg_z,%imm1))
 	__(testb $fixnummask,%arg_z_b)
         __(je 0f)
-        __(movq macptr.address(%arg_z),%imm0)
+        __(movq macptr.address(%arg_z),%imm1)
 0:              
 	/* Save lisp registers   */
 	__(push %temp0)
@@ -4102,7 +4106,7 @@ _spentry(ffcall_return_registers)
 	__(push %save1)
 	__(push %save2)
 	__(push %save3)
-        __(movq macptr.address(%arg_y),%save2)  /* save2 = %r13, non-volatile */
+        __(movq macptr.address(%arg_y),%rbx)  /* %rbx non-volatile */
 	__(push %fn)
 	__(push %ra0)
 	__(push %rbp)
@@ -4116,8 +4120,9 @@ _spentry(ffcall_return_registers)
 	__(ldmxcsr %rcontext:tcr.foreign_mxcsr)
 	__(movq (%rsp),%rbp)
         __ifdef([DARWIN_GS_HACK])
-         /* At this point, %imm0=%rax is live (contains
-            the entrypoint); the lisp registers are
+         /* At this point, %imm1=%rdx is live (contains
+            the entrypoint) and %imm0.b=%al contains
+            xmm argument info; the lisp registers are
             all saved, and the foreign arguments are
             on the foreign stack (about to be popped
             off).  Save the linear TCR address in %save0/%r15
@@ -4128,9 +4133,12 @@ _spentry(ffcall_return_registers)
             a fixnum */
          __(save_tcr_linear(%save0))
          __(movq %imm0,%save1)
+         __(movq %imm1,%save2)
          __(set_foreign_gs_base())
          __(movq %save1,%imm0)
+         __(movq %save2,%imm1)
         __endif
+        __(movq %imm1,%r11)
 	__(addq $2*node_size,%rsp)
 	__(pop %rdi)
 	__(pop %rsi)
@@ -4138,11 +4146,11 @@ _spentry(ffcall_return_registers)
 	__(pop %rcx)
 	__(pop %r8)
 	__(pop %r9)
-	__(call *%rax)
-        __(movq %rax,(%save2))
-        __(movq %rdx,8(%save2))
-        __(movsd %xmm0,16(%save2))
-        __(movsd %xmm1,24(%save2))
+	__(call *%r11)
+        __(movq %rax,(%rbx))
+        __(movq %rdx,8(%rbx))
+        __(movsd %xmm0,16(%rbx))
+        __(movsd %xmm1,24(%rbx))
 	__(movq %rbp,%rsp)
         __ifdef([DARWIN_GS_HACK])
          /* %rax/%rdx contains the return value (maybe), %save0 still
