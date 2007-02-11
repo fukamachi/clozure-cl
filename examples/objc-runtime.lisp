@@ -107,33 +107,24 @@
             (db-objc-class-info-ivars info))))
 
 
-(let* ((objc-class-map (make-splay-tree #'%ptr-eql
-					#'(lambda (x y)
-					    (< (the (unsigned-byte 32)
-						 (%ptr-to-int x))
-					       (the (unsigned-byte 32)
-						 (%ptr-to-int Y))))))
-       (objc-metaclass-map (make-splay-tree #'%ptr-eql
-					    #'(lambda (x y)
-						(< (the (unsigned-byte 32)
-						     (%ptr-to-int x))
-						   (the (unsigned-byte 32)
-						     (%ptr-to-int Y))))))
+(defun %ptr< (x y)
+  (< (the (unsigned-byte #+64-bit-target 64 #+32-bit-target 32)
+       (%ptr-to-int x))
+     (the (unsigned-byte #+64-bit-target 64 #+32-bit-target 32)
+       (%ptr-to-int Y))))
+
+(let* ((objc-class-map (make-splay-tree #'%ptr-eql #'%ptr<))
+       (objc-metaclass-map (make-splay-tree #'%ptr-eql #'%ptr<))
        ;;; These are NOT lisp classes; we mostly want to keep track
        ;;; of them so that we can pretend that instances of them
        ;;; are instances of some known (declared) superclass.
-       (private-objc-classes (make-splay-tree #'%ptr-eql
-                                              #'(lambda (x y)
-                                                  (< (the (unsigned-byte 32)
-                                                       (%ptr-to-int x))
-                                                     (the (unsigned-byte 32)
-                                                       (%ptr-to-int Y))))))
+       (private-objc-classes (make-splay-tree #'%ptr-eql #'%ptr<))
        (objc-class-lock (make-lock))
        (next-objc-class-id 0)
        (next-objc-metaclass-id 0)
        (class-table-size 1024)
-       (c (make-array 1024))
-       (m (make-array 1024))
+       (c (make-array class-table-size))
+       (m (make-array class-table-size))
        (cw (make-array 1024 :initial-element nil))
        (mw (make-array 1024 :initial-element nil))
        (csv (make-array 1024))
@@ -288,7 +279,7 @@
 
 
 ;;; Open shared libs.
-#+darwinppc-target
+#+darwin-target
 (progn
 (defloadvar *cocoa-event-process* *initial-process*)
 
@@ -437,11 +428,9 @@
 
 
 (defloadvar *NSConstantString-class*
-   #+apple-objc
-  (foreign-symbol-address "__NSConstantStringClassReference")
-  #+gnu-objc
   (with-cstrs ((name "NSConstantString"))
-      (#_objc_lookup_class name)))
+    #+apple-objc (#_objc_lookUpClass name)
+    #+gnu-objc (#_objc_lookup_class name)))
 
 
 
@@ -472,6 +461,26 @@
 (defconstant JMP-r13 #x10 "offset of r13 (which we preserve) in jmp_buf")
 (defconstant JMP-r14 #x18 "offset of r14 (which we clobber) in jmp_buf")
 (defconstant JMP-r15 #x20 "offset of r15 (which we also clobber) in jmp_buf"))
+
+;;; These constants also come from Libc sources.  Hey, who needs
+;;; header files ?
+#+x8664-target
+(progn
+(defconstant JB-RBX 0)
+(defconstant JB-RBP 8)
+(defconstant JB-RSP 16)
+(defconstant JB-R12 24)
+(defconstant JB-R13 32)
+(defconstant JB-R14 40)
+(defconstant JB-R15 48)
+(defconstant JB-RIP 56)
+(defconstant JB-RFLAGS 64)
+(defconstant JB-MXCSR 72)
+(defconstant JB-FPCONTROL 76)
+(defconstant JB-MASK 80)
+)
+
+
  
 
 ;;; A malloc'ed pointer to thre words of machine code.  The first
@@ -483,6 +492,7 @@
 ;;; register, which is where we really wanted to go in the first
 ;;; place.
 
+#+ppc-target
 (macrolet ((ppc-lap-word (instruction-form)
              (uvref (uvref (compile nil
                                     `(lambda (&lap 0)
@@ -502,6 +512,16 @@
                  :void)
         p)))
 
+#+x8664-target
+(defloadvar *setjmp-catch-rip-code*
+    (let* ((code-bytes '(#x4c #x89 #xe6     ; movq %r12, %rsi
+                         #xff #xd3))        ; call *%rbx
+           (nbytes (length code-bytes))
+           (p (malloc nbytes)))
+      (dotimes (i nbytes p)
+        (setf (%get-unsigned-byte p i) (pop code-bytes)))))
+         
+
 ;;; Catch frames are allocated on a stack, so it's OK to pass their
 ;;; addresses around to foreign code.
 (defcallback throw-to-catch-frame (:signed-fullword value
@@ -514,6 +534,7 @@
 ;;; frame as its second argument.  The C frame used here is just
 ;;; an empty C stack frame from which the callback will be called.
 
+#+ppc-target
 (defun %associate-jmp-buf-with-catch-frame (jmp-buf catch-frame c-frame)
   (%set-object jmp-buf JMP-sp c-frame)
   (%set-object jmp-buf JMP-r15 catch-frame)
@@ -522,6 +543,16 @@
   (setf (%get-ptr jmp-buf JMP-lr) *setjmp-catch-lr-code*
         (%get-ptr jmp-buf JMP-r14) throw-to-catch-frame)
   t)
+
+#+x8664-target
+(defun %associate-jmp-buf-with-catch-frame (jmp-buf catch-frame c-frame)
+  (setf (%get-ptr jmp-buf JB-rbx) throw-to-catch-frame
+        (%get-ptr jmp-buf JB-rip) *setjmp-catch-rip-code*)
+  (%set-object jmp-buf JB-RSP c-frame)
+  (%set-object jmp-buf JB-RBP c-frame)
+  (%set-object jmp-buf JB-r12 catch-frame)
+  t)
+
 
 )
 
@@ -960,19 +991,39 @@ argument lisp string."
 ;;;   - Lisp string => NSString
 ;;;   - Lisp numbers  => SINGLE-FLOAT when possible
 
-(defmacro coerce-to-bool (x)
+(defun coerce-to-bool (x)
   (let ((x-temp (gensym)))
     `(let ((,x-temp ,x))
-       (if (or (eq ,x-temp 0) (null ,x-temp)) #.#$NO #.#$YES))))
+       (if (or (eq ,x-temp 0) (null ,x-temp))
+         #.#$NO
+         #.#$YES))))
 
-(defmacro coerce-to-address (x)
+(declaim (inline %coerce-to-bool))
+(defun %coerce-to-bool (x)
+  (if (and x (not (eql x 0)))
+    #$YES
+    #$NO))
+
+(defun coerce-to-address (x)
   (let ((x-temp (gensym)))
     `(let ((,x-temp ,x))
        (cond ((null ,x-temp) (%null-ptr))
 	     ((stringp ,x-temp) (%make-nsstring ,x-temp))
 	     (t ,x-temp)))))
 
-(defmacro coerce-to-foreign-type (x ftype)
+;;; This is generally a bad idea; it forces us to
+;;; box intermediate pointer arguments in order
+;;; to typecase on them, and it's not clear to
+;;; me that it offers much in the way of additional
+;;; expressiveness.
+(declaim (inline %coerce-to-address))
+(defun %coerce-to-address (x)
+  (etypecase x
+    (macptr x)
+    (string (%make-nsstring x))         ; does this ever get released ?
+    (null (%null-ptr))))
+
+(defun coerce-to-foreign-type (x ftype)
    (cond ((and (constantp x) (constantp ftype))
           (case ftype
             (:id (if (null x) `(%null-ptr) (coerce-to-address x)))
@@ -980,16 +1031,19 @@ argument lisp string."
             (t x)))
          ((constantp ftype)
           (case ftype
-            (:id `(coerce-to-address ,x))
-            (:<BOOL> `(coerce-to-bool ,x))
+            (:id `(%coerce-to-address ,x))
+            (:<BOOL> `(%coerce-to-bool ,x))
             (t x)))
          (t `(case ,(if (atom ftype) ftype)
-               (:id (coerce-to-address ,x))
-               (:<BOOL> (coerce-to-bool ,x))
+               (:id (%coerce-to-address ,x))
+               (:<BOOL> (%coerce-to-bool ,x))
                (t ,x)))))
 
 (defun objc-arg-coerce (typespec arg)
-  (coerce-to-foreign-type arg typespec))
+  (case typespec
+    (:<BOOL> `(%coerce-to-bool ,arg))
+    (:id `(%coerce-to-address ,arg))
+    (t arg)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1033,8 +1087,8 @@ argument lisp string."
     (setq argspecs (append argspecs '(:id))))
   #+apple-objc
   (funcall (ftd-ff-call-expand-function *target-ftd*)
-           `(external-call "_objc_msgSend")
-           `(:id ,receiver :<SEL> (@selector ,selector-name) ,@argspecs)
+           `(%ff-call (%reference-external-entry-point (load-time-value (external "_objc_msgSend"))))
+           `(:address ,receiver :<SEL> (@selector ,selector-name) ,@argspecs)
            :arg-coerce 'objc-arg-coerce
            :result-coerce 'objc-result-coerce)  
   #+gnu-objc
@@ -1049,7 +1103,7 @@ argument lisp string."
 					:<IMP>)))
       (funcall (ftd-ff-call-expand-function *target-ftd*)
        `(%ff-call ,imp)
-       `(:id ,receiver :<SEL> (@selector ,selector-name) ,@argspecs)
+       `(:address ,receiver :<SEL> (@selector ,selector-name) ,@argspecs)
        :arg-coerce 'objc-arg-coerce
        :result-coerce 'objc-result-coerce))))
 
@@ -1082,10 +1136,10 @@ argument lisp string."
     (let* ((return-typespec (car (last argspecs)))
            (entry-name (if (funcall (ftd-ff-call-struct-return-by-implicit-arg-function *target-ftd*) return-typespec)
                          "_objc_msgSend_stret"
-                         "_objc-msgSend")))
+                         "_objc_msgSend")))
       (funcall (ftd-ff-call-expand-function *target-ftd*)
-               `(%ff-call (external ,entry-name))
-               `(,structptr :id ,receiver :<SEL> (@selector ,selector-name) ,@argspecs)
+               `(%ff-call (%reference-external-entry-point (load-time-value (external ,entry-name))))
+        `(,structptr :address ,receiver :<SEL> (@selector ,selector-name) ,@argspecs)
                :arg-coerce 'objc-arg-coerce
                :result-coerce 'objc-result-coerce))
     #+gnu-objc
@@ -1100,7 +1154,7 @@ argument lisp string."
 					 :<IMP>)))
       ,      (funcall (ftd-ff-call-expand-function *target-ftd*)
                `(%ff-call ,imp)
-              `(,structptr :id , :<SEL> ,s ,@argspecs)
+              `(,structptr :address ,receiver :<SEL> ,s ,@argspecs)
                :arg-coerce 'objc-arg-coerce
                :result-coerce 'objc-result-coerce))))
 
@@ -1113,7 +1167,7 @@ argument lisp string."
     (setq argspecs (append argspecs '(:id))))
   #+apple-objc
   (funcall (ftd-ff-call-expand-function *target-ftd*)
-           `(%ff-call (external "_objc_msgSendSuper"))
+           `(%ff-call (%reference-external-entry-point (load-time-value (external "_objc_msgSendSuper"))))
            `(:address ,super :<SEL> (@selector ,selector-name) ,@argspecs)
            :arg-coerce 'objc-arg-coerce
            :result-coerce 'objc-result-coerce)
@@ -1140,9 +1194,9 @@ argument lisp string."
     (let* ((return-typespec (car (last argspecs)))
            (entry-name (if (funcall (ftd-ff-call-struct-return-by-implicit-arg-function *target-ftd*) return-typespec)
                          "_objc_msgSendSuper_stret"
-                         "_objc-msgSendSuper")))
+                         "_objc_msgSendSuper")))
       (funcall (ftd-ff-call-expand-function *target-ftd*)
-               `(%ff-call (external ,entry-name))
+               `(%ff-call (%reference-external-entry-point (load-time-value (external ,entry-name))))
                `(,structptr :address ,super :<SEL> (@selector ,selector-name) ,@argspecs)
                :arg-coerce 'objc-arg-coerce
                :result-coerce 'objc-result-coerce))
@@ -1174,10 +1228,13 @@ argument lisp string."
   #(8 16 24 32 40 48 56 64)
   )
 
+
+
 ;;; The first 13 fp arguments get passed in F1-F13 (and also "consume"
 ;;; a GPR or two.)  It's certainly possible for an FP arg and a non-
 ;;; FP arg to share the same "offset", and parameter offsets aren't
 ;;; strictly increasing.
+#+ppc-target
 (defvar *objc-fpr-offsets*
   #+32-bit-target
   #(36 44 52 60  68  76  84  92 100 108 116 124 132)
@@ -1255,7 +1312,8 @@ argument lisp string."
 		 "*"
 		 (format nil "^~a" (encode-objc-type element-type))))))
 	  (t (break "type = ~s" type)))))))
-		 
+
+#+ppc-target
 (defun encode-objc-method-arglist (arglist result-spec)
   (let* ((gprs-used 0)
 	 (fprs-used 0)
@@ -1282,7 +1340,7 @@ argument lisp string."
 		       (incf fprs-used)
 		       (incf gprs-used 2))
 		      (foreign-single-float-type
-		       (setq size 4 offset (current-fpr-arg-offset))
+		       (setq size target::node-size offset (current-fpr-arg-offset))
 		       (incf fprs-used)
 		       (incf gprs-used 1))
 		      (foreign-pointer-type
@@ -1292,12 +1350,12 @@ argument lisp string."
 		       (let* ((bits (foreign-type-bits arg)))
 			 (setq size (ceiling bits 8)
 			       offset (current-gpr-arg-offset))
-			 (incf gprs-used (ceiling bits 32))))
+			 (incf gprs-used (ceiling bits target::nbits-in-word))))
 		      ((or foreign-record-type foreign-array-type)
 		       (let* ((bits (ensure-foreign-type-bits arg)))
 			 (setq size (ceiling bits 8)
 			       offset (current-gpr-arg-offset))
-			 (incf gprs-used (ceiling bits 32))))
+			 (incf gprs-used (ceiling bits target::nbits-in-word))))
 		      (t (break "argspec = ~s, arg = ~s" argspec arg)))
 		    (push (list (encode-objc-type arg) offset size) result))))))))
     (declare (fixnum gprs-used fprs-used))
@@ -1305,6 +1363,32 @@ argument lisp string."
 	    (- (apply #'max (mapcar #'(lambda (i) (+ (cadr i) (caddr i)))
 				    arg-info))
 	       objc-forwarding-stack-offset)))
+      (format nil "~a~d~:{~a~d~}"
+	      (encode-objc-type
+	       (parse-foreign-type result-spec))
+	      max-parm-end
+	      arg-info))))
+
+#+x8664-target
+(defun encode-objc-method-arglist (arglist result-spec)
+  (let* ((offset 0)
+	 (arg-info
+          (let* ((result nil))
+		(dolist (argspec arglist (nreverse result))
+		  (let* ((arg (parse-foreign-type argspec))
+                         (delta 8))
+		    (typecase arg
+		      (foreign-double-float-type)
+		      (foreign-single-float-type)
+		      ((or foreign-pointer-type foreign-array-type))
+		      (foreign-integer-type)
+		      (foreign-record-type
+		       (let* ((bits (ensure-foreign-type-bits arg)))
+			 (setq delta (ceiling bits 8))))
+		      (t (break "argspec = ~s, arg = ~s" argspec arg)))
+		    (push (list (encode-objc-type arg) offset) result)
+                    (setq offset (* 8 (ceiling (+ offset delta) 8))))))))
+    (let* ((max-parm-end offset))
       (format nil "~a~d~:{~a~d~}"
 	      (encode-objc-type
 	       (parse-foreign-type result-spec))
@@ -1535,8 +1619,8 @@ argument lisp string."
         (let* ((type (pop types)))
           (call type)
           (case type
-            (:<BOOL> (call `(coerce-to-bool ,arg)))
-            (:id (call `(coerce-to-address ,arg)))
+            (:<BOOL> (call `(%coerce-to-bool ,arg)))
+            (:id (call `(%coerce-to-address ,arg)))
             (otherwise (call arg)))))
       ;; all "init" messages return :id
       (call :id)
@@ -1606,21 +1690,7 @@ argument lisp string."
       (setf (objc-init-message-info-method-signature-alist init-info) alist)
       init-info)))
 
-(defun send-init-message-with-info (instance init-info args)
-  (let* ((selector (objc-init-message-info-selector init-info))
-         (alist (objc-init-message-info-method-signature-alist init-info))
-         (pair (do* ((alist alist (cdr alist)))
-                    ((null (cdr alist))
-                     (car alist)
-                     (let* ((pair (car alist)))
-                       (dolist (class (cdr pair))
-                         (when (typep instance class)
-                           (return pair))))))))
-    (with-ns-exceptions-as-errors
-        (apply (objc-init-method-signature-info-function (car pair))
-               instance
-               selector
-               args))))
+
                                                        
 
 ;;; Register init-message-info for all known init messages.  (A
@@ -1638,21 +1708,9 @@ argument lisp string."
 (defvar *objc-init-messages-for-init-keywords* (make-hash-table :test #'equal)
   "Maps from lists of init keywords to OBJC-INIT-MESSAGE structures")
 
-(defun send-objc-init-message-with-info (instance init-info args)
-  (let* ((selector (objc-init-message-info-selector init-info))
-         (alist (objc-init-message-info-method-signature-alist init-info))
-         (pair (do* ((alist alist (cdr alist)))
-                    ((null (cdr alist))
-                     (car alist)
-                     (let* ((pair (car alist)))
-                       (dolist (class (cdr pair))
-                         (when (typep instance class)
-                           (return pair))))))))
-    (with-ns-exceptions-as-errors
-        (apply (objc-init-method-signature-info-function (car pair))
-               instance
-               selector
-               args))))
+
+
+
 
 
 (defun send-objc-init-message (instance init-keywords args)
@@ -1666,8 +1724,7 @@ argument lisp string."
               (setq info name-info))))
     (send-objc-init-message-with-info instance info args)))    
                    
-(defun allocate-objc-object (class)
-  (send class 'alloc))
+
   
 
                   
@@ -2067,7 +2124,7 @@ argument lisp string."
   #+apple-objc (#_method_getNumberOfArguments m)
   #+gnu-objc (#_method_get_number_of_arguments m))
 
-#+apple-objc
+#+(and apple-objc (not apple-objc-2.0))
 (progn
 (defloadvar *original-deallocate-hook*
         #&_dealloc)
@@ -2116,7 +2173,7 @@ argument lisp string."
   (let ((pool-temp (gensym)))
     `(let ((,pool-temp (create-autorelease-pool)))
       (unwind-protect
-	   ,@body
+	   (progn ,@body)
 	(release-autorelease-pool ,pool-temp)))))
 
 ;;; This can fail if the nsstring contains non-8-bit characters.
@@ -2135,10 +2192,6 @@ argument lisp string."
         (:buf :jmp_buf)
         (:pointers (:array :address 4)))))
 
-;;; Apple's mechanism for maintaining per-thread exception handler
-;;; state isn't thread safe, which suggests that we should probably
-;;; install our own callbacks via #_objc_exception_set_functions.
-;;; It's 2007.
 
 #+apple-objc-2.0
 (defmacro with-ns-exceptions-as-errors (&body body)
@@ -2148,7 +2201,7 @@ argument lisp string."
       (unwind-protect
            (progn
              (#_objc_exception_try_enter ,data)
-               (catch ,data
+             (catch ,data
                (with-c-frame ,cframe
                  (%associate-jmp-buf-with-catch-frame
                   ,data
@@ -2199,3 +2252,18 @@ argument lisp string."
       (error (ns-exception->lisp-condition (%inc-ptr exception 0))))))
 
 
+(defun send-objc-init-message-with-info (instance init-info args)
+  (let* ((selector (objc-init-message-info-selector init-info))
+         (alist (objc-init-message-info-method-signature-alist init-info))
+         (pair (do* ((alist alist (cdr alist)))
+                    ((null (cdr alist))
+                     (car alist)
+                     (let* ((pair (car alist)))
+                       (dolist (class (cdr pair))
+                         (when (typep instance class)
+                           (return pair))))))))
+    (with-ns-exceptions-as-errors
+        (apply (objc-init-method-signature-info-function (car pair))
+               instance
+               selector
+               args))))
