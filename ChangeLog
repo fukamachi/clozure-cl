@@ -1,3 +1,36 @@
+2007-02-11 05:35  gb
+
+	* level-1/version.lisp: Bump.
+
+2007-02-11 05:28  gb
+
+	* darwin-headers/: addressbook/C/populate.sh, carbon/C/populate.sh,
+	cocoa/C/populate.sh, gl/C/populate.sh, libc/C/populate.sh,
+	quicktime/C/populate.sh, webkit/C/populate.sh: Make the SDK prefix
+	an optional argument; default to the Tiger SDK.
+
+2007-02-11 05:26  gb
+
+	* lib/ffi-darwinppc32.lisp: Ignore errors; it's an error to ignore
+	an errror.
+
+2007-02-11 05:26  gb
+
+	* level-1/ppc-trap-support.lisp: Conditionalize for gratuitous
+	Leopard renaming.  Suffer.
+
+2007-02-11 05:25  gb
+
+	* level-1/l1-boot-lds.lisp: MAKE-MCL-LISTENER-PROCESS will preset
+	an existing process (so that the listener process appears to be
+	"persistent".)
+
+2007-02-11 05:24  gb
+
+	* level-1/l1-application.lisp: LISP-DEVELOPMENT-SYSTEM tries to
+	make the initial-listener object persistent acrosss
+	SAVE-APPLICATION.
+
 2007-02-11 00:01  gb
 
 	* examples/objc-support.lisp: Deftype for CF-FLOAT.
