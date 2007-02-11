@@ -22,7 +22,6 @@
 (eval-when (:compile-toplevel :execute)
   (require "NUMBER-MACROS")
 
-
   
   (defparameter *ppc-instruction-fields*
     `((:opcode . ,(byte 6 26))
@@ -54,15 +53,177 @@
     (let* ((name (if (atom field-spec) field-spec (car field-spec)))
 	   (value (if (atom field-spec) -1 (cadr field-spec))))
       (dpb value (ppc-instruction-field name) 0)))
-  
+
+  #+darwinppc-target
+  (progn
+    (def-foreign-type nil
+        (:struct :darwin-ppc-float-state
+                 (:fpregs (:array :double 32))
+                 (:fpscr-pad (:unsigned 32))
+                 (:fpscr (:unsigned 32))))
+    (def-foreign-type nil
+        (:struct :darwin-ppc-vector-state
+                 (:save-vr (:array (:array (:unsigned 32) 4) 32))
+                 (:save-vscr (:array (:unsigned 32) 4))
+                 (:save-pad5 (:array (:unsigned 32) 4))
+                 (:save-vrvalid (:unsigned 32))
+                 (:save-pad6 (:array (:unsigned 32) 7))))
+    #+ppc64-target
+    (progn
+      (def-foreign-type nil
+          (:struct :darwin-ppc-exception-state64
+                   (:dar (:unsigned 64))
+                   (:dsisr (:unsigned 32))
+                   (:exception (:unsigned 32))
+                   (:pad1 (:array (:unsigned 32) 4))))
+      (def-foreign-type nil
+          (:struct :darwin-ppc-thread-state64
+                   (:srr0 (:unsigned 64))
+                   (:srr1 (:unsigned 64))
+                   (:r0  (:unsigned 64))
+                   (:r1  (:unsigned 64))
+                   (:r2  (:unsigned 64))
+                   (:r3  (:unsigned 64))
+                   (:r4  (:unsigned 64))
+                   (:r5  (:unsigned 64))
+                   (:r6  (:unsigned 64))
+                   (:r7  (:unsigned 64))
+                   (:r8  (:unsigned 64))
+                   (:r9  (:unsigned 64))
+                   (:r10  (:unsigned 64))
+                   (:r11  (:unsigned 64))
+                   (:r12 (:unsigned 64))
+                   (:r13  (:unsigned 64))
+                   (:r14  (:unsigned 64))
+                   (:r15  (:unsigned 64))
+                   (:r16  (:unsigned 64))
+                   (:r17  (:unsigned 64))
+                   (:r18  (:unsigned 64))
+                   (:r19  (:unsigned 64))
+                   (:r20  (:unsigned 64))
+                   (:r21  (:unsigned 64))
+                   (:r22  (:unsigned 64))
+                   (:r23  (:unsigned 64))
+                   (:r24  (:unsigned 64))
+                   (:r25  (:unsigned 64))
+                   (:r26  (:unsigned 64))
+                   (:r27  (:unsigned 64))
+                   (:r28  (:unsigned 64))
+                   (:r29  (:unsigned 64))
+                   (:r30  (:unsigned 64))
+                   (:r31  (:unsigned 64))
+                   (:cr   (:unsigned 32))
+                   (:xer  (:unsigned 64))
+                   (:lr   (:unsigned 64))
+                   (:ctr  (:unsigned 64))
+                   (:vrsave (:unsigned 32))))
+      (def-foreign-type nil
+          (:struct :darwin-sigaltstack64
+                   (:ss-sp (:* :void))
+                   (:ss-size (:unsigned 64))
+                   (:ss-flags (:unsigned 32))))
+      (def-foreign-type nil
+          (:struct :darwin-mcontext64
+                   (:es (:struct :darwin-ppc-exception-state64))
+                   (:ss (:struct :darwin-ppc-thread-state64))
+                   (:fs (:struct :darwin-ppc-float-state))
+                   (:vs (:struct :darwin-ppc-vector-state))))
+      (def-foreign-type nil
+          (:struct :darwin-ucontext64
+                   (:uc-onstack (:signed 32))
+                   (:uc-sigmask (:signed 32))
+                   (:uc-stack (:struct :darwin-sigaltstack64))
+                   (:uc-link (:* (:struct :darwin-ucontext64)))
+                   (:uc-mcsize (:signed 64))
+                   (:uc-mcontext64 (:* (:struct :darwin-mcontext64)))))
+      )
+    #+ppc32-target
+    (progn
+      (def-foreign-type nil
+          (:struct :darwin-ppc-exception-state32
+                   (:dar (:unsigned 32))
+                   (:dsisr (:unsigned 32))
+                   (:exception (:unsigned 32))
+                   (:pad0 (:unsigned 32))
+                   (:pad1 (:array (:unsigned 32) 4))))
+      (def-foreign-type nil
+          (:struct :darwin-ppc-thread-state32
+                   (:srr0 (:unsigned 32))
+                   (:srr1 (:unsigned 32))
+                   (:r0  (:unsigned 32))
+                   (:r1  (:unsigned 32))
+                   (:r2  (:unsigned 32))
+                   (:r3  (:unsigned 32))
+                   (:r4  (:unsigned 32))
+                   (:r5  (:unsigned 32))
+                   (:r6  (:unsigned 32))
+                   (:r7  (:unsigned 32))
+                   (:r8  (:unsigned 32))
+                   (:r9  (:unsigned 32))
+                   (:r10  (:unsigned 32))
+                   (:r11  (:unsigned 32))
+                   (:r12 (:unsigned 32))
+                   (:r13  (:unsigned 32))
+                   (:r14  (:unsigned 32))
+                   (:r15  (:unsigned 32))
+                   (:r16  (:unsigned 32))
+                   (:r17  (:unsigned 32))
+                   (:r18  (:unsigned 32))
+                   (:r19  (:unsigned 32))
+                   (:r20  (:unsigned 32))
+                   (:r21  (:unsigned 32))
+                   (:r22  (:unsigned 32))
+                   (:r23  (:unsigned 32))
+                   (:r24  (:unsigned 32))
+                   (:r25  (:unsigned 32))
+                   (:r26  (:unsigned 32))
+                   (:r27  (:unsigned 32))
+                   (:r28  (:unsigned 32))
+                   (:r29  (:unsigned 32))
+                   (:r30  (:unsigned 32))
+                   (:r31  (:unsigned 32))
+                   (:cr   (:unsigned 32))
+                   (:xer  (:unsigned 32))
+                   (:lr   (:unsigned 32))
+                   (:ctr  (:unsigned 32))
+                   (:mq (:unsigned 32)) ; ppc 601!
+                   (:vrsave (:unsigned 32))))
+      (def-foreign-type nil
+          (:struct :darwin-sigaltstack32
+                   (:ss-sp (:* :void))
+                   (:ss-size (:unsigned 32))
+                   (:ss-flags (:unsigned 32))))
+      (def-foreign-type nil
+          (:struct :darwin-mcontext32
+                   (:es (:struct :darwin-ppc-exception-state32))
+                   (:ss (:struct :darwin-ppc-thread-state32))
+                   (:fs (:struct :darwin-ppc-float-state))
+                   (:vs (:struct :darwin-ppc-vector-state))))
+      (def-foreign-type nil
+          (:struct :darwin-ucontext32
+                   (:uc-onstack (:signed 32))
+                   (:uc-sigmask (:signed 32))
+                   (:uc-stack (:struct :darwin-sigaltstack32))
+                   (:uc-link (:* (:struct :darwin-ucontext32)))
+                   (:uc-mcsize (:signed 32))
+                   (:uc-mcontext32 (:* (:struct :darwin-mcontext32)))))
+      )
+    )
+      
+                   
+            
 
   (defmacro with-xp-registers-and-gpr-offset ((xp register-number) (registers offset) &body body)
     (let* ((regform  #+linuxppc-target
                      `(pref ,xp :ucontext.uc_mcontext.regs)
                      #+darwinppc-target
                      (target-arch-case
-                      (:ppc32 `(pref ,xp :ucontext.uc_mcontext.ss))
-                      (:ppc64 `(pref ,xp :ucontext64.uc_mcontext64.ss)))))
+                      ;; Gak.  Apple gratuitously renamed things
+                      ;; for Leopard.  Hey, it's not as if anyone
+                      ;; has better things to do than to deal with
+                      ;; this crap ...
+                      (:ppc32 `(pref ,xp :darwin-ucontext32.uc-mcontext32.ss))
+                      (:ppc64 `(pref ,xp :darwin-ucontext64.uc-mcontext64.ss)))))
     `(with-macptrs ((,registers ,regform))
       (let ((,offset (xp-gpr-offset ,register-number)))
 	,@body))))
@@ -151,9 +312,9 @@
                 #+(and linuxppc-target 64-bit-target)
                 (%get-unsigned-long (pref xp :ucontext.uc_mcontext.fp_regs) (ash 65 2))
 		#+(and darwinppc-target ppc32-target)
-                (pref xp :ucontext.uc_mcontext.fs.fpscr)
+                (pref xp :darwin-ucontext32.uc-mcontext32.fs.fpscr)
                 #+(and darwinppc-target ppc64-target)
-                (pref xp :ucontext64.uc_mcontext64.fs.fpscr)))
+                (pref xp :darwin-ucontext64.uc-mcontext64.fs.fpscr)))
     (values (ldb (byte 24 8) fpscr) (ldb (byte 8 0) fpscr))))
 
 #+linuxppc-target
@@ -167,8 +328,8 @@
 #+darwinppc-target
 (defun xp-double-float (xp fpr)
   (%get-double-float
-     #+ppc32-target (pref xp :ucontext.uc_mcontext.fs)
-     #+ppc64-target (pref xp :ucontext64.uc_mcontext64.fs)
+     #+ppc32-target (pref xp :darwin-ucontext32.uc-mcontext32.fs)
+     #+ppc64-target (pref xp :darwin-ucontext64.uc-mcontext64.fs)
      (ash fpr 3)))
 
 
@@ -203,9 +364,9 @@
 (defun return-address-offset (xp fn machine-state-offset)
   (with-macptrs ((regs (pref xp #+linuxppc-target :ucontext.uc_mcontext.regs
 			        #+(and darwinppc-target ppc32-target)
-                                :ucontext.uc_mcontext
+                                :darwin-ucontext32.uc-mcontext32
                                 #+(and darwinppc-target ppc64-target)
-                                :ucontext64.uc_mcontext64)))
+                                :darwin-ucontext64.uc-mcontext64)))
     (if (functionp fn)
       (or (%code-vector-pc (uvref fn 0) (%inc-ptr regs machine-state-offset))
            (%get-ptr regs machine-state-offset))
@@ -214,20 +375,20 @@
 (defconstant lr-offset-in-register-context
   #+linuxppc-target (ash #$PT_LNK target::word-shift)
   #+(and darwinppc-target ppc32-target)
-  (+ (get-field-offset :mcontext.ss)
-     (get-field-offset :ppc_thread_state.lr))
+  (+ (get-field-offset :darwin-mcontext32.ss)
+     (get-field-offset :darwin-ppc-thread-state32.lr))
   #+(and darwinppc-target ppc64-target)
-  (+ (get-field-offset :mcontext64.ss)
-     (get-field-offset :ppc_thread_state64.lr)))
+  (+ (get-field-offset :darwin-mcontext64.ss)
+     (get-field-offset :darwin-ppc-thread-state64.lr)))
 
 (defconstant pc-offset-in-register-context
   #+linuxppc-target (ash #$PT_NIP target::word-shift)
   #+(and darwinppc-target ppc32-target)
-  (+ (get-field-offset :mcontext.ss)
-     (get-field-offset :ppc_thread_state.srr0))
+  (+ (get-field-offset :darwin-mcontext32.ss)
+     (get-field-offset :darwin-ppc-thread-state32.srr0))
   #+(and darwinppc-target ppc64-target)
-  (+ (get-field-offset :mcontext64.ss)
-     (get-field-offset :ppc_thread_state64.srr0)))
+  (+ (get-field-offset :darwin-mcontext64.ss)
+     (get-field-offset :darwin-ppc-thread-state64.srr0)))
 
 ;;; When a trap happens, we may have not yet created control
 ;;; stack frames for the functions containing PC & LR.
