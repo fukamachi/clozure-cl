@@ -271,19 +271,28 @@
       (x8664::classify-record-type rtype)
     (let* ((gpr-offset 0)
            (fpr-offset 16))
+      ;; Do this 32 bits at a time, to avoid consing.
       (collect ((forms))
         (case first
-          (:integer (forms `(setf (%%get-unsigned-longlong ,r 0)
-                             (%%get-unsigned-longlong ,regbuf 0)))
+          (:integer (forms `(setf (%get-unsigned-long ,r 0)
+                             (%get-unsigned-long ,regbuf 0)))
+                    (forms `(setf (%get-unsigned-long ,r 4)
+                             (%get-unsigned-long ,regbuf 4)))
                     (setq gpr-offset 8))
-          (:float (forms `(setf (%%get-unsigned-longlong ,r 0)
-                             (%%get-unsigned-longlong ,regbuf 16)))
+          (:float (forms `(setf (%get-unsigned-long ,r 0)
+                             (%get-unsigned-long ,regbuf 16)))
+                  (forms `(setf (%get-unsigned-long ,r 4)
+                             (%get-unsigned-long ,regbuf 20)))
                   (setf fpr-offset 24)))
         (case second
-          (:integer (forms `(setf (%%get-unsigned-longlong ,r 8)
-                             (%%get-unsigned-longlong ,regbuf ,gpr-offset))))
-          (:float (forms `(setf (%%get-unsigned-longlong ,r 8)
-                             (%%get-unsigned-longlong ,regbuf ,fpr-offset)))))
+          (:integer (forms `(setf (%get-unsigned-long ,r 8)
+                             (%get-unsigned-long ,regbuf ,gpr-offset)))
+                    (forms `(setf (%get-unsigned-long ,r 12)
+                             (%get-unsigned-long ,regbuf ,(+ gpr-offset 4)))))
+          (:float (forms `(setf (%get-unsigned-long ,r 8)
+                             (%get-unsigned-long ,regbuf ,fpr-offset)))
+                  (forms `(setf (%get-unsigned-long ,r 12)
+                             (%get-unsigned-long ,regbuf ,(+ fpr-offset 4))))))
         `(progn ,@(forms))))))
 
 (defun x8664::expand-ff-call (callform args &key (arg-coerce #'null-coerce-foreign-arg) (result-coerce #'null-coerce-foreign-result))
@@ -294,7 +303,7 @@
          (struct-result-type nil)
          (structure-arg-temp nil))
     (multiple-value-bind (result-type error)
-        (parse-foreign-type result-type-spec)
+        (ignore-errors (parse-foreign-type result-type-spec))
       (if error
         (setq result-type-spec :void result-type *void-foreign-type*)
         (setq args (butlast args)))
@@ -468,10 +477,10 @@
                   (progn
                     (rlets (list name (foreign-record-type-name argtype)))
                     (inits `(setf (%%get-unsigned-longlong ,name 0)
-                             (%%get-unsigned-long-long ,stack-ptr ,(if (eq first8 :integer) (next-gpr) (next-fpr)))))
+                             (%%get-unsigned-longlong ,stack-ptr ,(if (eq first8 :integer) (next-gpr) (next-fpr)))))
                     (if second8
                       (inits `(setf (%%get-unsigned-longlong ,name 8)
-                             (%%get-unsigned-long-long ,stack-ptr ,(if (eq second8 :integer) (next-gpr) (next-fpr)))))))))
+                             (%%get-unsigned-longlong ,stack-ptr ,(if (eq second8 :integer) (next-gpr) (next-fpr)))))))))
                 (lets (list name
                             `(,
                              (ecase (foreign-type-to-representation-type argtype)
