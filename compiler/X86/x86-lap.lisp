@@ -197,6 +197,8 @@
 (defparameter *x86-lap-entry-offset* 15)
 (defparameter *x86-lap-fixed-code-words* nil)
 (defvar *x86-lap-macros* (make-hash-table :test #'equalp))
+(defvar *x86-lap-lfun-bits* 0)
+
 
 
 (defun x86-lap-macro-function (name)
@@ -974,44 +976,46 @@
     (if (eq directive :fixed-constants)
       (dolist (constant arg)
         (ensure-x86-lap-constant-label constant))
-      (let* ((exp (parse-x86-lap-expression arg))
-             (constantp (or (constant-x86-lap-expression-p exp)
-                            (not (x86-lap-expression-p exp)))))
+      (if (eq directive :arglist)
+        (setq *x86-lap-lfun-bits* (encode-lambda-list arg))
+        (let* ((exp (parse-x86-lap-expression arg))
+               (constantp (or (constant-x86-lap-expression-p exp)
+                              (not (x86-lap-expression-p exp)))))
                
-        (if constantp
-          (let* ((val (x86-lap-expression-value exp)))
-            (ecase directive
-              (:code-size
-               (if *x86-lap-fixed-code-words*
-                 (error "Duplicate :CODE-SIZE directive")
-                 (setq *x86-lap-fixed-code-words* val)))
-              (:byte (frag-list-push-byte frag-list val))
-              (:short (frag-list-push-16 frag-list val))
-              (:long (frag-list-push-32 frag-list val))
-              (:quad (frag-list-push-64 frag-list val))
-              (:align (finish-frag-for-align frag-list val))
-              (:org (finish-frag-for-org frag-list val))))
-          (let* ((pos (frag-list-position frag-list))
-                 (frag (frag-list-current frag-list))
-                 (reloctype nil))
-            (ecase directive
-              (:byte (frag-list-push-byte frag-list 0)
-                     (setq reloctype :expr8))
-              (:short (frag-list-push-16 frag-list 0)
-                      (setq reloctype :expr16))
-              (:long (frag-list-push-32 frag-list 0)
-                     (setq reloctype :expr32))
-              (:quad (frag-list-push-64 frag-list 0)
-                     (setq reloctype :expr64))
-              (:align (error ":align expression ~s not constant" arg)))
-            (when reloctype
-              (push
-               (make-reloc :type reloctype
-                           :arg exp
-                           :pos pos
-                           :frag frag)
-               (frag-relocs frag)))))
-        nil))))
+          (if constantp
+            (let* ((val (x86-lap-expression-value exp)))
+              (ecase directive
+                (:code-size
+                 (if *x86-lap-fixed-code-words*
+                   (error "Duplicate :CODE-SIZE directive")
+                   (setq *x86-lap-fixed-code-words* val)))
+                (:byte (frag-list-push-byte frag-list val))
+                (:short (frag-list-push-16 frag-list val))
+                (:long (frag-list-push-32 frag-list val))
+                (:quad (frag-list-push-64 frag-list val))
+                (:align (finish-frag-for-align frag-list val))
+                (:org (finish-frag-for-org frag-list val))))
+            (let* ((pos (frag-list-position frag-list))
+                   (frag (frag-list-current frag-list))
+                   (reloctype nil))
+              (ecase directive
+                (:byte (frag-list-push-byte frag-list 0)
+                       (setq reloctype :expr8))
+                (:short (frag-list-push-16 frag-list 0)
+                        (setq reloctype :expr16))
+                (:long (frag-list-push-32 frag-list 0)
+                       (setq reloctype :expr32))
+                (:quad (frag-list-push-64 frag-list 0)
+                       (setq reloctype :expr64))
+                (:align (error ":align expression ~s not constant" arg)))
+              (when reloctype
+                (push
+                 (make-reloc :type reloctype
+                             :arg exp
+                             :pos pos
+                             :frag frag)
+                 (frag-relocs frag)))))
+          nil)))))
 
 
 (defun x862-lap-process-regsave-info (frag-list regsave-label regsave-mask regsave-addr)
@@ -1297,6 +1301,7 @@
   (let* ((*x86-lap-labels* ())
          (*x86-lap-constants* ())
          (*x86-lap-fixed-code-words* nil)
+         (*x86-lap-lfun-bits* bits)
          (end-code-tag (gensym))
          (instruction (x86::make-x86-instruction))
          (frag-list (make-frag-list)))
@@ -1328,7 +1333,7 @@
              #+x86-target (if (eq *target-backend* *host-backend*)
                             #'create-x86-function
                             #'cross-create-x86-function)
-             name frag-list *x86-lap-constants* bits nil)))
+             name frag-list *x86-lap-constants* *x86-lap-lfun-bits* nil)))
 
 
 (defmacro defx86lapfunction (&environment env name arglist &body body
