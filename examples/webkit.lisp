@@ -55,7 +55,10 @@
 
 (defun browser-window (urlspec)
   ;; Content rect for window, bounds rect for view.
-  (slet ((r (ns-make-rect 100.0 100.0 800.0 600.0)))
+  (slet ((r (ns-make-rect (float 100.0 +cgfloat-zero+)
+                          (float 100.0 +cgfloat-zero+)
+                          (float 800.0 +cgfloat-zero+)
+                          (float 600.0 +cgfloat-zero+))))
 	(with-autorelease-pool 
 	 (let* ((url (if (typep urlspec 'pathname)
 			 (pathname-to-file-url urlspec)

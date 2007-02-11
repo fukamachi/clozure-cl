@@ -72,7 +72,10 @@
 
 (defun tiny-setup ()
   (with-autorelease-pool
-   (slet ((r (ns-make-rect 100.0 350.0 400.0 400.0)))
+   (slet ((r (ns-make-rect (float 100.0 +cgfloat-zero+)
+                           (float 350.0 +cgfloat-zero+)
+                           (float 400.0 +cgfloat-zero+)
+                           (float 400.0 +cgfloat-zero+))))
 	 (let ((w (make-instance 
 		   'ns:ns-window
 		   :with-content-rect r
