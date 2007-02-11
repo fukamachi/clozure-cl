@@ -38,7 +38,7 @@
 (defun linux64::expand-ff-call (callform args &key (arg-coerce #'null-coerce-foreign-arg) (result-coerce #'null-coerce-foreign-result))
   (let* ((result-type-spec (or (car (last args)) :void)))
     (multiple-value-bind (result-type error)
-        (parse-foreign-type result-type-spec)
+        (ignore-errors (parse-foreign-type result-type-spec))
       (if error
         (setq result-type-spec :void result-type *void-foreign-type*)
         (setq args (butlast args)))

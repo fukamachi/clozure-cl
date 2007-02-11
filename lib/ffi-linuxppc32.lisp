@@ -38,7 +38,7 @@
          (enclosing-form nil)
          (result-form nil))
     (multiple-value-bind (result-type error)
-        (parse-foreign-type result-type-spec)
+        (ignore-errors (parse-foreign-type result-type-spec))
       (if error
         (setq result-type-spec :void result-type *void-foreign-type*)
         (setq args (butlast args)))
