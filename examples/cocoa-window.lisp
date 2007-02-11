@@ -196,22 +196,23 @@
 	   (process-run-function "housekeeping"
 				 #'(lambda ()
 				     (loop
-					 (%nanosleep *periodic-task-seconds*
-						     *periodic-task-nanoseconds*)
-					 (housekeeping))))
+                                       (%nanosleep *periodic-task-seconds*
+                                                   *periodic-task-nanoseconds*)
+                                       (housekeeping))))
 	   
            (with-autorelease-pool
-               (enable-foreground)
-               (or *NSApp* (setq *NSApp* (init-cocoa-application)))
-               (send *NSApp* :set-application-icon-image
-                     (send (@class ns-image) :image-Named #@"NSApplicationIcon"))
-               (setf (application-ui-object *application*) *NSApp*)
+             (enable-foreground)
+             (or *NSApp* (setq *NSApp* (init-cocoa-application)))
+             (let* ((icon (send (@class ns-image) :image-named #@"NSApplicationIcon")))
+               (unless (%null-ptr-p icon)
+                 (send *NSApp* :set-application-icon-image icon)))
+             (setf (application-ui-object *application*) *NSApp*)
+             (when application-proxy-class-name
+               (let* ((classptr (%objc-class-classptr
+                                 (load-objc-class-descriptor application-proxy-class-name)))
+                      (instance (send (send classptr 'alloc) 'init)))
 
-               (when application-proxy-class-name
-                 (let* ((classptr (%objc-class-classptr
-                                   (load-objc-class-descriptor application-proxy-class-name))))
-                   (send *NSApp* :set-delegate
-                         (send (send classptr 'alloc) 'init)))))
+                 (send *NSApp* :set-delegate instance))))
            (run-event-loop)))
     (process-interrupt *cocoa-event-process* #'(lambda ()
 						 (%set-toplevel 
