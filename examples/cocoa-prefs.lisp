@@ -147,7 +147,7 @@
   
 (define-objc-method ((:id :init-with-frame (:<NSR>ect frame))
                      prefs-view)
-    (send-super :init-with-frame frame)
+  (send-super :init-with-frame frame)
   (slet ((scroll-frame (ns-make-rect (float 20.0f0 +cgfloat-zero+)
                                      (float 40.0f0 +cgfloat-zero+)
                                      (- (pref frame :<NSR>ect.size.width) 40.0f0)
@@ -210,8 +210,9 @@
         (t
          (let* ((panel (new-cocoa-window :class self
                                          :title "Preferences"
-                                         :activate nil)))
-           (slet ((bounds (send (send panel 'content-view) 'bounds)))
+                                         :activate nil))
+                (view (send panel 'content-view)))
+           (slet ((bounds (send view 'bounds)))
              (let* ((v (make-instance 'prefs-view :with-frame bounds)))
                (send panel :set-content-view v)
                (send v :set-needs-display t)

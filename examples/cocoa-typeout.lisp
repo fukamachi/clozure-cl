@@ -46,8 +46,8 @@
     (setf (slot-value self 'scroll-view) scrollview)
     (slet* ((contentsize (send scrollview 'content-size))
 	    (text-frame (ns-make-rect
-			 0.0f0
-			 0.0f0
+			 +cgfloat-zero+
+			 +cgfloat-zero+
 			 (pref contentsize :<NSS>ize.width)
 			 (pref contentsize :<NSS>ize.height))))
 	   (let* ((text-view (make-objc-instance 'ns:ns-text-view
@@ -76,9 +76,11 @@
                                          :title "Typeout"
 					 :width 600
                                          :activate nil)))
-	   (rlet ((size :<NSS>ize :width 600.0f0 :height 10000.0f0))
+	   (rlet ((size :<NSS>ize
+                    :width (float 600.0f0 +cgfloat-zero+)
+                    :height (float 10000.0f0 +cgfloat-zero+)))
 		 (send panel :set-max-size size)
-		 (setf (pref size :<NSS>ize.height) 1.0f0)
+		 (setf (pref size :<NSS>ize.height) (float 1.0f0 +cgfloat-zero+))
 		 (send panel :set-min-size size))
            (slet ((bounds (send (send panel 'content-view) 'bounds)))
 		 (let* ((view (make-instance 'typeout-view :with-frame bounds)))

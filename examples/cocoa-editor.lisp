@@ -518,8 +518,7 @@
 			(make-buffer-cache)
 			buffer))))
 
-(define-objc-method ((:id :attributes-at-index (#+apple-objc-2.0 :<NSUI>nteger
-                                                #-apple-objc-2.0 :unsigned index)
+(define-objc-method ((:id :attributes-at-index (:<NSUI>nteger index)
 			  :effective-range ((* :<NSR>ange) rangeptr))
 		     hemlock-text-storage)
   #+debug
@@ -812,9 +811,9 @@
                                    (pref r :<NSR>ange.length)
                                    (- index (mark-absolute-position m2)))
                              (return-from HANDLED nil))))))))))))
-    (objc-message-send-super-stret r (super) "selectionRangeForProposedRange:granularity:"
-                                   :<NSR>ange proposed
-                                   :<NSS>election<G>ranularity g)
+    (send-super/stret r
+                      :selection-range-for-proposed-range proposed
+                      :granularity g)
     #+debug
     (#_NSLog #@"range = %@, proposed = %@, granularity = %d"
              :address (#_NSStringFromRange r)
@@ -1054,18 +1053,18 @@
                (modeline-frame (send hscroll 'frame))) ; sic
            (let* ((modeline-width (* (pref modeline-frame
                                            :<NSR>ect.size.width)
-                                     0.75e0)))
-             (declare (single-float modeline-width))
+                                     0.75f0)))
+             (declare (type cg-float single-float modeline-width))
              (setf (pref modeline-frame :<NSR>ect.size.width)
                    modeline-width
-                   (the single-float
+                   (the cg-float
                      (pref scrollbar-frame :<NSR>ect.size.width))
-                   (- (the single-float
+                   (- (the cg-float
                         (pref scrollbar-frame :<NSR>ect.size.width))
                       modeline-width)
-                   (the single-float
+                   (the cg-float
                      (pref scrollbar-frame :<NSR>ect.origin.x))
-                   (+ (the single-float
+                   (+ (the cg-float
                         (pref scrollbar-frame :<NSR>ect.origin.x))
                       modeline-width))
              (send hscroll :set-frame scrollbar-frame)
@@ -1125,13 +1124,17 @@
                                            #$NSViewHeightSizable))
         (send pane :set-box-type #$NSBoxPrimary)
         (send pane :set-border-type #$NSNoBorder)
-        (send pane :set-content-view-margins (ns-make-size *text-pane-margin-width* *text-pane-margin-height*))
+        (send pane :set-content-view-margins (ns-make-size (float *text-pane-margin-width* +cgfloat-zero+) (float *text-pane-margin-height* +cgfloat-zero+)))
         (send pane :set-title-position #$NSNoTitle))
       pane))
 
 
 (defun make-scrolling-text-view-for-textstorage (textstorage x y width height tracks-width color)
-  (slet ((contentrect (ns-make-rect x y width height)))
+  (slet ((contentrect (ns-make-rect
+                       (float x +cgfloat-zero+)
+                       (float y +cgfloat-zero+)
+                       (float width +cgfloat-zero+)
+                       (float height +cgfloat-zero+))))
     (let* ((scrollview (send (make-objc-instance
 			      'modeline-scroll-view
 			      :with-frame contentrect) 'autorelease)))
@@ -1243,7 +1246,10 @@
 (defloadvar *hemlock-frame-count* 0)
 
 (defun make-echo-area (hemlock-frame x y width height gap-context color)
-  (slet ((frame (ns-make-rect x y width height)))
+  (slet ((frame (ns-make-rect (float x +cgfloat-zero+)
+                              (float y +cgfloat-zero+)
+                              (float width +cgfloat-zero+)
+                              (float height +cgfloat-zero+))))
     (let* ((box (make-objc-instance "NSView"
                                     :with-frame frame)))
       (send box :set-autoresizing-mask #$NSViewWidthSizable)
@@ -1455,8 +1461,8 @@
 (defun add-pane-to-window (w &key (reserve-above 0.0f0) (reserve-below 0.0f0))
   (let* ((window-content-view (send w 'content-view)))
     (slet ((window-frame (send window-content-view 'frame)))
-      (slet ((pane-rect (ns-make-rect 0.0f0
-				      reserve-below
+      (slet ((pane-rect (ns-make-rect +cgfloat-zero+
+				      (float reserve-below +cgfloat-zero+)
 				      (pref window-frame :<NSR>ect.size.width)
 				      (- (pref window-frame :<NSR>ect.size.height) (+ reserve-above reserve-below)))))
 	(let* ((pane (make-objc-instance 'text-pane :with-frame pane-rect)))
@@ -1803,24 +1809,28 @@
          (height (fceiling (* nrows char-height)))
 	 (width (fceiling (* ncols char-width)))
 	 (scrollview (text-pane-scroll-view pane))
-	 (window (send scrollview 'window)))
+	 (window (send scrollview 'window))
+         (has-horizontal-scroller (send scrollview 'has-horizontal-scroller))
+         (has-vertical-scroller (send scrollview 'has-vertical-scroller)))
+    (format t "~& width = ~s, height = ~s" width height)
     (rlet ((tv-size :<NSS>ize :height height
 		    :width (+ width (* 2 (send (send tv 'text-container)
                                                'line-fragment-padding)))))
-      (when (send scrollview 'has-vertical-scroller)
+      (#_NSLog #@"\ntv-size = %@\n" :address (#_NSStringFromSize tv-size))
+      
+      (when has-vertical-scroller 
 	(send scrollview :set-vertical-line-scroll char-height)
 	(send scrollview :set-vertical-page-scroll +cgfloat-zero+ #|char-height|#))
-      (when (send scrollview 'has-horizontal-scroller)
+      (when has-horizontal-scroller
 	(send scrollview :set-horizontal-line-scroll char-width)
 	(send scrollview :set-horizontal-page-scroll +cgfloat-zero+ #|char-width|#))
       (slet ((sv-size
 	      (send (@class ns-scroll-view)
 		    :frame-size-for-content-size tv-size
-		    :has-horizontal-scroller
-		    (send scrollview 'has-horizontal-scroller)
-		    :has-vertical-scroller
-		    (send scrollview 'has-vertical-scroller)
+		    :has-horizontal-scroller has-horizontal-scroller
+		    :has-vertical-scroller has-vertical-scroller
 		    :border-type (send scrollview 'border-type))))
+        (#_NSLog #@"\na: sv-size = %@\n" :address (#_NSStringFromSize sv-size))
 	(slet ((pane-frame (send pane 'frame))
                (margins (send pane 'content-view-margins)))
 	  (incf (pref sv-size :<NSS>ize.height)
@@ -1828,6 +1838,7 @@
                    (* 2 (pref margins :<NSS>ize.height))))
           (incf (pref sv-size :<NSS>ize.width)
                 (pref margins :<NSS>ize.width))
+          (#_NSLog #@"\nb: sv-size = %@\n" :address (#_NSStringFromSize sv-size))
 	  (send window :set-content-size sv-size)
 	  (send window :set-resize-increments
 		(ns-make-size char-width char-height)))))))
@@ -1855,10 +1866,11 @@
 
 (defmethod textview-background-color ((doc hemlock-editor-document))
   (send (find-class 'ns:ns-color)
-        :color-with-calibrated-red *editor-background-red-component*
-        :green *editor-background-green-component*
-        :blue *editor-background-blue-component*
-        :alpha *editor-background-alpha-component*))
+        :color-with-calibrated-red (float *editor-background-red-component*
+                                          +cgfloat-zero+)
+        :green (float *editor-background-green-component* +cgfloat-zero+)
+        :blue (float *editor-background-blue-component* +cgfloat-zero+)
+        :alpha (float *editor-background-alpha-component* +cgfloat-zero+)))
 
 
 (define-objc-method ((:void :set-text-storage ts)
