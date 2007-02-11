@@ -190,6 +190,7 @@
 
 
 (defx86lapfunction values ()
+  (:arglist (&rest values))
   (push-argregs)
   (movzwl (%w nargs) (%l nargs))
   (rcmpw (% nargs) ($ '3))
