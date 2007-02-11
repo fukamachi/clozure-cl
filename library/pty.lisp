@@ -44,18 +44,14 @@
 	(values nil nil nil nil nil nil nil)
 	(progn
 	  (if control-chars
-	    (%copy-ptr-to-ivector (pref attr :termios.c_cc)
-				  0
-				  control-chars
-				  0
-				  #$NCCS))
+            (%str-from-ptr (pref attr :termios.c_cc) #$NCCS control-chars))
 	  (values
 	   (pref attr :termios.c_iflag)
 	   (pref attr :termios.c_oflag)
 	   (pref attr :termios.c_cflag)
 	   (pref attr :termios.c_lflag)
-	   #+darwinppc-target 0
-	   #-darwinppc-target
+	   #+darwin-target 0
+	   #-darwin-target
 	   (pref attr :termios.c_line)
 	   control-chars
 	   (pref attr :termios.c_ispeed)
@@ -90,11 +86,7 @@
 	      (setf (pref attr :termios.c_lflag) local-modes)
 	      (setq write-back t))
 	    (when control-chars
-	      (%copy-ivector-to-ptr control-chars
-				    0
-				    (pref attr :termios.c_cc)
-				    0
-				    #$NCCS)
+              (%cstr-pointer control-chars (pref attr :termios.c_cc) nil)
 	      (setq write-back t))
 	    (when input-speed
 	      (setf (pref attr :termios.c_ispeed) input-speed)
