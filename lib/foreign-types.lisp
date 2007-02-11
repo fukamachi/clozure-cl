@@ -1321,27 +1321,7 @@ arg-type-specifier. Returns the foreign function result (coerced to a
 Lisp object of type indicated by result-type-specifier), or NIL if
 result-type-specifer is :VOID or NIL"
   (funcall (ftd-ff-call-expand-function *target-ftd*)
-           `(%ff-call ,entry) args)
-  #+nil          
-  (let* ((monitor (eq (car args) :monitor-exception-ports)))
-    (when monitor
-      (setq args (cdr args)))
-    (collect ((representation nil))
-      (when monitor
-	(representation :monitor-exception-ports))
-      (do* ((a args (cddr a)))
-	   ((null (cdr a))
-	    (if (null a) (representation :void)
-	      (let* ((rettype (car a)))
-		(representation (foreign-type-to-representation-type
-				 rettype)))))
-	(let* ((spec (car a))
-	       (val (cadr a)))
-          (if (eq spec :registers)
-            (representation spec)
-            (representation (foreign-type-to-representation-type spec)))
-	(representation val)))
-    `(%ff-call ,entry ,@(representation)))))
+           `(%ff-call ,entry) args))
 	
 	  
 (make-built-in-class 'external-entry-point *istruct-class*)
