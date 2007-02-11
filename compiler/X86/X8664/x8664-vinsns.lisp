@@ -971,7 +971,7 @@
   (movslq (:%l src) (:%q dest)))
 
 
-(define-x8664-vinsn zero-extend-s8 (((dest :s64))
+(define-x8664-vinsn zero-extend-u8 (((dest :s64))
                                     ((src :u8)))
   (movzbl (:%b src) (:%l dest)))
 
@@ -3442,12 +3442,12 @@
 
 
 (define-x8664-vinsn alloc-c-frame (()
-                                   ((nbytes :u32const)))
+                                   ((nwords :u32const)))
   (movq (:@ (:%seg :rcontext) x8664::tcr.foreign-sp) (:%mmx x8664::stack-temp))
-  ((:pred < nbytes 128)
-   (subq (:$b nbytes) (:@ (:%seg :rcontext) x8664::tcr.foreign-sp)))
-  ((:not (:pred < nbytes 128))
-   (subq (:$l nbytes) (:@ (:%seg :rcontext) x8664::tcr.foreign-sp)))
+  ((:pred < (:apply ash (:apply logandc2 (:apply + nwords 9) 1) x8664::word-shift) 128)
+   (subq (:$b (:apply ash (:apply logandc2 (:apply + nwords 9) 1) x8664::word-shift)) (:@ (:%seg :rcontext) x8664::tcr.foreign-sp)))
+  ((:not (:pred < (:apply ash (:apply logandc2 (:apply + nwords 9) 1) x8664::word-shift) 128))
+   (subq (:$l (:apply ash (:apply logandc2 (:apply + nwords 9) 1) x8664::word-shift)) (:@ (:%seg :rcontext) x8664::tcr.foreign-sp)))
   (movq (:@ (:%seg :rcontext) x8664::tcr.foreign-sp) (:%q x8664::ra0))
   (movq (:%mmx x8664::stack-temp) (:@ (:%q x8664::ra0))))
 
