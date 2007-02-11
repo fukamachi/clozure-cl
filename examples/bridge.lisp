@@ -755,8 +755,8 @@
           ;; STRET required but not provided
           (error "The message ~S must be sent using SEND/STRET" msg)
           (if (null super)
-            `(objc-message-send-stret ,s ,o ,msg ,@arglist :void)
-            `(objc-message-send-super-stret ,s ,super ,msg ,@arglist :void)))
+            `(objc-message-send-stret ,s ,o ,msg ,@arglist ,(car (objc-method-info-signature method-info)))
+            `(objc-message-send-super-stret ,s ,super ,msg ,@arglist ,(car (objc-method-info-signature method-info)))))
         (if s
           ;; STRET provided but not required
           (error "The message ~S must be sent using SEND" msg)
