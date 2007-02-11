@@ -5,15 +5,24 @@
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (require "BRIDGE"))
 
+(defun allocate-objc-object (class)
+  (send class 'alloc))
+
+
 #-apple-objc-2.0
 (progn
   (def-foreign-type :<CGF>loat :float)
   (def-foreign-type :<NSUI>nteger :unsigned)'
-  (def-foreign-type :<NSI>nteger :signed))
+  (def-foreign-type :<NSI>nteger :signed)
+  )
 
 (defconstant +cgfloat-zero+
   #+(and apple-objc-2.0 64-bit-target) 0.0d0
   #-(and apple-objc-2.0 64-bit-target) 0.0f0)
+
+(deftype cg-float ()
+    #+(and apple-objc-2.0 64-bit-target) 'double-float
+    #-(and apple-objc-2.0 64-bit-target) 'single-float)
 
 #+apple-objc
 (defun iterate-over-objc-classes (fn)
@@ -177,11 +186,58 @@ instance variable."
   `(handler-case (progn ,@body)
     (error (c) (external-call "__NSRaiseError" :address (ns-exception c) :void))))
 
+#+ppc-target
 (defun objc-callback-error-return (condition return-value-pointer return-address-pointer)
-  (%set-object return-address-pointer 0
-               (%reference-external-entry-point (load-time-value (external "__NSRaiseError"))))
+  ;; On PPC, the "address" of an external entry point is always
+  ;; aligned on a 32-bit word boundary.  On PPC32, it can always
+  ;; be represented as a fixnum; on PPC64, it might be a pointer
+  ;; instead.
+  ;; Note that this clobbers the actual (foreign) return address,
+  ;; replacing it with the address of #__NSRaiseError.  Note also
+  ;; that storing the NSException object as the return value has
+  ;; the desired effect of causing #__NSRaiseError to be called
+  ;; with that NSException as its argument (because r3 is used both
+  ;; as the canonical return value register and used to pass the
+  ;; first argument on PPC.)
+  (let* ((addr (%reference-external-entry-point (load-time-value (external "__NSRaiseError")))))
+    (if (type addr 'fixnum)
+      (%set-object return-address-pointer 0 addr)
+      (setf (%get-ptr return-address-pointer 0) addr)))
   (setf (%get-ptr return-value-pointer 0) (ns-exception condition))
   nil)
+
+#+x8664-target
+(progn
+(defloadvar *x8664-objc-callback-error-return-trampoline*
+    (let* ((code-bytes '(#x48 #x89 #xc7      ; movq %rax %rdi
+                         #x66 #x48 #x0f #x7e ; movd %xmm0,%rax
+                         #x52                ; pushq %rdx
+                         #xff #xe0))         ; jmp *rax
+           (nbytes (length code-bytes))
+           (ptr (#_malloc nbytes)))
+      (dotimes (i nbytes ptr)
+        (setf (%get-unsigned-byte ptr i) (pop code-bytes)))))
+
+(defun objc-callback-error-return (condition return-value-pointer return-address-pointer) 
+  ;; The callback glue reserves space for %rax at return-value-pointer-8,
+  ;; for %rdx at -16, for %xmm0 at -24.  Store NS-EXCEPTION in the
+  ;; %rax slot, the address of #__NSRaiseError in the %rdx slot, the
+  ;; original return address in the %xmm0 slot, and force a return to
+  ;; the trampoline code above.
+  (setf (%get-ptr return-value-pointer -8) (ns-exception condition)
+        (%get-ptr return-value-pointer -16) (%get-ptr return-address-pointer 0)
+        (%get-ptr return-address-pointer 0) *x8664-objc-callback-error-return-trampoline*)
+  ;; A foreign entry point is always an integer on x8664.
+  (let* ((addr (%reference-external-entry-point (load-time-value (external "__NSRaiseError")))))
+    (if (< addr 0)                      ;unlikely
+      (setf (%%get-signed-longlong return-value-pointer -24) addr)
+      (setf (%%get-unsigned-longlong return-value-pointer -24) addr)))
+  nil)
+
+
+
+)
+
 
 )
 
@@ -191,7 +247,7 @@ instance variable."
   (send (@class ns-bundle) 'main-bundle))
 
 ;;; Create a new immutable dictionary just like src, replacing the
-;;; value of "newkey" with "newvalue".
+;;; value of each key in key-value-pairs with the corresponding value.
 (defun copy-dictionary (src &rest key-value-pairs)
   (declare (dynamic-extent key-value-pairs))
   ;(#_NSLog #@"src = %@" :id src)
