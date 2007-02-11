@@ -37,7 +37,7 @@
 (defun %cons-pfe (routine-descriptor proc-info lisp-function sym without-interrupts)
   (vector routine-descriptor proc-info lisp-function sym without-interrupts nil))
 
-;;; (defcallback ...) on the PPC expands into a call to this function.
+;;; (defcallback ...) expands into a call to this function.
 (defun define-callback-function (lisp-function  &optional doc-string (without-interrupts t) monitor-exception-ports
                                                    &aux name trampoline)
   (unless (functionp lisp-function)
