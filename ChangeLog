@@ -1,3 +1,21 @@
+2007-02-11 20:22  gb
+
+	* examples/bridge.lisp: method-typestring needs to be
+	conditionalized.  How has this been working ?
+
+2007-02-11 20:22  gb
+
+	* examples/cocoa-editor.lisp: remove some debugging code.
+
+2007-02-11 20:21  gb
+
+	* examples/objc-runtime.lisp: %mlist-containing is
+	#-apple-objc-2.0.
+
+2007-02-11 20:21  gb
+
+	* examples/objc-support.lisp: Lose a quote mark, fix another typo.
+
 2007-02-11 05:35  gb
 
 	* level-1/version.lisp: Bump.
