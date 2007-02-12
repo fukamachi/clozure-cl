@@ -12,7 +12,7 @@
 #-apple-objc-2.0
 (progn
   (def-foreign-type :<CGF>loat :float)
-  (def-foreign-type :<NSUI>nteger :unsigned)'
+  (def-foreign-type :<NSUI>nteger :unsigned)
   (def-foreign-type :<NSI>nteger :signed)
   )
 
@@ -200,7 +200,7 @@ instance variable."
   ;; as the canonical return value register and used to pass the
   ;; first argument on PPC.)
   (let* ((addr (%reference-external-entry-point (load-time-value (external "__NSRaiseError")))))
-    (if (type addr 'fixnum)
+    (if (typep addr 'fixnum)
       (%set-object return-address-pointer 0 addr)
       (setf (%get-ptr return-address-pointer 0) addr)))
   (setf (%get-ptr return-value-pointer 0) (ns-exception condition))
