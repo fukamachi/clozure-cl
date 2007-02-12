@@ -42,7 +42,10 @@
 ;;; Return the typestring for an ObjC METHOD 
 
 (defun method-typestring (method)
-  (%get-cstring (pref method :objc_method.method_types)))
+  (%get-cstring #+apple-objc-2.0
+                (#_method_getTypeEncoding method)
+                #-apple-objc-2.0
+                (pref method :objc_method.method_types)))
 
 
 ;;; Parse the ObjC message from a SENDxxx macro
