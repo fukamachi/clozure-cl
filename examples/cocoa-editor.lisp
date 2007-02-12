@@ -1812,12 +1812,9 @@
 	 (window (send scrollview 'window))
          (has-horizontal-scroller (send scrollview 'has-horizontal-scroller))
          (has-vertical-scroller (send scrollview 'has-vertical-scroller)))
-    (format t "~& width = ~s, height = ~s" width height)
     (rlet ((tv-size :<NSS>ize :height height
 		    :width (+ width (* 2 (send (send tv 'text-container)
                                                'line-fragment-padding)))))
-      (#_NSLog #@"\ntv-size = %@\n" :address (#_NSStringFromSize tv-size))
-      
       (when has-vertical-scroller 
 	(send scrollview :set-vertical-line-scroll char-height)
 	(send scrollview :set-vertical-page-scroll +cgfloat-zero+ #|char-height|#))
@@ -1830,7 +1827,6 @@
 		    :has-horizontal-scroller has-horizontal-scroller
 		    :has-vertical-scroller has-vertical-scroller
 		    :border-type (send scrollview 'border-type))))
-        (#_NSLog #@"\na: sv-size = %@\n" :address (#_NSStringFromSize sv-size))
 	(slet ((pane-frame (send pane 'frame))
                (margins (send pane 'content-view-margins)))
 	  (incf (pref sv-size :<NSS>ize.height)
@@ -1838,7 +1834,6 @@
                    (* 2 (pref margins :<NSS>ize.height))))
           (incf (pref sv-size :<NSS>ize.width)
                 (pref margins :<NSS>ize.width))
-          (#_NSLog #@"\nb: sv-size = %@\n" :address (#_NSStringFromSize sv-size))
 	  (send window :set-content-size sv-size)
 	  (send window :set-resize-increments
 		(ns-make-size char-width char-height)))))))
