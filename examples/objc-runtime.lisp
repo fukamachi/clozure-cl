@@ -1814,6 +1814,7 @@ argument lisp string."
 ;;; that the objc runtime will invalidate any cached references
 ;;; to the old IMP, at least as far as objc method dispatch is
 ;;; concerned.
+#-apple-objc-2.0
 (defun %mlist-containing (classptr selector typestring imp)
   #-apple-objc (declare (ignore classptr selector typestring imp))
   #+apple-objc
