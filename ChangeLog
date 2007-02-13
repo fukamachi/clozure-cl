@@ -1,3 +1,7 @@
+2007-02-12 16:23  gb
+
+	* darwin-x86-headers64/libc/C/populate.sh: Select an SDK.
+
 2007-02-11 20:22  gb
 
 	* examples/bridge.lisp: method-typestring needs to be
