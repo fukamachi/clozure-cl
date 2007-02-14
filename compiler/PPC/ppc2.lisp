@@ -8248,7 +8248,9 @@
                (ppc2-one-targeted-reg-form seg valform df)
                (! set-double-c-arg df nextarg)            
                (push (cons :double-float nextarg) fp-loads)
-               (incf nextarg)))
+               (target-word-size-case
+                (32 (incf nextarg))
+                (64))))
             (:single-float
              (let* ((sf ($ ppc::fp1 :class :fpr :mode :single-float)))
                (ppc2-one-targeted-reg-form seg valform sf)
