@@ -1,3 +1,60 @@
+2007-02-13 18:12  gb
+
+	* level-0/X86/x86-misc.lisp: Add rdtsc (returns 60 bit non-negative
+	fixnum) and rdtsc64 (returns 64-bit non-negative integer.)
+
+2007-02-13 18:10  gb
+
+	* lib/time.lisp: Simpler GET-INTERNAL-RUN-TIME (tries harder not to
+	cons.)
+
+2007-02-13 18:10  gb
+
+	* examples/rubix/rubix.lisp: A little bit of cgfloat stuff; there
+	are more/other float-size issues deeper down in the code.
+
+2007-02-13 18:09  gb
+
+	* examples/objc-support.lisp: Fixup the x86-64 error-return
+	callback trampiline code (was missing a byte of machine code.)
+
+2007-02-13 18:08  gb
+
+	* examples/objc-runtime.lisp: Set the mxcsr/fpctrl fields of
+	jmp-buf to safe/sane values.
+
+2007-02-13 18:07  gb
+
+	* examples/cocoa-window.lisp: Don't change-class
+	*cocoa-event-process* until we start to run the event loop.
+	
+	Don't do _deallocHardCore: explicitly.
+
+2007-02-13 17:35  gb
+
+	* compiler/PPC/ppc2.lisp: poweropen-foreign-args: on ppc64, a
+	DOUBLE-FLOAT aliases just one gpr.
+
+2007-02-13 17:34  gb
+
+	* darwin-headers64/libc/C/populate.sh: Select the SDK directory.
+
+2007-02-13 17:34  gb
+
+	* library/pty.lisp: return-value pointers in OPEN-PTY-PAIR are just
+	32-bit ints, not "long".
+
+2007-02-13 17:33  gb
+
+	* lib/ffi-darwinppc64.lisp: Callback arguments: update offset/delta
+	for each scalar, not each arg.
+	
+	Fix some backquoting/indentation.
+
+2007-02-13 17:31  gb
+
+	* lib/ffi-darwinppc32.lisp: Fix typo (^get-signed-long).
+
 2007-02-12 16:23  gb
 
 	* darwin-x86-headers64/libc/C/populate.sh: Select an SDK.
