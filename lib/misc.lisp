@@ -387,14 +387,11 @@ are running on, or NIL if we can't find any useful information."
                                   minor-page-faults major-page-faults
                                   swaps)
   (let* ((s *trace-output*)
-         (other-process-time (- elapsed-time (+ user-time system-time))))
-    (format s "~&~S took ~:D milliseconds (~,3F seconds) to run."
-            form elapsed-time (/ elapsed-time internal-time-units-per-second))
-    (format s "~&Of that, ~:D milliseconds (~,3F seconds) were spent in user mode" user-time (/ user-time internal-time-units-per-second))
-    (format s "~&         ~:D milliseconds (~,3F seconds) were spent in system mode" system-time (/ system-time internal-time-units-per-second))
-    (when (> other-process-time 0)
-      (format s "~%         ~:D milliseconds (~,3F seconds) were spent executing other OS processes."
-              other-process-time (/ other-process-time internal-time-units-per-second)))
+         (cpu-count (cpu-count)))
+    (format s "~&~S took ~:D milliseconds (~,3F seconds) to run ~%~20twith ~D available CPU core~P."
+            form elapsed-time (/ elapsed-time internal-time-units-per-second) cpu-count cpu-count)
+    (format s "~&During that period, ~:D milliseconds (~,3F seconds) were spent in user mode" user-time (/ user-time internal-time-units-per-second))
+    (format s "~&                    ~:D milliseconds (~,3F seconds) were spent in system mode" system-time (/ system-time internal-time-units-per-second))
     (unless (eql gc-time 0)
       (format s
               "~%~:D milliseconds (~,3F seconds) was spent in GC."
