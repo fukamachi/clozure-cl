@@ -225,12 +225,13 @@
 	 (w-content-view (ccl::send w 'content-view)))
     ;; Q: why slet here?
     (ccl::slet ((w-frame (ccl::send w-content-view 'frame)))
-      (ccl::slet ((glview-rect (ccl::ns-make-rect *aluminum-margin*
-					*aluminum-margin*
-					(- (pref w-frame :<NSR>ect.size.width)
-					   (* 2 *aluminum-margin*))
-					(- (pref w-frame :<NSR>ect.size.height)
-					   *aluminum-margin*))))
+      (ccl::slet ((glview-rect (ccl::ns-make-rect
+                                (float *aluminum-margin* ccl::+cgfloat-zero+)
+                                (float *aluminum-margin* ccl::+cgfloat-zero+)
+                                (- (pref w-frame :<NSR>ect.size.width)
+                                   (* 2 *aluminum-margin*))
+                                (- (pref w-frame :<NSR>ect.size.height)
+                                   *aluminum-margin*))))
 	;; Q: why make-objc-instance here?
 	(let ((glview (ccl::send (ccl::send (ccl::@class rubix-opengl-view) 'alloc)
 			    :init-with-frame glview-rect
