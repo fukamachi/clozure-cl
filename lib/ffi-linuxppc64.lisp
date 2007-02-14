@@ -68,7 +68,7 @@
                     (if (< bits 64)
                       (progn
                         (argforms :unsigned-doubleword)
-                        (argforms `(ash (%%get-unsigned-long-long ,arg-value-form) ,(- bits 64))))
+                        (argforms `(ash (%%get-unsigned-longlong ,arg-value-form 0) ,(- bits 64))))
                       (progn
                         (argforms (ceiling bits 64))
                         (argforms arg-value-form))))
