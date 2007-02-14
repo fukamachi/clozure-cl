@@ -1,5 +1,9 @@
 #!/bin/sh
 SDK=/Developer/SDKs/MacOSX10.4u.sdk
+if [ $# -eq 1 ]
+then
+SDK=$1
+fi
 CFLAGS="-m64 -Wno-endif-labels -isysroot ${SDK}";export CFLAGS
 rm -rf usr Developer System
 h-to-ffi.sh ${SDK}/usr/include/ar.h
