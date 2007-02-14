@@ -17,7 +17,7 @@ OpenMCL 1.1-pre-070214
 
   These idioms are fairly rare in traditional C code (though it's
   fairly common to pass -pointers- to structures by reference
-  and sometimes to return pointers to structures.  (There are
+  and sometimes to return pointers to structures.  There are
   a few C compiler runtime routines that perform some flavor
   of integer division and return a two-element structure that
   contains "quotient" and "remainder" fields, but that's typically
