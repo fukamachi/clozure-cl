@@ -1,3 +1,11 @@
+2007-02-14 02:39  gb
+
+	* release-notes.txt: Fix a typo.
+
+2007-02-14 02:35  gb
+
+	* release-notes.txt: Update for 070214 snapshots.
+
 2007-02-13 23:36  gb
 
 	* level-1/version.lisp: Bump.
