@@ -548,6 +548,8 @@
 (defun %associate-jmp-buf-with-catch-frame (jmp-buf catch-frame c-frame)
   (setf (%get-ptr jmp-buf JB-rbx) throw-to-catch-frame
         (%get-ptr jmp-buf JB-rip) *setjmp-catch-rip-code*)
+  (setf (%get-unsigned-long jmp-buf JB-mxcsr) #x1f80
+        (%get-unsigned-long jmp-buf JB-fpcontrol) #x37f)
   (%set-object jmp-buf JB-RSP c-frame)
   (%set-object jmp-buf JB-RBP c-frame)
   (%set-object jmp-buf JB-r12 catch-frame)
