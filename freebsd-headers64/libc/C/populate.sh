@@ -1,5 +1,5 @@
 #|/bin/sh
-#
+rm -rf usr
 h-to-ffi.sh -m64 -include /usr/include/sys/types.h /usr/include/a.out.h
 h-to-ffi.sh -m64 -include /usr/include/sys/types.h /usr/include/ar.h
 h-to-ffi.sh -m64 -include /usr/include/sys/types.h /usr/include/assert.h
@@ -131,7 +131,8 @@ h-to-ffi.sh -m64 -include /usr/include/sys/types.h /usr/include/magic.h
 h-to-ffi.sh -m64 -include /usr/include/sys/types.h /usr/include/memstat.h
 h-to-ffi.sh -m64 -include /usr/include/sys/types.h /usr/include/menu.h
 h-to-ffi.sh -m64 -include /usr/include/sys/types.h /usr/include/eti.h
-h-to-ffi.sh -m64 -include /usr/include/sys/types.h /usr/include/mp.h
+# conflicts with things defined in math.h
+#h-to-ffi.sh -m64 -include /usr/include/sys/types.h /usr/include/mp.h
 h-to-ffi.sh -m64 -include /usr/include/sys/types.h /usr/include/opie.h
 h-to-ffi.sh -m64 -include /usr/include/sys/types.h /usr/include/panel.h
 h-to-ffi.sh -m64 -include /usr/include/sys/types.h /usr/include/pcap.h
@@ -509,7 +510,8 @@ h-to-ffi.sh -m64 -include /usr/include/sys/types.h /usr/include/net/if_pppvar.h
 h-to-ffi.sh -m64 -include /usr/include/sys/types.h /usr/include/net/if_slvar.h
 h-to-ffi.sh -m64 -include /usr/include/sys/types.h /usr/include/net/if_sppp.h
 h-to-ffi.sh -m64 -include /usr/include/sys/types.h /usr/include/net/if_stf.h
-h-to-ffi.sh -m64 -include /usr/include/sys/types.h /usr/include/net/pfil.h
+# defines conflicting "log"
+#h-to-ffi.sh -m64 -include /usr/include/sys/types.h /usr/include/net/pfil.h
 h-to-ffi.sh -m64 -include /usr/include/sys/types.h /usr/include/net/if_tap.h
 h-to-ffi.sh -m64 -include /usr/include/sys/types.h /usr/include/net/if_tapvar.h
 h-to-ffi.sh -m64 -include /usr/include/sys/types.h /usr/include/net/if_tun.h
@@ -669,7 +671,8 @@ h-to-ffi.sh -m64 -include /usr/include/sys/types.h /usr/include/netinet/ip_gre.h
 h-to-ffi.sh -m64 -include /usr/include/sys/types.h /usr/include/netinet/ip_icmp.h
 h-to-ffi.sh -m64 -include /usr/include/sys/types.h /usr/include/netinet/ip_mroute.h
 h-to-ffi.sh -m64 -include /usr/include/sys/types.h /usr/include/netinet/ip_var.h
-h-to-ffi.sh -m64 -include /usr/include/sys/types.h /usr/include/netinet/ipprotosw.h
+# defines log
+#h-to-ffi.sh -m64 -include /usr/include/sys/types.h /usr/include/netinet/ipprotosw.h
 h-to-ffi.sh -m64 -include /usr/include/sys/types.h /usr/include/netinet/pim.h
 h-to-ffi.sh -m64 -include /usr/include/sys/types.h /usr/include/netinet/pim_var.h
 h-to-ffi.sh -m64 -include /usr/include/sys/types.h /usr/include/netinet/tcp.h
@@ -1193,7 +1196,8 @@ h-to-ffi.sh -m64 -include /usr/include/sys/types.h /usr/include/sys/sysent.h
 h-to-ffi.sh -m64 -include /usr/include/sys/types.h /usr/include/sys/syslimits.h
 h-to-ffi.sh -m64 -include /usr/include/sys/types.h /usr/include/sys/syslog.h
 h-to-ffi.sh -m64 -include /usr/include/sys/types.h /usr/include/sys/sysproto.h
-h-to-ffi.sh -m64 -include /usr/include/sys/types.h /usr/include/sys/systm.h
+# defines conflicting log()
+#h-to-ffi.sh -m64 -include /usr/include/sys/types.h /usr/include/sys/systm.h
 h-to-ffi.sh -m64 -include /usr/include/sys/types.h /usr/include/sys/taskqueue.h
 h-to-ffi.sh -m64 -include /usr/include/sys/types.h /usr/include/sys/termios.h
 h-to-ffi.sh -m64 -include /usr/include/sys/types.h /usr/include/sys/thr.h

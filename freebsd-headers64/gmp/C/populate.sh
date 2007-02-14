@@ -1,2 +1,3 @@
 #!/bin/sh
-h-to-ffi.sh /usr/local/include/gmp.h
+rm -rf usr
+h-to-ffi.sh -m64 /usr/local/include/gmp.h
