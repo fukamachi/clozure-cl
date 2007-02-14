@@ -1,4 +1,263 @@
-OpenMCL 1.1-pre-061231
+OpenMCL 1.1-pre-070214
+- The FASL version changed (old FASL files won't work with this
+  lisp version), as did the version information which tries to
+  keep the kernel in sync with heap images.
+- There are new interface files for all platforms.  These files
+  encode some foreign type information a little differently
+  than older ones did (notably information about foreign functions 
+  that return structures or accept structure args by value.)  The
+  new .cdb files can't be used by older versions of OpenMCL; using
+  older .cdb files with this version is "allowed, but not supported
+  or recommended."
+- Almost all of the changes in functionality since the last (061231)
+  snapshots and since the CVS freeze on 070117 have to do with
+  relatively obscure issues having to do with passing structures
+  to foreign functions by value and/or returning structures from foreign
+  function calls.
+
+  These idioms are fairly rare in traditional C code (though it's
+  fairly common to pass -pointers- to structures by reference
+  and sometimes to return pointers to structures.  (There are
+  a few C compiler runtime routines that perform some flavor
+  of integer division and return a two-element structure that
+  contains "quotient" and "remainder" fields, but that's typically
+  about the extent of the use of this idiom.)  The idioms are used
+  much more often in Apple's Carbon and Cooca libraries and in
+  some of the frameworks (CoreGraphics, CoreFoundation) that those
+  libraries are based on.
+
+  OpenMCL's FFI has provided some support for this in the past;
+  notably, it's provided support for (most of the) structure-returning
+  and struct-by-value conventions used on 32-bit PPC Darwin.  In these
+  conventions, a foreign function that returned a structure received
+  a pointer to an instance of that structure type as a first argument,
+  and a function that received a structure argument by value received
+  the structure's contents in 32-bit word-size integer chunks (regardless
+  of the types or sizes of the structure's fields.)  Knowledge of these
+  conventions was hardwired into various parts of the system (e.g.,
+  the interface database), so that it was not generally possible to
+  tell whether a given foreign function returned a structure type
+  (or just happened to take an extra pointer argument.)
+
+  Unfortunately, there are at least 4 other sets of conventions for
+  dealing with structure arguments/return values on the platforms
+  that OpenMCL runs on (and even the DarwinPPC32 conventions weren't
+  fully/correctly implemented.)  OpenMCL's FFI is generally pretty
+  low-level, but to the extent that it's reasonable to talk about
+  "higher level" constructs (EXTERNAL-CALL, SEND, FF-CALL, #_), those
+  higher-level constructs try to enforce uniform syntax and try
+  to hide the platform-specific details in backend-specific functions.
+
+  The impact of these changes should generally be pretty minimal.
+  In a "higher-level" construct used to call a foreign function that
+  returns a structure type, the first parameter in the call should
+  be a pointer to an instance of that structure type.
+
+  For example, if a :rect structure is defined as:
+
+  (def-foreign-type nil
+    (:struct :rect
+      (:width :int)
+      (:height :int)
+      (:x :int)  ; x coordinate of origin
+      (:y :int)))
+
+  and a foreign function named "inset_rect" takes a rect and an integer
+  delta and returns a new :rect "inset" by that delta, a call to that
+  foreign function might look like:
+
+  (rlet ((result :rect))
+    (ff-call *address-of-inset-rect* result (:struct :rect) r :int delta :(:struct rect))
+    ;; or, if "inset_rect" was declared in the interface database:
+    (#_inset_rect result r delta))
+
+
+  A callback that returns a :rect likewise should accept a pointer
+  to an instance of the :rect type as a first (unqualified) argument
+  and explicitly declare that it returns a (:STRUCT :RECT).
+
+  (defcallback *address-of-inset-rect (result (:struct :rect) r :int delta (:struct :rect))
+    (setf (pref result :rect.x) (+ (pref r :rect.x) delta)
+          (pref result :rect.y) (+ (pref r :rect.y) delta)
+          (pref result :rect.width) (- (pref r :rect.width) (* 2 delta))
+          (pref result :rect.height) (- (pref r :rect.height) (* 2 delta))))
+
+  Note that this is very similar to what's been (implicitly) supported
+  on DarwinPPC32; the basic difference is that the return type
+  ("(:STRUCT :RECT)") is explicitly specified (or, in the case of #_,
+  specified in the interface database).  Whether the "result" pointer
+  is actually passed as an argument or not is platform-dependent (on
+  DarwinPPC64, the :rect structure would be "returned" by returning
+  4 :int values in 4 different machine registers), but the same syntax
+  can be used (and hides those details) on all platforms.
+
+  In the examples above, we said that the (presumed source) rectangle
+  was passed by value as a value of type (:struct :rect), and we let
+  the FFI deal with the details.  Historically, this parameter could
+  have been specified as a small unsigned integer N (denoting the 
+  DarwinPPC32 convention of passing the structure value a N 
+  native-word-size integer arguments.)  Again, there are several
+  different conventions for passing and receiving structure values,
+  and it's best to let the FFI decide how to follow those conventions.
+  (Some of those conventions are quite complicated, and depend on
+  the size of the structure as well as the types of its fields.)
+
+  In all cases, a callback which declares a parameter to be of a
+  structure type can treat that parameter as a pointer an instance of
+  that structure type with fields initialized by the caller (as in
+  the case of "r" in the example above.)
+
+  In the ObjC bridge, the DEFINE-OBJC-METHOD macro has always provided
+  syntax for specifiying that the method "returns" a structure. (That
+  syntax is (:struct <struct-type> <parameter-name>). That continues
+  to be supported.
+
+  Apple's ObjC runtime provides different functions (#_objc_msgSend and
+  #_objc_msgSend_stret) to handle the cases of sending messages which
+  return non-structure and structure results.  These low-level functions
+  are very sensitive to whether the structure is actually returned via
+  an "invisible" first argument or not (this is only one of a few different
+  conventions on some platforms.)  OpenMCL's ObjC bridge makes similar
+  distinctions, but uses simple, consistent rules: a message that returns
+  a structure should always be sent via SEND/STRET (or some variant of
+  SEND/STRET) and should have a first parameter of type "pointer to
+  returned structure type", regardless of whether or not that pointer
+  is actually passed to the method implementation or just used as by
+  some platform-specific code to transfer register values.)
+
+  The end result of all of this (several weeks of bootstrapping) is
+  that most things are pretty much the same, at least on DarwinPPC32;
+  only foreign function calls/callbacks that involve passing structures
+  by value or returning structures need change at all, and the changes
+  generally involve being more explicit/declarative about what's going
+  on.  These changes -do- allow these idioms to be used on other
+  (64-bit) platforms, and since they're heavily used in Apple GUI
+  libraries and since 64-bit versions of Carbon and Cocoa are announced
+  features of Leopard, it seemed appropriate to get support for this
+  stuff into the FFI on those platforms and to try to do it in a way
+  that hid the platform-dependent details.  (I didn't expect all of
+  this to take so long.)
+
+- The initial listener PROCESS now persists across SAVE-APPLICATION.
+  This means that (for instance):
+
+  ? (defvar *listener-process* (current-process))
+  *LISTENER-PROCESS*
+  ? (save-application "new.image")
+  shell> openmcl new.image
+  ? (eq (current-process) *listener-process*)
+  T
+  ;; though of course the underlying OS thread, stacks, etc are unlikely
+  ;; to be "equal" in any sense.
+
+  The current process is sometimes used to mark "ownership" of thread-private
+  hash-tables and streams.  (Even though it doesn't make much sense for
+  STREAMs to persist across SAVE-APPLICATION, it does make sense for
+  HASH-TABLEs to do so; HASH-TABLES created with the :PRIVATE T option
+  and "owned" by the initial listener process continue to be owned by
+  that the current listener process in the new image.)
+
+- All of the FFI changes above do seem to allow the Cocoa IDE example
+  to run on ppc64/x86-64 (as well as ppc32) under Leopard, and
+  hopefully that'll soon be true of applications generated via Mikel
+  Evins' Bosco system as well.  The bridge and demo code have been
+  conditionalized to support ObjC 2.0 on 64-bit systems, to avoid
+  deprecated functions and methods, and to support 64-bit Cocoa
+  changes.  Hopefully, this has been done in a way that doesn't break
+  PPC32 Cocoa under Tiger (he said, quickly rushing to the nearest
+  PPC32 Tiger machine and breathing a sigh of relief when the Cocoa
+  listener appeared ..)  64-bit Cocoa sometimes used 64-bit signed and
+  unsigned integers in place of 32-bit integers; accordingly, the
+  foreign types :<NSI>nteger and :<NSUI>nteger are defined (as 32-bit
+  signed/unsigned integers) on 32-bit platforms, and these types are
+  used in some method and type definitions.  (Those integer types are
+  predefined in Objc 2.0, and are 64 bits wide on 64-bit platforms.)
+
+  More pervasively (and a little more problematically), CoreGraphics
+  (and things built on top of it, including Cocoa) uses double-floats
+  instead of single-floats for many things on 64-bit hardware; the
+  difference is abstracted (a little) via the new CGFloat type.
+  This means that (for instance) code which initializes a constant-sized
+  NSRect on a 32-bit machines and has traditionally done so via
+  something like:
+
+  (ns-make-rect 0.0 0.0 500.0 200.0)
+
+  now needs to do something like:
+
+  (ns-make-rect (float 0.0 ccl::+cgfloat-zero+) ..)
+
+  in order to compile and run on both 32-bit and 64-bit platforms.
+
+  where ccl::+cgfloat-zero+ is defined as 1.0f0 on 32-bit platforms
+  and as 1.0d0 on 64-bit machines.  Cases involving constants won't
+  incur any runtime overhead and the occasional runtime overhead in
+  other cases -probably- isn't that great in context (compared to
+  initializing a view hierarchy ...)  but it's certainly ugly to
+  look at.  It's possible that some of this ugliness could be
+  hidden in the bridge/FFI (by making them do the necessary coercions
+  for you), but there are tradeoffs there.
+
+- The ObjC bridge has had a long-standing bug whereby a standalone
+  Cocoa application may have needed to find the interface databases
+  at runtime in order for MAKE-OBJC-INSTANCE and MAKE-INSTANCE of
+  an ObjC class to work.  (These functions needed to be able to
+  send an "init" message to the newly-allocated instance, and needed
+  to know the type signature of that init message in order to do that.)
+  The current scheme tries to avoid this by pre-compiling helper
+  functions to enable calling all known "init" message signatures.
+  (More accurately, all fixed-argument "init" message signatures.)
+  This scheme avoids the need to send messages whose argument
+  and result types are computed at runtime (via %SEND), and %SEND
+  (a) was known to be inefficient and (b) would have a lot of
+  difficulty handling all known structure return/passing conventions
+  on supported platforms.  Accordingly, %SEND has been deprecated
+  (with extreme prejudice, e.g., removed.)
+
+- a couple of little functions are defined (but their names are
+  not yet exported) on x86-64: ccl::rdtsc and ccl::rdtsc64 provide
+  access to the values returned by on-chip cycle counting instructions.
+  For instance:
+
+? (let* ((start (ccl::rdtsc)))
+    (sleep 1) 
+    (- (ccl::rdtsc) start))
+1995065244
+
+  Hmm.  Apparently, the 2.0GHz MacBook I tried that on is actually
+  a 1.995GHz MacBook.
+
+  There are all kinds of ways for rdtsc to lose (and return 
+  inaccurate or misleading results): the cycle counters for
+  each CPU core in a multi-core system aren't necessarily
+  kept in sync, and many modern systems allow CPU clock rates
+  to vary (for power-management reasons) and/or allow the CPU
+  to sleep/hibernate.  OSes seem to offer some support for
+  compensating for these effects, and it seems like ccl::rdtsc
+  and ccl::rdtsc64 can be used to obtain interesting results.
+
+  The RDTSC instruction actually returns an unsigned 64-bit
+  result; apparently, some Intel documentation claims that this
+  value will not "wrap around" to 0 at contemporary clock rates
+  for at least 10 years after the system was booted.  (If you can
+  keep an Intel system running for 9 years between reboots, you 
+  might consider telling Intel that the RDTSC counter wrapped around
+  a year early; they might give you a refund.  Or maybe not.)
+  A non-negative OpenMCL64 fixnum is limited to 60 bits; the
+  ccl::rdtsc function truncates the 64-bit counter value so
+  that it fits in a non-negative fixnum; if the 10 year limit
+  for the 64-bit value is accurate, the 60-bit value would
+  wrap around after about 223 days of uptime.
+
+  ccl::rdtsc64 returns the full 64-bit counter value, but
+  may return a bignum after 223 days of uptime.
+  
+- lots of bug fixes (not all of which involved the FFI or ObjC
+  bridge.)  
+
+  
+
+openmcl 1.1-pre-061231
 - The FASL version changed (old FASL files won't work with this
   lisp version), as did the version information which tries to
   keep the kernel in sync with heap images.
