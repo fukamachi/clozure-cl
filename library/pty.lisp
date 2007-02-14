@@ -25,11 +25,11 @@
   (open-shared-library "libutil.so"))
 
 (defun open-pty-pair ()
-  (rlet ((alphap :unsigned-long 0)
-	 (betap :unsigned-long 0))
+  (rlet ((alphap :unsigned 0)
+	 (betap :unsigned 0))
     (let* ((status (#_openpty alphap betap (%null-ptr) (%null-ptr) (%null-ptr))))
       (if (eql status 0)
-	(values (pref alphap :unsigned-long) (pref betap :unsigned-long))
+	(values (pref alphap :unsigned) (pref betap :unsigned))
 	(%errno-disp (%get-errno))))))
 
 
