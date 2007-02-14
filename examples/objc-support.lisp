@@ -210,7 +210,7 @@ instance variable."
 (progn
 (defloadvar *x8664-objc-callback-error-return-trampoline*
     (let* ((code-bytes '(#x48 #x89 #xc7      ; movq %rax %rdi
-                         #x66 #x48 #x0f #x7e ; movd %xmm0,%rax
+                         #x66 #x48 #x0f #x7e #xc0 ; movd %xmm0,%rax
                          #x52                ; pushq %rdx
                          #xff #xe0))         ; jmp *rax
            (nbytes (length code-bytes))
