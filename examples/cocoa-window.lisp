@@ -166,24 +166,15 @@
 
 (defun run-event-loop ()
   (%set-toplevel nil)
+  (change-class *cocoa-event-process* 'appkit-process)
   (let* ((app *NSApp*))
     (loop
 	(handler-case (send (the ns-application app) 'run)
 	  (error (c) (nslog-condition c)))
 	(unless (send app 'is-running)
-	  (return)))
-    ;; This is a little funky (OK, it's a -lot- funky.) The
-    ;; -[NSApplication _deallocHardCore:] method wants an autorelease
-    ;; pool to be established when it's called, but one of the things
-    ;; that it does is to release all autorelease pools.  So, we create
-    ;; one, but don't worry about freeing it ...
-    #+apple-objc
-    (progn
-      (create-autorelease-pool)
-      (objc-message-send app "_deallocHardCore:" :<BOOL> #$YES :void))))
+	  (return)))))
 
 
-(change-class *cocoa-event-process* 'appkit-process)
 
 (defun start-cocoa-application (&key
 				(application-proxy-class-name
