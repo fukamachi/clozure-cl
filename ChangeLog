@@ -1,3 +1,16 @@
+2007-02-13 23:36  gb
+
+	* level-1/version.lisp: Bump.
+
+2007-02-13 23:36  gb
+
+	* lisp-kernel/image.h, xdump/heap-image.lisp: Update
+	image-abi-version.
+
+2007-02-13 23:29  gb
+
+	* xdump/faslenv.lisp: Finish bumping fasl version.
+
 2007-02-13 23:15  gb
 
 	* lib/nfcomp.lisp: Bump current fasl version.
