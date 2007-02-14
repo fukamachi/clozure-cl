@@ -197,12 +197,15 @@
 (defun get-internal-run-time ()
   "Return the run time in the internal time format. (See
   INTERNAL-TIME-UNITS-PER-SECOND.) This is useful for finding CPU usage."
-  (rlet ((usage :rusage)
-	 (total :timeval))
+  (rlet ((usage :rusage))
     (%%rusage usage)
-    (timeval->milliseconds (%add-timevals total 
-					  (pref usage :rusage.ru_utime) 
-					  (pref usage :rusage.ru_stime)))))
+    (let* ((user-seconds (pref usage :rusage.ru_utime.tv_sec))
+           (system-seconds (pref usage :rusage.ru_stime.tv_sec))
+           (user-micros (pref usage :rusage.ru_utime.tv_usec))
+           (system-micros (pref usage :rusage.ru_stime.tv_usec)))
+      (+ (* (+ user-seconds system-seconds) internal-time-units-per-second)
+         (round (+ user-micros system-micros) (floor 1000000 internal-time-units-per-second))))))
+
 
 
 
