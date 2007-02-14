@@ -16,7 +16,7 @@
 
 (in-package "CCL")
 
-(eval-when (:compile-toplevel)
+(eval-when (:compile-toplevel :execute)
   #+linuxppc-target
   (require "PPC-LINUX-SYSCALLS")
   #+linuxx8664-target
@@ -382,10 +382,7 @@ given is that of a group to which the current user belongs."
 
 
 (defun %%rusage (usage &optional (who #$RUSAGE_SELF))
-  (syscall syscalls::getrusage who usage)
-  #+(and darwinppc-target (not 64-bit-target))
-  (rlet ((count :natural_t #$TASK_THREAD_TIMES_INFO_COUNT))
-    (#_task_info (#_mach_task_self) #$TASK_THREAD_TIMES_INFO usage count)))
+  (syscall syscalls::getrusage who usage))
 
 
 
