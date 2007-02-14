@@ -199,6 +199,23 @@
   (cmovaq (% temp1) (% temp0))
   (jmp-subprim .SPvalues))
 
+(defx86lapfunction rdtsc ()
+  (:byte #x0f)                          ;two-byte rdtsc opcode
+  (:byte #x31)                          ;is #x0f #x31
+  (shlq ($ 32) (% rdx))
+  (orq (% rdx) (% rax))
+  (imul ($ (* 2 target::node-size)) (% rax) (% arg_z))
+  (shrq ($ 1) (% arg_z))
+  (single-value-return))
+
+;;; Return all 64 bits of the time-stamp counter as an unsigned integer.
+(defx86lapfunction rdtsc64 ()
+  (:byte #x0f)                          ;two-byte rdtsc opcode
+  (:byte #x31)                          ;is #x0f #x31
+  (shlq ($ 32) (% rdx))
+  (orq (% rdx) (% rax))
+  (jmp-subprim .SPmakeu64))
+
 ;;; It would be nice if (%setf-macptr macptr (ash (the fixnum value)
 ;;; ash::fixnumshift)) would do this inline.
 
