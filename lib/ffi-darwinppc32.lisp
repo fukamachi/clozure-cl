@@ -244,7 +244,7 @@
                                  (:unsigned-doubleword '%%get-unsigned-longlong)
                                  ((:double-float :single-float)
                                   '%get-double-float)
-                                 (:unsigned-fullword '^get-unsigned-long)
+                                 (:unsigned-fullword '%get-unsigned-long)
                                  (t '%get-long )
                                  ) ,result-ptr 0) ,result))))
 
