@@ -1,3 +1,9 @@
+2007-02-13 21:16  gb
+
+	* freebsd-headers64/gl/C/populate.sh: Avoid processing some files
+	that contain incompatible definitions of some math library stuff
+	("log" either has to do with logarithms or logging ...).
+
 2007-02-13 18:42  gb
 
 	* lib/misc.lisp: Change the way that TIME is reported by default:
