@@ -1,3 +1,20 @@
+2007-02-13 23:15  gb
+
+	* lib/nfcomp.lisp: Bump current fasl version.
+
+2007-02-13 23:02  gb
+
+	* x86-headers64/gl/C/populate.sh: rm -rf ./usr
+
+2007-02-13 22:45  gb
+
+	* xdump/faslenv.lisp: Start bumping fasl-version.
+
+2007-02-13 22:41  gb
+
+	* freebsd-headers64/: gmp/C/populate.sh, gnome2/C/populate.sh,
+	gtk2/C/populate.sh, libc/C/populate.sh: rm -rf	./usr
+
 2007-02-13 21:16  gb
 
 	* freebsd-headers64/gl/C/populate.sh: Avoid processing some files
