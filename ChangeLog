@@ -1,3 +1,21 @@
+2007-02-13 18:42  gb
+
+	* lib/misc.lisp: Change the way that TIME is reported by default:
+	mention the number of available CPU cores, don't assume that
+	there's that much of a relationship between CPU time and wall-clock
+	time.
+
+2007-02-13 18:41  gb
+
+	* level-1/linux-files.lisp: Don't do whatever el-bizarro Mach thing
+	once seemed to be necessary in %%RUSAGE.  Require syscall stuff
+	when :execute, too.
+
+2007-02-13 18:35  gb
+
+	* lib/ffi-linuxppc64.lisp: It's %%get-unsigned-longlong, and the
+	offset arg is required.
+
 2007-02-13 18:12  gb
 
 	* level-0/X86/x86-misc.lisp: Add rdtsc (returns 60 bit non-negative
