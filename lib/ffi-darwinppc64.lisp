@@ -158,8 +158,8 @@
                                                   0
                                                   field-accessor-list)
                                            ,valform)))))))
-                   (do-fields (foreign-record-type-fields rtype) nil ))
-                 `(progn ,@(forms) nil))))))))
+                   (do-fields (foreign-record-type-fields rtype) nil ))))))
+      `(progn ,@(forms) nil))))
 
 ;;; "Return" the structure R of foreign type RTYPE, by storing the
 ;;; values of its fields in STACK-PTR and FP-ARG-PTR
@@ -243,8 +243,8 @@
                                     (when (typep field-form 'foreign-single-float-type)
                                       (setq field-form `(float ,field-form 0.0d0)))
                                     (forms `(setf ,valform ,field-form))))))))
-                   (do-fields (foreign-record-type-fields rtype) nil ))
-                 `(progn ,@(forms) nil))))))))
+                   (do-fields (foreign-record-type-fields rtype) nil ))))))
+      `(progn ,@(forms) nil))))
                                   
 
 (defun darwin64::expand-ff-call (callform args &key (arg-coerce #'null-coerce-foreign-arg) (result-coerce #'null-coerce-foreign-result))
@@ -333,7 +333,7 @@
                   (%setf-macptr ,result-temp ,result-form)
                   (%stack-block ((,regbuf (+ (* 8 8) (* 8 13))))
                     ,call
-                    ,@(darwin64::struct-from-regbuf-values result-temp struct-result-type regbuf)))
+                    ,(darwin64::struct-from-regbuf-values result-temp struct-result-type regbuf)))
                 call))))))))
             
             
@@ -368,72 +368,75 @@
         (do* ((argvars argvars (cdr argvars))
               (argspecs argspecs (cdr argspecs))
               (fp-arg-num 0)
-              (offset 0 (+ offset delta))
-              (delta 8 8)
-              (bias 0 0)
+              (offset 0)
+              (delta 0)
+              (bias 0)
               (use-fp-args nil nil))
              ((null argvars)
               (values (rlets) (lets) (dynamic-extent-names) (inits) rtype fp-regs-form (- ppc64::c-frame.savelr ppc64::c-frame.param0)))
           (flet ((next-scalar-arg (argtype)
-                   `(,(cond
-                       ((typep argtype 'foreign-single-float-type)
-                        (if (< (incf fp-arg-num) 14)
-                          (progn
-                            (setq use-fp-args t)
-                            '%get-single-float-from-double-ptr)
-                          (progn
-                            '%get-single-float)))
-                       ((typep argtype 'foreign-double-float-type)
-                        (setq delta 8)
-                        (if (< (incf fp-arg-num) 14)
-                          (setq use-fp-args t))
-                        '%get-double-float)
-                       ((and (typep argtype 'foreign-integer-type)
-                             (= (foreign-integer-type-bits argtype) 64)
-                             (foreign-integer-type-signed argtype))
-                        (setq delta 8)
-                        '%%get-signed-longlong)
-                       ((and (typep argtype 'foreign-integer-type)
-                             (= (foreign-integer-type-bits argtype) 64)
-                             (not (foreign-integer-type-signed argtype)))
-                        (setq delta 8)
-                        '%%get-unsigned-longlong)
-                       ((or (typep argtype 'foreign-pointer-type)
-                            (typep argtype 'foreign-array-type))
-                        '%get-ptr)
-                       (t
-                        (cond ((typep argtype 'foreign-integer-type)
-                               (let* ((bits (foreign-integer-type-bits argtype))
-                                      (signed (foreign-integer-type-signed argtype)))
-                                 (cond ((<= bits 8)
-                                        (setq bias 7)
-                                        (if signed
-                                          '%get-signed-byte '
-                                          '%get-unsigned-byte))
-                                       ((<= bits 16)
-                                        (setq bias 6)
-                                        (if signed
-                                          '%get-signed-word 
-                                          '%get-unsigned-word))
-                                       ((<= bits 32)
-                                        (setq bias 4)
-                                        (if signed
-                                          '%get-signed-long 
-                                          '%get-unsigned-long))
-                                       (t
-                                        (error "Don't know how to access foreign argument of type ~s" (unparse-foreign-type argtype))))))
-                              (t
-                               (error "Don't know how to access foreign argument of type ~s" (unparse-foreign-type argtype))))))
-                     ,(if use-fp-args fp-args-ptr stack-ptr)
-                     ,(if use-fp-args (* 8 (1- fp-arg-num))
-                          (+ offset bias)))))                   
+                   (setq delta 8 bias 0)
+                   (prog1
+                       `(,(cond
+                           ((typep argtype 'foreign-single-float-type)
+                            (if (< (incf fp-arg-num) 14)
+                              (progn
+                                (setq use-fp-args t)
+                                '%get-single-float-from-double-ptr)
+                              (progn
+                                '%get-single-float)))
+                           ((typep argtype 'foreign-double-float-type)
+                            (if (< (incf fp-arg-num) 14)
+                              (setq use-fp-args t))
+                            '%get-double-float)
+                           ((and (typep argtype 'foreign-integer-type)
+                                 (= (foreign-integer-type-bits argtype) 64)
+                                 (foreign-integer-type-signed argtype))
+                            (setq delta 8)
+                            '%%get-signed-longlong)
+                           ((and (typep argtype 'foreign-integer-type)
+                                 (= (foreign-integer-type-bits argtype) 64)
+                                 (not (foreign-integer-type-signed argtype)))
+                            (setq delta 8)
+                            '%%get-unsigned-longlong)
+                           ((or (typep argtype 'foreign-pointer-type)
+                                (typep argtype 'foreign-array-type))
+                            '%get-ptr)
+                           (t
+                            (cond ((typep argtype 'foreign-integer-type)
+                                   (let* ((bits (foreign-integer-type-bits argtype))
+                                          (signed (foreign-integer-type-signed argtype)))
+                                     (cond ((<= bits 8)
+                                            (setq bias 7)
+                                            (if signed
+                                              '%get-signed-byte '
+                                              '%get-unsigned-byte))
+                                           ((<= bits 16)
+                                            (setq bias 6)
+                                            (if signed
+                                              '%get-signed-word 
+                                              '%get-unsigned-word))
+                                           ((<= bits 32)
+                                            (setq bias 4)
+                                            (if signed
+                                              '%get-signed-long 
+                                              '%get-unsigned-long))
+                                           (t
+                                            (error "Don't know how to access foreign argument of type ~s" (unparse-foreign-type argtype))))))
+                                  (t
+                                   (error "Don't know how to access foreign argument of type ~s" (unparse-foreign-type argtype))))))
+                         ,(if use-fp-args fp-args-ptr stack-ptr)
+                         ,(if use-fp-args (* 8 (1- fp-arg-num))
+                              (+ offset bias)))
+                     (incf offset delta))))
           (let* ((name (car argvars))
                  (spec (car argspecs))
                  (argtype (parse-foreign-type spec)))
             (if (typep argtype 'foreign-record-type)
               (if (darwin64::record-type-contains-union argtype)
                 (progn (setq delta (* (ceiling (foreign-record-type-bits argtype) 64) 8))
-                       (lets (list name `(%inc-ptr ,stack-ptr ,offset ))))
+                       (lets (list name `(%inc-ptr ,stack-ptr ,offset )))
+                       (incf offset delta))
 
                  (labels ((do-fields (fields accessors)
                             (dolist (field fields)
