@@ -401,7 +401,9 @@ NSObjects describe themselves in more detail than others."
                         (send (the ns:ns-bundle bundle) 'load)
                         (pushnew path *extension-framework-paths*
                                  :test #'equalp)
-                        (map-objc-classes))
+                        (map-objc-classes)
+                        ;; Update info about init messages.
+                        (register-objc-init-messages))
                       (return winning)))))))))))
 
                       
