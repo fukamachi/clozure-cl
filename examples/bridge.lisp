@@ -458,9 +458,7 @@
   (maphash #'(lambda (message-name info)
                (lookup-objc-message-info message-name info)
                (postprocess-objc-message-info info))
-           *objc-message-info*)
-  ;; Update info about init messages.
-  (register-objc-init-messages))
+           *objc-message-info*))
 
 
 ;;; Of the method declarations (OBJC-METHOD-INFO structures) associated
