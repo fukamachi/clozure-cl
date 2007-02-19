@@ -3004,8 +3004,11 @@ to replace that class with ~s" name old-class new-class)
 (defun maybe-update-obsolete-instance (instance)
   (let ((wrapper (standard-object-p instance)))
     (unless wrapper
-      (when (standard-generic-function-p instance)
-        (setq wrapper (generic-function-wrapper instance)))
+      (if (standard-generic-function-p instance)
+        (setq wrapper (generic-function-wrapper instance))
+        (when (typep instance 'funcallable-standard-object)
+          (setq wrapper (gf.instance.class-wrapper instance))))
+      
       (unless wrapper
         (report-bad-arg instance '(or standard-object standard-generic-function))))
     (when (eql 0 (%wrapper-hash-index wrapper))
