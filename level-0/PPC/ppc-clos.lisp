@@ -278,11 +278,13 @@
   (mflr loc-pc)
   (bla .SPheap-rest-arg)                ; cons up an &rest arg, vpush it
   (vpop arg_z)                          ; whoops, didn't really want to
+  (bla .SPsavecontextvsp)
   (li arg_x '#.$XNOFINFUNCTION)
   (mr arg_y nfn)
   (set-nargs 3)
-  (mtlr loc-pc)
-  (ba .SPksignalerr))
+  (bla .SPksignalerr)
+  (li arg_z nil)
+  (ba .SPpopj))
 
 ;;; is a winner - saves ~15%
 (defppclapfunction gag-one-arg ((arg arg_z))
