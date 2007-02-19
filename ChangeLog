@@ -1,3 +1,46 @@
+2007-02-19 04:50  gb
+
+	* lib/foreign-types.lisp: Use keywords more consistently.
+	
+	(Note: there seems to be a bug which is keeping the cdb data
+	structures from getting defined correctly at load time; the
+	workaround is to compile foreign-types.lisp - which defines them -
+	in the same session as and before db-io - which uses them - is
+	compiled.)
+
+2007-02-19 04:48  gb
+
+	* level-0/X86/x86-clos.lisp: UNSET-FIN-TRAMPOLINE: don't tail-call
+	error.
+
+2007-02-19 04:42  gb
+
+	* level-0/PPC/ppc-clos.lisp: UNSET-FIN-TRAMPOLINE: don't tail-call
+	the error function.
+
+2007-02-19 04:40  gb
+
+	* level-1/l1-clos-boot.lisp: MAYBE-UPDATE-OBSOLETE-INSTANCE: handle
+	funcallable objects that aren't STANDARD-GENERIC-FUNCTIONs.
+
+2007-02-19 04:40  gb
+
+	* level-1/l1-clos.lisp: Move GENERIC-FUNCTION-NAME to
+	FUNCALLABLE-STANDARD-OBJECT.
+	
+	%ALLOCATE-GF-INSTANCE: don't create a dispatch table if not
+	creating a GF.
+
+2007-02-19 04:36  gb
+
+	* lib/describe.lisp: STANDARD-OBJECT-LINE-N: handle
+	funcallable-stanard-objects better.
+
+2007-02-19 04:34  gb
+
+	* lib/ccl-export-syms.lisp: Export FUNCALLABLE-STANDARD-OBJECT from
+	CCL, OPENMCL-MOP.
+
 2007-02-19 02:09  gb
 
 	* level-1/l1-clos-boot.lisp: FUNCALLABLE-STANDARD-OBJECT is a
