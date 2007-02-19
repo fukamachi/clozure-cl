@@ -540,6 +540,7 @@
         (error "Message ~S cannot accept a variable number of arguments" msg))
       (unless (= (length args) (objc-message-info-req-args message-info))
         (error "Message ~S requires ~a ~d args, but ~d were provided."
+               msg
                (if vargs "at least" "exactly")
                (objc-message-info-req-args message-info)
                (length args)))
