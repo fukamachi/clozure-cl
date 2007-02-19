@@ -1014,9 +1014,17 @@ governs whether DEFCLASS makes that distinction or not.")
 
 
 (%ensure-class-preserving-wrapper
+ 'funcallable-standard-object
+#|| 
+ :direct-superclasses '(standard-object function)
+||#
+ :direct-slots `((:name name :initargs (:name) :readers (generic-function-name)))
+ :metaclass 'funcallable-standard-class)
+
+(%ensure-class-preserving-wrapper
  'generic-function
  :direct-superclasses '(metaobject funcallable-standard-object)
- :direct-slots `((:name name :initargs (:name) :readers (generic-function-name))
+ :direct-slots `(
 		 (:name method-combination :initargs (:method-combination)
                   :initform *standard-method-combination*
                   :initfunction ,#'(lambda () *standard-method-combination*)
@@ -1038,6 +1046,8 @@ governs whether DEFCLASS makes that distinction or not.")
 		 (:name dependents
 		  :initform nil :initfunction ,#'false)) 
  :metaclass 'funcallable-standard-class)
+
+
 
 (%ensure-class-preserving-wrapper
  'standard-generic-function
@@ -1535,8 +1545,9 @@ governs whether DEFCLASS makes that distinction or not.")
   (unless (class-finalized-p class)
     (finalize-inheritance class))
   (let* ((wrapper (%class.own-wrapper class))
+         (gf-p (member *generic-function-class* (%class-cpl class)))
 	 (len (length (%wrapper-instance-slots wrapper)))
-	 (dt (make-gf-dispatch-table))
+	 (dt (if gf-p (make-gf-dispatch-table)))
 	 (slots (allocate-typed-vector :slot-vector (1+ len) (%slot-unbound-marker)))
 	 (fn
           #+ppc-target
@@ -1559,9 +1570,10 @@ governs whether DEFCLASS makes that distinction or not.")
                                 (logior (ash 1 $lfbits-gfn-bit)
                                         (ash 1 $lfbits-aok-bit)))))
     (setf (gf.hash fn) (strip-tag-to-fixnum fn)
-	  (slot-vector.instance slots) fn
-	  (%gf-dispatch-table-gf dt) fn)
-    (if (typep fn 'generic-function)
+	  (slot-vector.instance slots) fn)
+    (when dt
+      (setf (%gf-dispatch-table-gf dt) fn))
+    (if gf-p
       (push fn (population.data %all-gfs%)))
     fn))
 
