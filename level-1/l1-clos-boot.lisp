@@ -1531,12 +1531,15 @@ to replace that class with ~s" name old-class new-class)
 
 
 
-(defglobal *funcallable-standard-object-class*
-  (make-standard-class 'funcallable-standard-object
-                       *standard-object-class* *function-class*))
+
 
 (defglobal *funcallable-standard-class-class*
   (make-standard-class 'funcallable-standard-class *std-class-class*))
+
+(defglobal *funcallable-standard-object-class*
+  (make-class 'funcallable-standard-object
+              (%class.own-wrapper *funcallable-standard-class-class*)
+              (list *standard-object-class* *function-class*)))
 
 (defglobal *generic-function-class*
   (make-class 'generic-function
