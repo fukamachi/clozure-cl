@@ -238,10 +238,11 @@
   (pop (% arg_z))
   (movq ($ '#.$XNOFINFUNCTION) (% arg_x))
   (movq (% fn) (% arg_y))
+  (set-nargs 3)
+  (call-subprim .SPksignalerr)
+  (movq ($ x8664::nil-value) (% arg_z))
   (leave)
-  (pop (% ra0))
-  (jmp-subprim .SPksignalerr))
-
+  (single-value-return))
 
 
 
