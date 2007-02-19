@@ -1683,10 +1683,10 @@ result-type-specifer is :VOID or NIL"
     ;;
     (def-foreign-type nil
         (struct :cdb-datum
-                (data (* t))
-                (size (:unsigned 32))))
+                (:data (* t))
+                (:size (:unsigned 32))))
     (def-foreign-type nil
-        (:struct dbm-constant
+        (:struct :dbm-constant
                  (:class (:unsigned 32))
                  (:pad (:unsigned 32))
                  (:value
