@@ -196,6 +196,7 @@
      specializer
 
      funcallable-standard-class
+     funcallable-standard-object
      forward-referenced-class
      standard-direct-slot-definition
      standard-effective-slot-definition
@@ -692,6 +693,7 @@
    "SPECIALIZER"
 
    "FUNCALLABLE-STANDARD-CLASS"
+   "FUNCALLABLE-STANDARD-OBJECT"
    "FORWARD-REFERENCED-CLASS"
 
    "CLEAR-SPECIALIZER-DIRECT-METHODS-CACHES"
