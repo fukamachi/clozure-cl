@@ -1660,28 +1660,30 @@ calculate_relocation()
   natural thesebits;
   LispObj first = 0;
 
-  do {
-    *relocptr++ = current;
-    thesebits = *markbits++;
-    if (thesebits == ALL_ONES) {
-      current += nbits_in_word*dnode_size;
-      q += 4; /* sic */
-    } else {
-      if (!first) {
-        first = current;
-        while (thesebits & BIT0_MASK) {
-          first += dnode_size;
-          thesebits += thesebits;
+  if (npagelets) {
+    do {
+      *relocptr++ = current;
+      thesebits = *markbits++;
+      if (thesebits == ALL_ONES) {
+        current += nbits_in_word*dnode_size;
+        q += 4; /* sic */
+      } else {
+        if (!first) {
+          first = current;
+          while (thesebits & BIT0_MASK) {
+            first += dnode_size;
+            thesebits += thesebits;
+          }
         }
+        /* We're counting bits in qnodes in the wrong order here, but
+           that's OK.  I think ... */
+        current += one_bits(*q++);
+        current += one_bits(*q++);
+        current += one_bits(*q++);
+        current += one_bits(*q++);
       }
-      /* We're counting bits in qnodes in the wrong order here, but
-	 that's OK.  I think ... */
-      current += one_bits(*q++);
-      current += one_bits(*q++);
-      current += one_bits(*q++);
-      current += one_bits(*q++);
-    }
-  } while(--npagelets);
+    } while(--npagelets);
+  }
   *relocptr++ = current;
   return first ? first : current;
 }
@@ -2372,12 +2374,14 @@ gc(TCR *tcr, signed_natural param)
   if (GCverbose) {
     if (GCephemeral_low) {
       fprintf(stderr,
-              "\n\n;;; Starting Ephemeral GC of generation %d\n",
+              "\n\n;;; Starting Ephemeral GC of generation %d",
               (from == g2_area) ? 2 : (from == g1_area) ? 1 : 0); 
     } else {
-      fprintf(stderr,"\n\n;;; Starting full GC\n");
+      fprintf(stderr,"\n\n;;; Starting full GC");
     }
+    fprintf(stderr, "%ld bytes allocated.\n", area_dnode(a,oldfree));
   }
+
 
   get_time(start);
   lisp_global(IN_GC) = (1<<fixnumshift);
@@ -2401,228 +2405,230 @@ gc(TCR *tcr, signed_natural param)
   GCarealow = ptr_to_lispobj(a->low);
   GCareadynamiclow = GCarealow+(static_dnodes << dnode_shift);
   GCndnodes_in_area = gc_area_dnode(oldfree);
-  GCndynamic_dnodes_in_area = GCndnodes_in_area-static_dnodes;
-  GCdynamic_markbits = 
-    GCmarkbits + ((GCndnodes_in_area-GCndynamic_dnodes_in_area)>>bitmap_shift);
 
-  zero_bits(GCmarkbits, GCndnodes_in_area);
-  GCweakvll = (LispObj)NULL;
+  if (GCndnodes_in_area) {
+    GCndynamic_dnodes_in_area = GCndnodes_in_area-static_dnodes;
+    GCdynamic_markbits = 
+      GCmarkbits + ((GCndnodes_in_area-GCndynamic_dnodes_in_area)>>bitmap_shift);
 
-
-  if (GCn_ephemeral_dnodes == 0) {
-    /* For GCTWA, mark the internal package hash table vector of
-     *PACKAGE*, but don't mark its contents. */
-    {
-      LispObj
-        itab;
-      natural
-        dnode, ndnodes;
-      
-      pkg = nrs_PACKAGE.vcell;
-      if ((fulltag_of(pkg) == fulltag_misc) &&
-          (header_subtag(header_of(pkg)) == subtag_package)) {
-        itab = ((package *)ptr_from_lispobj(untag(pkg)))->itab;
-        itabvec = car(itab);
-        dnode = gc_area_dnode(itabvec);
-        if (dnode < GCndnodes_in_area) {
-          ndnodes = (header_element_count(header_of(itabvec))+1) >> 1;
-          set_n_bits(GCmarkbits, dnode, ndnodes);
-        }
-      }
-    }
-  }
-
-  {
-    area *next_area;
-    area_code code;
-
-    /* Could make a jump table instead of the typecase */
-
-    for (next_area = a->succ; (code = next_area->code) != AREA_VOID; next_area = next_area->succ) {
-      switch (code) {
-      case AREA_TSTACK:
-        mark_tstack_area(next_area);
-        break;
-
-      case AREA_VSTACK:
-        mark_vstack_area(next_area);
-        break;
-
-      case AREA_STATIC:
-      case AREA_DYNAMIC:                  /* some heap that isn't "the" heap */
-        /* In both of these cases, we -could- use the area's "markbits"
-           bitvector as a reference map.  It's safe (but slower) to
-           ignore that map and process the entire area.
-           */
-        if (next_area->younger == NULL) {
-          mark_simple_area_range((LispObj *) next_area->low, (LispObj *) next_area->active);
-        }
-        break;
-
-      default:
-        break;
-      }
-    }
-  }
+    zero_bits(GCmarkbits, GCndnodes_in_area);
+    GCweakvll = (LispObj)NULL;
   
-  if (lisp_global(OLDEST_EPHEMERAL)) {
-    mark_memoized_area(tenured_area, area_dnode(a->low,tenured_area->low));
-  }
 
-  other_tcr = tcr;
-  do {
-    mark_tcr_xframes(other_tcr);
-    mark_tcr_tlb(other_tcr);
-    other_tcr = other_tcr->next;
-  } while (other_tcr != tcr);
+    if (GCn_ephemeral_dnodes == 0) {
+      /* For GCTWA, mark the internal package hash table vector of
+       *PACKAGE*, but don't mark its contents. */
+      {
+        LispObj
+          itab;
+        natural
+          dnode, ndnodes;
+      
+        pkg = nrs_PACKAGE.vcell;
+        if ((fulltag_of(pkg) == fulltag_misc) &&
+            (header_subtag(header_of(pkg)) == subtag_package)) {
+          itab = ((package *)ptr_from_lispobj(untag(pkg)))->itab;
+          itabvec = car(itab);
+          dnode = gc_area_dnode(itabvec);
+          if (dnode < GCndnodes_in_area) {
+            ndnodes = (header_element_count(header_of(itabvec))+1) >> 1;
+            set_n_bits(GCmarkbits, dnode, ndnodes);
+          }
+        }
+      }
+    }
+
+    {
+      area *next_area;
+      area_code code;
+
+      /* Could make a jump table instead of the typecase */
+
+      for (next_area = a->succ; (code = next_area->code) != AREA_VOID; next_area = next_area->succ) {
+        switch (code) {
+        case AREA_TSTACK:
+          mark_tstack_area(next_area);
+          break;
+
+        case AREA_VSTACK:
+          mark_vstack_area(next_area);
+          break;
+
+        case AREA_STATIC:
+        case AREA_DYNAMIC:                  /* some heap that isn't "the" heap */
+          /* In both of these cases, we -could- use the area's "markbits"
+             bitvector as a reference map.  It's safe (but slower) to
+             ignore that map and process the entire area.
+          */
+          if (next_area->younger == NULL) {
+            mark_simple_area_range((LispObj *) next_area->low, (LispObj *) next_area->active);
+          }
+          break;
+
+        default:
+          break;
+        }
+      }
+    }
+  
+    if (lisp_global(OLDEST_EPHEMERAL)) {
+      mark_memoized_area(tenured_area, area_dnode(a->low,tenured_area->low));
+    }
+
+    other_tcr = tcr;
+    do {
+      mark_tcr_xframes(other_tcr);
+      mark_tcr_tlb(other_tcr);
+      other_tcr = other_tcr->next;
+    } while (other_tcr != tcr);
 
 
 
 
     /* Go back through *package*'s internal symbols, marking
        any that aren't worthless.
-       */
+    */
     
-  if (itabvec) {
-    natural
-      i,
-      n = header_element_count(header_of(itabvec));
-    LispObj
-      sym,
-      *raw = 1+((LispObj *)ptr_from_lispobj(untag(itabvec)));
+    if (itabvec) {
+      natural
+        i,
+        n = header_element_count(header_of(itabvec));
+      LispObj
+        sym,
+        *raw = 1+((LispObj *)ptr_from_lispobj(untag(itabvec)));
 
-    for (i = 0; i < n; i++) {
-      sym = *raw++;
-      if (fulltag_of(sym) == fulltag_symbol) {
-        lispsymbol *rawsym = (lispsymbol *)ptr_from_lispobj(untag(sym));
-        natural dnode = gc_area_dnode(sym);
+      for (i = 0; i < n; i++) {
+        sym = *raw++;
+        if (fulltag_of(sym) == fulltag_symbol) {
+          lispsymbol *rawsym = (lispsymbol *)ptr_from_lispobj(untag(sym));
+          natural dnode = gc_area_dnode(sym);
           
-        if ((dnode < GCndnodes_in_area) &&
-            (!ref_bit(GCmarkbits,dnode))) {
-          /* Symbol is in GC area, not marked.
-             Mark it if fboundp, boundp, or if
-             it has a plist or another home package.
-             */
+          if ((dnode < GCndnodes_in_area) &&
+              (!ref_bit(GCmarkbits,dnode))) {
+            /* Symbol is in GC area, not marked.
+               Mark it if fboundp, boundp, or if
+               it has a plist or another home package.
+            */
             
-          if (FBOUNDP(rawsym) ||
-              BOUNDP(rawsym) ||
-              (rawsym->flags != 0) || /* SPECIAL, etc. */
-              (rawsym->plist != lisp_nil) ||
-              ((rawsym->package_predicate != pkg) &&
-               (rawsym->package_predicate != lisp_nil))) {
-            mark_root(sym);
+            if (FBOUNDP(rawsym) ||
+                BOUNDP(rawsym) ||
+                (rawsym->flags != 0) || /* SPECIAL, etc. */
+                (rawsym->plist != lisp_nil) ||
+                ((rawsym->package_predicate != pkg) &&
+                 (rawsym->package_predicate != lisp_nil))) {
+              mark_root(sym);
+            }
           }
         }
       }
     }
-  }
 
-  (void)markhtabvs();
+    (void)markhtabvs();
 
-  if (itabvec) {
-    natural
-      i,
-      n = header_element_count(header_of(itabvec));
-    LispObj
-      sym,
-      *raw = 1+((LispObj *)ptr_from_lispobj(untag(itabvec)));
+    if (itabvec) {
+      natural
+        i,
+        n = header_element_count(header_of(itabvec));
+      LispObj
+        sym,
+        *raw = 1+((LispObj *)ptr_from_lispobj(untag(itabvec)));
 
-    for (i = 0; i < n; i++, raw++) {
-      sym = *raw;
-      if (fulltag_of(sym) == fulltag_symbol) {
-        lispsymbol *rawsym = (lispsymbol *)ptr_from_lispobj(untag(sym));
-        natural dnode = gc_area_dnode(sym);
+      for (i = 0; i < n; i++, raw++) {
+        sym = *raw;
+        if (fulltag_of(sym) == fulltag_symbol) {
+          lispsymbol *rawsym = (lispsymbol *)ptr_from_lispobj(untag(sym));
+          natural dnode = gc_area_dnode(sym);
 
-        if ((dnode < GCndnodes_in_area) &&
-            (!ref_bit(GCmarkbits,dnode))) {
-          *raw = unbound_marker;
+          if ((dnode < GCndnodes_in_area) &&
+              (!ref_bit(GCmarkbits,dnode))) {
+            *raw = unbound_marker;
+          }
         }
       }
     }
-  }
   
-  reap_gcable_ptrs();
+    reap_gcable_ptrs();
 
-  GCrelocptr = global_reloctab;
-  GCfirstunmarked = calculate_relocation();
+    GCrelocptr = global_reloctab;
+    GCfirstunmarked = calculate_relocation();
 
-  forward_range((LispObj *) ptr_from_lispobj(GCareadynamiclow), (LispObj *) ptr_from_lispobj(GCfirstunmarked));
+    forward_range((LispObj *) ptr_from_lispobj(GCareadynamiclow), (LispObj *) ptr_from_lispobj(GCfirstunmarked));
 
-  other_tcr = tcr;
-  do {
-    forward_tcr_xframes(other_tcr);
-    forward_tcr_tlb(other_tcr);
-    other_tcr = other_tcr->next;
-  } while (other_tcr != tcr);
+    other_tcr = tcr;
+    do {
+      forward_tcr_xframes(other_tcr);
+      forward_tcr_tlb(other_tcr);
+      other_tcr = other_tcr->next;
+    } while (other_tcr != tcr);
 
   
-  forward_gcable_ptrs();
+    forward_gcable_ptrs();
 
 
 
-  {
-    area *next_area;
-    area_code code;
+    {
+      area *next_area;
+      area_code code;
 
-    /* Could make a jump table instead of the typecase */
+      /* Could make a jump table instead of the typecase */
 
-    for (next_area = a->succ; (code = next_area->code) != AREA_VOID; next_area = next_area->succ) {
-      switch (code) {
-      case AREA_TSTACK:
-        forward_tstack_area(next_area);
-        break;
+      for (next_area = a->succ; (code = next_area->code) != AREA_VOID; next_area = next_area->succ) {
+        switch (code) {
+        case AREA_TSTACK:
+          forward_tstack_area(next_area);
+          break;
 
-      case AREA_VSTACK:
-        forward_vstack_area(next_area);
-        break;
+        case AREA_VSTACK:
+          forward_vstack_area(next_area);
+          break;
 
 
-      case AREA_STATIC:
-      case AREA_DYNAMIC:                  /* some heap that isn't "the" heap */
-        if (next_area->younger == NULL) {
-          forward_range((LispObj *) next_area->low, (LispObj *) next_area->active);
+        case AREA_STATIC:
+        case AREA_DYNAMIC:                  /* some heap that isn't "the" heap */
+          if (next_area->younger == NULL) {
+            forward_range((LispObj *) next_area->low, (LispObj *) next_area->active);
+          }
+          break;
+
+        default:
+          break;
         }
-        break;
-
-      default:
-        break;
       }
     }
-  }
   
-  if (GCephemeral_low) {
-    forward_memoized_area(tenured_area, area_dnode(a->low, tenured_area->low));
-  } else {
-    /* Full GC, need to process static space */
-    forward_and_resolve_static_references(a);
-  }
-  
-  a->active = (BytePtr) ptr_from_lispobj(compact_dynamic_heap());
-  if (to) {
-    tenure_to_area(to);
-  }
-
-  resize_dynamic_heap(a->active,
-		      (GCephemeral_low == 0) ? lisp_heap_gc_threshold : 0);
-
-  /*
-    If the EGC is enabled: If there's no room for the youngest
-    generation, untenure everything.  If this was a full GC and
-    there's now room for the youngest generation, tenure everything.
-  */
-  if (a->older != NULL) {
-    natural nfree = (a->high - a->active);
-
-
-    if (nfree < a->threshold) {
-      untenure_from_area(tenured_area);
+    if (GCephemeral_low) {
+      forward_memoized_area(tenured_area, area_dnode(a->low, tenured_area->low));
     } else {
-      if (GCephemeral_low == 0) {
-        tenure_to_area(tenured_area);
+      /* Full GC, need to process static space */
+      forward_and_resolve_static_references(a);
+    }
+  
+    a->active = (BytePtr) ptr_from_lispobj(compact_dynamic_heap());
+    if (to) {
+      tenure_to_area(to);
+    }
+
+    resize_dynamic_heap(a->active,
+                        (GCephemeral_low == 0) ? lisp_heap_gc_threshold : 0);
+
+    /*
+      If the EGC is enabled: If there's no room for the youngest
+      generation, untenure everything.  If this was a full GC and
+      there's now room for the youngest generation, tenure everything.
+    */
+    if (a->older != NULL) {
+      natural nfree = (a->high - a->active);
+
+
+      if (nfree < a->threshold) {
+        untenure_from_area(tenured_area);
+      } else {
+        if (GCephemeral_low == 0) {
+          tenure_to_area(tenured_area);
+        }
       }
     }
   }
-
   lisp_global(GC_NUM) += (1<<fixnumshift);
   if (note) {
     note->gccount += (1<<fixnumshift);
