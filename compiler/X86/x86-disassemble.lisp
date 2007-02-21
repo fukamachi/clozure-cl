@@ -2263,7 +2263,7 @@
                    (#xc0 "uuo-error-two-few-args")
                    (#xc1 "uuo-error-two-many-args")
                    (#xc2 "uuo-error-wrong-number-of-args")
-                   (#xc4 "uuo-gc-trap")
+                   (#xc4 (progn (setq stop nil) "uuo-gc-trap"))
                    (#xc5 "uuo-alloc")
                    (#xc6 "uuo-error-not-callable")
                    (#xc7 "uuo-udf-call")
