@@ -1,3 +1,21 @@
+2007-02-21 06:01  gb
+
+	* lisp-kernel/: ppc-gc.c, x86-gc.c: Handle the case where nothing
+	has been consed since last GC.	(There are some fenceposts there.)
+	
+	verbose GC herald tries to indicate how much is allocated in the
+	area being GCed.
+
+2007-02-21 05:58  gb
+
+	* lisp-kernel/: ppc-exceptions.c, x86-exceptions.c: If full GC is
+	deferred, ensure that a full GC happens after WITHOUT-GCING exits.
+
+2007-02-21 05:57  gb
+
+	* compiler/X86/x86-disassemble.lisp: Continue disassembly after
+	uuo-gc-trap.
+
 2007-02-19 04:50  gb
 
 	* lib/foreign-types.lisp: Use keywords more consistently.
