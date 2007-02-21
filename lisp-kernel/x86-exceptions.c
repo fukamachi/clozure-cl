@@ -140,6 +140,8 @@ allocate_object(ExceptionInformation *xp,
   return false;
 }
 
+natural gc_deferred = 0, full_gc_deferred = 0;
+
 Boolean
 handle_gc_trap(ExceptionInformation *xp, TCR *tcr)
 {
@@ -148,6 +150,7 @@ handle_gc_trap(ExceptionInformation *xp, TCR *tcr)
     arg = xpGPR(xp,Iimm1);
   area *a = active_dynamic_area;
   Boolean egc_was_enabled = (a->older != NULL);
+  natural gc_previously_deferred = gc_deferred;
 
   switch (selector) {
   case GC_TRAP_FUNCTION_EGC_CONTROL:
@@ -191,14 +194,24 @@ handle_gc_trap(ExceptionInformation *xp, TCR *tcr)
     update_bytes_allocated(tcr, (void *) tcr->save_allocptr);
 
     if (selector == GC_TRAP_FUNCTION_IMMEDIATE_GC) {
-      gc_from_xp(xp, 0L);
-      break;
+      if (!full_gc_deferred) {
+        gc_from_xp(xp, 0L);
+        break;
+      }
+      /* Tried to do a full GC when gc was disabled.  That failed,
+         so try full GC now */
+      selector = GC_TRAP_FUNCTION_GC;
     }
     
     if (egc_was_enabled) {
       egc_control(false, (BytePtr) a->active);
     }
     gc_from_xp(xp, 0L);
+    if (gc_deferred > gc_previously_deferred) {
+      full_gc_deferred = 1;
+    } else {
+      full_gc_deferred = 0;
+    }
     if (selector & GC_TRAP_FUNCTION_PURIFY) {
       purify_from_xp(xp, 0L);
       gc_from_xp(xp, 0L);
@@ -1639,6 +1652,7 @@ normalize_tcr(ExceptionInformation *xp, TCR *tcr, Boolean is_other_tcr)
 
 TCR *gc_tcr = NULL;
 
+
 int
 gc_like_from_xp(ExceptionInformation *xp, 
                 int(*fun)(TCR *, signed_natural), 
@@ -1656,8 +1670,10 @@ gc_like_from_xp(ExceptionInformation *xp,
       lisp_global(GC_INHIBIT_COUNT) = (LispObj)(-inhibit);
     }
     resume_other_threads(true);
+    gc_deferred++;
     return 0;
   }
+  gc_deferred = 0;
 
   gc_tcr = tcr;
 
