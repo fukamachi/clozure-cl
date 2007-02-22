@@ -2379,7 +2379,7 @@ gc(TCR *tcr, signed_natural param)
     } else {
       fprintf(stderr,"\n\n;;; Starting full GC");
     }
-    fprintf(stderr, "%ld bytes allocated.\n", area_dnode(a,oldfree));
+    fprintf(stderr, ",  %ld bytes allocated.\n", area_dnode(oldfree,a->low) << dnode_shift);
   }
 
 
