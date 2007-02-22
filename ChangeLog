@@ -1,3 +1,18 @@
+2007-02-22 02:33  gb
+
+	* level-0/l0-misc.lisp: Tweak ROOM output a little.
+
+2007-02-22 02:28  gb
+
+	* lisp-kernel/x86-gc.c: Fix up the verbose GC herald a bit (get
+	heap size right ...).
+
+2007-02-22 02:27  gb
+
+	* lisp-kernel/linuxx8664/Makefile: Tell GNU ld to use the
+	traditional (sysv) style of hash maps, if it understands that
+	option.
+
 2007-02-21 06:01  gb
 
 	* lisp-kernel/: ppc-gc.c, x86-gc.c: Handle the case where nothing
