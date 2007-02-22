@@ -291,16 +291,16 @@
     (when verbose
       (flet ((k (n) (round n 1024)))
         (princ "
-                  Total Size             Free                 Used")
-        (format t "~&Lisp Heap: ~12T~10D (~DK)  ~33T~10D (~DK)  ~54T~10D (~DK)"
+                   Total Size             Free                 Used")
+        (format t "~&Lisp Heap:~15t~10D (~DK)~35t~10D (~DK)~55t~10D (~DK)"
                 lispheap (k lispheap)
                 freebytes (k freebytes)
                 usedbytes (k usedbytes))
-        (format t "~&Stacks:    ~12T~10D (~DK)  ~33T~10D (~DK)  ~54T~10D (~DK)"
+        (format t "~&Stacks:~15t~10D (~DK)~35t~10D (~DK)~55t~10D (~DK)"
                 stack-total (k stack-total)
                 stack-free (k stack-free)
                 stack-used (k stack-used))
-        (format t "~&Static: ~12T~10D (~DK)  ~33T~10D (~DK) ~54T~10D (~DK)"
+        (format t "~&Static:~15t~10D (~DK)~35t~10D (~DK)~55t~10D (~DK)"
                 static (k static)
                 0 0
                 static (k static))
