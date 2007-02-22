@@ -24,6 +24,15 @@ CDEFINES = -DLINUX -D_REENTRANT -DX86 -DX8664 -D_GNU_SOURCE -DHAVE_TLS #-DDISABL
 CDEBUG = -g
 COPT = -O2
 
+# If the linker supports a "--hash-style=" option, use traditional
+# Sysv hash tables.  (If it doesn't support that option, assume
+# that traditional hash tables will be used by default.)
+ld_has_hash_style = $(shell $(LD) --help | grep "hash-style=")
+ifeq ($(ld_has_hash_style),)
+HASH_STYLE=
+else
+HASH_STYLE="-Wl,--hash-style=sysv"
+endif
 
 
 .s.o:
@@ -57,7 +66,7 @@ LINK_MAP = ./elf_x86_64.x
 USE_LINK_MAP = # -T ./elf_x86_64.x
 
 ../../lx86cl64:	$(KSPOBJ) $(KERNELOBJ) $(DEBUGOBJ) Makefile  $(LINK_MAP)
-	$(CC)  -m64 $(CDEBUG)  -Wl,--export-dynamic  -o $@ $(USE_LINK_MAP) $(KSPOBJ) $(KERNELOBJ) $(DEBUGOBJ) $(OSLIBS)
+	$(CC)  -m64 $(CDEBUG)  -Wl,--export-dynamic $(HASH_STYLE) -o $@ $(USE_LINK_MAP) $(KSPOBJ) $(KERNELOBJ) $(DEBUGOBJ) $(OSLIBS)
 
 
 $(SPOBJ): $(SPINC)
