@@ -1,3 +1,37 @@
+2007-02-23 10:13  gb
+
+	* lib/foreign-types.lisp: Changes to GUESS-ALIGNMENT.  Again, this
+	only makes sense for cases where we have to guess; a bitfield
+	that's 8 bits wide still has an alignment of 1.
+	
+	Factor in the alignment of the containing int when bitfields are
+	involved.
+	
+	When parsing a record type, set the "bits" slot of each field. 
+	(Not too many things look at that slot, but we want the effect of
+	loading a record from the database to match the effect of parsing a
+	definition as exactly as possible, and to be able to use EQUALP to
+	compare the results.)
+
+2007-02-23 10:06  gb
+
+	* lib/db-io.lisp: Some extra fields in
+	objc-message-info/objc-method-info structures.
+	
+	When calculating overall alignment of a structure, treat bitfields
+	as if they were :unsigned-int (since there's a "containing"
+	unsigned int that affects alignment.  N.B: this should be imposed
+	for anything that has an alignment of 1, not just a size of 1.)
+	
+	When loading integer types, try to use the precomputed types rather
+	than consing a new one.  This (a) reduces consing a little (b) is
+	more likely to get the alignment correct.  For (b), we really need
+	to distinguish between bitfields and addressable integers.
+
+2007-02-23 09:30  gb
+
+	* compiler/X86/x862.lisp: Nonsense in x862-set-bit.
+
 2007-02-22 02:33  gb
 
 	* level-0/l0-misc.lisp: Tweak ROOM output a little.
