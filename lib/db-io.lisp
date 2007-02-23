@@ -827,11 +827,7 @@ satisfy the optional predicate PREDICATE."
                                        0
                                        nil))))))
 
-;;; For backward compatibility: the implementation really shouldn't define
-;;; #?.  Nuke this in a future release.
-;;; Now, for instance.
-#+no
-(set-dispatch-macro-character #\# #\? (get-dispatch-macro-character #\# #\&))
+
               
 
 (defstruct objc-message-info
@@ -840,8 +836,13 @@ satisfy the optional predicate PREDICATE."
   ambiguous-methods                     ; partitioned by signature
   req-args
   flags
-  protocol-methods)
+  protocol-methods
+  lisp-name
+  selector)
 
+
+
+   
 (defstruct objc-method-info
   message-info
   class-name
@@ -850,6 +851,7 @@ satisfy the optional predicate PREDICATE."
   result-type
   flags
   signature
+  signature-info
   )
 
 
@@ -1508,13 +1510,19 @@ satisfy the optional predicate PREDICATE."
       (#.encoded-type-unsigned-8 (values (svref *unsigned-integer-types* 8) q))
       (#.encoded-type-signed-16 (values (svref *signed-integer-types* 16) q))
       (#.encoded-type-unsigned-16 (values (svref *unsigned-integer-types* 16) q))
-      (#.encoded-type-signed-n (values (make-foreign-integer-type
-                                          :signed t
-                                          :bits (%get-unsigned-byte buf q))
+      (#.encoded-type-signed-n (values (let* ((bits (%get-unsigned-byte buf q)))
+                                         (if (<= bits 32)
+                                           (svref *signed-integer-types* bits)
+                                           (make-foreign-integer-type
+                                            :signed t
+                                            :bits bits)))
                                          (1+ q)))
-      (#.encoded-type-unsigned-n (values (make-foreign-integer-type
+      (#.encoded-type-unsigned-n (values (let* ((bits (%get-unsigned-byte buf q)))
+                                         (if (<= bits 32)
+                                           (svref *unsigned-integer-types* bits)
+                                           (make-foreign-integer-type
                                             :signed nil
-                                            :bits (%get-unsigned-byte buf q))
+                                            :bits bits)))
                                            (1+ q)))
       (#.encoded-type-single-float (values (parse-foreign-type :float) q))
       (#.encoded-type-double-float (values (parse-foreign-type :double) q))
@@ -1637,7 +1645,7 @@ satisfy the optional predicate PREDICATE."
         (unless alignment
           (error "Unknown alignment: ~S"
                  (unparse-foreign-type field-type)))
-        (setq overall-alignment (max overall-alignment alignment))
+        (setq overall-alignment (max overall-alignment (if (= alignment 1) 32 alignment)))
         (ecase kind
           (:struct (let* ((imported-offset (foreign-record-field-offset field))
                           (offset (or imported-offset (align-offset total-bits alignment))))
