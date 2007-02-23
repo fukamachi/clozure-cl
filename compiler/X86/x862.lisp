@@ -8243,8 +8243,8 @@
                 (x862-form seg vreg nil newval)))
             (with-imm-target () (src :address)
               (x862-two-targeted-reg-forms seg ptr src newval ($ x8664::arg_z))
-              (! mem-set-c-bit-variable-value src offset ($ x8664::arg_z))
-              (< ($ x8664::arg_z)))))
+              (! mem-set-c-bit-variable-value src offval ($ x8664::arg_z))
+              (<- ($ x8664::arg_z)))))
         (if constval
           (with-imm-target () (src :address)
             (x862-two-targeted-reg-forms seg ptr src offset ($ x8664::arg_z))
