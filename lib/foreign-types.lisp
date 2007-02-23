@@ -154,7 +154,7 @@ list, NIL otherwise."
           ((> bits 32) 64)
           ((> bits 16) 32)
           ((> bits 8) 16)
-          ((> bits 1) 8)
+          ((= bits 8) 8)
           (t 1)))
 
   (defstruct foreign-type-class
@@ -1023,11 +1023,12 @@ Which one name refers to depends on foreign-type-spec in the obvious manner."
 	  (when (null alignment)
 	    (error "Unknown alignment: ~S"
 		   (unparse-foreign-type field-type)))
-	  (setf overall-alignment (max overall-alignment alignment))
+	  (setf overall-alignment (max overall-alignment (if (< alignment 8) 32 alignment)))
 	  (ecase (foreign-record-type-kind result)
 	    (:struct
 	     (let ((offset (align-offset total-bits alignment)))
 	       (setf (foreign-record-field-offset parsed-field) offset)
+               (setf (foreign-record-field-bits parsed-field) bits)
 	       (setf total-bits (+ offset bits))))
 	    (:union
 	     (setf total-bits (max total-bits bits)))))))
@@ -1566,7 +1567,6 @@ result-type-specifer is :VOID or NIL"
 (defun install-standard-foreign-types (ftd)
   (let* ((*target-ftd* ftd)
          (natural-word-size (getf (ftd-attributes ftd) :bits-per-word)))
-    
     (def-foreign-type-translator signed (&optional (bits 32))
       (if (<= bits 32)
         (svref *signed-integer-types* bits)
