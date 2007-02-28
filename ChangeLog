@@ -1,3 +1,18 @@
+2007-02-28 05:18  gb
+
+	* lisp-kernel/x86-gc.c: check_node: ignore tiny things (shift
+	counts) that may wind up on the vstack.
+	
+	Since those tiny things might be tagged as headers, walk the vstack
+	with new "headerless" functions that ignore headers.
+
+2007-02-28 05:16  gb
+
+	* lisp-kernel/x86-exceptions.c: In pc_luser_xp: if allocating and
+	before the alloc trap and interrupting, back out of the
+	modification to save_allocptr (and allocptr register) and set
+	*interrupt_displacement.
+
 2007-02-23 10:13  gb
 
 	* lib/foreign-types.lisp: Changes to GUESS-ALIGNMENT.  Again, this
