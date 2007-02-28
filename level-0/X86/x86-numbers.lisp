@@ -110,14 +110,15 @@
   (single-value-return))
 
 
-;;; We'll get a SIGFPE if divisor is 0.  We need a 3rd imm reg here.
+;;; We'll get a SIGFPE if divisor is 0.
+;;; Don't use %rbp.  Trust callback_for_interrupt() to preserve
+;;; the word below the stack pointer
 (defx86lapfunction %fixnum-truncate ((dividend arg_y) (divisor arg_z))
+  (unbox-fixnum divisor imm0)
+  (movq (% imm0) (@ -8 (% rsp)))
   (unbox-fixnum dividend imm0)
   (cqto)                                ; imm1 := sign_extend(imm0)
-  (pushq (% rbp))
-  (unbox-fixnum divisor rbp)
-  (idivq (% rbp))
-  (popq (% rbp))
+  (idivq (@ -8 (% rsp)))
   (movq (% rsp) (% temp0))
   (box-fixnum imm1 arg_y)
   (box-fixnum imm0 arg_z)
