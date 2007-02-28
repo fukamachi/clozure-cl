@@ -1551,7 +1551,12 @@ pc_luser_xp(ExceptionInformation *xp, TCR *tcr, signed_natural *interrupt_displa
       xpPC(xp) -= sizeof(load_allocptr_reg_from_tcr_save_allocptr_instruction);
       /* Fall through */
     case ID_load_allocptr_reg_from_tcr_save_allocptr_instruction:
-      tcr->save_allocptr = (void *)(VOID_ALLOCPTR-disp);
+      if (interrupt_displacement) {
+        tcr->save_allocptr += disp;
+        *interrupt_displacement = disp;
+      } else {
+        tcr->save_allocptr = (void *)(VOID_ALLOCPTR-disp);
+      }
       break;
     }
     return;
