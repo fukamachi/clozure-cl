@@ -59,6 +59,10 @@ check_node(LispObj n)
   area *a;
   LispObj header;
 
+  if (n == (n & 0xff)) {
+    return;
+  }
+
   switch (tag) {
   case fulltag_even_fixnum:
   case fulltag_odd_fixnum:
@@ -988,7 +992,13 @@ mark_memoized_area(area *a, natural num_memo_dnodes)
   }
 }
 
-
+void
+mark_headerless_area_range(LispObj *start, LispObj *end)
+{
+  while (start < end) {
+    mark_root(*start++);
+  }
+}
 
 void
 mark_simple_area_range(LispObj *start, LispObj *end)
@@ -1089,12 +1099,7 @@ mark_vstack_area(area *a)
 #if 0
   fprintf(stderr, "mark VSP range: 0x%lx:0x%lx\n", start, end);
 #endif
-  if ((((natural)end) - ((natural)start)) & sizeof(natural)) {
-    /* Odd number of words.  Mark the first (can't be a header) */
-    mark_root(*start);
-    ++start;
-  }
-  mark_simple_area_range(start, end);
+  mark_headerless_area_range(start, end);
 }
 
 
@@ -1835,6 +1840,17 @@ forward_gcable_ptrs()
 }
 
 void
+forward_headerless_range(LispObj *range_start, LispObj *range_end)
+{
+  LispObj *p = range_start;
+
+  while (p < range_end) {
+    update_noderef(p);
+    p++;
+  }
+}
+
+void
 forward_range(LispObj *range_start, LispObj *range_end)
 {
   LispObj *p = range_start, node, new;
@@ -2005,11 +2021,7 @@ forward_vstack_area(area *a)
     *p = (LispObj *) a->active,
     *q = (LispObj *) a->high;
 
-  if (((natural)p) & sizeof(natural)) {
-    update_noderef(p);
-    p++;
-  }
-  forward_range(p, q);
+  forward_headerless_range(p, q);
 }
 
 
@@ -2888,6 +2900,14 @@ copy_ivector_reference(LispObj *ref, BytePtr low, BytePtr high, area *dest, int 
 }
 
 
+void purify_headerless_range(LispObj *start, LispObj *end, BytePtr low, BytePtr high, area *to, int what)
+{
+  while (start < end) { 
+    copy_ivector_reference(start, low, high, to, what);
+    start++;
+  }
+}
+   
 void
 purify_range(LispObj *start, LispObj *end, BytePtr low, BytePtr high, area *to, int what)
 {
@@ -2986,12 +3006,8 @@ purify_vstack_area(area *a, BytePtr low, BytePtr high, area *to, int what)
   LispObj
     *p = (LispObj *) a->active,
     *q = (LispObj *) a->high;
-
-  if (((natural)p) & sizeof(natural)) {
-    copy_ivector_reference(p, low, high, to, what);
-    p++;
-  }
-  purify_range(p, q, low, high, to, what);
+  
+  purify_headerless_range(p, q, low, high, to, what);
 }
 
 
@@ -3228,6 +3244,15 @@ impurify_xp(ExceptionInformation *xp, LispObj low, LispObj high, int delta)
 
 }
 
+void
+impurify_headerless_range(LispObj *start, LispObj *end, LispObj low, LispObj high, int delta)
+{
+  while (start < end) {
+    impurify_noderef(start, low, high, delta);
+    start++;
+  }
+}
+
 
 void
 impurify_range(LispObj *start, LispObj *end, LispObj low, LispObj high, int delta)
@@ -3353,11 +3378,7 @@ impurify_vstack_area(area *a, LispObj low, LispObj high, int delta)
     *p = (LispObj *) a->active,
     *q = (LispObj *) a->high;
 
-  if (((natural)p) & sizeof(natural)) {
-    impurify_noderef(p, low, high, delta);
-    p++;
-  }
-  impurify_range(p, q, low, high, delta);
+  impurify_headerless_range(p, q, low, high, delta);
 }
 
 
@@ -3526,6 +3547,22 @@ nuke_pointers_in_xp(ExceptionInformation *xp,
 }
 
 void
+adjust_pointers_in_headerless_range(LispObj *range_start,
+                                    LispObj *range_end,
+                                    LispObj base,
+                                    LispObj limit,
+                                    signed_natural delta)
+{
+  LispObj *p = range_start;
+
+  while (p < range_end) {
+    adjust_noderef(p, base, limit, delta);
+    p++;
+  }
+}
+
+
+void
 adjust_pointers_in_range(LispObj *range_start,
                          LispObj *range_end,
                          LispObj base,
@@ -3568,6 +3605,21 @@ adjust_pointers_in_range(LispObj *range_start,
     }
   }
 }
+
+void
+nuke_pointers_in_headerless_range(LispObj *range_start,
+                                  LispObj *range_end,
+                                  LispObj base,
+                                  LispObj limit)
+{
+  LispObj *p = range_start;
+
+  while (p < range_end) {
+    nuke_noderef(p, base, limit);
+    p++;
+  }
+}
+
 
 void
 nuke_pointers_in_range(LispObj *range_start,
@@ -3662,11 +3714,7 @@ adjust_pointers_in_vstack_area(area *a,
     *p = (LispObj *) a->active,
     *q = (LispObj *) a->high;
 
-  if (((natural)p) & sizeof(natural)) {
-    adjust_noderef(p, base, limit, delta);
-    p++;
-  }
-  adjust_pointers_in_range(p, q, base, limit, delta);
+  adjust_pointers_in_headerless_range(p, q, base, limit, delta);
 }
 
 void
@@ -3678,11 +3726,7 @@ nuke_pointers_in_vstack_area(area *a,
     *p = (LispObj *) a->active,
     *q = (LispObj *) a->high;
 
-  if (((natural)p) & sizeof(natural)) {
-    nuke_noderef(p, base, limit);
-    p++;
-  }
-  nuke_pointers_in_range(p, q, base, limit);
+  nuke_pointers_in_headerless_range(p, q, base, limit);
 }
 
 #ifdef PPC
