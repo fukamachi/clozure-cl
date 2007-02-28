@@ -1,3 +1,13 @@
+2007-02-28 07:04  gb
+
+	* level-0/X86/x86-numbers.lisp: In %fixnum-truncate, use -8(sp)
+	rather than %rbp; trust callback_for_interrupt() to preserve it.
+
+2007-02-28 07:03  gb
+
+	* lisp-kernel/x86-exceptions.c: Try to preserve -8(sp) across
+	callback_for_interrupt().
+
 2007-02-28 05:18  gb
 
 	* lisp-kernel/x86-gc.c: check_node: ignore tiny things (shift
