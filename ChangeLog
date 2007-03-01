@@ -1,3 +1,8 @@
+2007-03-01 04:04  gb
+
+	* lisp-kernel/x86-spentry64.s: binding primitives: set value after
+	new binding frame
+
 2007-02-28 07:04  gb
 
 	* level-0/X86/x86-numbers.lisp: In %fixnum-truncate, use -8(sp)
