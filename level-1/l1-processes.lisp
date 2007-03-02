@@ -620,3 +620,15 @@ had invoked abort."
 
 
 (def-standard-initial-binding *backtrace-contexts* nil)
+
+(defmethod exit-interactive-process ((p process))
+  (unless (eq p *initial-process*)
+    (when (eq p *current-process*)
+      (process-kill p))))
+
+(defclass tty-listener (process)
+    ())
+
+(defmethod exit-interactive-process ((p tty-listener))
+  (when (eq p *current-process*)
+    (quit)))
