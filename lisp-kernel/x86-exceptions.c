@@ -1485,8 +1485,8 @@ pc_luser_xp(ExceptionInformation *xp, TCR *tcr, signed_natural *interrupt_displa
 
     if ((state == ID_unrecognized_alloc_instruction) ||
         ((state == ID_set_allocptr_header_instruction) &&
-         (allocptr_tag == fulltag_cons))) {
-      Bug(NULL, "Can't determine state of thread 0x%lx, interrupted during memory allocation", tcr);
+         (allocptr_tag != fulltag_misc))) {
+      Bug(xp, "Can't determine state of thread 0x%lx, interrupted during memory allocation", tcr);
     }
     switch(state) {
     case ID_set_allocptr_header_instruction:
@@ -1510,9 +1510,12 @@ pc_luser_xp(ExceptionInformation *xp, TCR *tcr, signed_natural *interrupt_displa
       */
       if (interrupt_displacement == NULL) {
         xpGPR(xp,Iallocptr) = VOID_ALLOCPTR - disp;
+        tcr->save_allocptr = (void *)(VOID_ALLOCPTR - disp);
       } else {
         /* Back out, and tell the caller how to resume the allocation attempt */
         *interrupt_displacement = disp;
+        xpGPR(xp,Iallocptr) = VOID_ALLOCPTR;
+        tcr->save_allocptr += disp;
         xpPC(xp) -= (sizeof(branch_around_alloc_trap_instruction)+
                      sizeof(compare_allocptr_reg_to_tcr_save_allocbase_instruction) +
                      sizeof(load_allocptr_reg_from_tcr_save_allocptr_instruction));
@@ -1544,7 +1547,12 @@ pc_luser_xp(ExceptionInformation *xp, TCR *tcr, signed_natural *interrupt_displa
           xpPC(xp) -= (sizeof(compare_allocptr_reg_to_tcr_save_allocbase_instruction) +
                        sizeof(load_allocptr_reg_from_tcr_save_allocptr_instruction));
           xpGPR(xp,Iallocptr) = VOID_ALLOCPTR;
-          tcr->save_allocptr = (void *)(VOID_ALLOCPTR-disp);
+          if (interrupt_displacement) {
+            *interrupt_displacement = disp;
+            tcr->save_allocptr += disp;
+          } else {
+            tcr->save_allocptr = (void *)(VOID_ALLOCPTR-disp);
+          }
         }
       }
       break;
