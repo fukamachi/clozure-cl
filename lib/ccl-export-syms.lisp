@@ -51,6 +51,7 @@
      *backtrace-print-level*
      *backtrace-print-length*
      *backtrace-show-internal-frames*
+     *quit-on-eof*
      compiler-macroexpand
      compiler-macroexpand-1
      uncompile-function
