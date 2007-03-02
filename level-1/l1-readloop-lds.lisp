@@ -191,6 +191,8 @@ whose name or ID matches <p>, or to any process if <p> is null"
 		       t)))
 	  (return t))))))
 
+(defparameter *quit-on-eof* nil)
+
 ;;; This is the part common to toplevel loop and inner break loops.
 (defun read-loop (&key (break-level *break-level*)
 		       (prompt-function #'(lambda (stream) (print-listener-prompt stream t)))
@@ -205,37 +207,38 @@ whose name or ID matches <p>, or to any process if <p> is null"
     (declare (dynamic-extent eof-value))
     (loop
       (restart-case
-        (catch :abort ;last resort...
-          (loop
-            (catch-cancel
-              (loop                
-                (setq *in-read-loop* nil
-                      *break-level* break-level)
-                (multiple-value-bind (form path print-result)
-                    (toplevel-read :input-stream input-stream
-                                   :output-stream output-stream
-                                   :prompt-function prompt-function
-                                   :eof-value eof-value)
-                  (if (eq form eof-value)
-                    (if (and (not *batch-flag*)
-                             (eof-transient-p (stream-device input-stream :input)))
-                      (progn
-                        (stream-clear-input input-stream)
-                        (abort-break))
-                      (quit))
-                    (or (check-toplevel-command form)
-                        (let* ((values (toplevel-eval form path)))
+       (catch :abort                    ;last resort...
+         (loop
+           (catch-cancel
+            (loop                
+              (setq *in-read-loop* nil
+                    *break-level* break-level)
+              (multiple-value-bind (form path print-result)
+                  (toplevel-read :input-stream input-stream
+                                 :output-stream output-stream
+                                 :prompt-function prompt-function
+                                 :eof-value eof-value)
+                (if (eq form eof-value)
+                  (if (and (not *batch-flag*)
+                           (not *quit-on-eof*)
+                           (eof-transient-p (stream-device input-stream :input)))
+                    (progn
+                      (stream-clear-input input-stream)
+                      (abort-break))
+                    (exit-interactive-process *current-process*))
+                  (or (check-toplevel-command form)
+                      (let* ((values (toplevel-eval form path)))
                         (if print-result (toplevel-print values))))))))
-            (format *terminal-io* "~&Cancelled")))
-        (abort () :report (lambda (stream)
-                            (if (eq break-level 0)
-                              (format stream "Return to toplevel.")
-                              (format stream "Return to break level ~D." break-level)))
-               #| ; Handled by interactive-abort
-                ; go up one more if abort occurred while awaiting/reading input               
-                (when (and *in-read-loop* (neq break-level 0))
-                  (abort))
-                |#
+           (format *terminal-io* "~&Cancelled")))
+       (abort () :report (lambda (stream)
+                           (if (eq break-level 0)
+                             (format stream "Return to toplevel.")
+                             (format stream "Return to break level ~D." break-level)))
+              #|                        ; Handled by interactive-abort
+                                        ; go up one more if abort occurred while awaiting/reading input               
+              (when (and *in-read-loop* (neq break-level 0))
+              (abort))
+              |#
                )
         (abort-break () 
                      (unless (eq break-level 0)
