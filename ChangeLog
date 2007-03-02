@@ -1,3 +1,58 @@
+2007-03-02 05:10  gb
+
+	* level-1/l1-application.lisp: Toplevel function: initial-listener
+	class is 'TTY-LISTENER.
+
+2007-03-02 05:09  gb
+
+	* level-1/l1-lisp-threads.lisp: Print n's value, not n in error
+	message.
+
+2007-03-02 05:09  gb
+
+	* level-1/l1-processes.lisp: New process class: TTY-LISTENER.
+	
+	EXIT-INTERACTIVE-PROCESS: for most processes, just PROCESS-KILL. 
+	For TTY-LISTENER, call QUIT.
+
+2007-03-02 05:08  gb
+
+	* level-1/l1-readloop-lds.lisp: Don't call QUIT on EOF, call
+	EXIT-INTERACTIVE-PROCESS instead.
+	
+	Look at *QUIT-ON-EOF* when deciding what to do in response to EOF.
+
+2007-03-02 05:06  gb
+
+	* lib/ccl-export-syms.lisp: Export *quit-on-eof*.
+
+2007-03-02 05:06  gb
+
+	* lib/macros.lisp: WITH-MACPTRS: move initialization/modification
+	of null pointers into body.
+
+2007-03-02 05:05  gb
+
+	* lisp-kernel/x86-exceptions.c: Try to handle two more cases of
+	consus-interruptus.
+
+2007-03-02 05:05  gb
+
+	* compiler/nx0.lisp: (the <type> <constant>) transforms to
+	<constant> if constant is of type <type>.)
+	
+	Do we need an ignore-errors here ? Or does <type> need to be
+	defined ?
+
+2007-03-02 05:03  gb
+
+	* compiler/X86/x862.lisp: Do the / * thing.
+
+2007-03-02 05:02  gb
+
+	* compiler/X86/X8664/x8664-vinsns.lisp: things that do calls need
+	:call attribute.
+
 2007-03-01 04:04  gb
 
 	* lisp-kernel/x86-spentry64.s: binding primitives: set value after
