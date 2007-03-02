@@ -987,7 +987,7 @@
 					    ((spno :s32const)))
   (jmp (:@ spno)))
 
-(define-x8664-vinsn call-subprim (()
+(define-x8664-vinsn (call-subprim :call)  (()
                                   ((spno :s32const)))
   (leaq (:@ (:^ :back) (:%q x8664::fn)) (:%q x8664::ra0))
   (jmp (:@ spno))
@@ -1133,10 +1133,11 @@
   (imulq (:$b x8664::fixnumone) (:%q src)(:%q dest)))
 
 
-(define-x8664-vinsn fix-fixnum-overflow-ool (((val :lisp))
-                                             ((val :lisp))
-                                             ((unboxed (:s64 #.x8664::imm1))
-                                              (header (:u64 #.x8664::imm0))))
+(define-x8664-vinsn (fix-fixnum-overflow-ool :call)
+    (((val :lisp))
+     ((val :lisp))
+     ((unboxed (:s64 #.x8664::imm1))
+      (header (:u64 #.x8664::imm0))))
   (jno.pt :done)
   ((:not (:pred = x8664::arg_z
                 (:apply %hard-regspec-value val)))
@@ -1152,11 +1153,12 @@
    (movq (:%q x8664::arg_z) (:%q val)))
   :done)
 
-(define-x8664-vinsn fix-fixnum-overflow-ool-and-branch (((val :lisp))
-                                                        ((val :lisp)
-                                                         (lab :label))
-                                                        ((unboxed (:s64 #.x8664::imm1))
-                                                         (header (:u64 #.x8664::imm0))))
+(define-x8664-vinsn (fix-fixnum-overflow-ool-and-branch :call)
+    (((val :lisp))
+     ((val :lisp)
+      (lab :label))
+     ((unboxed (:s64 #.x8664::imm1))
+      (header (:u64 #.x8664::imm0))))
   (jno.pt lab)
   ((:not (:pred = x8664::arg_z
                 (:apply %hard-regspec-value val)))
@@ -1595,8 +1597,8 @@
   (movq (:%q x8664::temp0)  (:%q x8664::fn))
   (jmp (:%q x8664::fn)))
 
-(define-x8664-vinsn list (()
-                          ())
+(define-x8664-vinsn (list :call) (()
+                                  ())
   (leaq (:@ (:^ :back) (:%q x8664::fn)) (:%q x8664::ra0))
   (jmp (:@ .SPconslist))
   (:align 3)
