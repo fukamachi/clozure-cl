@@ -273,6 +273,10 @@ Default version returns OpenMCL version info."
                     options)))))
 	
 
+
+
+
+
 (defmethod toplevel-function ((a lisp-development-system) init-file)
   (call-next-method)
   (let* ((sr (input-stream-shared-resource *terminal-input*)))
@@ -293,6 +297,7 @@ Default version returns OpenMCL version info."
              :control-stack-size *initial-listener-default-control-stack-size*
              :value-stack-size *initial-listener-default-value-stack-size*
              :temp-stack-size *initial-listener-default-temp-stack-size*
+             :class 'tty-listener
              :process initial-listener-process))))
   (%set-toplevel #'(lambda ()
                      (with-standard-abort-handling nil 
