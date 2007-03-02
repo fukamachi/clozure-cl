@@ -2887,7 +2887,7 @@
          (atriv (x862-trivial-p bform))
          (aconst (and (not atriv) (or (x86-side-effect-free-form-p aform)
                                       (if avar (x862-var-not-set-by-form-p avar bform)))))
-         (apushed (not (or atriv aconst))))
+         apushed)
     (progn
       (unless aconst
         (if atriv
@@ -6635,7 +6635,24 @@
                            xfer
                            form1
                            form2)
-        (x862-binary-builtin seg vreg xfer '/-2 form1 form2)))))
+                (let* ((f2 (acode-fixnum-form-p form2))
+               (unwrapped (acode-unwrapped-form form1))
+               (f1 nil)
+               (f1/f2 nil))
+          (if (and f2
+                   (not (zerop f2))
+                   (acode-p unwrapped)
+                   (or (eq (acode-operator unwrapped) (%nx1-operator mul2))
+                       (eq (acode-operator unwrapped) (%nx1-operator %i*)))
+                   (setq f1 (acode-fixnum-form-p (cadr unwrapped)))
+                   (typep (setq f1/f2 (/ f1 f2)) 'fixnum))
+            (x862-use-operator (%nx1-operator mul2)
+                               seg
+                               vreg
+                               xfer
+                               (make-acode (%nx1-operator fixnum) f1/f2)
+                               (caddr unwrapped))
+            (x862-binary-builtin seg vreg xfer '/-2 form1 form2)))))))
 
 (defx862 x862-logbitp logbitp (seg vreg xfer bitnum int)
   (x862-binary-builtin seg vreg xfer 'logbitp bitnum int))
