@@ -805,7 +805,7 @@
                    (values arg-vsp type name)))))
           (incf phys-cell)
           (when (< (decf arg-vsp) vsp)
-            (error "n out of range")))))))
+            (error "~d out of range" n)))))))
 
 
 
