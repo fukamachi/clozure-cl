@@ -40,6 +40,7 @@
 #ifdef FREEBSD
 #include <pthread_np.h>
 #endif
+#include <sched.h>
 
 #include "lisp.h"
 #include "lisp_globals.h"
@@ -82,16 +83,17 @@ typedef struct
   void* signal;
   signed_natural waiting;
   void *malloced_ptr;
+  signed_natural spinlock;
 } _recursive_lock, *RECURSIVE_LOCK;
 
 
-int lock_recursive_lock(RECURSIVE_LOCK, TCR *, struct timespec *);
+int lock_recursive_lock(RECURSIVE_LOCK, TCR *);
 int unlock_recursive_lock(RECURSIVE_LOCK, TCR *);
 RECURSIVE_LOCK new_recursive_lock(void);
 void destroy_recursive_lock(RECURSIVE_LOCK);
 int recursive_lock_trylock(RECURSIVE_LOCK, TCR *, int *);
 
-#define LOCK(m, t) lock_recursive_lock((RECURSIVE_LOCK)ptr_from_lispobj(m), (TCR *)t, NULL)
+#define LOCK(m, t) lock_recursive_lock((RECURSIVE_LOCK)ptr_from_lispobj(m), (TCR *)t)
 #define UNLOCK(m, t) unlock_recursive_lock((RECURSIVE_LOCK)ptr_from_lispobj(m), (TCR *)t)
 
 /* Hmm.  This doesn't look like the MacOS Thread Manager ... */
