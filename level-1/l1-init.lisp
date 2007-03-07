@@ -274,7 +274,8 @@ methods that are marked as being predefined signal continuable errors.")
 
 (defparameter *top-listener* nil)
 
-    
+
+(defvar *open-file-streams-lock* (make-lock))
 (defvar *open-file-streams* nil)
 
 ; Note: all the stream definitions have moved to l1-streams:
