@@ -86,8 +86,26 @@ atomic_decf(signed_natural *ptr)
 }
 
 
+int spin_lock_tries = 1;
+
+void
+get_spin_lock(signed_natural *p, TCR *tcr)
+{
+  int i, n = spin_lock_tries;
+  
+  while (1) {
+    for (i = 0; i < n; i++) {
+      if (atomic_swap(p,(signed_natural)tcr) == 0) {
+        return;
+      }
+    }
+    sched_yield();
+  }
+}
+
+
 int
-lock_recursive_lock(RECURSIVE_LOCK m, TCR *tcr, struct timespec *waitfor)
+lock_recursive_lock(RECURSIVE_LOCK m, TCR *tcr)
 {
 
   if (tcr == NULL) {
@@ -98,15 +116,20 @@ lock_recursive_lock(RECURSIVE_LOCK m, TCR *tcr, struct timespec *waitfor)
     return 0;
   }
   while (1) {
-    if (atomic_incf(&m->avail) == 1) {
+    get_spin_lock(&(m->spinlock),tcr);
+    ++m->avail;
+    if (m->avail == 1) {
       m->owner = tcr;
       m->count = 1;
+      m->spinlock = 0;
       break;
     }
+    m->spinlock = 0;
     SEM_WAIT_FOREVER(m->signal);
   }
   return 0;
 }
+
   
 int
 unlock_recursive_lock(RECURSIVE_LOCK m, TCR *tcr)
@@ -120,18 +143,22 @@ unlock_recursive_lock(RECURSIVE_LOCK m, TCR *tcr)
   if (m->owner == tcr) {
     --m->count;
     if (m->count == 0) {
+      get_spin_lock(&(m->spinlock),tcr);
       m->owner = NULL;
-      pending = atomic_swap(&m->avail, 0) - 1;
-      atomic_incf_by(&m->waiting, pending);
-      /* We're counting on atomic_decf not actually decrementing
-	 the location below 0, but returning a negative result
-	 in that case.
-      */
-      if (atomic_decf(&m->waiting) >= 0) {
+      pending = m->avail-1 + m->waiting;     /* Don't count us */
+      m->avail = 0;
+      --pending;
+      if (pending > 0) {
+        m->waiting = pending;
+      } else {
+        m->waiting = 0;
+      }
+      m->spinlock = 0;
+      if (pending >= 0) {
 	SEM_RAISE(m->signal);
       }
-      ret = 0;
     }
+    ret = 0;
   }
   return ret;
 }
@@ -799,11 +826,36 @@ free_stack(void *s)
 Boolean threads_initialized = false;
 
 void
+count_cpus()
+{
+#ifdef DARWIN
+  /* As of OSX 10.4, Darwin doesn't define _SC_NPROCESSORS_ONLN */
+#include <mach/host_info.h>
+
+  struct host_basic_info info;
+  mach_msg_type_number_t count = HOST_BASIC_INFO_COUNT;
+  
+  if (KERN_SUCCESS == host_info(mach_host_self(), HOST_BASIC_INFO,(host_info_t)(&info),&count)) {
+    if (info.max_cpus > 1) {
+      spin_lock_tries = 1024;
+    }
+  }
+#else
+  int n = sysconf(_SC_NPROCESSORS_ONLN);
+  
+  if (n > 1) {
+    spin_lock_tries = 1024;
+  }
+#endif
+}
+
+void
 init_threads(void * stack_base, TCR *tcr)
 {
   lisp_global(INITIAL_TCR) = (LispObj)ptr_to_lispobj(tcr);
   pthread_key_create((pthread_key_t *)&(lisp_global(TCR_KEY)), shutdown_thread_tcr);
   thread_signal_setup();
+  count_cpus();
   threads_initialized = true;
 }
 
