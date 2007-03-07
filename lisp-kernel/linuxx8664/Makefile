@@ -25,7 +25,7 @@ CDEBUG = -g
 COPT = -O2
 
 # If the linker supports a "--hash-style=" option, use traditional
-# Sysv hash tables.  (If it doesn't support that option, assume
+# SysV hash tables.  (If it doesn't support that option, assume
 # that traditional hash tables will be used by default.)
 ld_has_hash_style = $(shell $(LD) --help | grep "hash-style=")
 ifeq ($(ld_has_hash_style),)

@@ -26,6 +26,16 @@ CDEFINES = -DLINUX -DPPC -D_REENTRANT -D_GNU_SOURCE
 CDEBUG = -g
 COPT = -O2
 
+# If the linker supports a "--hash-style=" option, use traditional
+# Sysv hash tables.  (If it doesn't support that option, assume
+# that traditional hash tables will be used by default.)
+ld_has_hash_style = $(shell $(LD) --help | grep "hash-style=")
+ifeq ($(ld_has_hash_style),)
+HASH_STYLE=
+else
+HASH_STYLE="-Wl,--hash-style=sysv"
+endif
+
 # The only version of GCC I have that supports both ppc32 and ppc64
 # compilation uses the -m32 option to target ppc32.  This may not be
 # definitive; there seem to be a bewildering array of similar options
@@ -75,7 +85,7 @@ OSLIBS = -ldl -lm -lpthread
 
 
 ../../ppccl:	$(KSPOBJ) $(KERNELOBJ) $(DEBUGOBJ)
-	$(CC) $(PPC32) $(CDEBUG)  -Wl,--export-dynamic  -o $@ -T ./elf32ppclinux.x $(KSPOBJ) $(KERNELOBJ) $(DEBUGOBJ) $(OSLIBS)
+	$(CC) $(PPC32) $(CDEBUG)  -Wl,--export-dynamic $(HASH_STYLE) -o $@ -T ./elf32ppclinux.x $(KSPOBJ) $(KERNELOBJ) $(DEBUGOBJ) $(OSLIBS)
 
 
 $(SPOBJ): $(SPINC)
