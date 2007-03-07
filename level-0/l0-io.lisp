@@ -115,6 +115,5 @@
 
 
 ;;; Yield the CPU, via a platform-specific syscall.
-(defun yield ()
-  (%syscall target::yield-syscall :signed-fullword))
+
 
