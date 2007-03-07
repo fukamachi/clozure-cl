@@ -29,7 +29,7 @@ typedef u8_t opcode, *pc;
 #ifdef DARWIN
 #define DARWIN_USE_PSEUDO_SIGRETURN 1
 #include <sys/syscall.h>
-#define DarwinSigReturn(context) syscall(SYS_sigreturn,context)
+#define DarwinSigReturn(context) syscall(0x2000000|SYS_sigreturn,context,0x1e)
 #ifdef X8664
 #define xpGPRvector(x) ((natural *)(&(UC_MCONTEXT(x)->__ss.__rax)))
 #define xpGPR(x,gprno) (xpGPRvector(x)[gprno])
@@ -132,7 +132,7 @@ extern void freebsd_sigreturn(ExceptionInformation *);
 #define IS_MAYBE_INT_TRAP(info,xp) (info->si_code == EXC_I386_GPFLT)
 /* The x86 version of sigreturn just needs the context argument; the
    hidden, magic "flavor" argument that sigtramp uses is ignored. */
-#define SIGRETURN(context) syscall(SYS_sigreturn,context)
+#define SIGRETURN(context) DarwinSigReturn(context)
 #endif
 
 /* Please go away. */
