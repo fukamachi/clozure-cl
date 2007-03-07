@@ -1,3 +1,56 @@
+2007-03-07 07:05  gb
+
+	* xdump/heap-image.lisp: Bump current image version.
+
+2007-03-07 07:02  gb
+
+	* lisp-kernel/x86-asmutils64.s: Some (currently unused) CPUID
+	"calls" want an argument in ecx.  Set that arg to 0 for now.
+
+2007-03-07 07:01  gb
+
+	* lisp-kernel/thread_manager.c: Use spinlocks to guard updates to
+	"real" locks; those updates can be simplified.
+	
+	lock_recursive_lock: no (ignored) timeout arg.
+
+2007-03-07 06:59  gb
+
+	* lisp-kernel/image.h: Bump current, max abi versions; continue to
+	support the old one.
+
+2007-03-07 06:59  gb
+
+	* lisp-kernel/Threads.h: #include #<sched.h>, for sched_yield()
+	prototype.  Change declaration of LOCK macro: no null timespec
+	required.  RECURSIVE_LOCKs have spinlock fields.
+
+2007-03-07 06:56  gb
+
+	* level-1/version.lisp: bump, indicate work-in-progress development
+	version.
+
+2007-03-07 06:56  gb
+
+	* level-1/linux-files.lisp: Determing *spin-lock-tries* at launch
+	time, based on cpu-count.  YIELD moved here, does #_sched_yield
+	rather than something lower-level.
+
+2007-03-07 06:53  gb
+
+	* level-0/l0-misc.lisp: Locks use spinlocks, try *spin-lock-tries*
+	to obtain them before yielding.
+
+2007-03-07 06:52  gb
+
+	* level-0/l0-io.lisp: Move YIELD elsewhere.
+
+2007-03-07 06:51  gb
+
+	* compiler/: PPC/PPC32/ppc32-arch.lisp, PPC/PPC64/ppc64-arch.lisp,
+	X86/X8664/x8664-arch.lisp: Add spinlock field to lockptr storage
+	layout.
+
 2007-03-02 05:10  gb
 
 	* level-1/l1-application.lisp: Toplevel function: initial-listener
