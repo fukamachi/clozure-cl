@@ -1129,3 +1129,11 @@ created with :WAIT NIL.) Return T if successful; signal an error otherwise."
                   (pref ret :uint)
                   1)))
             )))
+
+(def-load-pointers spin-count ()
+  (if (eql 1 (cpu-count))
+    (setq *spin-lock-tries* 1)
+    (setq *spin-lock-tries 1024)))
+
+(defun yield ()
+  (#_sched_yield))
