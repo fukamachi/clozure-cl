@@ -6555,8 +6555,7 @@
     (ppc2-binary-builtin seg vreg xfer 'logand-2 form1 form2)
     (ppc2-inline-logand2 seg vreg xfer form1 form2)))
 
-(defppc2 ppc2-div2 div2 (seg vreg xfer form1 form2)
-  (ppc2-binary-builtin seg vreg xfer '/-2 form1 form2))
+
 
 (defppc2 ppc2-%aref1 %aref1 (seg vreg xfer v i)
   (let* ((vtype (acode-form-type v t))
