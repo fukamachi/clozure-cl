@@ -1,3 +1,40 @@
+2007-03-07 07:45  gb
+
+	* level-1/linux-files.lisp: For #+linux-target, try to use
+	#_sysconf in CPU-COUNT, and fall back to parsing /proc/cpuinfo only
+	if that fails.	(CPU-COUNT is called early in the cold load, before
+	we can make the file-stream necessary to do the parsing.)
+
+2007-03-07 07:33  gb
+
+	* lisp-kernel/: linuxppc/Makefile, linuxppc64/Makefile,
+	linuxx8664/Makefile: Handle new GNU ld "hash-style" linker options.
+
+2007-03-07 07:25  gb
+
+	* lisp-kernel/x86-exceptions.h: Darwin signal return: logior in the
+	el-bizarro syscall mask, pass the magic number 0x1e as a second
+	arg, just in case.
+
+2007-03-07 07:24  gb
+
+	* level-1/l1-sysio.lisp: OPEN, CLOSE lock *OPEN-FILE-STREAMS-LOCK*
+	before accessing *OPEN-FILE-STREAMS*.
+
+2007-03-07 07:23  gb
+
+	* level-1/l1-readloop.lisp: Add comment about
+	*OPEN-FILE-STREAMS-LOCK*.
+
+2007-03-07 07:23  gb
+
+	* level-1/l1-init.lisp: Add *OPEN-FILE-STREAMS-LOCK*.
+
+2007-03-07 07:21  gb
+
+	* lib/nfcomp.lisp: Bind *FCOMP-PREVIOUS-POSITION* in
+	FCOMP-READ-LOOP (e.g., don't just hammer on the static binding.)
+
 2007-03-07 07:05  gb
 
 	* xdump/heap-image.lisp: Bump current image version.
