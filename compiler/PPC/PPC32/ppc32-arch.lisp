@@ -467,7 +467,8 @@
   count
   signal
   waiting
-  malloced-ptr)
+  malloced-ptr
+  spinlock)
 
 ;;; For the eabi port: mark this stack frame as Lisp's (since EABI
 ;;; foreign frames can be the same size as a lisp frame.)

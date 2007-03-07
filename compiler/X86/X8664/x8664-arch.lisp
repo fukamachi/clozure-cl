@@ -714,7 +714,8 @@
   count
   signal
   waiting
-  malloced-ptr)
+  malloced-ptr
+  spinlock)
 
 (defmacro define-header (name element-count subtag)
   `(defconstant ,name (logior (ash ,element-count num-subtag-bits) ,subtag)))
