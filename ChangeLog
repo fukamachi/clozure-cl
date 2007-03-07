@@ -1,3 +1,7 @@
+2007-03-07 08:29  gb
+
+	* compiler/PPC/ppc2.lisp: Don't shadow the definition of PPC-DIV2.
+
 2007-03-07 07:45  gb
 
 	* level-1/linux-files.lisp: For #+linux-target, try to use
