@@ -1102,6 +1102,9 @@ created with :WAIT NIL.) Return T if successful; signal an error otherwise."
                 1))
             #+linux-target
             (or
+             (let* ((n (#_sysconf #$_SC_NPROCESSORS_ONLN)))
+               (declare (fixnum n))
+               (if (> n 0) n))
              (ignore-errors
                (with-open-file (p "/proc/cpuinfo")
                  (let* ((ncpu 0)
