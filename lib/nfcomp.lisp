@@ -373,9 +373,9 @@ Will differ from *compiling-file* during an INCLUDE")
     (error 'file-error :pathname file :error-type "File ~S not found"))
   (namestring path))
 
-; orig-file is back-translated when from fcomp-file
-; when from fcomp-include it's included filename merged with *compiling-file*
-; which is not back translated
+;;; orig-file is back-translated when from fcomp-file
+;;; when from fcomp-include it's included filename merged with *compiling-file*
+;;; which is not back translated
 (defun fcomp-read-loop (filename orig-file env processing-mode)
   (when *compile-verbose*
     (format t "~&;~A ~S..."
@@ -393,30 +393,31 @@ Will differ from *compiling-file* during an INCLUDE")
            (read-package nil)
            form)
       (declare (special *fasl-eof-forms* *fcomp-toplevel-forms* *fasl-source-file*))
-      ;This should really be something like `(set-loading-source ,filename)
-      ;but then couldn't compile level-1 with this...
- ;-> In any case, change this to be a fasl opcode, so don't make an lfun just
- ;   to do this... 
-; There are other reasons - more compelling ones than "fear of tiny lfuns" -
-; for making this a fasl opcode.
+      ;;This should really be something like `(set-loading-source
+      ;;,filename) but then couldn't compile level-1 with this...  ->
+      ;;In any case, change this to be a fasl opcode, so don't make an
+      ;;lfun just to do this...  There are other reasons - more
+      ;;compelling ones than "fear of tiny lfuns" - for making this a
+      ;;fasl opcode.
       (fcomp-output-form $fasl-src env *loading-file-source-file*)
-      (loop
-        (let* ((*fcomp-stream-position* (file-position stream)))
-          (unless (eq read-package *package*)
-            (fcomp-compile-toplevel-forms env)
-            (setq read-package *package*))
-          (let ((*reading-for-cfasl*
-                 (and *fcomp-load-time* cfasl-load-time-eval-sym)))
-            (declare (special *reading-for-cfasl*))
-            (let ((pos (file-position stream)))
-              (handler-bind
-                  ((error #'(lambda (c) ; we should distinguish read errors from others?
-                              (format *error-output* "~&Read error between positions ~a and ~a in ~a." pos (file-position stream) filename)
-                              (signal c))))
-                (setq form (read stream nil eofval)))))
-          (when (eq eofval form) (return))
-          (fcomp-form form env processing-mode)
-          (setq *fcomp-previous-position* *fcomp-stream-position*)))
+      (let* ((*fcomp-previous-position* nil))
+        (loop
+          (let* ((*fcomp-stream-position* (file-position stream)))
+            (unless (eq read-package *package*)
+              (fcomp-compile-toplevel-forms env)
+              (setq read-package *package*))
+            (let ((*reading-for-cfasl*
+                   (and *fcomp-load-time* cfasl-load-time-eval-sym)))
+              (declare (special *reading-for-cfasl*))
+              (let ((pos (file-position stream)))
+                (handler-bind
+                    ((error #'(lambda (c) ; we should distinguish read errors from others?
+                                (format *error-output* "~&Read error between positions ~a and ~a in ~a." pos (file-position stream) filename)
+                                (signal c))))
+                  (setq form (read stream nil eofval)))))
+            (when (eq eofval form) (return))
+            (fcomp-form form env processing-mode)
+            (setq *fcomp-previous-position* *fcomp-stream-position*))))
       (while (setq form *fasl-eof-forms*)
         (setq *fasl-eof-forms* nil)
         (fcomp-form-list form env processing-mode))
