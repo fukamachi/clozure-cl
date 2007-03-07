@@ -465,38 +465,49 @@
   (ff-call (%kernel-import target::kernel-import-resume-other-threads)
            :void))
 
+(defparameter *spin-lock-tries* 1)
+
+(defun %get-spin-lock (p)
+  (let* ((self (%current-tcr))
+         (n *spin-lock-tries*))
+    (declare (fixnum n))
+    (loop
+      (dotimes (i n)
+        (when (eql 0 (%ptr-store-conditional p 0 self))
+          (return-from %get-spin-lock t)))
+      (yield))))
+
 (defun %lock-recursive-lock (lock &optional flag)
   (with-macptrs ((p)
 		 (owner (%get-ptr lock target::lockptr.owner))
-		 (signal (%get-ptr lock target::lockptr.signal)))
+		 (signal (%get-ptr lock target::lockptr.signal))
+                 (spin (%inc-ptr lock target::lockptr.spinlock)))
     (%setf-macptr-to-object p (%current-tcr))
     (if (istruct-typep flag 'lock-acquisition)
       (setf (lock-acquisition.status flag) nil)
-      (if (consp flag)
-        (rplaca flag nil)
-        (if flag (report-bad-arg flag '(or lock-acquisition cons)))))
+      (if flag (report-bad-arg flag 'lock-acquisition)))
     (loop
       (without-interrupts
        (when (eql p owner)
          (incf (%get-natural lock target::lockptr.count))
          (when flag
-           (if (consp flag)
-             (rplaca flag t)
-             (setf (lock-acquisition.status flag) t)))
+           (setf (lock-acquisition.status flag) t))
          (return t))
-       (when (eql 1 (%atomic-incf-ptr lock))
+       (%get-spin-lock spin)
+       (when (eql 1 (incf (%get-natural lock target::lockptr.avail)))
          (setf (%get-ptr lock target::lockptr.owner) p
                (%get-natural lock target::lockptr.count) 1)
+         (setf (%get-ptr spin) (%null-ptr))
          (if flag
-           (if (consp flag)
-             (rplaca flag t)
-             (setf (lock-acquisition.status flag) t)))
+           (setf (lock-acquisition.status flag) t))
          (return t)))
+      (setf (%get-ptr spin) (%null-ptr))
       (%process-wait-on-semaphore-ptr signal 1 0 "waiting for lock"))))
 
 (defun %try-recursive-lock (lock &optional flag)
   (with-macptrs ((p)
-		 (owner (%get-ptr lock target::lockptr.owner)))
+		 (owner (%get-ptr lock target::lockptr.owner))
+                 (spin (%inc-ptr lock target::lockptr.spinlock)))
     (%setf-macptr-to-object p (%current-tcr))
     (if flag
       (if (istruct-typep flag 'lock-acquisition)
@@ -507,32 +518,40 @@
             (incf (%get-natural lock target::lockptr.count))
             (if flag (setf (lock-acquisition.status flag) t))
             t)
-           ((eql 0 (%ptr-store-conditional lock 0 1))
-            (setf (%get-ptr lock target::lockptr.owner) p
-                  (%get-natural lock target::lockptr.count) 1)
-            (if flag (setf (lock-acquisition.status flag) t))
-            t)
-           (t nil)))))
+           (t
+            (let* ((win nil))
+              (%get-spin-lock spin)
+              (when (setq win (eql 1 (incf (%get-natural lock target::lockptr.avail))))
+                (setf (%get-ptr lock target::lockptr.owner) p
+                      (%get-natural lock target::lockptr.count) 1)
+                (if flag (setf (lock-acquisition.status flag) t)))
+              (setf (%get-ptr spin) (%null-ptr))
+              win))))))
 
 
 (defun %unlock-recursive-lock (lock)
-  (with-macptrs ((p)
-		 (owner (%get-ptr lock target::lockptr.owner))
-		 (signal (%get-ptr lock target::lockptr.signal)))
-    (%setf-macptr-to-object p (%current-tcr))
-    (unless (eql p owner)
+  (with-macptrs ((signal (%get-ptr lock target::lockptr.signal))
+                 (spin (%inc-ptr lock target::lockptr.spinlock)))
+    (unless (eql (%get-object lock target::lockptr.owner) (%current-tcr))
       (error 'not-lock-owner :lock lock))
     (without-interrupts
      (when (eql 0 (decf (the fixnum
                           (%get-natural lock target::lockptr.count))))
+       (%get-spin-lock spin)
        (setf (%get-ptr lock target::lockptr.owner) (%null-ptr))
-       (let* ((pending (1- (the fixnum (%atomic-swap-ptr lock 0)))))
+       (let* ((pending (+ (the fixnum
+                            (1- (the fixnum (%get-fixnum lock target::lockptr.avail))))
+                          (the fixnum (%get-fixnum lock target::lockptr.waiting)))))
          (declare (fixnum pending))
-         (with-macptrs ((waiting (%inc-ptr lock target::lockptr.waiting)))
-           (%atomic-incf-ptr-by waiting pending)
-           (when (>= (the fixnum (%atomic-decf-ptr-if-positive waiting)) 0)
-             (%signal-semaphore-ptr signal))))))
-    nil))
+         (setf (%get-natural lock target::lockptr.avail) 0
+               (%get-natural lock target::lockptr.waiting) 0)
+         (decf pending)
+         (if (> pending 0)
+           (setf (%get-natural lock target::lockptr.waiting) pending))
+         (setf (%get-ptr spin) (%null-ptr))
+         (if (>= pending 0)
+           (%signal-semaphore-ptr signal))))))
+    nil)
 
 
 (defun %%lock-owner (lock)
