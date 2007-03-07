@@ -138,6 +138,7 @@ _exportfn(C(cpuid))
 	__(pushq %rcx)		/* pedx */
 	__(pushq %rbx)		/* %rbx is non-volatile */
 	__(movq %rdi,%rax)
+        __(xorl %ecx,%ecx)
 	__(cpuid)
 	__(movl %ebx,(%rsi))
 	__(popq %rbx)
