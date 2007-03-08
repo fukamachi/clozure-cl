@@ -66,7 +66,7 @@
         (declare (type (unsigned-byte 8) op0 op1 op2))
         (let* ((skip 2))
           (if (and (= op0 #xcd)
-                   (>= op1 #x80))
+                   (>= op1 #x70))
             (cond ((< op1 #x90)
                    (setq skip 3)
                    (setq *error-reentry-count* 0)
