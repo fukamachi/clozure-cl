@@ -1,3 +1,19 @@
+2007-03-08 03:30  gb
+
+	* level-1/x86-error-signal.lisp: Check for trap opcode >= #x70
+	rather than >= #x80, because of the new way that
+	uuo-error-slot-unbound is encoded.
+
+2007-03-08 03:28  gb
+
+	* compiler/X86/x86-disassemble.lisp: Recognize
+	uuo-error-slot-unbound.
+
+2007-03-08 03:28  gb
+
+	* compiler/X86/x86-asm.lisp: Use (int #x7_) for
+	uuo-error-slot-unbound, since some (int #x8_) traps confuse Mach.
+
 2007-03-07 08:29  gb
 
 	* compiler/PPC/ppc2.lisp: Don't shadow the definition of PPC-DIV2.
