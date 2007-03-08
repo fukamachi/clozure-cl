@@ -3343,7 +3343,10 @@
    (def-x8664-opcode uuo-error-slot-unbound ((:reg64 :insert-opcode-reg4)
                                              (:reg64 :insert-reg4-pseudo-rm-high)
                                              (:reg64 :insert-reg4-pseudo-rm-low))
-     #xcd80 0 nil)
+     #xcd70 0 nil)
+
+   ;;; DON'T use #xcd8x: doing so will make Mach angry and confused.
+   
    (def-x8664-opcode uuo-error-unbound ((:reg64 :insert-opcode-reg4))
      #xcd90 nil 0)
 
