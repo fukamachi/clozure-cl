@@ -352,7 +352,10 @@
      output-stream
      stream-eofp
 
-     *open-file-streams*
+     open-file-streams
+     note-open-file-stream
+     remove-open-file-stream
+     clear-open-file-streams
      stream-line-length
      string-output-stream
      truncating-string-stream
