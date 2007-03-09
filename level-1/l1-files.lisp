@@ -494,7 +494,7 @@ a host-structure or string."
     (unless host (setq host :unspecific)))
   (if directory-p 
     (setq directory (%std-directory-component directory host)))
-  (if (and defaults (not directory))
+  (if (and defaults (not directory-p))
     (setq directory (pathname-directory defaults)))
   (setq name
         (if name-p
@@ -529,10 +529,11 @@ a host-structure or string."
           (%pathname-type path) (%reverse-component-case (%pathname-type path) case)))
   path)
 
-;  In portable CL, if the :directory argument to make pathname is a string, it should
-;  be the name of a top-level directory and should not contain any punctuation characters
-;  such as "/" or ";".  In MCL a string :directory argument with slashes or semi-colons
-;  will be parsed as a directory in the obvious way.
+;;;  In portable CL, if the :directory argument to make pathname is a
+;;;  string, it should be the name of a top-level directory and should
+;;;  not contain any punctuation characters such as "/" or ";".  In
+;;;  MCL a string :directory argument with slashes or semi-colons will
+;;;  be parsed as a directory in the obvious way.
 (defun %std-directory-component (directory host)
   (cond ((null directory) nil)
         ((eq directory :wild) '(:absolute :wild-inferiors))
