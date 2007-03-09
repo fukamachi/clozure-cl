@@ -1716,8 +1716,7 @@
 	 (high (ldb (byte 16 16) ticks)) 
 	 (low (ldb (byte 16 0) ticks)))
     (declare (fixnum high low))
-    (values (the fixnum (ash high (- 16 target::fixnum-shift)))
-            (the fixnum (ash low (- 16 target::fixnum-shift))))))
+    (values high low)))
 
 
 (defun random (number &optional (state *random-state*))
@@ -1736,7 +1735,67 @@
       (%bignum-random number state))
      (t (report-bad-arg number '(or (integer (0)) (float (0.0)))))))
 
-(defun %bignum-random (number &optional state)
+
+#|
+Date: Mon, 3 Feb 1997 10:04:08 -0500
+To: info-mcl@digitool.com, wineberg@franz.scs.carleton.ca
+From: dds@flavors.com (Duncan Smith)
+Subject: Re: More info on the random number generator
+Sender: owner-info-mcl@digitool.com
+Precedence: bulk
+
+The generator is a Linear Congruential Generator:
+
+   X[n+1] = (aX[n] + c) mod m
+
+where: a = 16807  (Park&Miller recommend 48271)
+       c = 0
+       m = 2^31 - 1
+
+See: Knuth, Seminumerical Algorithms (Volume 2), Chapter 3.
+
+The period is: 2^31 - 2  (zero is excluded).
+
+What makes this generator so simple is that multiplication and addition mod
+2^n-1 is easy.  See Knuth Ch. 4.3.2 (2nd Ed. p 272).
+
+    ab mod m = ...
+
+If         m = 2^n-1
+           u = ab mod 2^n
+           v = floor( ab / 2^n )
+
+    ab mod m = u + v                   :  u+v < 2^n
+    ab mod m = ((u + v) mod 2^n) + 1   :  u+v >= 2^n
+
+What we do is use 2b and 2n so we can do arithemetic mod 2^32 instead of
+2^31.  This reduces the whole generator to 5 instructions on the 680x0 or
+80x86, and 8 on the 60x.
+
+-Duncan
+
+|#
+
+#+64-bit-target
+(defun %next-random-pair (high low)
+  (let* ((n (nth-value
+             1
+             (%multiply 42871 (dpb (ldb (byte 15 0) high)
+                                      (byte 16 16)
+                                      (ldb (byte 16 0) low ))))))
+    (values (ldb (byte 16 16) n)
+            (ldb (byte 16 0) n))))
+
+(defun %next-random-seed (state)
+  (multiple-value-bind (high low) (%next-random-pair (%svref state 1)
+                                                     (%svref state 2))
+    (setf (%svref state 1) (ldb (byte 15 0) high)
+          (%svref state 2) low)
+    high
+    ))
+
+
+(defun %bignum-random (number state)
   (let* ((bits (+ (integer-length number) 8))
          (half-words (ash (the fixnum (+ bits 15)) -4))
          (long-words (ash (+ half-words 1) -1))
