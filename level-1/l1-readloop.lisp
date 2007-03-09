@@ -150,15 +150,15 @@
           (when semaphore
             (timed-wait-on-semaphore semaphore 0.10)))))
     (shutdown-lisp-threads)
-    ;; Don't need to grab *open-file-streams-lock* here, since
-    ;; we're single-threaded at this point.
-    (while *open-file-streams*
-      (let* ((ioblock (stream-ioblock (car *open-file-streams*) nil)))
-        (when ioblock
-          (setf (ioblock-inbuf-lock ioblock) nil
-                (ioblock-outbuf-lock ioblock) nil
-                (ioblock-owner ioblock) nil)))
-      (close (car *open-file-streams*)))
+    (loop
+      (let* ((streams (open-file-streams)))
+        (when (null streams) (return))
+        (let* ((ioblock (stream-ioblock (car streams) nil)))
+          (when ioblock
+            (setf (ioblock-inbuf-lock ioblock) nil
+                  (ioblock-outbuf-lock ioblock) nil
+                  (ioblock-owner ioblock) nil)))
+        (close (car streams))))
     (setf (interrupt-level) -1)         ; can't abort after this
     ))
 
