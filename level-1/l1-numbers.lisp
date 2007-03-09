@@ -427,11 +427,10 @@
     (report-bad-arg seed-1 '(unsigned-byte 16)))
   (unless (and (fixnump seed-2) (%i<= 0 seed-2) (%i< seed-2 #x10000))
     (report-bad-arg seed-2 '(unsigned-byte 16)))
-  (let ((shift (%i- 16 target::fixnum-shift)))
     (gvector :istruct
              'random-state
-             (%ilsl shift seed-1)
-             (%ilsl shift seed-2))))
+             seed-1
+             seed-2))
 
 
 (defparameter *random-state* (initialize-random-state #xFBF1 9))
