@@ -136,58 +136,8 @@
   (cmoveq (% imm0) (% arg_z))
   (single-value-return))
   
-#|
-Date: Mon, 3 Feb 1997 10:04:08 -0500
-To: info-mcl@digitool.com, wineberg@franz.scs.carleton.ca
-From: dds@flavors.com (Duncan Smith)
-Subject: Re: More info on the random number generator
-Sender: owner-info-mcl@digitool.com
-Precedence: bulk
 
-The generator is a Linear Congruential Generator:
 
-   X[n+1] = (aX[n] + c) mod m
-
-where: a = 16807  (Park&Miller recommend 48271)
-       c = 0
-       m = 2^31 - 1
-
-See: Knuth, Seminumerical Algorithms (Volume 2), Chapter 3.
-
-The period is: 2^31 - 2  (zero is excluded).
-
-What makes this generator so simple is that multiplication and addition mod
-2^n-1 is easy.  See Knuth Ch. 4.3.2 (2nd Ed. p 272).
-
-    ab mod m = ...
-
-If         m = 2^n-1
-           u = ab mod 2^n
-           v = floor( ab / 2^n )
-
-    ab mod m = u + v                   :  u+v < 2^n
-    ab mod m = ((u + v) mod 2^n) + 1   :  u+v >= 2^n
-
-What we do is use 2b and 2n so we can do arithemetic mod 2^32 instead of
-2^31.  This reduces the whole generator to 5 instructions on the 680x0 or
-80x86, and 8 on the 60x.
-
--Duncan
-
-|#
-
-;;; Use the two fixnums in state to generate a random fixnum >= 0 and < 65536
-;;; Scramble those fixnums up a bit.
-
-(defun %next-random-seed (state)
-  (let* ((seed (dpb (ldb (byte 16 13) (%svref state 1))
-                    (byte 16 16)
-                    (ldb (byte 16 13) (%svref state 2)))))
-    (multiple-value-bind (seed-low seed-high) (%multiply seed (* 2 48271))
-      (setq seed (logand #xffffffff (+ seed-low seed-high)))
-      (setf (%svref state 1) (ash (ldb (byte 16 16) seed) 13)
-            (%svref state 2) (ash (ldb (byte 16 0) seed) 13))
-      (dpb (ldb (byte 8 0) seed-low) (byte 8 8) (ldb (byte 8 3) seed-high)))))
 
 
 
