@@ -30,9 +30,8 @@
 (defun kill-lisp-pointers ()
   (setq * nil ** nil *** nil + nil ++ nil +++ nil - nil
         / nil // nil /// nil
-        *open-file-streams* nil
          @ nil)
-
+  (clear-open-file-streams)
   (setf (*%saved-method-var%*) nil)
   (setq *%periodic-tasks%* nil)
   (setq *event-dispatch-task* nil)
