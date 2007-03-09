@@ -321,45 +321,28 @@ What we do is use 2b and 2n so we can do arithemetic mod 2^32 instead of
 |#
 ; Use the two fixnums in state to generate a random fixnum >= 0 and < 65536
 ; Scramble those fixnums up a bit.
+
 #+ppc32-target
-(defppclapfunction %next-random-seed ((state arg_z))
-  (let ((seed0 imm0)
-        (seed1 imm1)
-        (temp imm2))
-    (check-nargs 1)             ; check
-    (lhz seed1 (+ ppc32::misc-data-offset 4) state)
-    (lwi temp #.(* 2 48271))      ; 48271 * 2
-    (lhz seed0 (+ ppc32::misc-data-offset 8) state)
-    (rlwimi seed0 seed1 16 0 15)  ; combine into 32 bits, x
-    (mullw  seed1 temp seed0)     ; seed1 = (x * 48271), lo, * 2
-    (rlwinm temp temp 1 0 30)     ; 48271 * 2 * 2
-    (mulhw  seed0 temp seed0)     ; seed0 = (x * 48271), hi, * 2
-    (addc   seed0 seed0 seed1)    ; do mod 2^31-1
-    (rlwinm seed0 seed0 31 1 31)
-    (addze. seed0 seed0)
-    (insrwi seed1 seed0 16 16)
-    (sth seed1 (+ ppc32::misc-data-offset 8) state)
-    (rotlwi seed0 seed0 16)
-    (bne @storehigh)
-    (addi seed0 seed0 1)
-    @storehigh
-    (sth seed0 (+ ppc32::misc-data-offset 4) state)
-    (clrlwi temp seed1 16)
-    (box-fixnum arg_z temp)
-    (blr)))
+(defppclapfunction %next-random-pair ((high arg_y) (low arg_z))
+  (slwi imm0 high (- 16 ppc32::fixnumshift))
+  (rlwimi imm0 low (- 32 ppc32::fixnumshift) 16 31)
+  (lwi imm1 48271)
+  (clrlwi imm0 imm0 1)
+  (mullw imm0 imm1 imm0)
+  (clrrwi arg_y imm0 16 )
+  (srwi arg_y arg_y (- 16 ppc32::fixnumshift))
+  (clrlslwi arg_z imm0 16 ppc32::fixnumshift)
+  (mr temp0 vsp)
+  (vpush arg_y)
+  (vpush arg_z)
+  (set-nargs 2)
+  (ba .SPvalues))
 
 
 
-#+ppc64-target
-(defun %next-random-seed (state)
-  (let* ((seed (dpb (ldb (byte 16 13) (%svref state 1))
-                    (byte 16 16)
-                    (ldb (byte 16 13) (%svref state 2)))))
-    (multiple-value-bind (seed-low seed-high) (%multiply seed (* 2 48271))
-      (setq seed (logand #xffffffff (+ seed-low seed-high)))
-      (setf (%svref state 1) (ash (ldb (byte 16 16) seed) 13)
-            (%svref state 2) (ash (ldb (byte 16 0) seed) 13))
-      (dpb (ldb (byte 8 0) seed-low) (byte 8 8) (ldb (byte 8 3) seed-high)))))
+
+
+
 
 
 
