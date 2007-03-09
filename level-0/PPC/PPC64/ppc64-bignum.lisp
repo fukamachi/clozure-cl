@@ -110,7 +110,7 @@
     (ba .SPvalues)))
 
 ;;; Multiply two (UNSIGNED-BYTE 32) arguments, return the high and
-;;; low halves of the 64-bir result
+;;; low halves of the 64-bit result
 (defppclapfunction %multiply ((x arg_y) (y arg_z))
   (let ((unboxed-x imm0)
         (unboxed-y imm1)
