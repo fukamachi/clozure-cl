@@ -1,3 +1,37 @@
+2007-03-09 00:01  gb
+
+	* lib/dumplisp.lisp: Use CLEAR-OPEN-FILE-STREAMS.
+
+2007-03-09 00:00  gb
+
+	* lib/ccl-export-syms.lisp: Accessors of open-file-streams; no more
+	*OPEN-FILE-STREAMS*.
+
+2007-03-09 00:00  gb
+
+	* level-1/: l1-streams.lisp, l1-sysio.lisp: Encapsulation for
+	open-file-streams.
+
+2007-03-08 23:59  gb
+
+	* level-1/l1-readloop.lisp: OPEN-FILE-STREAMS is a function,
+	returns a copy of a list of open file streams in PREPARE-TO-QUIT.
+
+2007-03-08 23:58  gb
+
+	* level-1/l1-init.lisp: Lose *OPEN-FILE-STREAMS* and the lock
+	associated with it.
+
+2007-03-08 23:57  gb
+
+	* level-1/l1-aprims.lisp: Bind *GENSYM-COUNTER* per-thread.
+
+2007-03-08 23:47  gb
+
+	* level-0/l0-hash.lisp: When REMHASH deletes the last entry in a
+	hash-table, it fills the hash-table vector with "free" markers. 
+	(There may already be lots of "deleted" markers in the table.)
+
 2007-03-08 22:26  gb
 
 	* level-1/linux-files.lisp: *spin-lock-tries* with a trailing *.
