@@ -637,8 +637,7 @@ is :UNIX.")
 	    (fd-stream-close s ioblock)
 	    (unix-rename (namestring actual-filename) (probe-file-x filename)))
 	  (delete-file actual-filename)))
-      (with-lock-grabbed (*open-file-streams-lock*)
-        (setq *open-file-streams* (nremove s *open-file-streams*))))))
+      (remove-open-file-stream s))))
 
 
 (defmethod close ((s fundamental-file-stream) &key abort)
@@ -841,8 +840,7 @@ is :UNIX.")
                          (stream-length fstream 0)))
                   (if (eq direction :probe)
                     (close fstream)
-                    (with-lock-grabbed (*open-file-streams-lock*)
-                      (push fstream *open-file-streams*)))
+                    (note-open-file-stream fstream))
                   fstream)))))))))
 
 

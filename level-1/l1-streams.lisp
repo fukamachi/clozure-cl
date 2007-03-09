@@ -5413,6 +5413,24 @@
 
 ;;;File streams.
 
+(let* ((open-file-streams ())
+       (open-file-streams-lock (make-lock)))
+  (defun open-file-streams ()
+    (with-lock-grabbed (open-file-streams-lock)
+      (copy-list open-file-streams)))
+  (defun note-open-file-stream (f)
+    (with-lock-grabbed (open-file-streams-lock)
+      (push f open-file-streams))
+    t)
+  (defun remove-open-file-stream (f)
+    (with-lock-grabbed (open-file-streams-lock)
+      (setq open-file-streams (nremove f open-file-streams)))
+    t)
+  (defun clear-open-file-streams ()
+    (with-lock-grabbed (open-file-streams-lock)
+      (setq open-file-streams nil))))
+            
+
 (defun open (filename &key (direction :input)
                       (element-type 'base-char)
                       (if-exists :error)
