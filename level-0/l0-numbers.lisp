@@ -1711,6 +1711,8 @@
   (declare (ignore type))
   'real)
 
+
+
 (defun init-random-state-seeds ()
   (let* ((ticks (ldb (byte 32 0) (get-internal-real-time)))
 	 (high (ldb (byte 16 16) ticks)) 
