@@ -1,3 +1,39 @@
+2007-03-08 22:26  gb
+
+	* level-1/linux-files.lisp: *spin-lock-tries* with a trailing *.
+
+2007-03-08 22:24  gb
+
+	* lib/numbers.lisp: printing random-state: don't shift seeds.
+
+2007-03-08 22:24  gb
+
+	* level-1/l1-numbers.lisp: MAKE-RANDOM-STATE: don't shift.
+
+2007-03-08 22:24  gb
+
+	* level-0/X86/x86-numbers.lisp: Do %next-random-seed more portably.
+
+2007-03-08 22:23  gb
+
+	* level-0/PPC/PPC64/ppc64-bignum.lisp: Typo in comment.
+
+2007-03-08 22:23  gb
+
+	* level-0/PPC/ppc-numbers.lisp: Just a 32-bit version of
+	%next-random-pair.
+
+2007-03-08 22:22  gb
+
+	* level-0/l0-numbers.lisp: And, while we're at it: do the
+	next-random-seed permutation in %next-random-pair, which accepts
+	and returns a pair of 16-bit integers.	That's in lap on ppc32 and
+	in lisp on 64-bit platforms.
+
+2007-03-08 22:20  gb
+
+	* level-0/l0-numbers.lisp: Don't shift random seeds.
+
 2007-03-08 03:30  gb
 
 	* level-1/x86-error-signal.lisp: Check for trap opcode >= #x70
