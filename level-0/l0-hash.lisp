@@ -740,7 +740,20 @@ before doing so.")
                (pop (the list (svref nhash.vector.free-alist vector))))
              ;; Delete the value from the table.
              (setf (%svref vector vector-index) deleted-hash-key-marker
-                   (%svref vector (the fixnum (1+ vector-index))) nil)))))
+                   (%svref vector (the fixnum (1+ vector-index))) nil))))
+       (when (and foundp
+                (zerop (the fixnum (nhash.count hash))))
+         (do* ((i $nhash.vector_overhead (1+ i))
+               (n (uvsize vector)))
+              ((= i n))
+           (declare (fixnum i n))
+           (setf (%svref vector i) free-hash-key-marker))
+         (setf (nhash.grow-threshold hash)
+               (+ (nhash.vector.deleted-count vector)
+                  (nhash.vector.weak-deletions-count vector)
+                  (nhash.grow-threshold hash))
+               (nhash.vector.deleted-count vector) 0
+               (nhash.vector.weak-deletions-count vector) 0)))
      ;; Return T if we deleted something
      (%unlock-gc-lock)
      (unlock-hash-table hash))
