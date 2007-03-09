@@ -41,6 +41,7 @@
     symbol))
 
 (def-standard-initial-binding *package*)
+(def-standard-initial-binding *gensym-counter* 0)
 
 (defun %badarg (arg type)
   (%err-disp $XWRONGTYPE arg type))
