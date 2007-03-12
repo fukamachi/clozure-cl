@@ -42,6 +42,8 @@
 
 (def-standard-initial-binding *package*)
 (def-standard-initial-binding *gensym-counter* 0)
+(def-standard-initial-binding *random-state* (initialize-random-state #xFBF1 9))
+
 
 (defun %badarg (arg type)
   (%err-disp $XWRONGTYPE arg type))
