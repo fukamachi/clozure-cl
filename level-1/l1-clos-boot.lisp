@@ -556,11 +556,14 @@
              (t spec))
            spec)))
 
-(defglobal *class-wrapper-random-state* (make-random-state))
+(let* ((class-wrapper-random-state (make-random-state))
+       (class-wrapper-random-state-lock (make-lock)))
 
-(defun new-class-wrapper-hash-index ()
-  ;; mustn't be 0
-  (the fixnum (1+ (the fixnum (random target::target-most-positive-fixnum *class-wrapper-random-state*)))))
+  (defun  new-class-wrapper-hash-index ()
+    ;; mustn't be 0
+    (with-lock-grabbed (class-wrapper-random-state-lock)
+      (the fixnum (1+ (the fixnum (random target::target-most-positive-fixnum class-wrapper-random-state)))))))
+
 
 (defun %inner-method-function (method)
   (let ((f (%method-function method)))
