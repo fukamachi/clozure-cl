@@ -433,7 +433,7 @@
              seed-2))
 
 
-(defparameter *random-state* (initialize-random-state #xFBF1 9))
+
 
 
 (defun make-random-state (&optional state)
