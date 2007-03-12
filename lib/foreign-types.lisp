@@ -1418,7 +1418,7 @@ result-type-specifer is :VOID or NIL"
              ((null specs)
               (call result)
               (if args
-                (error "Extra arguments in ~s" (call))
+                (error "Extra arguments in ~s"  whole)
                 `(external-call ,external-name ,@(call))))
           (let* ((spec (car specs)))
             (cond ((eq spec :void)
