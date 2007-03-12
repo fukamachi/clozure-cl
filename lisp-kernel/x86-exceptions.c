@@ -1076,7 +1076,9 @@ interrupt_handler (int signum, siginfo_t *info, ExceptionInformation *context)
 #endif
   TCR *tcr = get_interrupt_tcr(false);
   if (tcr) {
-    if (TCR_INTERRUPT_LEVEL(tcr) < 0) {
+    if ((TCR_INTERRUPT_LEVEL(tcr) < 0) ||
+        (tcr->valence != TCR_STATE_LISP) ||
+        (tcr->unwinding != 0)) {
       tcr->interrupt_pending = (1L << (nbits_in_word - 1L));
     } else {
       LispObj cmain = nrs_CMAIN.vcell;
@@ -1084,50 +1086,43 @@ interrupt_handler (int signum, siginfo_t *info, ExceptionInformation *context)
       if ((fulltag_of(cmain) == fulltag_misc) &&
 	  (header_subtag(header_of(cmain)) == subtag_macptr)) {
 	/* 
-	   This thread can (allegedly) take an interrupt now.
-	   It's tricky to do that if we're executing
-	   foreign code (especially Linuxthreads code, much
-	   of which isn't reentrant.)
-           If we're unwinding the stack, we also want to defer
-           the interrupt.
-	*/
-	if ((tcr->valence != TCR_STATE_LISP) ||
-            (tcr->unwinding != 0)) {
-	  tcr->interrupt_pending = (1L << (nbits_in_word - 1L));
-	} else {
-	  xframe_list xframe_link;
-	  int old_valence;
-          signed_natural alloc_displacement = 0;
-          LispObj 
-            *next_tsp = tcr->next_tsp,
-            *save_tsp = tcr->save_tsp,
-            *p,
-            q;
+	   This thread can (allegedly) take an interrupt now. 
+        */
+
+        xframe_list xframe_link;
+        int old_valence;
+        signed_natural alloc_displacement = 0;
+        LispObj 
+          *next_tsp = tcr->next_tsp,
+          *save_tsp = tcr->save_tsp,
+          *p,
+          q;
             
-          if (next_tsp != save_tsp) {
-            tcr->next_tsp = save_tsp;
-          } else {
-            next_tsp = NULL;
+        if (next_tsp != save_tsp) {
+          tcr->next_tsp = save_tsp;
+        } else {
+          next_tsp = NULL;
+        }
+        /* have to do this before allowing interrupts */
+        pc_luser_xp(context, tcr, &alloc_displacement);
+        old_valence = prepare_to_wait_for_exception_lock(tcr, context);
+        wait_for_exception_lock_in_handler(tcr, context, &xframe_link);
+        handle_exception(signum, info, context, tcr);
+        if (alloc_displacement) {
+          fprintf(stderr, "tcr = 0x%x, allocptr = 0x%lx, disp = %d\n",tcr,tcr->save_allocptr,alloc_displacement);
+          tcr->save_allocptr -= alloc_displacement;
+        }
+        if (next_tsp) {
+          tcr->next_tsp = next_tsp;
+          p = next_tsp;
+          while (p != save_tsp) {
+            *p++ = 0;
           }
-	  pc_luser_xp(context, tcr, &alloc_displacement);
-	  old_valence = prepare_to_wait_for_exception_lock(tcr, context);
-	  wait_for_exception_lock_in_handler(tcr, context, &xframe_link);
-	  handle_exception(signum, info, context, tcr);
-          if (alloc_displacement) {
-            tcr->save_allocptr -= alloc_displacement;
-          }
-          if (next_tsp) {
-            tcr->next_tsp = next_tsp;
-            p = next_tsp;
-            while (p != save_tsp) {
-              *p++ = 0;
-            }
-            q = (LispObj)save_tsp;
-            *next_tsp = q;
-          }
-	  unlock_exception_lock_in_handler(tcr);
-	  exit_signal_handler(tcr, old_valence);
-	}
+          q = (LispObj)save_tsp;
+          *next_tsp = q;
+        }
+        unlock_exception_lock_in_handler(tcr);
+        exit_signal_handler(tcr, old_valence);
       }
     }
   }
