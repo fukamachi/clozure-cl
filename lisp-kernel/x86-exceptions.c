@@ -2209,7 +2209,7 @@ catch_exception_raise(mach_port_t exception_port,
     if (tcr->flags & (1<<TCR_FLAG_BIT_PENDING_EXCEPTION)) {
       CLR_TCR_FLAG(tcr,TCR_FLAG_BIT_PENDING_EXCEPTION);
     } 
-    if ((exception == EXC_BAD_INSTRUCTION) &&
+    if ((code == EXC_I386_GPFLT) &&
         ((natural)(ts_pc(ts)) == (natural)pseudo_sigreturn)) {
       kret = do_pseudo_sigreturn(thread, tcr);
 #if 0
@@ -2221,7 +2221,11 @@ catch_exception_raise(mach_port_t exception_port,
     } else {
       switch (exception) {
       case EXC_BAD_ACCESS:
-        signum = SIGBUS;
+        if (code == EXC_I386_GPFLT) {
+          signum = SIGSEGV;
+        } else {
+          signum = SIGBUS;
+        }
         break;
         
       case EXC_BAD_INSTRUCTION:
