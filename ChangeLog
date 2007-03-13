@@ -1,3 +1,7 @@
+2007-03-13 06:10  gb
+
+	* lisp-kernel/darwinx8664/Makefile: (re-)enable -O2.
+
 2007-03-13 03:58  gb
 
 	* lib/backtrace.lisp: Fix fenceposts in CLOSURE-CLOSED-OVER-VALUES.
