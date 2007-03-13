@@ -1,3 +1,35 @@
+2007-03-12 05:11  gb
+
+	* lisp-kernel/x86-exceptions.c: Simplify interrupt_handler() a
+	little.
+
+2007-03-12 05:10  gb
+
+	* lib/foreign-types.lisp: Fix "extra arguments" error message in
+	%EXTERNAL-CALL-EXPANDER.
+
+2007-03-12 05:09  gb
+
+	* level-1/l1-clos-boot.lisp: class-wrapper-random-state: use
+	encapsulation, and a lock.
+
+2007-03-12 05:08  gb
+
+	* level-1/: l1-aprims.lisp, l1-numbers.lisp: *RANDOM-STATE* is
+	thread-local.
+
+2007-03-12 02:25  gb
+
+	* lisp-kernel/x86-exceptions.c: in catch_exception_raise(), try to
+	deal with variations in Mach behavior: "exception" may be
+	EXC_BAD_ACCESS when an illegal instruction causes a "general
+	protection fault".
+
+2007-03-09 15:56  gb
+
+	* level-1/l1-files.lisp: Bill's fix to (MAKE-PATHNAME :DIRECTORY
+	NIL ...)
+
 2007-03-09 00:01  gb
 
 	* lib/dumplisp.lisp: Use CLEAR-OPEN-FILE-STREAMS.
