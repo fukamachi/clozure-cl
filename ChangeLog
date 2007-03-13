@@ -1,3 +1,7 @@
+2007-03-13 03:58  gb
+
+	* lib/backtrace.lisp: Fix fenceposts in CLOSURE-CLOSED-OVER-VALUES.
+
 2007-03-12 05:11  gb
 
 	* lisp-kernel/x86-exceptions.c: Simplify interrupt_handler() a
