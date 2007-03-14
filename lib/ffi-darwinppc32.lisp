@@ -185,7 +185,7 @@
                                  (cond ((<= bits 8)
                                         (setq bias 3)
                                         (if signed
-                                          '%get-signed-byte '
+                                          '%get-signed-byte
                                           '%get-unsigned-byte))
                                        ((<= bits 16)
                                         (setq bias 2)
