@@ -1,3 +1,8 @@
+2007-03-14 05:11  gb
+
+	* lib/ffi-darwinppc32.lisp: Fix typo (extra quote) in
+	generate-callback-bindings.
+
 2007-03-13 06:10  gb
 
 	* lisp-kernel/darwinx8664/Makefile: (re-)enable -O2.
