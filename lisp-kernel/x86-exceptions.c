@@ -1109,7 +1109,6 @@ interrupt_handler (int signum, siginfo_t *info, ExceptionInformation *context)
         wait_for_exception_lock_in_handler(tcr, context, &xframe_link);
         handle_exception(signum, info, context, tcr);
         if (alloc_displacement) {
-          fprintf(stderr, "tcr = 0x%x, allocptr = 0x%lx, disp = %d\n",tcr,tcr->save_allocptr,alloc_displacement);
           tcr->save_allocptr -= alloc_displacement;
         }
         if (next_tsp) {
