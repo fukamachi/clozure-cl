@@ -1,3 +1,7 @@
+2007-03-14 23:10  gb
+
+	* lisp-kernel/x86-exceptions.c: Remove a debugging fprintf.
+
 2007-03-14 05:11  gb
 
 	* lib/ffi-darwinppc32.lisp: Fix typo (extra quote) in
