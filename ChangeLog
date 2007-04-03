@@ -1,3 +1,8 @@
+2007-04-03 03:11  gb
+
+	* level-1/l1-streams.lisp: Takehiko Abe's fix to
+	%IOBLOCK-WRITE-U16-ENCODED-CHAR.
+
 2007-04-02 22:10  gb
 
 	* level-1/l1-unicode.lisp: Takehiko Abe's fixes (missing "stream"
