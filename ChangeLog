@@ -1,3 +1,9 @@
+2007-04-02 22:10  gb
+
+	* level-1/l1-unicode.lisp: Takehiko Abe's fixes (missing "stream"
+	arg in utf-16 encode, missing #x in little-endian bom-marker
+	definition.)
+
 2007-03-14 23:10  gb
 
 	* lisp-kernel/x86-exceptions.c: Remove a debugging fprintf.
