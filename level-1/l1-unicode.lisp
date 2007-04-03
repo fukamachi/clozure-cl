@@ -3027,7 +3027,7 @@ bytes."
         1)
       (progn
         (funcall write-function stream (logior #xd800 (the fixnum (ash highbits -10))))
-        (funcall write-function (logior #xdc00 (the fixnum (logand highbits #x3ff))))
+        (funcall write-function stream (logior #xdc00 (the fixnum (logand highbits #x3ff))))
         2))))
 
 (defun utf-16-stream-decode (1st-unit next-unit-function stream)
@@ -3648,7 +3648,7 @@ in native byte-order with a leading byte-order mark."
   :use-byte-order-mark
   #+big-endian-target :utf-16le
   #+little-endian-target :utf-16be
-  :bom-encoding #+big-endian-target #(#xfe #xff) #+little-endian-target #(#xff fe)
+  :bom-encoding #+big-endian-target #(#xfe #xff) #+little-endian-target #(#xff #xfe)
   )
 
 
