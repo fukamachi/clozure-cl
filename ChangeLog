@@ -1,3 +1,9 @@
+2007-04-06 22:10  gb
+
+	* lisp-kernel/pmcl-kernel.c: Patch from Andi Kleen: set vmemoryuse
+	(RLIMIT_AS) current resource limit to max limit, since some distros
+	limit it.
+
 2007-04-03 03:11  gb
 
 	* level-1/l1-streams.lisp: Takehiko Abe's fix to
