@@ -578,6 +578,18 @@ address_unmapped_p(char *addr, natural len)
 }
 #endif
 
+void
+raise_limit()
+{
+#ifdef RLIMIT_AS
+  struct rlimit r;
+  if (getrlimit(RLIMIT_AS, &r) == 0) {
+    r.rlim_cur = r.rlim_max;
+    setrlimit(RLIMIT_AS, &r);
+    /* Could limit heaplimit to rlim_max here if smaller? */
+  }
+#endif
+} 
 
 
 
@@ -638,6 +650,7 @@ create_reserved_area(unsigned long totalsize)
 #ifdef SOLARIS
   fixed_map_ok = true;
 #endif
+  raise_limit();
   start = mmap((void *)want,
 	       totalsize + heap_segment_size,
 	       PROT_NONE,
