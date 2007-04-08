@@ -23,9 +23,7 @@
 (defun toplevel-loop ()
   (loop
     (if (eq (catch :toplevel 
-              (read-loop :break-level 0
-                         :input-stream *standard-input*
-                         :output-stream *standard-output* )) $xstkover)
+              (read-loop :break-level 0 )) $xstkover)
       (format t "~&;[Stacks reset due to overflow.]")
       (when (eq *current-process* *initial-process*)
         (toplevel)))))
@@ -194,10 +192,10 @@ whose name or ID matches <p>, or to any process if <p> is null"
 (defparameter *quit-on-eof* nil)
 
 ;;; This is the part common to toplevel loop and inner break loops.
-(defun read-loop (&key (break-level *break-level*)
-		       (prompt-function #'(lambda (stream) (print-listener-prompt stream t)))
-		       (input-stream *standard-input*)
-		       (output-stream *standard-output*))
+(defun read-loop (&key (input-stream *standard-input*)
+                       (output-stream *standard-output*)
+                       (break-level *break-level*)
+		       (prompt-function #'(lambda (stream) (print-listener-prompt stream t))))
   (let* ((*break-level* break-level)
          (*last-break-level* break-level)
          *loading-file-source-file*
@@ -226,9 +224,9 @@ whose name or ID matches <p>, or to any process if <p> is null"
                       (stream-clear-input input-stream)
                       (abort-break))
                     (exit-interactive-process *current-process*))
-                  (or (check-toplevel-command form)
-                      (let* ((values (toplevel-eval form path)))
-                        (if print-result (toplevel-print values))))))))
+                    (or (check-toplevel-command form)
+                        (let* ((values (toplevel-eval form path)))
+                          (if print-result (toplevel-print values))))))))
            (format *terminal-io* "~&Cancelled")))
        (abort () :report (lambda (stream)
                            (if (eq break-level 0)
@@ -243,7 +241,7 @@ whose name or ID matches <p>, or to any process if <p> is null"
         (abort-break () 
                      (unless (eq break-level 0)
                        (abort))))
-      (clear-input input-stream)
+       (clear-input input-stream)
       (format output-stream "~%"))))
 
 ;;; The first non-whitespace character available on INPUT-STREAM is a colon.
@@ -271,8 +269,8 @@ whose name or ID matches <p>, or to any process if <p> is null"
 
 ;;; Read a form from the specified stream.
 (defun toplevel-read (&key (input-stream *standard-input*)
-			   (output-stream *standard-output*)
-			   (prompt-function #'print-listener-prompt)
+                           (output-stream *standard-output*)
+                           (prompt-function #'print-listener-prompt)
                            (eof-value *eof-value*))
   (force-output output-stream)
   (funcall prompt-function output-stream)
@@ -294,13 +292,13 @@ whose name or ID matches <p>, or to any process if <p> is null"
       (application-ui-operation *application* :note-current-package *package*))
     values))
 
-(defun toplevel-print (values)
+(defun toplevel-print (values &optional (out *standard-output*))
   (setq /// // // / / values)
   (unless (eq (car values) (%unbound-marker))
     (setq *** ** ** * *  (%car values)))
   (when values
-    (fresh-line)
-    (dolist (val values) (write val) (terpri))))
+    (fresh-line out)
+    (dolist (val values) (write val :stream out) (terpri out))))
 
 (defun print-listener-prompt (stream &optional (force t))
   (unless *quiet-flag*
@@ -531,9 +529,9 @@ whose name or ID matches <p>, or to any process if <p> is null"
               (progn
                 (application-ui-operation *application*
                                           :enter-backtrace-context context)
-                (read-loop :break-level (1+ *break-level*)
-                           :input-stream *debug-io*
-                           :output-stream *debug-io*))
+                  (read-loop :break-level (1+ *break-level*)
+                             :input-stream *debug-io*
+                             :output-stream *debug-io*))
            (application-ui-operation *application* :exit-backtrace-context
                                      context)))))))
 
