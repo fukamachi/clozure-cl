@@ -60,9 +60,9 @@ on information provided by the lisp kernel. Its value is true if AltiVec is
 present and false otherwise. This variable shouldn't be set by user code.")
 
        
-(defglobal *auto-flush-streams* ())
+(defstatic *auto-flush-streams* ())
 (def-ccl-pointers *auto-flush-streams* () (setq *auto-flush-streams* nil))
-(defglobal *auto-flush-streams-lock* (make-lock))
+(defstatic *auto-flush-streams-lock* (make-lock))
 
 
 (defloadvar *batch-flag* (not (eql (%get-kernel-global 'batch-flag) 0)))
@@ -148,6 +148,12 @@ present and false otherwise. This variable shouldn't be set by user code.")
 
 (initialize-interactive-streams)
 
+(def-standard-initial-binding *standard-input*)
+(def-standard-initial-binding *standard-output*)
+(def-standard-initial-binding *error-output*)
+(def-standard-initial-binding *trace-output*)
+(def-standard-initial-binding *debug-io*)
+(def-standard-initial-binding *query-io*)
 
 
 
@@ -226,7 +232,8 @@ present and false otherwise. This variable shouldn't be set by user code.")
       
 
       (bin-load-provide "FOREIGN-TYPES" "foreign-types")
-
+      (install-standard-foreign-types *host-ftd*)
+      
       #+(and ppc32-target linux-target)
       (bin-load-provide "FFI-LINUXPPC32" "ffi-linuxppc32")
       #+(and ppc32-target darwin-target)
@@ -243,6 +250,8 @@ present and false otherwise. This variable shouldn't be set by user code.")
       (bin-load-provide "FFI-FREEBSDX8664" "ffi-freebsdx8664")
       
       (bin-load-provide "DB-IO" "db-io")
+
+      (canonicalize-foreign-type-ordinals *host-ftd*)
       
       (bin-load-provide "CASE-ERROR" "case-error")
       (bin-load-provide "ENCAPSULATE" "encapsulate")
