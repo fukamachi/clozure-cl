@@ -843,6 +843,7 @@
                                             (copy-list (pkg.names p))     ; names
                                             nil ;shadowed
                                             nil ;lock
+                                            nil ;intern-hook
                                             )))
                         packages)))
     (flet ((lookup-clone (p) (or (cdr (assq p alist)) (error "Package ~S not cloned ." p))))
@@ -872,7 +873,10 @@
                 (xload-%svref v pkg.used-by)
                 (xload-save-list (mapcar #'clone->addr (pkg.used-by p)))
                 (xload-%svref v pkg.shadowed) 
-                (xload-save-list (mapcar #'xload-copy-symbol (pkg.shadowed p)))))))))
+                (xload-save-list (mapcar #'xload-copy-symbol (pkg.shadowed p)))
+                (xload-%svref v pkg.intern-hook)
+                *xload-target-nil*
+                ))))))
 
 
 
