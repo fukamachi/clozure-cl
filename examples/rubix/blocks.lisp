@@ -367,7 +367,7 @@
 (defmethod render-children-for-selection ((objc rubix-cube))
   (flet ((norm (axis) (#_glNormal3f (aref axis 0) (aref axis 1) (aref axis 2)))
          (material (color)
-           (ccl::%stack-block ((foreign-float-vector (* 4 4))) ; make room for 4 double-floats
+           (ccl::%stack-block ((foreign-float-vector (* 4 4))) ; make room for 4 single-floats
              (ccl::%copy-ivector-to-ptr color
                0 ; offset to first element (alignment padding)
                foreign-float-vector ; destination

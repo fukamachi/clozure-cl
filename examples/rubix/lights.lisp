@@ -32,7 +32,7 @@
 
 (defmethod setlocation ((light light) pos)
   (dotimes (i 3) (setf (elt (location light) i) (elt pos i)))
-  (ccl::%stack-block ((foreign-float-vector (* 4 4))) ; make room for 4 double-floats
+  (ccl::%stack-block ((foreign-float-vector (* 4 4))) ; make room for 4 single-floats
     (ccl::%copy-ivector-to-ptr (location light) ; source
       0     ; offset to first element (alignment padding)
       foreign-float-vector ; destination
@@ -42,7 +42,7 @@
 (defmethod setpointsource ((light light) bool)
   (setf (pointsourcep light) (if bool t nil) ; <- don't hang on to non-nils
         (elt (location light) 3) (if bool 1.0 0.0))
-  (ccl::%stack-block ((foreign-float-vector (* 4 4))) ; make room for 4 double-floats
+  (ccl::%stack-block ((foreign-float-vector (* 4 4))) ; make room for 4 single-floats
     (ccl::%copy-ivector-to-ptr (location light) ; source
       0     ; offset to first element (alignment padding)
       foreign-float-vector ; destination
@@ -52,7 +52,7 @@
 
 (defmethod setambient ((light light) color)
   (dotimes (i 4) (setf (elt (ambient light) i) (elt color i)))
-  (ccl::%stack-block ((foreign-float-vector (* 4 4))) ; make room for 4 double-floats
+  (ccl::%stack-block ((foreign-float-vector (* 4 4))) ; make room for 4 single-floats
     (ccl::%copy-ivector-to-ptr (ambient light) ; source
       0     ; offset to first element (alignment padding)
       foreign-float-vector ; destination
@@ -61,7 +61,7 @@
     (#_glLightfv (lightid light) #$GL_AMBIENT foreign-float-vector)))
 (defmethod setdiffuse ((light light) color)
   (dotimes (i 4) (setf (elt (diffuse light) i) (elt color i)))
-  (ccl::%stack-block ((foreign-float-vector (* 4 4))) ; make room for 4 double-floats
+  (ccl::%stack-block ((foreign-float-vector (* 4 4))) ; make room for 4 single-floats
     (ccl::%copy-ivector-to-ptr (diffuse light) ; source
       0     ; offset to first element (alignment padding)
       foreign-float-vector ; destination
@@ -70,7 +70,7 @@
     (#_glLightfv (lightid light) #$GL_DIFFUSE foreign-float-vector)))
 (defmethod setspecular ((light light) color)
   (dotimes (i 4) (setf (elt (specular light) i) (elt color i)))
-  (ccl::%stack-block ((foreign-float-vector (* 4 4))) ; make room for 4 double-floats
+  (ccl::%stack-block ((foreign-float-vector (* 4 4))) ; make room for 4 single-floats
     (ccl::%copy-ivector-to-ptr (specular light) ; source
       0     ; offset to first element (alignment padding)
       foreign-float-vector ; destination

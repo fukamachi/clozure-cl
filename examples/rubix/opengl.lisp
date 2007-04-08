@@ -77,33 +77,31 @@ they can be, it'd be good to know.
     `(let ((,contextsym ,context))
        (unwind-protect
 	   (let ((*opengl-context* ,contextsym))
-	     (send ,contextsym 'make-current-context)
+             (#/makeCurrentContext ,contextsym)
 	     ,@body)
 	 ;; the following resets the current context to what it was
 	 ;; previously as far as the special bindings are concerned
 	 (if *opengl-context*
-	     (send *opengl-context* 'make-current-context)
-	   (send (@class ns-opengl-context) 'clear-current-context))))))
+           (#/makeCurrentContext *opengl-context*)
+           (#/clearCurrentConext ns:ns-opengl-context))))))
 
 (defun new-pixel-format (&rest attributes)
   ;; take a list of opengl pixel format attributes (enums and other
   ;; small ints), make an array (character array?), and create and
   ;; return an NSOpenGLPixelFormat
-  (let* ((attribute-size (ccl::foreign-size :<NSO>pen<GLP>ixel<F>ormat<A>ttribute :bytes)))
-    (ccl::%stack-block ((objc-attributes (* attribute-size (1+ (length attributes)))))
-      (loop for i from 0 to (* (1- (length attributes)) attribute-size) by attribute-size
+  (let* ((attribute-size (ccl::foreign-size :<NSO>pen<GLP>ixel<F>ormat<A>ttribute :bytes))
+         (nattributes (length attributes)))
+    (ccl::%stack-block ((objc-attributes (* attribute-size (1+ nattributes))))
+      (loop for i from 0 to nattributes
 	    for attribute in attributes do
-	    (setf (%get-long objc-attributes i) attribute) ; <- autocoerced?
-	    finally (let ((lastpos (* (length attributes) attribute-size)))
-		      (setf (%get-long objc-attributes lastpos) 0))) ; <- objc nil = null ptr
-      (let* ((pixelformat (ccl::send (ccl::send (ccl::@class ns-opengl-pixel-format) 'alloc)
-				     :init-with-attributes objc-attributes)))
-	pixelformat))))
+	    (setf (ccl:paref objc-attributes (:* :<NSO>pen<GLP>ixel<F>ormat<A>ttribute) i) attribute) ; <- autocoerced?
+	    finally (setf (ccl:paref objc-attributes (:* :<NSO>pen<GLP>ixel<F>ormat<A>ttribute) nattributes) 0)) ; <- objc nil = null ptr
+      (make-instance ns:ns-opengl-pixel-format :with-attributes objc-attributes))))
 
 #|
 (setf pf (opengl:new-pixel-format #$NSOpenGLPFADoubleBuffer #$NSOpenGLPFADepthSize 32))
 (%stack-block ((a-long 4))
-  (send pf :get-values a-long :for-attribute #$NSOpenGLPFADepthSize :for-virtual-screen 0)
+  (#/getValues:forAttribute:forVirtualScreen: pf a-long #$NSOpenGLPFADepthSize 0)
   (%get-long a-long))
 |#
 
