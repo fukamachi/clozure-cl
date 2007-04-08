@@ -23,6 +23,339 @@
 (require "OBJC-RUNTIME")
 (require "NAME-TRANSLATION")
 
+#-apple-objc-2.0
+(progn
+  (def-foreign-type :<CGF>loat :float)
+  (def-foreign-type :<NSUI>nteger :unsigned)
+  (def-foreign-type :<NSI>nteger :signed)
+  )
+
+(defconstant +cgfloat-zero+
+  #+(and apple-objc-2.0 64-bit-target) 0.0d0
+  #-(and apple-objc-2.0 64-bit-target) 0.0f0)
+
+(deftype cgfloat ()
+  #+(and apple-objc-2.0 64-bit-target) 'double-float
+  #-(and apple-objc-2.0 64-bit-target) 'single-float)
+
+(deftype cg-float () 'cgfloat)
+
+(deftype nsuinteger ()
+  #+(and apple-objc-2.0 64-bit-target) '(unsigned-byte 64)
+  #-(and apple-objc-2.0 64-bit-target) '(unsigned-byte 32))
+
+(deftype nsinteger ()
+  #+(and apple-objc-2.0 64-bit-target) '(signed-byte 64)
+  #-(and apple-objc-2.0 64-bit-target) '(signed-byte 32))
+
+;;; Used in PRINT-OBJECT methods.
+
+(defun describe-macptr-allocation-and-address (p stream)
+  (format stream " ~@[~a ~](#x~x)"
+          (%macptr-allocation-string p)
+          (%ptr-to-int p)))
+  
+(defun define-typed-foreign-struct-accessor (type-name lisp-accessor-name foreign-accessor &optional (transform-output #'identity) (transform-input #'identity))
+  (let* ((arg (gensym))
+         (val (gensym)))
+    `(progn
+      (declaim (inline ,lisp-accessor-name))
+      (defun ,lisp-accessor-name (,arg)
+        (if (typep ,arg ',type-name)
+          ,(funcall transform-input `(pref ,arg ,foreign-accessor))
+          (report-bad-arg ,arg ',type-name)))
+      (declaim (inline (setf ,lisp-accessor-name)))
+      (defun (setf ,lisp-accessor-name) (,val ,arg)
+        (if (typep ,arg ',type-name)
+          (setf (pref ,arg ,foreign-accessor) ,(funcall transform-output val))
+          (report-bad-arg ,arg ',type-name))))))
+
+(defun define-typed-foreign-struct-accessors (type-name tuples)
+  (collect ((body))
+    (dolist (tuple tuples `(progn ,@(body)))
+      (body (apply #'define-typed-foreign-struct-accessor type-name (cdr tuple))))))
+
+(defun define-typed-foreign-struct-initializer (init-function-name  tuples)
+  (when init-function-name
+    (let* ((struct (gensym)))
+      (collect ((initforms)
+                (args))
+        (args struct)
+        (dolist (tuple tuples)
+          (destructuring-bind (arg-name lisp-accessor foreign-accessor &optional (transform #'identity)) tuple
+            (declare (ignore lisp-accessor))
+            (args arg-name)
+            (initforms `(setf (pref ,struct ,foreign-accessor) ,(funcall transform arg-name)))))
+        `(progn
+          (declaim (inline ,init-function-name))
+          (defun ,init-function-name ,(args)
+            (declare (ignorable ,struct))
+            ,@(initforms)))))))
+
+(defun define-typed-foreign-struct-creation-function (creation-function-name init-function-name foreign-type accessors)
+  (when creation-function-name
+    (let* ((struct (gensym))
+           (arg-names (mapcar #'car accessors)))
+      `(defun ,creation-function-name ,arg-names
+        (let* ((,struct (make-gcable-record ,foreign-type)))
+          (,init-function-name ,struct ,@arg-names)
+          ,struct)))))
+
+(defun define-typed-foreign-struct-class-with-form (with-form-name foreign-type init-function-name)
+  (declare (ignorable init-function-name))
+  (when with-form-name
+  `(defmacro ,with-form-name ((instance &rest inits) &body body)
+    (multiple-value-bind (body decls) (parse-body body nil)
+      `(rlet ((,instance ,,foreign-type))
+        ,@decls
+        ,@(when inits
+                `((,',init-function-name ,instance ,@inits)))
+        ,@body)))))
+         
+
+(defmacro define-typed-foreign-struct-class (class-name (foreign-type predicate-name init-function-name creation-function-name with-form-name) &rest accessors)
+  (let* ((arg (gensym)))
+    `(progn
+      (%register-type-ordinal-class (parse-foreign-type ',foreign-type) ',class-name)
+      (def-foreign-type ,class-name  ,foreign-type)
+      (declaim (inline ,predicate-name))
+      (defun ,predicate-name (,arg)
+        (and (typep ,arg 'macptr)
+             (<= (the fixnum (%macptr-domain ,arg)) 1)
+             (= (the fixnum (%macptr-type ,arg))
+                (foreign-type-ordinal (load-time-value (parse-foreign-type ',foreign-type))))))
+      (eval-when (:compile-toplevel :load-toplevel :execute)
+        (setf (type-predicate ',class-name) ',predicate-name))
+      ,(define-typed-foreign-struct-initializer init-function-name accessors)
+      ,(define-typed-foreign-struct-creation-function creation-function-name init-function-name foreign-type accessors)
+      ,(define-typed-foreign-struct-class-with-form with-form-name foreign-type init-function-name)
+      ,(define-typed-foreign-struct-accessors class-name accessors)
+      ',class-name)))
+
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defun wrap-cg-float (x)
+    `(float ,x +cgfloat-zero+)))
+
+
+
+;;; AEDesc (Apple Event Descriptor)
+
+(define-typed-foreign-struct-class ns::aedesc (:<AED>esc ns::aedesc-p ns::init-aedesc ns::make-aedesc ns::with-aedesc)
+  (descriptor-type ns::aedesc-descriptor-type :<AED>esc.descriptor<T>ype)
+  (data-handle ns::aedesc-data-handle :<AED>esc.data<H>andle))
+
+
+(defmethod print-object ((a ns::aedesc) stream)
+  (print-unreadable-object (a stream :type t :identity (%gcable-ptr-p a))
+    (format stream "~s ~s"
+            (ns::aedesc-descriptor-type a)
+            (ns::aedesc-data-handle a))
+    (describe-macptr-allocation-and-address a stream)))
+
+;;; It's not clear how useful this would be; I think that it's
+;;; part of the ObjC 2.0 extensible iteration stuff ("foreach").
+#+apple-objc-2.0
+(define-typed-foreign-struct-class ns::ns-fast-enumeration-state (:<NSF>ast<E>numeration<S>tate ns::ns-fast-enumeration-state-p ns::init-ns-fast-enumeration-state ns::make-ns-fast-enumeration-state ns::with-ns-fast-enumeration-state))
+
+;;; NSAffineTransformStruct CGAffineTransform
+(define-typed-foreign-struct-class ns::ns-affine-transform-struct (:<NSA>ffine<T>ransform<S>truct ns::ns-affine-transform-struct-p ns::init-ns-affine-transform-struct ns::make-ns-affine-transform-struct ns::wint-ns-affine-transform-struct)
+    (m11 ns::ns-affine-transform-struct-m11 :<NSA>ffine<T>ransform<S>truct.m11 wrap-cg-float)
+    (m12 ns::ns-affine-transform-struct-m12 :<NSA>ffine<T>ransform<S>truct.m12 wrap-cg-float)
+    (m21 ns::ns-affine-transform-struct-m21 :<NSA>ffine<T>ransform<S>truct.m21 wrap-cg-float)
+    (m22 ns::ns-affine-transform-struct-m22 :<NSA>ffine<T>ransform<S>truct.m22 wrap-cg-float)
+    (tx ns::ns-affine-transform-struct-tx :<NSA>ffine<T>ransform<S>truct.t<X> wrap-cg-float)
+    (ty ns::ns-affine-transform-struct-ty :<NSA>ffine<T>ransform<S>truct.t<Y> wrap-cg-float))
+
+
+(defmethod print-object ((transform ns::ns-affine-transform-struct) stream)
+  (print-unreadable-object (transform stream :type t :identity t)
+    (format stream "~s ~s ~s ~s ~s ~s"
+            (ns::ns-affine-transform-struct-m11 transform)
+            (ns::ns-affine-transform-struct-m12 transform)
+            (ns::ns-affine-transform-struct-m21 transform)
+            (ns::ns-affine-transform-struct-m22 transform)
+            (ns::ns-affine-transform-struct-tx transform)
+            (ns::ns-affine-transform-struct-ty transform))
+    (describe-macptr-allocation-and-address transform stream)))
+
+
+
+
+
+;;; An <NSA>ffine<T>ransform<S>truct is identical to a
+;;; (:struct :<GGA>ffine<T>ransform), except for the names of its fields.
+
+(setf (foreign-type-ordinal (parse-foreign-type '(:struct :<GGA>ffine<T>ransform)))
+      (foreign-type-ordinal (parse-foreign-type :<NSA>ffine<T>ransform<S>truct)))
+
+
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defun unwrap-boolean (form)
+    `(not (eql 0 ,form)))
+  (defun wrap-boolean (form)
+    `(if ,form 1 0)))
+
+
+;;; NSDecimal
+(define-typed-foreign-struct-class ns::ns-decimal (:<NSD>ecimal ns::ns-decimal-p nil nil nil)
+  (nil ns::ns-decimal-exponent :<NSD>ecimal._exponent)
+  (nil ns::ns-decimal-length :<NSD>ecimal._length)
+  (nil ns::ns-decimal-is-negative :<NSD>ecimal._is<N>egative wrap-boolean unwrap-boolean)
+  (nil ns::ns-decimal-is-compact :<NSD>ecimal._is<C>ompact wrap-boolean unwrap-boolean))
+  
+
+(defun ns::init-ns-decimal (data exponent length is-negative is-compact mantissa)
+  (setf (pref data :<NSD>ecimal._exponent) exponent
+        (pref data :<NSD>ecimal._length) length
+        (pref data :<NSD>ecimal._is<N>egative) (if is-negative 1 0)
+        (pref data :<NSD>ecimal._is<C>ompact) (if is-compact 1 0))
+    (let* ((v (coerce mantissa '(vector (unsigned-byte 16) 8))))
+      (declare (type (simple-array (unsigned-byte 16) (8)) v))
+      (with-macptrs ((m (pref data :<NSD>ecimal._mantissa)))
+        (dotimes (i 8)
+          (setf (paref m (:* (:unsigned 16)) i) (aref v i))))))
+
+(defun ns::make-ns-decimal (exponent length is-negative is-compact mantissa)  
+  (let* ((data (make-gcable-record :<NSD>ecimal)))
+    (ns::init-ns-decimal data exponent length is-negative is-compact mantissa)
+    data))
+
+
+
+
+(defun ns::ns-decimal-mantissa (decimal)
+  (if (typep decimal 'ns::ns-decimal)
+    (let* ((dest (make-array 8 :element-type '(unsigned-byte 16))))
+      (with-macptrs ((m (pref decimal :<NSD>ecimal._mantissa)))
+        (dotimes (i 8 dest)
+        (setf (aref dest i) (paref m (:* (:unsigned 16)) i)))))
+    (report-bad-arg decimal 'ns::ns-decimal)))
+
+(defun (setf ns::ns-decimal-mantissa) (new decimal)
+  (if (typep decimal 'ns::ns-decimal)
+    (let* ((src (coerce new '(simple-array (unsigned-byte 16) (8)))))
+      (declare (type (simple-array (unsigned-byte 16) 8) src))
+      (with-macptrs ((m (pref decimal :<NSD>ecimal._mantissa)))
+        (dotimes (i 8 new)
+          (setf (paref m (:* (:unsigned 16)) i) (aref src i)))))
+    (report-bad-arg decimal 'ns::ns-decimal)))
+
+(defmethod print-object ((d ns::ns-decimal) stream)
+  (print-unreadable-object (d stream :type t :identity t)
+    (format stream "exponent = ~d, length = ~s, is-negative = ~s, is-compact = ~s, mantissa = ~s" (ns::ns-decimal-exponent d) (ns::ns-decimal-length d) (ns::ns-decimal-is-negative d) (ns::ns-decimal-is-compact d) (ns::ns-decimal-mantissa d))
+    (describe-macptr-allocation-and-address d stream)))
+
+
+
+    
+;;; NSRect
+
+(define-typed-foreign-struct-class ns::ns-rect (:<NSR>ect ns::ns-rect-p ns::init-ns-rect ns::make-ns-rect ns::with-ns-rect)
+  (x ns::ns-rect-x :<NSR>ect.origin.x wrap-cg-float)
+  (y ns::ns-rect-y :<NSR>ect.origin.y wrap-cg-float)
+  (width ns::ns-rect-width :<NSR>ect.size.width wrap-cg-float)
+  (height ns::ns-rect-height :<NSR>ect.size.height wrap-cg-float))
+
+
+(defmethod print-object ((r ns::ns-rect) stream)
+  (print-unreadable-object (r stream :type t :identity t)
+    (flet ((maybe-round (x)
+             (multiple-value-bind (q r) (round x)
+               (if (zerop r) q x))))
+      (format stream "~s X ~s @ ~s,~s"
+              (maybe-round (ns::ns-rect-width r))
+              (maybe-round (ns::ns-rect-height r))
+              (maybe-round (ns::ns-rect-x r))
+              (maybe-round (ns::ns-rect-y r)))
+      (describe-macptr-allocation-and-address r stream))))
+
+
+
+;;; NSSize
+(define-typed-foreign-struct-class ns::ns-size (:<NSS>ize ns::ns-size-p ns::init-ns-size ns::make-ns-size ns::with-ns-size)
+  (width ns::ns-size-width :<NSS>ize.width wrap-cg-float)
+  (height ns::ns-size-height :<NSS>ize.height wrap-cg-float))
+
+
+(defmethod print-object ((s ns::ns-size) stream)
+  (flet ((maybe-round (x)
+           (multiple-value-bind (q r) (round x)
+             (if (zerop r) q x))))
+    (print-unreadable-object (s stream :type t :identity t)
+      (format stream "~s X ~s"
+              (maybe-round (ns::ns-size-width s))
+              (maybe-round (ns::ns-size-height s)))
+      (describe-macptr-allocation-and-address s stream))))
+
+
+;;; NSPoint
+(define-typed-foreign-struct-class ns::ns-point (:<NSP>oint ns::ns-point-p ns::init-ns-point ns::make-ns-point ns::with-ns-point)
+  (x ns::ns-point-x :<NSP>oint.x wrap-cg-float)
+  (y ns::ns-point-y :<NSP>oint.y wrap-cg-float))
+
+(defmethod print-object ((p ns::ns-point) stream)
+  (flet ((maybe-round (x)
+           (multiple-value-bind (q r) (round x)
+             (if (zerop r) q x))))
+    (print-unreadable-object (p stream :type t :identity t)
+      (format stream "~s,~s"
+              (maybe-round (ns::ns-point-x p))
+              (maybe-round (ns::ns-point-y p)))
+      (describe-macptr-allocation-and-address p stream))))
+
+
+;;; NSRange
+(define-typed-foreign-struct-class ns::ns-range (:<NSR>ange ns::ns-range-p ns::init-ns-range ns::make-ns-range ns::with-ns-range)
+  (location ns::ns-range-location :<NSR>ange.location)
+  (length ns::ns-range-length :<NSR>ange.length ))
+
+(defmethod print-object ((r ns::ns-range) stream)
+  (print-unreadable-object (r stream :type t :identity t)
+    (format stream "~s/~s"
+            (ns::ns-range-location r)
+            (ns::ns-range-length r))
+    (describe-macptr-allocation-and-address r stream)))
+
+
+;;; String might be stack allocated; make a copy before complaining
+;;; about it.
+(defun check-objc-message-name (string)
+  (dotimes (i (length string))
+    (let* ((ch (char string i)))
+      (unless (or (alpha-char-p ch)
+                  (digit-char-p ch 10)
+                  (eql ch #\:)
+                  (eql ch #\_))
+        (error "Illegal character ~s in ObjC message name ~s"
+               ch (copy-seq string)))))
+  (when (and (position #\: string)
+             (not (eql (char string (1- (length string))) #\:)))
+    (error "ObjC message name ~s contains colons, but last character is not a colon" (copy-seq string))))
+      
+
+(setf (pkg.intern-hook (find-package "NSFUN"))
+      'get-objc-message-info)
+
+(set-dispatch-macro-character #\# #\/ 
+                              (lambda (stream subchar numarg)
+                                (declare (ignorable subchar numarg))
+                                (let* ((token (make-array 16 :element-type 'character :fill-pointer 0 :adjustable t))
+                                       (attrtab (rdtab.ttab *readtable*)))
+                                  (when (peek-char t stream nil nil)
+                                    (loop
+                                      (multiple-value-bind (char attr)
+                                          (%next-char-and-attr stream attrtab)
+                                        (unless (eql attr $cht_cnst)
+                                          (when char (unread-char char stream))
+                                          (return))
+                                        (vector-push-extend char token))))
+                                  (unless *read-suppress*
+                                    (unless (> (length token) 0)
+                                      (signal-reader-error stream "Invalid token after #/."))
+                                    (check-objc-message-name token)
+                                    (intern token "NSFUN")))))
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;                              Utilities                                 ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -281,7 +614,9 @@
          (let* ((rtype (objc-method-info-result-type
                         (car (objc-message-info-methods info)))))
            (if (getf (objc-message-info-flags info) :returns-structure)
-             (values `(,var ,(unparse-foreign-type rtype))
+             (values `(,var ,(if (typep rtype 'foreign-type)
+                                 (unparse-foreign-type rtype)
+                                 rtype))
                      `(send/stret ,var ,@(rest form)))
              (if errorp
                (error "NonSTRET SEND in ~S" form)
@@ -293,7 +628,9 @@
          (let* ((rtype (objc-method-info-result-type
                         (car (objc-message-info-methods info)))))
            (if (getf (objc-message-info-flags info) :returns-structure)
-             (values `(,var ,(unparse-foreign-type rtype))
+             (values `(,var ,(if (typep rtype 'foreign-type)
+                                 (unparse-foreign-type rtype)
+                                 rtype))
                      `(send-super/stret ,var ,@(rest form)))
              (if errorp
                (error "NonSTRET SEND-SUPER in ~S" form)
@@ -363,33 +700,223 @@
 (defun result-type-requires-structure-return (result-type)
   ;; Use objc-msg-send-stret for all methods that return
   ;; record types.
-  (typep result-type 'foreign-record-type))
+  (or (typep result-type 'foreign-record-type)
+      (and (not (typep result-type 'foreign-type))
+           (typep (parse-foreign-type result-type) 'foreign-record-type))))
+
+(defvar *objc-method-signatures* (make-hash-table :test #'equal))
+
+(defstruct objc-method-signature-info
+  type-signature
+  function
+  super-function)
+
+(defun objc-method-signature-info (sig)
+  (or (gethash sig *objc-method-signatures*)
+      (setf (gethash sig *objc-method-signatures*)
+            (make-objc-method-signature-info :type-signature sig))))
+
+(defun concise-foreign-type (ftype)
+  (if (typep ftype 'foreign-record-type)
+    (let* ((name (foreign-record-type-name ftype)))
+      (if name
+        `(,(foreign-record-type-kind ftype) ,name)
+        (unparse-foreign-type ftype)))
+    (if (objc-id-type-p ftype)
+      :id
+      (if (typep ftype 'foreign-pointer-type)
+        (let* ((to (foreign-pointer-type-to ftype)))
+          (if (null to)
+            '(:* :void)
+            `(:* ,(concise-foreign-type to))))
+        (if (typep ftype 'foreign-type)
+          (unparse-foreign-type ftype)
+          ftype)))))
+
+
+;;; Not a perfect mechanism.
+(defclass objc-dispatch-function (funcallable-standard-object)
+    ()
+  (:metaclass funcallable-standard-class))
+
+(defmethod print-object ((o objc-dispatch-function) stream)
+  (print-unreadable-object (o stream :type t :identity t)
+    (let* ((name (function-name o)))
+      (when name
+        (format stream "~s" name)))))
+
+
+
+
+(declaim (inline check-receiver))
+
+;;; Return a NULL pointer if RECEIVER is a null pointer.
+;;; Otherwise, insist that it's an ObjC object of some sort, and return NIL.
+(defun check-receiver (receiver)
+  (if (%null-ptr-p receiver)
+    (%null-ptr)
+    (let* ((domain (%macptr-domain receiver))
+           (valid (eql domain *objc-object-domain*)))
+      (declare (fixnum domain))
+      (when (zerop domain)
+        (if (recognize-objc-object receiver)
+          (progn (%set-macptr-domain receiver *objc-object-domain*)
+                 (setq valid t))))
+      (unless valid
+        (report-bad-arg receiver 'objc:objc-object)))))
+
+(defmethod shared-initialize :after ((gf objc-dispatch-function) slot-names &key message-info &allow-other-keys)
+  (declare (ignore slot-names))
+  (if message-info
+    (let* ((ambiguous-methods (getf (objc-message-info-flags message-info) :ambiguous))
+           (selector (objc-message-info-selector message-info))
+           (first-method (car (objc-message-info-methods message-info))))
+      (lfun-bits gf (dpb (1+ (objc-message-info-req-args message-info))
+                         $lfbits-numreq
+                         (logior (ash
+                                  (if (getf (objc-message-info-flags message-info)
+                                            :accepts-varargs)
+                                    1
+                                    0)
+                                  $lfbits-rest-bit)
+                                 (logandc2 (lfun-bits gf) (ash 1 $lfbits-aok-bit)))))
+      (flet ((signature-function-for-method (m)
+               (let* ((signature-info (objc-method-info-signature-info m)))
+                 (or (objc-method-signature-info-function signature-info)
+                     (setf (objc-method-signature-info-function signature-info)
+                           (compile-send-function-for-signature
+                                    (objc-method-signature-info-type-signature signature-info)))))))
+                      
+      (if (null ambiguous-methods)
+        ;; Pick an arbitrary method, since all methods have the same
+        ;; signature.
+        (let* ((function (signature-function-for-method first-method)))
+          (set-funcallable-instance-function
+           gf
+           (nfunction
+            send-unambiguous-message
+            (lambda (receiver &rest args)
+               (declare (dynamic-extent args))
+               (or (check-receiver receiver)
+                   (with-ns-exceptions-as-errors 
+                       (apply function receiver selector args)))))))
+        (let* ((protocol-pairs (mapcar #'(lambda (pm)
+                                           (cons (lookup-objc-protocol
+                                                  (objc-method-info-class-name pm))
+                                                 (signature-function-for-method
+                                                  pm)))
+                                       (objc-message-info-protocol-methods message-info)))
+               (method-pairs (mapcar #'(lambda (group)
+                                         (cons (mapcar #'(lambda (m)
+                                                           (get-objc-method-info-class m))
+                                                       group)
+                                               (signature-function-for-method (car group))))
+                                     (objc-message-info-ambiguous-methods message-info)))
+               (default-function (if method-pairs
+                                   (prog1 (cdar (last method-pairs))
+                                     (setq method-pairs (nbutlast method-pairs)))
+                                   (prog1 (cdr (last protocol-pairs))
+                                     (setq protocol-pairs (nbutlast protocol-pairs))))))
+          (set-funcallable-instance-function
+           gf
+           (nfunction
+            send-unambiguous-message
+            (lambda (receiver &rest args)
+               (declare (dynamic-extent args))
+               (or (check-receiver receiver)
+                   (let* ((function
+                           (or (dolist (pair protocol-pairs)
+                                 (when (conforms-to-protocol receiver (car pair))
+                                   (return (cdr pair))))
+                               (block m
+                                 (dolist (pair method-pairs default-function)
+                                   (dolist (class (car pair))
+                                     (when (typep receiver class)
+                                       (return-from m (cdr pair)))))))))
+                     (with-ns-exceptions-as-errors
+                         (apply function receiver selector args)))))))))))
+    (with-slots (name) gf
+      (set-funcallable-instance-function
+       gf
+       #'(lambda (&rest args)
+           (error "Unknown ObjC message ~a called with arguments ~s"
+                  (symbol-name name) args))))))
+                                             
+
+(defun %call-next-objc-method (self class selector sig &rest args)
+  (declare (dynamic-extent args))
+  (rlet ((s :objc_super #+apple-objc :receiver #+gnu-objc :self self
+            #+apple-objc-2.0 :super_class #-apple-objc-2.0 :class
+            #+apple-objc-2.0 (#_class_getSuperclass class)
+            #-apple-objc-2.0 (pref class :objc_class.super_class)))
+    (let* ((siginfo (objc-method-signature-info sig))
+           (function (or (objc-method-signature-info-super-function siginfo)
+                         (setf (objc-method-signature-info-super-function siginfo)
+                               (%compile-send-function-for-signature sig t)))))
+      (with-ns-exceptions-as-errors
+          (apply function s selector args)))))
+
+
+(defun %call-next-objc-class-method (self class selector sig &rest args)
+  (rlet ((s :objc_super #+apple-objc :receiver #+gnu-objc :self self
+            #+apple-objc-2.0 :super_class #-apple-objc-2.0 :class
+            #+apple-objc-2.0 (#_class_getSuperclass (pref class :objc_class.isa))
+            #-apple-objc-2.0 (pref (pref class #+apple-objc :objc_class.isa #+gnu-objc :objc_class.class_pointer) :objc_class.super_class)))
+    (let* ((siginfo (objc-method-signature-info sig))
+           (function (or (objc-method-signature-info-super-function siginfo)
+                         (setf (objc-method-signature-info-super-function siginfo)
+                               (%compile-send-function-for-signature sig t)))))
+      (with-ns-exceptions-as-errors
+          (apply function s selector args)))))
 
 (defun postprocess-objc-message-info (message-info)
+  (let* ((objc-name (objc-message-info-message-name message-info))
+         (lisp-name (or (objc-message-info-lisp-name message-info)
+                            (setf (objc-message-info-lisp-name message-info)
+                                  (compute-objc-to-lisp-function-name  objc-name))))
+         (gf (or (fboundp lisp-name)
+                 (setf (fdefinition lisp-name)
+                       (make-instance 'objc-dispatch-function :name lisp-name)))))
+
+    (unless (objc-message-info-selector message-info)
+      (setf (objc-message-info-selector message-info)
+            (ensure-objc-selector (objc-message-info-message-name message-info))))
+    
   (flet ((reduce-to-ffi-type (ftype)
-           (if (objc-id-type-p ftype)
-             :id
-             (unparse-foreign-type ftype))))
+           (concise-foreign-type ftype)))
     (flet ((ensure-method-signature (m)
              (or (objc-method-info-signature m)
                  (setf (objc-method-info-signature m)
-                       (cons (reduce-to-ffi-type
-                              (objc-method-info-result-type m))
-                             (mapcar #'reduce-to-ffi-type
-                                     (objc-method-info-arglist m)))))))
+                       (let* ((sig 
+                               (cons (reduce-to-ffi-type
+                                      (objc-method-info-result-type m))
+                                     (mapcar #'reduce-to-ffi-type
+                                             (objc-method-info-arglist m)))))
+                         (setf (objc-method-info-signature-info m)
+                               (objc-method-signature-info sig))
+                         sig)))))
       (let* ((methods (objc-message-info-methods message-info))
              (signatures ())
              (protocol-methods)
              (signature-alist ()))
-        (dolist (m methods)
-          (let* ((signature (ensure-method-signature m)))
-            (pushnew signature signatures :test #'equal)
+        (labels ((signatures-equal (xs ys)
+                   (and xs
+                        ys
+                        (do* ((xs xs (cdr xs))
+                              (ys ys (cdr ys)))
+                             ((null xs) (null ys))
+                          (unless (foreign-type-= (ensure-foreign-type (car xs))
+                                                  (ensure-foreign-type (car ys)))
+                            (return nil))))))
+            (dolist (m methods)
+              (let* ((signature (ensure-method-signature m)))
+                (pushnew signature signatures :test #'signatures-equal)
             (if (getf (objc-method-info-flags m) :protocol)
               (push m protocol-methods)
-              (let* ((pair (assoc signature signature-alist :test #'equal)))
+              (let* ((pair (assoc signature signature-alist :test #'signatures-equal)))
                 (if pair
                   (push m (cdr pair))
-                  (push (cons signature (list m)) signature-alist))))))
+                  (push (cons signature (list m)) signature-alist)))))))
         (setf (objc-message-info-ambiguous-methods message-info)
               (mapcar #'cdr
                       (sort signature-alist
@@ -435,18 +962,21 @@
                   (progn
                     (setf (getf (objc-message-info-flags message-info)
                                 :accepts-varargs) t)
-                    (decf (objc-message-info-req-args message-info))))))))))))
+                    (decf (objc-message-info-req-args message-info)))))))))
+      (reinitialize-instance gf :message-info message-info)))))
           
 ;;; -may- need to invalidate cached info whenever new interface files
 ;;; are made accessible.  Probably the right thing to do is to insist
 ;;; that (known) message signatures be updated in that case.
-(defun get-objc-message-info (message-name)
+(defun get-objc-message-info (message-name &optional (use-database t))
+  (setq message-name (string message-name))
   (or (gethash message-name *objc-message-info*)
-      (let* ((info (lookup-objc-message-info message-name)))
-        (when info
-          (setf (gethash message-name *objc-message-info*) info)
-          (postprocess-objc-message-info info)
-          info))))
+      (and use-database
+           (let* ((info (lookup-objc-message-info message-name)))
+             (when info
+               (setf (gethash message-name *objc-message-info*) info)
+               (postprocess-objc-message-info info)
+               info)))))
 
 (defun need-objc-message-info (message-name)
   (or (get-objc-message-info message-name)
@@ -464,7 +994,7 @@
 ;;; Of the method declarations (OBJC-METHOD-INFO structures) associated
 ;;; with the message-declaration (OBJC-MESSAGE-INFO structure) M,
 ;;; return the one that seems to be applicable for the object O.
-;;; (If there's no ambiguity among the declare methods, any method
+;;; (If there's no ambiguity among the declared methods, any method
 ;;; will do; this just tells runtime %SEND functions how to compose
 ;;; an %FF-CALL).
 (defun %lookup-objc-method-info (m o)
@@ -479,23 +1009,52 @@
              (return method))))
        (error "Can't determine ObjC method type signature for message ~s, object ~s" (objc-message-info-message-name m) o)))))
 
+(defun resolve-existing-objc-method-info (message-info class-name class-p result-type args)
+  (let* ((method-info (dolist (m (objc-message-info-methods message-info))
+                        (when (and (eq (getf (objc-method-info-flags m) :class-p)
+                                       class-p)
+                                   (equal (objc-method-info-class-name m)
+                                          class-name))
+                          (return m)))))
+    (when method-info
+      (unless (and (foreign-type-= (ensure-foreign-type (objc-method-info-result-type method-info))
+                                   (parse-foreign-type result-type))
+                   (do* ((existing (objc-method-info-arglist method-info) (cdr existing))
+                         (proposed args (cdr proposed)))
+                        ((null existing) (null proposed))
+                     (unless (foreign-type-= (ensure-foreign-type (car existing))
+                                             (parse-foreign-type (car proposed)))
+                       (return nil))))
+        (cerror "Redefine existing method to have new type signature."
+                "The method ~c[~a ~a] is already declared to have type signature ~s; the new declaration ~s is incompatible." (if class-p #\+ #\-) class-name (objc-message-info-message-name message-info) (objc-method-info-signature method-info) (cons result-type args))
+        (setf (objc-method-info-arglist method-info) args
+              (objc-method-info-result-type method-info) result-type
+              (objc-method-info-signature method-info) nil
+              (objc-method-info-signature-info method-info) nil))
+      method-info)))
+
+;;; Still not right; we have to worry about type conflicts with
+;;; shadowed methods, as well.
 (defun %declare-objc-method (message-name class-name class-p result-type args)
   (let* ((info (get-objc-message-info message-name)))
     (unless info
+      (format *error-output* "~&; Note: defining new ObjC message ~c[~a ~a]" (if class-p #\+ #\-) class-name message-name)
       (setq info (make-objc-message-info :message-name message-name))
       (setf (gethash message-name *objc-message-info*) info))
     (let* ((was-ambiguous (getf (objc-message-info-flags info) :ambiguous))
-           (method-info (make-objc-method-info :message-info info
-                                               :class-name class-name
-                                               :result-type result-type
-                                               :arglist args
-                                               :flags (if class-p '(:class t)))))
-      (push method-info (objc-message-info-methods info))
+           (method-info (or (resolve-existing-objc-method-info info class-name class-p result-type args)
+                            (make-objc-method-info :message-info info
+                                                   :class-name class-name
+                                                   :result-type result-type
+                                                   :arglist args
+                                                   :flags (if class-p '(:class t))))))
+      (pushnew method-info (objc-message-info-methods info))
       (postprocess-objc-message-info info)
       (if (and (getf (objc-message-info-flags info) :ambiguous)
                (not was-ambiguous))
         (warn "previously declared methods on ~s all had the same type signature, but ~s introduces ambiguity" message-name method-info))
-      info)))
+           
+      (objc-method-info-signature method-info))))
 
 
 
@@ -688,24 +1247,27 @@
                (error "Can't find class with ObjC name ~s"
                       (objc-method-info-class-name m)))
              (class-name mclass))))
+
     (collect ((clauses))
-      (let* ((protocol (gensym)))
+      (let* ((protocol (gensym))
+             (protocol-address (gensym)))
         (dolist (method protocol-methods)
           (let* ((protocol-name (objc-method-info-class-name method)))
-            (clauses `((let* ((,protocol (lookup-objc-protocol ,protocol-name)))
-                         (and ,protocol
-                              (not (zerop (objc-message-send ,receiver
-                                                             "conformsToProtocol:"
-                                                             :address ,protocol
-                                                             :<BOOL>)))))
+            (clauses `((let* ((,protocol (lookup-objc-protocol ,protocol-name))
+                              (,protocol-address (and ,protocol (objc-protocol-address ,protocol))))
+                         (and ,protocol-address
+                              (objc-message-send ,receiver
+                                                 "conformsToProtocol:"
+                                                 :address ,protocol-address
+                                                 :<BOOL>)))
                        ,(build-internal-call-from-method-info
                          method args vargs receiver msg s super))))))
       (do* ((methods ambiguous-methods (cdr methods)))
            ((null (cdr methods))
             (when ambiguous-methods
-            (clauses `(t
-                       ,(build-internal-call-from-method-info
-                         (caar methods) args vargs receiver msg s super)))))
+              (clauses `(t
+                         ,(build-internal-call-from-method-info
+                           (caar methods) args vargs receiver msg s super)))))
         (clauses `(,(if (cdar methods)
                         `(or ,@(mapcar #'(lambda (m)
                                            `(typep ,receiver
@@ -793,11 +1355,12 @@
   (declare (dynamic-extent initargs))
   (multiple-value-bind (ks vs) (keys-and-vals initargs)
     (declare (dynamic-extent ks vs))
-    (when (not (stringp cname))
-      (setf cname (lisp-to-objc-classname cname)))
-    (send-objc-init-message (send (find-objc-class cname) 'alloc)
-                            ks
-                            vs)))
+    (let* ((class (etypecase cname
+                    (string (canonicalize-registered-class 
+                             (find-objc-class cname)))
+                    (symbol (find-class cname))
+                    (class cname))))
+      (send-objc-init-message (#/alloc class) ks vs))))
 
 ;;; Provide the BRIDGE module
 
