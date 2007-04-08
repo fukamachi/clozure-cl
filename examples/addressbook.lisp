@@ -1,5 +1,8 @@
 ;;; This code is adapted from the webkit example and with help 
 ;;; from Richard Cook and Gary Byers on the OpenMCL list.
+;;; Things have changed since then, and it's hopefully easier
+;;; to use add-on Cocoa frameworks than it once was.
+;;; All this does is to try to make it possible to use AddressBook
 
 (in-package ccl)
 
@@ -15,23 +18,13 @@
 
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (require "OBJC-SUPPORT")
-  (augment-objc-interfaces :addressbook))
-
-(let* ((checked-for-addressbook nil)
-       (addressbook-loaded nil))
-  (defun reset-checked-for-addressbook ()
-    (setq checked-for-addressbook nil
-	  addressbook-loaded nil))
-  (defun check-for-addressbook ()
-    (if checked-for-addressbook
-      addressbook-loaded
-      (setq checked-for-addressbook t
-            addressbook-loaded (load-objc-extension-framework "AddressBook")))))
-
-(defun require-addressbook () 
-  (or (check-for-addressbook)
-      (error "The AddressBook framework doesn't seem to be installed on this machine.")))
+  (require "OBJC-SUPPORT"))
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (require-addressbook))
+  (objc:load-framework "AddressBook" :addressbook))
+
+;;; Now, someone should write some code which tries to
+;;; actually -use- AddessBook, perhaps via Bosco.  It's
+;;; probably easier to experiment with AddressBook if
+;;; the demo IDE is loaded.
+
