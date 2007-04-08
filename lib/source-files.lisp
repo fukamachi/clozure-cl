@@ -136,19 +136,10 @@
                   (method-qualifiers y)))))
 
 (defun source-files-like-em (classes qualifiers method)
-  (when (do ((cls classes (cdr cls))
-             (xsps (%method-specializers method) (cdr xsps)))
-            ((null cls) t)
-          (let ((class (car cls))(xspec (car xsps)))
-            (unless (if (listp xspec)
-                      (and (listp class)
-                           (or (not (constantp (cadr class)))
-                               ; one is evaluated the other is not
-                               (eql (cadr class)(cadr xspec))))
-                      (eq class (class-name xspec)))
-              (return nil))))
-      (or (eq qualifiers t)
-          (equal qualifiers (%method-qualifiers method)))))
+  (and (equal (canonicalize-specializers classes)
+              (%method-specializers method))
+       (or (eq qualifiers t)
+           (equal qualifiers (%method-qualifiers method)))))
 
 (defun parse-definition-spec (form)
   (let ((type t)
