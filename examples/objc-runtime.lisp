@@ -48,14 +48,12 @@
   #+gnu-objc
   (use-interface-dir :gnustep))
 
-(defpackage "OBJC"
-  (:use)
-  (:export "OBJC-OBJECT" "OBJC-CLASS-OBJECT" "OBJC-CLASS" "OBJC-METACLASS"))
+
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
+  (require "OBJC-PACKAGE")
   (require "SPLAY-TREE")
   (require "NAME-TRANSLATION")
-  ;(require "PROCESS-OBJC-MODULES")
   (require "OBJC-CLOS"))
 
 (defloadvar *NSApp* nil )
@@ -68,6 +66,10 @@
 ;;; message contains ambiguous methods and some methods are protocol
 ;;; methods
 (defloadvar *objc-protocols* (make-hash-table :test #'equal))
+
+(defstruct objc-protocol
+  name
+  address)
 
 (defun lookup-objc-protocol (name)
   (values (gethash name *objc-protocols*)))
@@ -718,7 +720,8 @@
                                           "NS")))
                            "NS"))
                          (meta-super
-                          (if super (pref super :objc_class.isa))))
+                          (if super (pref super #+apple-objc :objc_class.isa
+                                          #+gnu-objc :objc_class.class_pointer))))
                     ;; It's important (here and when initializing the
                     ;; class below) to use the "canonical"
                     ;; (registered) version of the class, since some
@@ -740,7 +743,8 @@
                      :foreign t)
                     (setf (objc-metaclass-id-foreign-name meta-id)
                           meta-foreign-name)
-                    (setf (find-class meta-name) meta)))
+                    (setf (find-class meta-name) meta)
+                    (%defglobal meta-name meta)))
                 (setf (slot-value class 'direct-slots)
                       (compute-objc-direct-slots-from-info decl class))
                 (initialize-instance
@@ -755,7 +759,9 @@
                  :foreign t)
                 (setf (objc-class-id-foreign-name id)
                       name)
-                (setf (find-class class-name) class)))))))))
+                (setf (find-class class-name) class)
+                (%defglobal class-name class)
+                class))))))))
 				
 
 
@@ -971,10 +977,15 @@ argument lisp string."
 	       (setf (objc-selector-%sel sel) nil))
 	   *objc-selectors*))
 
+;;; Find or create a SELECTOR; don't bother resolving it.
+(defun ensure-objc-selector (name)
+  (setq name (string name))
+  (or (gethash name *objc-selectors*)
+      (setf (gethash name *objc-selectors*)
+            (make-objc-selector :name name))))
+
 (defun load-objc-selector (name)
-  (let* ((selector (or (gethash name *objc-selectors*)
-		       (setf (gethash name *objc-selectors*)
-			     (make-objc-selector :name name)))))
+  (let* ((selector (ensure-objc-selector name)))
     (%get-SELECTOR selector nil)
     selector))
 
@@ -1009,7 +1020,7 @@ argument lisp string."
 (defun coerce-to-address (x)
   (let ((x-temp (gensym)))
     `(let ((,x-temp ,x))
-       (cond ((null ,x-temp) (%null-ptr))
+       (cond ((null ,x-temp) +null-ptr+)
 	     ((stringp ,x-temp) (%make-nsstring ,x-temp))
 	     (t ,x-temp)))))
 
@@ -1109,6 +1120,31 @@ argument lisp string."
        :arg-coerce 'objc-arg-coerce
        :result-coerce 'objc-result-coerce))))
 
+(defmacro objc-message-send-with-selector (receiver selector &rest argspecs)
+  (when (evenp (length argspecs))
+    (setq argspecs (append argspecs '(:id))))
+  #+apple-objc
+  (funcall (ftd-ff-call-expand-function *target-ftd*)
+           `(%ff-call (%reference-external-entry-point (load-time-value (external "_objc_msgSend"))))
+           `(:address ,receiver :<SEL> (%get-selector ,selector) ,@argspecs)
+           :arg-coerce 'objc-arg-coerce
+           :result-coerce 'objc-result-coerce)  
+  #+gnu-objc
+    (let* ((r (gensym))
+	 (s (gensym))
+	 (imp (gensym)))
+    `(with-macptrs ((,r ,receiver)
+		    (,s (%get-selector ,selector))
+		    (,imp (external-call "objc_msg_lookup"
+					:id ,r
+					:<SEL> ,s
+					:<IMP>)))
+      (funcall (ftd-ff-call-expand-function *target-ftd*)
+       `(%ff-call ,imp)
+       `(:address ,receiver :<SEL> ,s ,@argspecs)
+       :arg-coerce 'objc-arg-coerce
+       :result-coerce 'objc-result-coerce))))
+
 ;;; A method that returns a structure does so by platform-dependent
 ;;; means.  One of those means (which is fairly common) is to pass a
 ;;; pointer to an instance of a structure type as a first argument to
@@ -1160,6 +1196,33 @@ argument lisp string."
                :arg-coerce 'objc-arg-coerce
                :result-coerce 'objc-result-coerce))))
 
+(defmacro objc-message-send-stret-with-selector (structptr receiver selector &rest argspecs)
+    #+apple-objc
+    (let* ((return-typespec (car (last argspecs)))
+           (entry-name (if (funcall (ftd-ff-call-struct-return-by-implicit-arg-function *target-ftd*) return-typespec)
+                         "_objc_msgSend_stret"
+                         "_objc_msgSend")))
+      (funcall (ftd-ff-call-expand-function *target-ftd*)
+               `(%ff-call (%reference-external-entry-point (load-time-value (external ,entry-name))))
+        `(,structptr :address ,receiver :<SEL> (%get-selector ,selector) ,@argspecs)
+               :arg-coerce 'objc-arg-coerce
+               :result-coerce 'objc-result-coerce))
+    #+gnu-objc
+    (let* ((r (gensym))
+	 (s (gensym))
+	 (imp (gensym)))
+    `(with-macptrs ((,r ,receiver)
+		    (,s (%get-selector ,selector))
+		    (,imp (external-call "objc_msg_lookup"
+					 :id ,r
+					 :<SEL> ,s
+					 :<IMP>)))
+      ,      (funcall (ftd-ff-call-expand-function *target-ftd*)
+               `(%ff-call ,imp)
+              `(,structptr :address ,receiver :<SEL> ,s ,@argspecs)
+               :arg-coerce 'objc-arg-coerce
+               :result-coerce 'objc-result-coerce))))
+
 ;;; #_objc_msgSendSuper is similar to #_objc_msgSend; its first argument
 ;;; is a pointer to a structure of type objc_super {self,  the defining
 ;;; class's superclass}.  It only makes sense to use this inside an
@@ -1179,6 +1242,31 @@ argument lisp string."
 	 (imp (gensym)))
     `(with-macptrs ((,sup ,super)
 		    (,sel (@selector ,selector-name))
+		    (,imp (external-call "objc_msg_lookup_super"
+					 :<S>uper_t ,sup
+					 :<SEL> ,sel
+					 :<IMP>)))
+  (funcall (ftd-ff-call-expand-function *target-ftd*)
+   `(%ff-call ,imp)
+   `(:id (pref ,sup :<S>uper.self)
+     :<SEL> ,sel
+     ,@argspecs)))))
+
+(defmacro objc-message-send-super-with-selector (super selector &rest argspecs)
+  (when (evenp (length argspecs))
+    (setq argspecs (append argspecs '(:id))))
+  #+apple-objc
+  (funcall (ftd-ff-call-expand-function *target-ftd*)
+           `(%ff-call (%reference-external-entry-point (load-time-value (external "_objc_msgSendSuper"))))
+           `(:address ,super :<SEL> ,selector ,@argspecs)
+           :arg-coerce 'objc-arg-coerce
+           :result-coerce 'objc-result-coerce)
+  #+gnu-objc
+  (let* ((sup (gensym))
+	 (sel (gensym))
+	 (imp (gensym)))
+    `(with-macptrs ((,sup ,super)
+		    (,sel ,selector)
 		    (,imp (external-call "objc_msg_lookup_super"
 					 :<S>uper_t ,sup
 					 :<SEL> ,sel
@@ -1219,6 +1307,508 @@ argument lisp string."
        :<SEL> ,sel
        ,@argspecs))))
 
+(defmacro objc-message-send-super-stret-with-selector
+    (structptr super selector &rest argspecs)
+  #+apple-objc
+    (let* ((return-typespec (car (last argspecs)))
+           (entry-name (if (funcall (ftd-ff-call-struct-return-by-implicit-arg-function *target-ftd*) return-typespec)
+                         "_objc_msgSendSuper_stret"
+                         "_objc_msgSendSuper")))
+      (funcall (ftd-ff-call-expand-function *target-ftd*)
+               `(%ff-call (%reference-external-entry-point (load-time-value (external ,entry-name))))
+               `(,structptr :address ,super :<SEL> ,selector ,@argspecs)
+               :arg-coerce 'objc-arg-coerce
+               :result-coerce 'objc-result-coerce))
+  #+gnu-objc
+  (let* ((sup (gensym))
+	 (sel (gensym))
+	 (imp (gensym)))
+    `(with-macptrs ((,sup ,super)
+		    (,sel ,selector)
+		    (,imp (external-call "objc_msg_lookup_super"
+					 :<S>uper_t ,sup
+					 :<SEL> ,sel
+					 :<IMP>)))
+      (funcall (ftd-ff-call-expand-function *target-ftd*)
+       `(%ff-call ,imp)
+       ,structptr
+       :id (pref ,sup :<S>uper.self)
+       :<SEL> ,sel
+       ,@argspecs))))
+
+(defun message-send-form-for-call (receiver selector args super-p struct-return-var)
+  (if struct-return-var
+    (if super-p
+      `(objc-message-send-super-stret-with-selector ,struct-return-var ,receiver ,selector ,@args)
+      `(objc-message-send-stret-with-selector ,struct-return-var ,receiver ,selector ,@args))
+    (if super-p
+      `(objc-message-send-super-with-selector ,receiver ,selector ,@args)
+      `(objc-message-send-with-selector ,receiver ,selector ,@args))))
+
+
+#+(and apple-objc x8664-target)
+(defun %process-varargs-list (gpr-pointer fpr-pointer stack-pointer ngprs nfprs nstackargs arglist)
+  (dolist (arg-temp arglist)
+    (typecase arg-temp
+      ((signed-byte 64)
+       (if (< ngprs 6)
+         (progn
+           (setf (paref gpr-pointer (:* (:signed 64)) ngprs) arg-temp)
+           (incf ngprs))
+         (progn
+           (setf (paref stack-pointer (:* (:signed 64)) nstackargs) arg-temp)
+           (incf nstackargs))))
+      ((unsigned-byte 64)
+       (if (< ngprs 6)
+         (progn
+           (setf (paref gpr-pointer (:* (:unsigned 64)) ngprs) arg-temp)
+           (incf ngprs))
+         (progn
+           (setf (paref stack-pointer (:* (:unsigned 64)) nstackargs) arg-temp)
+           (incf nstackargs))))
+      (macptr
+       (if (< ngprs 6)
+         (progn
+           (setf (paref gpr-pointer (:* :address) ngprs) arg-temp)
+           (incf ngprs))
+         (progn
+           (setf (paref stack-pointer (:* :address) nstackargs) arg-temp)
+           (incf nstackargs))))
+      (single-float
+       (if (< nfprs 8)
+         (progn
+           (setf (%get-single-float fpr-pointer (* nfprs 16))
+                 arg-temp)
+           (incf nfprs))
+         (progn
+           (setf (paref stack-pointer (:* :float) (* 2 nstackargs)) arg-temp)
+           (incf nstackargs))))
+      (double-float
+       (if (< nfprs 8)
+         (progn
+           (setf (%get-double-float fpr-pointer (* nfprs 16))
+                 arg-temp)
+           (incf nfprs))
+         (progn
+           (setf (paref stack-pointer (:* :double) nstackargs)
+                 arg-temp)
+           (incf nstackargs)))))))
+
+#+(and apple-objc ppc32-target)
+(defun %process-varargs-list (gpr-pointer fpr-pointer ngprs nfprs arglist)
+  (dolist (arg-temp arglist)
+    (typecase arg-temp
+      ((signed-byte 32)
+       (setf (paref gpr-pointer (:* (:signed 32)) ngprs) arg-temp)
+       (incf ngprs))
+      ((unsigned-byte 32)
+       (setf (paref gpr-pointer (:* (:unsigned 32)) ngprs) arg-temp)
+       (incf ngprs))
+      (macptr
+       (setf (paref gpr-pointer (:* :address) ngprs) arg-temp)
+       (incf ngprs))
+      (single-float
+       (when (< nfprs 13)
+         (setf (paref fpr-pointer (:* :double-float) nfprs) (float arg-temp 0.0d0))
+         (incf nfprs))
+       (setf (paref gpr-pointer (:* :single-float) ngprs) arg-temp)
+       (incf ngprs))
+      (double-float
+       (when (< nfprs 13)
+         (setf (paref fpr-pointer (:* :double-float) nfprs) arg-temp)
+         (incf nfprs))
+       (multiple-value-bind (high low) (double-float-bits arg-temp)
+         (setf (paref gpr-pointer (:* :unsigned) ngprs) high)
+         (incf ngprs)
+         (setf (paref gpr-pointer (:* :unsigned) ngprs) low)
+         (incf nfprs)))
+      ((or (signed-byte 64)
+           (unsigned-byte 64))
+       (setf (paref gpr-pointer (:* :unsigned) ngprs) (ldb (byte 32 32) arg-temp))
+       (incf ngprs)
+       (setf (paref gpr-pointer (:* :unsigned) ngprs) (ldb (byte 32 0) arg-temp))
+       (incf ngprs)))))
+
+#+(and apple-objc ppc64-target)
+(defun %process-varargs-list (gpr-pointer fpr-pointer ngprs nfprs arglist)
+  (dolist (arg-temp arglist)
+    (typecase arg-temp
+      ((signed-byte 64)
+       (setf (paref gpr-pointer (:* (:signed 64)) ngprs) arg-temp)
+       (incf ngprs))
+      ((unsigned-byte 64)
+       (setf (paref gpr-pointer (:* (:unsigned 64)) ngprs) arg-temp)
+       (incf ngprs))
+      (macptr
+       (setf (paref gpr-pointer (:* :address) ngprs) arg-temp)
+       (incf ngprs))
+      (single-float
+       (when (< nfprs 13)
+         (setf (paref fpr-pointer (:* :double-float) nfprs) (float arg-temp 0.0d0))
+         (incf nfprs))
+       (setf (paref gpr-pointer (:* (:unsigned 64)) ngprs) (single-float-bits arg-temp))
+       (incf ngprs))
+      (double-float
+       (when (< nfprs 13)
+         (setf (paref fpr-pointer (:* :double-float) nfprs) arg-temp)
+         (incf nfprs))
+       (setf (paref gpr-pointer (:* :double-float) ngprs) arg-temp)
+       (incf ngprs)))))
+
+                          
+#+apple-objc
+(eval-when (:compile-toplevel :execute)
+  #+x8664-target
+  (%def-foreign-type :<MARG> (foreign-pointer-type-to (parse-foreign-type :x86_64_marg_list)))
+  #+ppc-target
+  (def-foreign-type :<MARG>
+      (:struct nil
+               (:fp<P>arams (:array :double 13))
+               (:linkage (:array :uintptr_t 6))
+               (:reg<P>arams (:array :uintptr_t 8))
+               (:stack<P>arams (:array :uintptr_t) 0)))
+  )
+
+  
+#+(and apple-objc x8664-target)
+(defun %compile-varargs-send-function-for-signature (sig)
+  (let* ((return-type-spec (car sig))
+         (arg-type-specs (butlast (cdr sig)))
+         (args (objc-gen-message-arglist (length arg-type-specs)))
+         (receiver (gensym))
+         (selector (gensym))
+         (rest-arg (gensym))
+         (arg-temp (gensym))
+         (marg-ptr (gensym))
+         (regparams (gensym))
+         (stackparams (gensym))
+         (selptr (gensym))
+         (gpr-total (gensym))
+         (fpr-total (gensym))
+         (stack-total (gensym))
+         (n-static-gprs 2)              ;receiver, selptr
+         (n-static-fprs 0)
+         (n-static-stack-args 0))
+    (collect ((static-arg-forms))
+      (static-arg-forms `(setf (paref ,regparams (:* address) 0) ,receiver))
+      (static-arg-forms `(setf (paref ,regparams (:* address) 1) ,selptr))
+      (do* ((args args (cdr args))
+            (arg-type-specs arg-type-specs (cdr arg-type-specs)))
+           ((null args))
+        (let* ((arg (car args))
+               (spec (car arg-type-specs))
+               (static-arg-type (parse-foreign-type spec))
+               (gpr-base (if (< n-static-gprs 6) regparams stackparams))
+               (fpr-base (if (< n-static-fprs 8) marg-ptr stackparams))
+               (gpr-offset (if (< n-static-gprs 6) n-static-gprs n-static-stack-args))
+               (fpr-offset (if (< n-static-fprs 8)
+                             (* 16 n-static-fprs)
+                             (* 8 n-static-stack-args))))
+          (etypecase static-arg-type
+            (foreign-integer-type
+             (if (eq spec :<BOOL>)
+               (setq arg `(%coerce-to-bool ,arg)))
+             (static-arg-forms
+              `(setf (paref ,gpr-base (:* (
+                                           ,(if (foreign-integer-type-signed static-arg-type)
+                                                :signed
+                                                :unsigned)
+                                           ,(foreign-integer-type-bits static-arg-type))) ,gpr-offset)
+                ,arg))
+             (if (< n-static-gprs 6)
+               (incf n-static-gprs)
+               (incf n-static-stack-args)))
+            (foreign-single-float-type
+             (if (eq fpr-base stackparams)
+               (setq fpr-offset (* 2 fpr-offset)))
+             (static-arg-forms
+              `(setf (%get-single-float ,fpr-base ,fpr-offset) ,arg))
+             (if (< n-static-fprs 8)
+               (incf n-static-fprs)
+               (incf n-static-stack-args)))
+            (foreign-double-float-type
+             (static-arg-forms
+              `(setf (%get-double-float ,fpr-base ,fpr-offset) ,arg))
+             (if (< n-static-fprs 8)
+               (incf n-static-fprs)
+               (incf n-static-stack-args)))
+            (foreign-pointer-type
+             (static-arg-forms
+              `(setf (paref ,gpr-base (:* address) ,gpr-offset) ,arg))
+             (if (< n-static-gprs 6)
+               (incf n-static-gprs)
+               (incf n-static-stack-args))))))
+      (compile
+       nil
+       `(lambda (,receiver ,selector ,@args &rest ,rest-arg)
+         (declare (dynamic-extent ,rest-arg))
+         (let* ((,selptr (%get-selector ,selector))
+                (,gpr-total ,n-static-gprs)
+                (,fpr-total ,n-static-fprs)
+                (,stack-total ,n-static-stack-args))
+           (dolist (,arg-temp ,rest-arg)
+             (if (or (typep ,arg-temp 'double-float)
+                     (typep ,arg-temp 'single-float))
+               (if (< ,fpr-total 8)
+                 (incf ,fpr-total)
+                 (incf ,stack-total))
+               (if (< ,gpr-total 6)
+                 (incf ,gpr-total)
+                 (incf ,stack-total))))
+           (%stack-block ((,marg-ptr (+ ,(%foreign-type-or-record-size
+                                          :<MARG> :bytes)
+                                        (* 8 ,stack-total))))
+             
+             (setf (pref ,marg-ptr :<MARG>.rax) ,fpr-total)
+             (with-macptrs ((,regparams (pref ,marg-ptr :<MARG>.reg<P>arams)) 
+                            (,stackparams (pref ,marg-ptr :<MARG>.stack<P>arams)))
+               (progn ,@(static-arg-forms))
+               (%process-varargs-list ,regparams ,marg-ptr ,stackparams ,n-static-gprs ,n-static-fprs ,n-static-stack-args ,rest-arg)
+               (external-call "_objc_msgSendv"
+                              :address ,receiver
+                              :address ,selptr
+                              :size_t (+ 48 (* 8 ,stack-total))
+                              :address ,marg-ptr
+                              ,return-type-spec)))))))))
+
+#+(and apple-objc ppc32-target)
+(defun %compile-varargs-send-function-for-signature (sig)
+  (let* ((return-type-spec (car sig))
+         (arg-type-specs (butlast (cdr sig)))
+         (args (objc-gen-message-arglist (length arg-type-specs)))
+         (receiver (gensym))
+         (selector (gensym))
+         (rest-arg (gensym))
+         (arg-temp (gensym))
+         (marg-ptr (gensym))
+         (regparams (gensym))
+         (selptr (gensym))
+         (gpr-total (gensym))
+         (n-static-gprs 2)              ;receiver, selptr
+         (n-static-fprs 0))
+    (collect ((static-arg-forms))
+      (static-arg-forms `(setf (paref ,regparams (:* address) 0) ,receiver))
+      (static-arg-forms `(setf (paref ,regparams (:* address) 1) ,selptr))
+      (do* ((args args (cdr args))
+            (arg-type-specs arg-type-specs (cdr arg-type-specs)))
+           ((null args))
+        (let* ((arg (car args))
+               (spec (car arg-type-specs))
+               (static-arg-type (parse-foreign-type spec))
+               (gpr-base regparams)
+               (fpr-base marg-ptr)
+               (gpr-offset (* n-static-gprs 4)))
+          (etypecase static-arg-type
+            (foreign-integer-type
+             (let* ((bits (foreign-type-bits static-arg-type))
+                    (signed (foreign-integer-type-signed static-arg-type)))
+               (if (> bits 32)
+                 (progn
+                   (static-arg-forms
+                    `(setf (,(if signed '%%get-signed-longlong '%%get-unsigned-long-long)
+                            ,gpr-base ,gpr-offset)
+                      ,arg))
+                   (incf n-static-gprs 2))
+                 (progn
+                   (if (eq spec :<BOOL>)
+                     (setq arg `(%coerce-to-bool ,arg)))
+                   (static-arg-forms
+                    `(setf (paref ,gpr-base (:* (
+                                                 ,(if (foreign-integer-type-signed static-arg-type)
+                                                      :signed
+                                                      :unsigned)
+                                           32)) ,gpr-offset)
+                ,arg))
+                   (incf n-static-gprs)))))
+            (foreign-single-float-type
+             (static-arg-forms
+              `(setf (paref ,gpr-base (:* :single-float) ,n-static-gprs) ,arg))
+             (when (< n-static-fprs 13)
+               (static-arg-forms
+                `(setf (paref ,fpr-base (:* :double-float) ,n-static-fprs)
+                  (float (paref ,gpr-base (:* :single-float) ,n-static-gprs) 0.0d0)))
+               (incf n-static-fprs))
+             (incf n-static-gprs))
+            (foreign-double-float-type
+             (static-arg-forms
+              `(setf (%get-double-float ,gpr-base ,gpr-offset) ,arg))
+             (when (< n-static-fprs 13)
+               (static-arg-forms
+                `(setf (paref ,fpr-base (:* :double-float) ,n-static-fprs)
+                  (%get-double-float ,gpr-base ,gpr-offset)))
+               (incf n-static-fprs))
+             (incf n-static-gprs 2))
+            (foreign-pointer-type
+             (static-arg-forms
+              `(setf (paref ,gpr-base (:* address) ,n-static-gprs) ,arg))
+               (incf n-static-gprs)))))
+      (compile
+       nil
+       `(lambda (,receiver ,selector ,@args &rest ,rest-arg)
+         (declare (dynamic-extent ,rest-arg))
+         (let* ((,selptr (%get-selector ,selector))
+                (,gpr-total ,n-static-gprs))
+           (dolist (,arg-temp ,rest-arg)
+             (if (or (typep ,arg-temp 'double-float)
+                     (and (typep ,arg-temp 'integer)
+                          (if (< ,arg-temp 0)
+                            (>= (integer-length ,arg-temp) 32)
+                            (> (integer-length ,arg-temp) 32))))
+               (incf ,gpr-total 2)
+               (incf ,gpr-total 1)))
+           (if (> ,gpr-total 8)
+             (setq ,gpr-total (- ,gpr-total 8))
+             (setq ,gpr-total 0))           
+           (%stack-block ((,marg-ptr (+ ,(%foreign-type-or-record-size
+                                          :<MARG> :bytes)
+                                        (* 4 ,gpr-total))))
+             
+             (with-macptrs ((,regparams (pref ,marg-ptr :<MARG>.reg<P>arams)))
+               (progn ,@(static-arg-forms))
+               (%process-varargs-list ,regparams ,marg-ptr ,n-static-gprs ,n-static-fprs  ,rest-arg)
+               (external-call "_objc_msgSendv"
+                              :address ,receiver
+                              :address ,selptr
+                              :size_t (+ 32 (* 4 ,gpr-total))
+                              :address ,marg-ptr
+                              ,return-type-spec)))))))))
+
+#+(and apple-objc ppc64-target)
+(defun %compile-varargs-send-function-for-signature (sig)
+  (let* ((return-type-spec (car sig))
+         (arg-type-specs (butlast (cdr sig)))
+         (args (objc-gen-message-arglist (length arg-type-specs)))
+         (receiver (gensym))
+         (selector (gensym))
+         (rest-arg (gensym))
+         (arg-temp (gensym))
+         (marg-ptr (gensym))
+         (regparams (gensym))
+         (selptr (gensym))
+         (gpr-total (gensym))
+         (n-static-gprs 2)              ;receiver, selptr
+         (n-static-fprs 0))
+    (collect ((static-arg-forms))
+      (static-arg-forms `(setf (paref ,regparams (:* address) 0) ,receiver))
+      (static-arg-forms `(setf (paref ,regparams (:* address) 1) ,selptr))
+      (do* ((args args (cdr args))
+            (arg-type-specs arg-type-specs (cdr arg-type-specs)))
+           ((null args))
+        (let* ((arg (car args))
+               (spec (car arg-type-specs))
+               (static-arg-type (parse-foreign-type spec))
+               (gpr-base regparams)
+               (fpr-base marg-ptr)
+               (gpr-offset (* n-static-gprs 8)))
+          (etypecase static-arg-type
+            (foreign-integer-type
+             (if (eq spec :<BOOL>)
+               (setq arg `(%coerce-to-bool ,arg)))
+             (static-arg-forms
+              `(setf (paref ,gpr-base (:* (
+                                           ,(if (foreign-integer-type-signed static-arg-type)
+                                                :signed
+                                                :unsigned)
+                                           64)) ,gpr-offset)
+                ,arg))
+             (incf n-static-gprs))
+            (foreign-single-float-type
+             (static-arg-forms
+              `(setf (%get-single-float ,gpr-base ,(+ 4 (* 8 n-static-gprs))) ,arg))
+             (when (< n-static-fprs 13)
+               (static-arg-forms
+                `(setf (paref ,fpr-base (:* :double-float) ,n-static-fprs)
+                  (float (%get-single-float ,gpr-base ,(+ 4 (* 8 n-static-gprs))) 0.0d0)))
+               (incf n-static-fprs))
+             (incf n-static-gprs))
+            (foreign-double-float-type
+             (static-arg-forms
+              `(setf (%get-double-float ,gpr-base ,gpr-offset) ,arg))
+             (when (< n-static-fprs 13)
+               (static-arg-forms
+                `(setf (paref ,fpr-base (:* :double-float) ,n-static-fprs)
+                  (%get-double-float ,gpr-base ,gpr-offset)))
+               (incf n-static-fprs))
+             (incf n-static-gprs 1))
+            (foreign-pointer-type
+             (static-arg-forms
+              `(setf (paref ,gpr-base (:* address) ,n-static-gprs) ,arg))
+             (incf n-static-gprs)))))
+      
+      (progn
+        nil
+        `(lambda (,receiver ,selector ,@args &rest ,rest-arg)
+          (declare (dynamic-extent ,rest-arg))
+          (let* ((,selptr (%get-selector ,selector))
+                 (,gpr-total ,n-static-gprs))
+            (dolist (,arg-temp ,rest-arg)
+              (declare (ignore ,arg-temp))
+              (incf ,gpr-total 1))
+            (if (> ,gpr-total 8)
+              (setq ,gpr-total (- ,gpr-total 8))
+              (setq ,gpr-total 0))           
+            (%stack-block ((,marg-ptr (+ ,(%foreign-type-or-record-size
+                                           :<MARG> :bytes)
+                                         (* 8 ,gpr-total))))
+             
+              (with-macptrs ((,regparams (pref ,marg-ptr :<MARG>.reg<P>arams)))
+                (progn ,@(static-arg-forms))
+                (%process-varargs-list ,regparams ,marg-ptr ,n-static-gprs ,n-static-fprs  ,rest-arg)
+                (external-call "_objc_msgSendv"
+                               :address ,receiver
+                               :address ,selptr
+                               :size_t (+ 64 (* 8 ,gpr-total))
+                               :address ,marg-ptr
+                               ,return-type-spec)))))))))
+
+#-(and apple-objc (or x8664-target ppc-target))
+(defun %compile-varargs-send-function-for-signature (sig)
+  (warn "Varargs function for signature ~s NYI" sig))
+
+
+
+(defun %compile-send-function-for-signature (sig &optional super-p)
+  (let* ((return-type-spec (car sig))
+         (arg-type-specs (cdr sig)))
+    (if (eq (car (last arg-type-specs)) :void)
+      (%compile-varargs-send-function-for-signature sig)
+      (let* ((args (objc-gen-message-arglist (length arg-type-specs)))
+             (struct-return-var nil)
+             (receiver (gensym))
+             (selector (gensym)))
+        (collect ((call)
+                  (lets))
+          (let* ((result-type (parse-foreign-type return-type-spec)))
+            (when (typep result-type 'foreign-record-type)
+              (setq struct-return-var (gensym))
+              (lets `(,struct-return-var (make-gcable-record ,return-type-spec))))
+
+            (do ((args args (cdr args))
+                 (spec (pop arg-type-specs) (pop arg-type-specs)))
+                ((null args) (call return-type-spec))
+              (let* ((arg (car args)))
+                 (call spec)
+                 (case spec
+                   (:<BOOL> (call `(%coerce-to-bool ,arg)))
+                   (:id (call `(%coerce-to-address ,arg)))
+                   (t
+                    (call arg)))))
+            (let* ((call (call))
+                   (lets (lets))
+                   (body (message-send-form-for-call receiver selector call super-p struct-return-var)))
+              (if struct-return-var
+                (setq body `(progn ,body ,struct-return-var)))
+              (if lets
+                (setq body `(let* ,lets
+                             ,body)))
+              (compile nil
+                       `(lambda (,receiver ,selector ,@args)
+                         ,body)))))))))
+
+(defun compile-send-function-for-signature (sig)
+  (%compile-send-function-for-signature sig nil))
+                           
+                    
 
 
 ;;; The first 8 words of non-fp arguments get passed in R3-R10
@@ -1554,6 +2144,8 @@ argument lisp string."
       (setf (objc-class-id-foreign-name id) class-name
 	    (objc-metaclass-id-foreign-name meta-id) class-name
 	    (find-class meta-name) meta)
+      (%defglobal name class)
+      (%defglobal meta-name meta)
     class)))
 
 ;;; Set up the class's ivar_list and instance_size fields, then
@@ -1593,125 +2185,39 @@ argument lisp string."
 (defun %add-objc-class (class)
   (#_objc_registerClassPair class))
 
-(defun %make-nsstring (string)
-  (with-cstrs ((s string))
-    (objc-message-send
-     (objc-message-send (find-class 'ns:ns-string) "alloc")
-     "initWithCString:" :address s)))
 
 
-(let* ((objc-init-message-args (make-array 10 :fill-pointer 0 :adjustable t)))
-  (defun %objc-init-message-arg (n)
-    (let* ((len (length objc-init-message-args)))
+
+
+
+
+(let* ((objc-gen-message-args (make-array 10 :fill-pointer 0 :adjustable t)))
+  (defun %objc-gen-message-arg (n)
+    (let* ((len (length objc-gen-message-args)))
       (do* ((i len (1+ i)))
-           ((> i n) (aref objc-init-message-args n))
-        (vector-push-extend (intern (format nil "ARG~d" i)) objc-init-message-args)))))
+           ((> i n) (aref objc-gen-message-args n))
+        (vector-push-extend (intern (format nil "ARG~d" i)) objc-gen-message-args)))))
 
-(defun objc-init-message-arglist (n)
+(defun objc-gen-message-arglist (n)
   (collect ((args))
-    (dotimes (i n (args)) (args (%objc-init-message-arg i)))))
+    (dotimes (i n (args)) (args (%objc-gen-message-arg i)))))
 
 
-(defun %make-objc-init-function-for-signature (signature)
-  ;; No structure returns or send-supers involved.
-  (let* ((types (cdr signature))
-         (args (objc-init-message-arglist (length types))))
-    (collect ((call))
-      (dolist (arg args)
-        (let* ((type (pop types)))
-          (call type)
-          (case type
-            (:<BOOL> (call `(%coerce-to-bool ,arg)))
-            (:id (call `(%coerce-to-address ,arg)))
-            (otherwise (call arg)))))
-      ;; all "init" messages return :id
-      (call :id)
-      (compile nil
-               `(lambda (self selector ,@args)
-                 #+apple-objc
-                 (external-call "_objc_msgSend"
-                  :id self
-                  :<SEL> (%get-selector selector)
-                  ,@(call))
-                 #+gnu-objc
-                 (let* ((s (%get-selector selector))
-                        (imp (external-call "objc_msg_lookup"
-                                            :id self
-                                            :<SEL> s
-                                            :<IMP>)))
-                   (ff-call imp :id self :<SEL> s ,@(call))))))))
 
-(defstruct objc-init-method-signature-info
-  signature
-  function)
-
-(defvar *objc-init-method-signatures* (make-hash-table :test #'equal)
-  "Maps signature lists to OBJC-INIT-METHOD-SIGNATURE-INFO structures.")
-
-(defun get-objc-init-method-signature-info (list)
-  (or (gethash list *objc-init-method-signatures*)
-      (setf (gethash list *objc-init-method-signatures*)
-            (make-objc-init-method-signature-info
-             :signature list
-             :function (%make-objc-init-function-for-signature list)))))
-
-(defstruct objc-init-message-info
-  selector
-  method-signature-alist
-  )
-
-(defvar  *objc-init-messages-for-message-names* (make-hash-table :test #'equal)
-  "Maps from init message names to OBJC-INIT-MESSAGE-INFO structures.")
-
-(defun register-objc-init-message (message-info)
-  (when (dolist (m (objc-message-info-methods message-info))
-          (unless (getf (objc-method-info-flags m) :protocol)
-            (let* ((sig (objc-method-info-signature m)))
-              (unless (eq (car (last sig)) :void)
-                (when (eq :id (car (objc-method-info-signature m)))
-                  (return t))))))
-    (let* ((name (objc-message-info-message-name message-info))
-           (init-info
-            (or (gethash name *objc-init-messages-for-message-names*)
-                (setf (gethash name *objc-init-messages-for-message-names*)
-                      (make-objc-init-message-info
-                       :selector (load-objc-selector name)
-                       :method-signature-alist nil))))
-           (alist (objc-init-message-info-method-signature-alist init-info)))
-      (dolist (m (objc-message-info-methods message-info))
-        (let* ((sig (objc-method-info-signature m)))
-          (when (and (eq :id (car sig))
-                     (not (getf (objc-method-info-flags m) :protocol)))
-            ;; Looks like a real init method.
-            (let* ((class (canonicalize-registered-class (lookup-objc-class (objc-method-info-class-name m))))
-                   (siginfo (get-objc-init-method-signature-info sig))
-                   (pair (assoc siginfo alist :test #'eq)))
-              (if (null pair)
-                (push (cons siginfo (list class)) alist)
-                (pushnew class (cdr pair) :test #'eq))))))
-      (setf (objc-init-message-info-method-signature-alist init-info) alist)
-      init-info)))
-
-
-                                                       
-
-;;; Register init-message-info for all known init messages.  (A
+;;; Call get-objc-message-info for all known init messages.  (A
 ;;; message is an "init message" if it starts with the string "init",
-;;; accepts a fixed number of arguments, and has at least one declared
-;;; method that returns :ID and is not a protocol method.
+;;; and has at least one declared method that returns :ID and is not a
+;;; protocol method.
 (defun register-objc-init-messages ()
   (do-interface-dirs (d)
     (dolist (init (cdb-enumerate-keys (db-objc-methods d)
                                       #'(lambda (string)
                                           (string= string "init" :end1 (min (length string) 4)))))
-      (register-objc-init-message (get-objc-message-info init)))))
+      (get-objc-message-info init))))
 
     
 (defvar *objc-init-messages-for-init-keywords* (make-hash-table :test #'equal)
-  "Maps from lists of init keywords to OBJC-INIT-MESSAGE structures")
-
-
-
+  "Maps from lists of init keywords to dispatch-functions for init messages")
 
 
 
@@ -1719,12 +2225,12 @@ argument lisp string."
   (let* ((info (gethash init-keywords *objc-init-messages-for-init-keywords*)))
     (unless info
       (let* ((name (lisp-to-objc-init init-keywords))
-             (name-info (gethash name *objc-init-messages-for-message-names*)))
+             (name-info (get-objc-message-info name nil)))
         (unless name-info
           (error "Unknown ObjC init message: ~s" name))
         (setf (gethash init-keywords *objc-init-messages-for-init-keywords*)
               (setq info name-info))))
-    (send-objc-init-message-with-info instance info args)))    
+    (apply (objc-message-info-lisp-name info) instance args)))
                    
 
   
@@ -2047,10 +2553,10 @@ argument lisp string."
     (%declare-objc-method selector-name
                           class-name
                           class-p
-                          (parse-foreign-type resulttype)
+                          (concise-foreign-type resulttype)
                           (collect ((argtypes))
                             (do* ((argspecs argspecs (cddr argspecs)))
-                                 ((null argspecs) (mapcar #'parse-foreign-type (argtypes)))
+                                 ((null argspecs) (mapcar #'concise-foreign-type (argtypes)))
                               (argtypes (car argspecs)))))
     (let* ((self (intern "SELF")))
       (multiple-value-bind (body decls) (parse-body body env)
@@ -2087,7 +2593,7 @@ argument lisp string."
                              `((pref
                                 (pref (@class ,class-name)
                                  #+apple-objc :objc_class.isa
-                                 #+gnu-objc :objc_class.super_class )
+                                 #+gnu-objc :objc_class.class_pointer)
                                 :objc_class.super_class))
                              #+apple-objc-2.0
                              `((external-call "_class_getSuperclass"
@@ -2114,6 +2620,129 @@ argument lisp string."
 (defmacro define-objc-class-method ((selector-arg class-arg)
 				     &body body &environment env)
   (objc-method-definition-form t selector-arg class-arg body env))
+
+
+(declaim (inline %objc-struct-return))
+
+(defun %objc-struct-return (return-temp size value)
+  (unless (eq return-temp value)
+    (#_bcopy value return-temp size)))
+
+(defmacro objc:defmethod (name (self-arg &rest other-args) &body body &environment env)
+  (collect ((arglist)
+            (arg-names)
+            (arg-types)
+            (bool-args)
+            (type-assertions))
+    (let* ((result-type nil)
+           (struct-return-var nil)
+           (struct-return-size nil)
+           (selector nil)
+           (cmd (intern "_CMD"))
+           (class-p nil)
+           (objc-class-name nil))
+      (if (atom name)
+        (setq selector (string name) result-type :id)
+        (setq selector (string (car name)) result-type (concise-foreign-type (or (cadr name) :id))))
+      (destructuring-bind (self-name lisp-class-name) self-arg
+        (arg-names self-name)
+        (arg-types :id)
+        ;; Hack-o-rama
+        (let* ((lisp-class-name (string lisp-class-name)))
+          (if (eq (schar lisp-class-name 0) #\+)
+            (setq class-p t lisp-class-name (subseq lisp-class-name 1)))
+          (setq objc-class-name (lisp-to-objc-classname lisp-class-name)))
+        (let* ((rtype (parse-foreign-type result-type)))
+          (when (typep rtype 'foreign-record-type)
+            (setq struct-return-var (gensym))
+            (setq struct-return-size (ceiling (foreign-type-bits rtype) 8))
+            (arglist struct-return-var)))
+        (arg-types :<SEL>)
+        (arg-names cmd)
+        (dolist (arg other-args)
+          (if (atom arg)
+            (progn
+              (arg-types :id)
+              (arg-names arg))
+            (destructuring-bind (arg-name arg-type) arg
+              (let* ((concise-type (concise-foreign-type arg-type)))
+                (unless (eq concise-type :id)
+                  (let* ((ftype (parse-foreign-type concise-type)))
+                    (if (typep ftype 'foreign-pointer-type)
+                      (setq ftype (foreign-pointer-type-to ftype)))
+                    (if (and (typep ftype 'foreign-record-type)
+                             (foreign-record-type-name ftype))
+                      (type-assertions `(%set-macptr-type ,arg-name
+                                         (foreign-type-ordinal (load-time-value (%foreign-type-or-record ,(foreign-record-type-name ftype)))))))))
+                (arg-types concise-type)
+                (arg-names arg-name)))))
+        (let* ((arg-names (arg-names))
+               (arg-types (arg-types)))
+          (do* ((names arg-names)
+                (types arg-types))
+               ((null types) (arglist result-type))
+            (let* ((name (pop names))
+                   (type (pop types)))
+              (arglist type)
+              (arglist name)
+              (if (eq type :<BOOL>)
+                (bool-args `(setq ,name (not (eql ,name 0)))))))
+          (let* ((impname (intern (format nil "~c[~a ~a]"
+                                          (if class-p #\+ #\-)
+                                          objc-class-name
+                                          selector)))
+                 (typestring (encode-objc-method-arglist arg-types result-type))
+                 (signature (cons result-type (cddr arg-types))))
+            (multiple-value-bind (body decls) (parse-body body env)
+              
+              (setq body `((progn ,@(bool-args) ,@(type-assertions) ,@body)))
+              (if (eq result-type :<BOOL>)
+                (setq body `((%coerce-to-bool ,@body))))
+              (when struct-return-var
+                (setq body `((%objc-struct-return ,struct-return-var ,struct-return-size ,@body)))
+                (setq body `((flet ((struct-return-var-function ()
+                                      ,struct-return-var))
+                               (declaim (inline struct-return-var-function))
+                               ,@body)))
+                (setq body `((macrolet ((objc:returning-foreign-struct ((var) &body body)
+                                          `(let* ((,var (struct-return-var-function)))
+                                            ,@body)))
+                               ,@body))))
+              (setq body `((flet ((call-next-method (&rest args)
+                                  (declare (dynamic-extent args))
+                                  (apply (function ,(if class-p
+                                                        '%call-next-objc-class-method
+                                                        '%call-next-objc-method))
+                                         ,self-name
+                                         (@class ,objc-class-name)
+                                         (@selector ,selector)
+                                         ',signature
+                                         args)))
+                                 (declare (inline call-next-method))
+                                 ,@body)))
+              `(progn
+                (%declare-objc-method
+                 ',selector
+                 ',objc-class-name
+                 ,class-p
+                 ',result-type
+                 ',(cddr arg-types))
+                (defcallback ,impname ( :error-return (condition objc-callback-error-return) ,@(arglist))
+                  (declare (ignorable ,self-name ,cmd)
+                           (unsettable ,self-name))
+                  ,@decls
+                  ,@body)
+                (%define-lisp-objc-method
+                 ',impname
+                 ,objc-class-name
+                 ,selector
+                 ,typestring
+                 ,impname
+                 ,class-p)))))))))
+
+      
+           
+  
 
 (defun class-get-instance-method (class sel)
   #+apple-objc (#_class_getInstanceMethod class sel)
@@ -2160,17 +2789,7 @@ argument lisp string."
 ")
 
 
-(defun retain-objc-instance (instance)
-  (objc-message-send instance "retain"))
-
 ;;; Execute BODY with an autorelease pool
-
-(defun create-autorelease-pool ()
-  (objc-message-send
-   (objc-message-send (@class "NSAutoreleasePool") "alloc") "init"))
-
-(defun release-autorelease-pool (p)
-  (objc-message-send p "release"))
 
 (defmacro with-autorelease-pool (&body body)
   (let ((pool-temp (gensym)))
@@ -2179,12 +2798,9 @@ argument lisp string."
 	   (progn ,@body)
 	(release-autorelease-pool ,pool-temp)))))
 
-;;; This can fail if the nsstring contains non-8-bit characters.
-(defun lisp-string-from-nsstring (nsstring)
-  (with-macptrs (cstring)
-    (%setf-macptr cstring (objc-message-send nsstring "cString" (* :char)))
-    (unless (%null-ptr-p cstring)
-      (%get-cstring cstring))))
+(defun %make-nsstring (string)
+  (with-cstrs ((s string))
+    (%make-nsstring-from-c-string s)))
 
 #+apple-objc-2.0
 ;;; This isn't defined in headers; it's sort of considered a built-in
@@ -2255,18 +2871,5 @@ argument lisp string."
       (error (ns-exception->lisp-condition (%inc-ptr exception 0))))))
 
 
-(defun send-objc-init-message-with-info (instance init-info args)
-  (let* ((selector (objc-init-message-info-selector init-info))
-         (alist (objc-init-message-info-method-signature-alist init-info))
-         (pair (do* ((alist alist (cdr alist)))
-                    ((null (cdr alist))
-                     (car alist)
-                     (let* ((pair (car alist)))
-                       (dolist (class (cdr pair))
-                         (when (typep instance class)
-                           (return pair))))))))
-    (with-ns-exceptions-as-errors
-        (apply (objc-init-method-signature-info-function (car pair))
-               instance
-               selector
-               args))))
+
+
