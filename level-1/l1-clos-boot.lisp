@@ -514,7 +514,7 @@
 
 
 
-(defglobal *type-system-initialized* nil)
+(defstatic *type-system-initialized* nil)
 
 (eval-when (eval compile)
   (require 'defstruct-macros))
@@ -781,7 +781,7 @@ Generic-function's   : ~s~%" method (or (generic-function-name gf) gf) (flatten-
   (setq method-function (require-type method-function 'method-function))
   (lfun-name method-function))
 
-(defglobal %defgeneric-methods% (make-hash-table :test 'eq :weak t))
+(defstatic %defgeneric-methods% (make-hash-table :test 'eq :weak t))
 
 (defun %defgeneric-methods (gf)
    (gethash gf %defgeneric-methods%))
@@ -857,7 +857,7 @@ Generic-function's   : ~s~%" method (or (generic-function-name gf) gf) (flatten-
 			      (update-dependent gfn d 'add-method method)))))
   gfn)
 
-(defglobal *standard-kernel-method-class* nil)
+(defstatic *standard-kernel-method-class* nil)
 
 (defun redefine-kernel-method (method)
   (when (and *warn-if-redefine-kernel*
@@ -1384,7 +1384,7 @@ to replace that class with ~s" name old-class new-class)
 ;;; This will be filled in below.  Need it defined now as it goes in
 ;;; the instance.class-wrapper of all the classes that STANDARD-CLASS
 ;;; inherits from.
-(defglobal *standard-class-wrapper* 
+(defstatic *standard-class-wrapper* 
   (%cons-wrapper 'standard-class))
 
 (defun make-standard-class (name &rest supers)
@@ -1463,14 +1463,14 @@ to replace that class with ~s" name old-class new-class)
 (defun specializer-p (thing)
   (memq *specializer-class* (%inited-class-cpl (class-of thing))))
 
-(defglobal *standard-object-class* (make-standard-class 'standard-object *t-class*))
+(defstatic *standard-object-class* (make-standard-class 'standard-object *t-class*))
 
-(defglobal *metaobject-class* (make-standard-class 'metaobject *standard-object-class*))
+(defstatic *metaobject-class* (make-standard-class 'metaobject *standard-object-class*))
 
-(defglobal *specializer-class* (make-standard-class 'specializer *metaobject-class*))
-(defglobal *eql-specializer-class* (make-standard-class 'eql-specializer *specializer-class*))
+(defstatic *specializer-class* (make-standard-class 'specializer *metaobject-class*))
+(defstatic *eql-specializer-class* (make-standard-class 'eql-specializer *specializer-class*))
 
-(defglobal *standard-method-combination*
+(defstatic *standard-method-combination*
   (make-instance-vector
    (%class.own-wrapper
     (make-standard-class
@@ -1485,38 +1485,38 @@ to replace that class with ~s" name old-class new-class)
 (setf (type-predicate 'eql-specializer) 'eql-specializer-p)
 
 ;;; The *xxx-class-class* instances get slots near the end of this file.
-(defglobal *class-class* (make-standard-class 'class *specializer-class*))
+(defstatic *class-class* (make-standard-class 'class *specializer-class*))
 
-(defglobal *slots-class* (make-standard-class 'slots-class *class-class*))
-(defglobal *slots-class-wrapper* (%class.own-wrapper *slots-class*))
+(defstatic *slots-class* (make-standard-class 'slots-class *class-class*))
+(defstatic *slots-class-wrapper* (%class.own-wrapper *slots-class*))
 
 
 ;;; an implementation class that exists so that
 ;;; standard-class & funcallable-standard-class can have a common ancestor not
 ;;; shared by anybody but their subclasses.
 
-(defglobal *std-class-class* (make-standard-class 'std-class *slots-class*))
+(defstatic *std-class-class* (make-standard-class 'std-class *slots-class*))
 
 ;;; The class of all objects whose metaclass is standard-class. Yow.
-(defglobal *standard-class-class* (make-standard-class 'standard-class *std-class-class*))
+(defstatic *standard-class-class* (make-standard-class 'standard-class *std-class-class*))
 ;;; Replace its wrapper and the circle is closed.
 (setf (%class.own-wrapper *standard-class-class*) *standard-class-wrapper*
       (%wrapper-class *standard-class-wrapper*) *standard-class-class*
       (%wrapper-instance-slots *standard-class-wrapper*) (vector))
 
-(defglobal *built-in-class-class* (make-standard-class 'built-in-class *class-class*))
+(defstatic *built-in-class-class* (make-standard-class 'built-in-class *class-class*))
 (setf *built-in-class-wrapper* (%class.own-wrapper *built-in-class-class*)
       (instance.class-wrapper *t-class*) *built-in-class-wrapper*)
 
-(defglobal *structure-class-class* (make-standard-class 'structure-class *slots-class*))
-(defglobal *structure-class-wrapper* (%class.own-wrapper *structure-class-class*))
-(defglobal *structure-object-class* 
+(defstatic *structure-class-class* (make-standard-class 'structure-class *slots-class*))
+(defstatic *structure-class-wrapper* (%class.own-wrapper *structure-class-class*))
+(defstatic *structure-object-class* 
   (make-class 'structure-object *structure-class-wrapper* (list *t-class*)))
 
-(defglobal *forward-referenced-class-class*
+(defstatic *forward-referenced-class-class*
   (make-standard-class 'forward-referenced-class *class-class*))
 
-(defglobal *function-class* (make-built-in-class 'function))
+(defstatic *function-class* (make-built-in-class 'function))
 
 (defun alias-class (name class)
   (setf (find-class name) class
@@ -1526,31 +1526,31 @@ to replace that class with ~s" name old-class new-class)
 ;;;Right now, all functions are compiled.
 
 
-(defglobal *compiled-function-class* *function-class*)
+(defstatic *compiled-function-class* *function-class*)
 (alias-class 'compiled-function *compiled-function-class*)
 
-(defglobal *compiled-lexical-closure-class* 
+(defstatic *compiled-lexical-closure-class* 
   (make-standard-class 'compiled-lexical-closure *function-class*))
 
 
 
 
 
-(defglobal *funcallable-standard-class-class*
+(defstatic *funcallable-standard-class-class*
   (make-standard-class 'funcallable-standard-class *std-class-class*))
 
-(defglobal *funcallable-standard-object-class*
+(defstatic *funcallable-standard-object-class*
   (make-class 'funcallable-standard-object
               (%class.own-wrapper *funcallable-standard-class-class*)
               (list *standard-object-class* *function-class*)))
 
-(defglobal *generic-function-class*
+(defstatic *generic-function-class*
   (make-class 'generic-function
               (%class.own-wrapper *funcallable-standard-class-class*)
               (list *metaobject-class* *funcallable-standard-object-class*)))
 (setq *generic-function-class-wrapper* (%class.own-wrapper *generic-function-class*))
 
-(defglobal *standard-generic-function-class*
+(defstatic *standard-generic-function-class*
   (make-class 'standard-generic-function
               (%class.own-wrapper *funcallable-standard-class-class*)
               (list *generic-function-class*)))
@@ -1558,31 +1558,31 @@ to replace that class with ~s" name old-class new-class)
       (%class.own-wrapper *standard-generic-function-class*))
 
 ;;; *standard-method-class* is upgraded to a real class below
-(defglobal *method-class* (make-standard-class 'method *metaobject-class*))
-(defglobal *standard-method-class* (make-standard-class 'standard-method *method-class*))
-(defglobal *accessor-method-class* (make-standard-class 'standard-accessor-method *standard-method-class*))
-(defglobal *standard-reader-method-class* (make-standard-class 'standard-reader-method *accessor-method-class*))
-(defglobal *standard-writer-method-class* (make-standard-class 'standard-writer-method *accessor-method-class*))
-(defglobal *method-function-class* (make-standard-class 'method-function *function-class*))
+(defstatic *method-class* (make-standard-class 'method *metaobject-class*))
+(defstatic *standard-method-class* (make-standard-class 'standard-method *method-class*))
+(defstatic *accessor-method-class* (make-standard-class 'standard-accessor-method *standard-method-class*))
+(defstatic *standard-reader-method-class* (make-standard-class 'standard-reader-method *accessor-method-class*))
+(defstatic *standard-writer-method-class* (make-standard-class 'standard-writer-method *accessor-method-class*))
+(defstatic *method-function-class* (make-standard-class 'method-function *function-class*))
 
 
-(defglobal *combined-method-class* (make-standard-class 'combined-method *function-class*))
+(defstatic *combined-method-class* (make-standard-class 'combined-method *function-class*))
 
-(defglobal *slot-definition-class* (make-standard-class 'slot-definition *metaobject-class*))
-(defglobal direct-slot-definition-class (make-standard-class 'direct-slot-definition
+(defstatic *slot-definition-class* (make-standard-class 'slot-definition *metaobject-class*))
+(defstatic direct-slot-definition-class (make-standard-class 'direct-slot-definition
                                                            *slot-definition-class*))
-(defglobal effective-slot-definition-class (make-standard-class 'effective-slot-definition
+(defstatic effective-slot-definition-class (make-standard-class 'effective-slot-definition
                                                               *slot-definition-class*))
-(defglobal *standard-slot-definition-class* (make-standard-class 'standard-slot-definition
+(defstatic *standard-slot-definition-class* (make-standard-class 'standard-slot-definition
                                                               *slot-definition-class*))
-(defglobal *standard-direct-slot-definition-class* (make-class
+(defstatic *standard-direct-slot-definition-class* (make-class
                                                  'standard-direct-slot-definition
                                                  *standard-class-wrapper*
                                                  (list
                                                   *standard-slot-definition-class*
                                                   direct-slot-definition-class)))
 
-(defglobal *standard-effective-slot-definition-class* (make-class
+(defstatic *standard-effective-slot-definition-class* (make-class
                                                     'standard-effective-slot-definition
                                                     *standard-class-wrapper*
                                                     (list
@@ -1590,42 +1590,45 @@ to replace that class with ~s" name old-class new-class)
                                                      effective-slot-definition-class)
 ))
 
-(defglobal *standard-effective-slot-definition-class-wrapper*
+(defstatic *standard-effective-slot-definition-class-wrapper*
   (%class.own-wrapper *standard-effective-slot-definition-class*))
 
 
 
-(let ((*dont-find-class-optimize* t))
+
+(let ((*dont-find-class-optimize* t)
+      (ordinal-type-class-alist ())
+      (ordinal-type-class-alist-lock (make-lock)))
 
 ;; The built-in classes.
-  (defglobal *array-class* (make-built-in-class 'array))
-  (defglobal *character-class* (make-built-in-class 'character))
+  (defstatic *array-class* (make-built-in-class 'array))
+  (defstatic *character-class* (make-built-in-class 'character))
   (make-built-in-class 'number)
   (make-built-in-class 'sequence)
-  (defglobal *symbol-class* (make-built-in-class 'symbol))
-  (defglobal *immediate-class* (make-built-in-class 'immediate)) ; Random immediate
+  (defstatic *symbol-class* (make-built-in-class 'symbol))
+  (defstatic *immediate-class* (make-built-in-class 'immediate)) ; Random immediate
   ;; Random uvectors - these are NOT class of all things represented by a uvector
   ;;type. Just random uvectors which don't fit anywhere else.
   (make-built-in-class 'ivector)        ; unknown ivector
   (make-built-in-class 'gvector)        ; unknown gvector
-  (defglobal *istruct-class* (make-built-in-class 'internal-structure)) ; unknown istruct
+  (defstatic *istruct-class* (make-built-in-class 'internal-structure)) ; unknown istruct
   
-  (defglobal *slot-vector-class* (make-built-in-class 'slot-vector (find-class 'gvector)))
+  (defstatic *slot-vector-class* (make-built-in-class 'slot-vector (find-class 'gvector)))
   
-  (defglobal *macptr-class* (make-built-in-class 'macptr))
-  (defglobal *foreign-standard-object-class*
+  (defstatic *macptr-class* (make-built-in-class 'macptr))
+  (defstatic *foreign-standard-object-class*
     (make-standard-class 'foreign-standard-object
                          *standard-object-class* *macptr-class*))
 
-  (defglobal *foreign-class-class*
+  (defstatic *foreign-class-class*
     (make-standard-class 'foreign-class *foreign-standard-object-class* *slots-class*))
   
   (make-built-in-class 'population)
   (make-built-in-class 'pool)
   (make-built-in-class 'package)
-  (defglobal *lock-class* (make-built-in-class 'lock))
-  (defglobal *recursive-lock-class* (make-built-in-class 'recursive-lock *lock-class*))
-  (defglobal *read-write-lock-class* (make-built-in-class 'read-write-lock *lock-class*))
+  (defstatic *lock-class* (make-built-in-class 'lock))
+  (defstatic *recursive-lock-class* (make-built-in-class 'recursive-lock *lock-class*))
+  (defstatic *read-write-lock-class* (make-built-in-class 'read-write-lock *lock-class*))
   
   (make-built-in-class 'lock-acquisition *istruct-class*)
   (make-built-in-class 'semaphore-notification *istruct-class*)
@@ -1658,9 +1661,9 @@ to replace that class with ~s" name old-class new-class)
   
   (make-built-in-class 'type-class *istruct-class*)
   
-  (defglobal *ctype-class* (make-built-in-class 'ctype *istruct-class*))
+  (defstatic *ctype-class* (make-built-in-class 'ctype *istruct-class*))
   (make-built-in-class 'key-info *istruct-class*)
-  (defglobal *args-ctype* (make-built-in-class 'args-ctype *ctype-class*))
+  (defstatic *args-ctype* (make-built-in-class 'args-ctype *ctype-class*))
   (make-built-in-class 'values-ctype *args-ctype*)
   (make-built-in-class 'function-ctype *args-ctype*)
   (make-built-in-class 'constant-ctype *ctype-class*)
@@ -1679,19 +1682,19 @@ to replace that class with ~s" name old-class new-class)
 
   (make-built-in-class 'complex (find-class 'number))
   (make-built-in-class 'real (find-class 'number))
-  (defglobal *float-class* (make-built-in-class 'float (find-class 'real)))
-  (defglobal *double-float-class* (make-built-in-class 'double-float (find-class 'float)))
-  (defglobal *single-float-class*  (make-built-in-class 'single-float (find-class 'float)))
+  (defstatic *float-class* (make-built-in-class 'float (find-class 'real)))
+  (defstatic *double-float-class* (make-built-in-class 'double-float (find-class 'float)))
+  (defstatic *single-float-class*  (make-built-in-class 'single-float (find-class 'float)))
   (alias-class 'short-float *single-float-class*)
   (alias-class 'long-float *double-float-class*)
 
   (make-built-in-class 'rational (find-class 'real))
   (make-built-in-class 'ratio (find-class 'rational))
   (make-built-in-class 'integer (find-class 'rational))
-  (defglobal *fixnum-class* (make-built-in-class 'fixnum (find-class 'integer)))
+  (defstatic *fixnum-class* (make-built-in-class 'fixnum (find-class 'integer)))
 
   #+x8664-target
-  (defglobal *tagged-return-address-class* (make-built-in-class 'tagged-return-address))
+  (defstatic *tagged-return-address-class* (make-built-in-class 'tagged-return-address))
   (make-built-in-class 'bignum (find-class 'integer))
   
   (make-built-in-class 'bit *fixnum-class*)
@@ -1701,17 +1704,17 @@ to replace that class with ~s" name old-class new-class)
 
   (make-built-in-class 'logical-pathname (find-class 'pathname))
   
-  (defglobal *base-char-class* (alias-class 'base-char *character-class*))
-  (defglobal *standard-char-class* (make-built-in-class 'standard-char *base-char-class*))
+  (defstatic *base-char-class* (alias-class 'base-char *character-class*))
+  (defstatic *standard-char-class* (make-built-in-class 'standard-char *base-char-class*))
   
-  (defglobal *keyword-class* (make-built-in-class 'keyword *symbol-class*))
+  (defstatic *keyword-class* (make-built-in-class 'keyword *symbol-class*))
   
   (make-built-in-class 'list (find-class 'sequence))
-  (defglobal *cons-class* (make-built-in-class 'cons (find-class 'list)))
-  (defglobal *null-class* (make-built-in-class 'null *symbol-class* (find-class 'list)))
+  (defstatic *cons-class* (make-built-in-class 'cons (find-class 'list)))
+  (defstatic *null-class* (make-built-in-class 'null *symbol-class* (find-class 'list)))
   
-  (defglobal *vector-class* (make-built-in-class 'vector *array-class* (find-class 'sequence)))
-  (defglobal *simple-array-class* (make-built-in-class 'simple-array *array-class*))
+  (defstatic *vector-class* (make-built-in-class 'vector *array-class* (find-class 'sequence)))
+  (defstatic *simple-array-class* (make-built-in-class 'simple-array *array-class*))
   (make-built-in-class 'simple-1d-array *vector-class* *simple-array-class*)
   
   ;;Maybe should do *float-array-class* etc?
@@ -1791,7 +1794,7 @@ to replace that class with ~s" name old-class new-class)
 
 
 
-  (defglobal *general-vector-class* (find-class 'general-vector))
+  (defstatic *general-vector-class* (find-class 'general-vector))
 
   #+ppc32-target
   (defparameter *ivector-vector-classes*
@@ -1973,6 +1976,22 @@ to replace that class with ~s" name old-class new-class)
                  (ignore ignore))
         x))
 
+  (defun %register-type-ordinal-class (foreign-type class-name)
+    ;; ordinal-type-class shouldn't already exist
+    (with-lock-grabbed (ordinal-type-class-alist-lock)
+      (or (let* ((class (cdr (assq foreign-type ordinal-type-class-alist))))
+            (if (and class (eq class-name (class-name class)))
+              class))
+          (let* ((class (make-built-in-class class-name 'macptr)))
+            (push (cons foreign-type class) ordinal-type-class-alist)
+            class))))
+
+  (defun %ordinal-type-class-for-macptr (p)
+    (with-lock-grabbed (ordinal-type-class-alist-lock)
+      (or (cdr (assoc (%macptr-type p) ordinal-type-class-alist :key #'foreign-type-ordinal))
+          *macptr-class*)))
+                  
+
   (register-foreign-object-domain :unclassified
                                   :recognize #'(lambda (p)
                                                  (declare (ignore p))
@@ -2002,14 +2021,15 @@ to replace that class with ~s" name old-class new-class)
 
   (register-foreign-object-domain :raw
                                   :recognize #'true
-                                  :class-of (constantly *macptr-class*)
+                                  :class-of #'%ordinal-type-class-for-macptr
                                   :classp #'false
                                   :instance-class-wrapper
-                                  (constantly (%class.own-wrapper *macptr-class*))
+                                  (lambda (p)
+                                    (%class.own-wrapper (%ordinal-type-class-for-macptr p)))
                                   :class-own-wrapper #'false
                                   :slots-vector #'false)
 
-  (defglobal *class-table*
+  (defstatic *class-table*
       (let* ((v (make-array 256 :initial-element nil))
              (class-of-function-function
               #'(lambda (thing)
@@ -3145,7 +3165,7 @@ to replace that class with ~s" name old-class new-class)
                     %class.changed-initargs))))
 
 
-(defglobal *initialization-function-lists*
+(defstatic *initialization-function-lists*
   (list (list #'initialize-instance #'allocate-instance #'shared-initialize)
         (list #'reinitialize-instance #'shared-initialize)
         (list #'update-instance-for-redefined-class #'shared-initialize)
