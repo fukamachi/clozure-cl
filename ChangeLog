@@ -1,3 +1,8 @@
+2007-04-08 14:11  gb
+
+	* lisp-kernel/ppc-spjump.s: Org to the next page boundary at end of
+	jump table, to work around (still more) Apple ld64 nonsense.
+
 2007-04-08 13:14  gb
 
 	* lib/nfcomp.lisp: Bump current fasl version.
