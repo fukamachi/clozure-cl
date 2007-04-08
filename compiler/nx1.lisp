@@ -1297,11 +1297,14 @@
 ;;; :signed-doubleword, :unsigned-doubleword, :signed-fullword,
 ;;; :unsigned-fullword, :signed-halfword, :unsigned-halfword,
 ;;; :signed-byte, or :unsigned-byte
+;;; On ppc64, :hybrid-int-float, :hybrid-float-float, and :hybrid-float-int
+;;; can also be used to express some struct-by-value cases.
 
 (defparameter *arg-spec-keywords*
   '(:double-float :single-float :address :signed-doubleword
     :unsigned-doubleword :signed-fullword :unsigned-fullword
-    :signed-halfword :unsigned-halfword :signed-byte :unsigned-byte))
+    :signed-halfword :unsigned-halfword :signed-byte :unsigned-byte
+    :hybrid-int-float :hybrid-float-int :hybrid-float-float))
 
 
 (defnx1 nx1-ff-call ((%ff-call)) (address-expression &rest arg-specs-and-result-spec)
@@ -2041,9 +2044,22 @@
   (make-acode (%nx1-operator %fixnum-to-double)
               (nx1-form arg)))
 
-(defnx1 nx1-%fixnum-to-double ((%fixnum-to-single)) (arg)
+(defnx1 nx1-%fixnum-to-single ((%fixnum-to-single)) (arg)
   (make-acode (%nx1-operator %fixnum-to-single)
               (nx1-form arg)))
+
+(defnx1 nx1-%double-float ((%double-float)) (&whole whole arg &optional (result nil result-p))
+  (declare (ignore result))
+  (if result-p
+    (nx1-treat-as-call whole)
+    (make-acode (%nx1-operator %double-float) (nx1-form arg))))
+
+(defnx1 nx1-%short-float ((%short-float)) (&whole whole arg &optional (result nil result-p))
+  (declare (ignore result))        
+  (if result-p
+    (nx1-treat-as-call whole)
+    (make-acode (%nx1-operator %single-float) (nx1-form arg))))
+
 
 (defnx1 nx1-symvector ((%symptr->symvector) (%symvector->symptr)) (arg)
   (make-acode (%nx1-default-operator) (nx1-form arg)))
