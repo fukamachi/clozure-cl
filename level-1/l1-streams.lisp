@@ -4091,9 +4091,9 @@
 (defstruct (string-output-stream-ioblock (:include string-stream-ioblock))
   (index 0))
 
-(defglobal *string-output-stream-class* (make-built-in-class 'string-output-stream 'string-stream 'basic-character-output-stream))
+(defstatic *string-output-stream-class* (make-built-in-class 'string-output-stream 'string-stream 'basic-character-output-stream))
 
-(defglobal *fill-pointer-string-output-stream-class* (make-built-in-class 'fill-pointer-string-output-stream 'string-output-stream))
+(defstatic *fill-pointer-string-output-stream-class* (make-built-in-class 'fill-pointer-string-output-stream 'string-output-stream))
 
 (def-standard-initial-binding %string-output-stream-ioblocks% (%cons-pool nil))
 
@@ -4282,7 +4282,7 @@
 
 
 ;;;"Bounded" string output streams.
-(defglobal *truncating-string-output-stream-class* (make-built-in-class 'truncating-string-stream 'string-output-stream))
+(defstatic *truncating-string-output-stream-class* (make-built-in-class 'truncating-string-stream 'string-output-stream))
 
 (defun truncating-string-output-stream-ioblock-write-char (ioblock char)
   (let* ((stream (ioblock-stream ioblock))
@@ -4322,7 +4322,7 @@
 
 ;;;One way to indent on newlines:
 
-(defglobal *indenting-string-output-stream-class* (make-built-in-class 'indenting-string-output-stream 'string-output-stream))
+(defstatic *indenting-string-output-stream-class* (make-built-in-class 'indenting-string-output-stream 'string-output-stream))
 
 
 
@@ -4389,7 +4389,7 @@
           result)))))
 
 ;;; String input streams.
-(defglobal *string-input-stream-class* (make-built-in-class 'string-input-stream 'string-stream 'basic-character-input-stream))
+(defstatic *string-input-stream-class* (make-built-in-class 'string-input-stream 'string-stream 'basic-character-input-stream))
 
 (defstruct (string-input-stream-ioblock (:include string-stream-ioblock))
   (start 0)
@@ -5568,7 +5568,9 @@
   (read-toplevel-form (symbol-value (synonym-stream-symbol stream)) eof-value))
 
 (defmethod read-toplevel-form ((stream two-way-stream) eof-value)
-  (read-toplevel-form (two-way-stream-input-stream stream) eof-value))
+  (if (typep stream 'echo-stream)
+    (call-next-method)
+    (read-toplevel-form (two-way-stream-input-stream stream) eof-value)))
 
 (defmethod read-toplevel-form :after ((stream echoing-two-way-stream) eof-value)
   (declare (ignore eof-value))
