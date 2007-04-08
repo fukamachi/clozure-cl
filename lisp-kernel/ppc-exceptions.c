@@ -2064,33 +2064,7 @@ interrupt_handler (int signum, siginfo_t *info, ExceptionInformation *context)
     }
   }
 #ifdef DARWIN
-#if 0
-  /* 
-     No, I'm not proud of this.
-     We have to use DarwinSigReturn to work around an OSX G5 bug.
-     To make matters worse, Darwin loses track of the MSR[FE0,FE1]
-     bits in a thread's context when it receives a signal via
-     pthread_kill.  We can at least fix it in this case by returning
-     to code which uses a UUO to set the MSR[FE0,FE1] bits, and
-     make the handler for -that- UUO return to the real address that
-     was interrupted via pthread_kill.
-
-     I'm so ashamed.
-  */
-#endif
-  { 
-#if 0    
-    lisp_frame *cur_frame = ((lisp_frame *)xpGPR(context,sp)),
-      *new_frame = cur_frame-1;
-    xpGPR(context,sp) = (LispObj)new_frame;
-    new_frame->backlink = cur_frame;
-    new_frame->savevsp=0;
-    new_frame->savefn=0;
-    new_frame->savelr = (LispObj)xpPC(context);
-    xpPC(context) = (pc)enable_fp_exceptions;
-#endif
     DarwinSigReturn(context);
-  }
 #endif
 }
 
