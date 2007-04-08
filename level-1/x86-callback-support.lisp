@@ -16,7 +16,7 @@
 
 (in-package "CCL")
 
-(defglobal *callback-alloc-lock* (make-lock))
+(defstatic *callback-alloc-lock* (make-lock))
 
 ;;; 
 (defun %make-executable-page ()
@@ -27,8 +27,8 @@
           -1
           0))
 
-(defglobal *available-bytes-for-callbacks* 0)
-(defglobal *current-callback-page* nil)
+(defstatic *available-bytes-for-callbacks* 0)
+(defstatic *current-callback-page* nil)
 
 (defun reset-callback-storage ()
   (setq *available-bytes-for-callbacks* (#_getpagesize)
