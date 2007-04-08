@@ -308,6 +308,7 @@ persists across calls to SAVE-APPLICATION; it can be specified via
 the command-line argument --terminal-encoding (-K)")
 
 
+(defconstant +null-ptr+ (%null-ptr))
 
 ;;; end of L1-init.lisp
 
