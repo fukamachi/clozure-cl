@@ -473,7 +473,7 @@
     (declare (fixnum n))
     (loop
       (dotimes (i n)
-        (when (eql 0 (%ptr-store-conditional p 0 self))
+        (when (eql 0 (%ptr-store-fixnum-conditional p 0 self))
           (return-from %get-spin-lock t)))
       (yield))))
 
@@ -500,8 +500,8 @@
          (setf (%get-ptr spin) (%null-ptr))
          (if flag
            (setf (lock-acquisition.status flag) t))
-         (return t)))
-      (setf (%get-ptr spin) (%null-ptr))
+         (return t))
+       (setf (%get-ptr spin) (%null-ptr)))
       (%process-wait-on-semaphore-ptr signal 1 0 "waiting for lock"))))
 
 (defun %try-recursive-lock (lock &optional flag)
