@@ -6,23 +6,13 @@
   (require "BRIDGE"))
 
 (defun allocate-objc-object (class)
-  (send class 'alloc))
+  (#/alloc class))
+
+(defun conforms-to-protocol (thing protocol)
+  (#/conformsToProtocol: thing (objc-protocol-address protocol)))
 
 
-#-apple-objc-2.0
-(progn
-  (def-foreign-type :<CGF>loat :float)
-  (def-foreign-type :<NSUI>nteger :unsigned)
-  (def-foreign-type :<NSI>nteger :signed)
-  )
 
-(defconstant +cgfloat-zero+
-  #+(and apple-objc-2.0 64-bit-target) 0.0d0
-  #-(and apple-objc-2.0 64-bit-target) 0.0f0)
-
-(deftype cg-float ()
-    #+(and apple-objc-2.0 64-bit-target) 'double-float
-    #-(and apple-objc-2.0 64-bit-target) 'single-float)
 
 #+apple-objc
 (defun iterate-over-objc-classes (fn)
@@ -33,7 +23,11 @@
       (do* ((i 0 (1+ i)))
            ((= i n) (values))
         (declare (fixnum i))
-        (funcall fn (%get-ptr buffer (the fixnum  (ash i target::word-shift))))))))
+        (funcall fn (paref buffer (:* :id) i))))))
+
+#+apple-objc
+(defun count-objc-classes ()
+  (#_objc_getClassList (%null-ptr) 0))  
 
 #+gnu-objc
 (defun iterate-over-objc-classes (fn)
@@ -44,15 +38,29 @@
           (return)
           (funcall fn class))))))
 
+#+gnu-objc
+(defun count-objc-classes ()
+  (let* ((n 0))
+    (declare (fixnum n))
+    (rletZ ((enum-state :address))
+      (if (%null-ptr-p (#_objc_next_class enum-state))
+        (return n)
+        (incf n)))))
+
 (defun %note-protocol (p)
   (with-macptrs ((cname (objc-message-send p "name" :address)))
     (let* ((namelen (%cstrlen cname))
            (name (make-string namelen)))
       (declare (dynamic-extent name))
       (%str-from-ptr cname namelen name)
-      (unless (gethash name *objc-protocols*)
-        (setf (gethash (subseq name 0) *objc-protocols*)
-              (%inc-ptr p 0))))))
+      (let* ((proto (or (gethash name *objc-protocols*)
+                        (progn
+                          (setq name (subseq name 0))
+                          (setf (gethash name *objc-protocols*)
+                                (make-objc-protocol :name name))))))
+        (unless (objc-protocol-address proto)
+          (setf (objc-protocol-address proto) (%inc-ptr p 0)))
+        proto))))
 
 (defun note-class-protocols (class)
   #-apple-objc-2.0
@@ -79,9 +87,18 @@
    #'(lambda (class)
        (note-class-protocols class)
        (install-foreign-objc-class class lookup-in-database-p))))
-  
 
-(map-objc-classes)
+(let* ((nclasses 0))
+  (declare (fixnum nclasses))
+  (defun maybe-map-objc-classes ()
+    (let* ((new (count-objc-classes)))
+      (declare (fixnum new))
+    (unless (= nclasses new)
+      (setq nclasses new)
+      (map-objc-classes)
+      t))))
+
+(maybe-map-objc-classes)
 (register-objc-init-messages)
 
 #+gnu-objc
@@ -131,28 +148,42 @@
     ((condition :initarg :condition :initform nil :reader ns-lisp-exception-condition))
   (:metaclass ns::+ns-object))
 
-(define-objc-method ((:id init)
-		     ns-lisp-exception)
-  (send self
-	:init-with-name #@"lisp exception"
-	:reason #@"lisp exception"
-	:user-info (%null-ptr)))
+(objc:defmethod #/init ((self ns-lisp-exception))
+  (#/initWithName:reason:userInfo: self #@"lisp exception" #@"lisp exception" +null-ptr+))
 
 
-(define-objc-method ((:id reason) ns-lisp-exception)
+(defun %make-nsstring-from-c-string (s)
+  (#/initWithCString: (#/alloc ns:ns-string) s))
+
+(defun retain-objc-instance (instance)
+  (#/retain instance))
+
+
+(defun create-autorelease-pool ()
+  (#/init (#/alloc ns:ns-autorelease-pool)))
+
+(defun release-autorelease-pool (p)
+  (#/release p))
+
+;;; This can fail if the nsstring contains non-8-bit characters.
+(defun lisp-string-from-nsstring (nsstring)
+  (with-macptrs (cstring)
+    (%setf-macptr cstring
+                  (#/cStringUsingEncoding: nsstring #$NSASCIIStringEncoding))
+    (unless (%null-ptr-p cstring)
+      (%get-cstring cstring))))
+
+
+(objc:defmethod #/reason ((self ns-lisp-exception))
   (with-slots (condition) self
     (if condition
       (%make-nsstring (format nil "~A" condition))
-      (send-super 'reason))))
-    
-(define-objc-method ((:id description) ns-lisp-exception)
-  (send (find-class 'ns:ns-string)
-        :string-with-format #@"Lisp exception: %@"
-        (:id (send self 'reason))))
+      (call-next-method))))
+
+(objc:defmethod #/description ((self ns-lisp-exception))
+  (#/stringWithFormat: ns:ns-string #@"Lisp exception: %@" (#/reason self)))
 
 
-        
-             
                      
 (defun ns-exception->lisp-condition (nsexception)
   (if (typep nsexception 'ns-lisp-exception)
@@ -166,14 +197,10 @@ of the NS-EXCEPTION condition class implement this by accessing an
 instance variable."
   ;;; Create an NSLispException with a lispid that encapsulates
   ;;; this condition.
-  ;;;
 
-
-  #|(dbg (format nil "~a" c))|#
+  ;; (dbg (format nil "~a" c))
   ;;(#_NSLog #@"Lisp exception: %@" :id (%make-nsstring (format nil "~a" c)))
   (make-instance 'ns-lisp-exception :condition c))
-  
-
 
 
 
@@ -244,19 +271,19 @@ instance variable."
 
 
 (defun open-main-bundle ()
-  (send (@class ns-bundle) 'main-bundle))
+  (#/mainBundle ns:ns-bundle))
 
 ;;; Create a new immutable dictionary just like src, replacing the
 ;;; value of each key in key-value-pairs with the corresponding value.
 (defun copy-dictionary (src &rest key-value-pairs)
   (declare (dynamic-extent key-value-pairs))
   ;(#_NSLog #@"src = %@" :id src)
-  (let* ((count (send src 'count))
-	 (enum (send src 'key-enumerator))
-	 (keys (send (@class "NSMutableArray") :array-with-capacity count))
-	 (values (send (@class "NSMutableArray") :array-with-capacity count)))
+  (let* ((count (#/count src))
+	 (enum (#/keyEnumerator src))
+         (keys (#/arrayWithCapacity: ns:ns-mutable-array count))
+         (values (#/arrayWithCapacity: ns:ns-mutable-array count)))
     (loop
-	(let* ((nextkey (send enum 'next-object)))
+	(let* ((nextkey (#/nextObject enum)))
 	  (when (%null-ptr-p nextkey)
 	    (return))
 	  (do* ((kvps key-value-pairs (cddr kvps))
@@ -264,22 +291,22 @@ instance variable."
 		(newval (cadr kvps) (cadr kvps)))
 	       ((null kvps)
 		;; Copy the key, value pair from the src dict
-                (send keys :add-object nextkey)
-                (send values :add-object (send src :object-for-key nextkey)))
-	    (when (send nextkey :is-equal-to-string  newkey)
-              (send keys :add-object nextkey)
-              (send values :add-object newval)
+                (#/addObject: keys nextkey)
+                (#/addObject: values (#/objectForKey: src nextkey)))
+	    (when (#/isEqualToString: nextkey newkey)
+              (#/addObject: keys nextkey)
+              (#/addObject: values newval)
 	      (return)))))
-    (make-objc-instance 'ns-dictionary
-                        :with-objects values
-                        :for-keys keys)))
+    (make-instance 'ns:ns-dictionary
+                   :with-objects values
+                   :for-keys keys)))
 
 
 (defun nsobject-description (nsobject)
   "Returns a lisp string that describes nsobject.  Note that some
 NSObjects describe themselves in more detail than others."
   (with-autorelease-pool
-      (lisp-string-from-nsstring  (send nsobject 'description))))
+      (lisp-string-from-nsstring  (#/description nsobject))))
 
 
 
@@ -287,12 +314,10 @@ NSObjects describe themselves in more detail than others."
 ;;; This can fail if the nsstring contains non-8-bit characters.
 (defun lisp-string-from-nsstring-substring (nsstring start length)
   (%stack-block ((cstring (1+ length)))
-    (send nsstring
-          :get-c-string cstring
-          :max-length length
-          :range (ns-make-range start length)
-          :remaining-range (%null-ptr))
-    (%get-cstring cstring)))
+    (rlet ((range :ns-range :location start :length length))
+      (#/getCString:maxLength:range:remainingRange:
+       nsstring  cstring  length range +null-ptr+)
+      (%get-cstring cstring))))
 
 (def-standard-initial-binding *listener-autorelease-pool* nil)
 
@@ -388,17 +413,15 @@ NSObjects describe themselves in more detail than others."
             (with-cstrs ((cnamestring namestring))
               (with-nsstr (nsnamestring cnamestring (length namestring))
                 (with-autorelease-pool
-                    (let* ((bundle (send (find-class 'ns:ns-bundle)
-                                         :bundle-with-path nsnamestring))
+                    (let* ((bundle (#/bundleWithPath: ns:ns-bundle nsnamestring))
                            (winning (unless (%null-ptr-p bundle)
-                                      (or t
-                                          (send (the ns:ns-bundle bundle) 'load)))))
+                                      t)))
                       (when winning
-                        (let* ((libpath (send bundle 'executable-path)))
+                        (let* ((libpath (#/executablePath bundle)))
                           (unless (%null-ptr-p libpath)
                             (open-shared-library (lisp-string-from-nsstring
                                                   libpath))))
-                        (send (the ns:ns-bundle bundle) 'load)
+                        (#/load bundle)
                         (pushnew path *extension-framework-paths*
                                  :test #'equalp)
                         (map-objc-classes)
@@ -406,11 +429,17 @@ NSObjects describe themselves in more detail than others."
                         (register-objc-init-messages))
                       (return winning)))))))))))
 
+(defun objc:load-framework (framework-name interfaces-name)
+  (use-interface-dir interfaces-name)
+  (or (load-objc-extension-framework framework-name)
+      (error "Can't load ObjC framework ~s" framework-name))
+  (augment-objc-interfaces interfaces-name))
+
                       
 (defmethod print-object ((p ns:protocol) stream)
   (print-unreadable-object (p stream :type t)
     (format stream "~a (#x~x)"
-            (%get-cstring (send p 'name))
+            (%get-cstring (#/name p))
             (%ptr-to-int p))))
 
                                          
