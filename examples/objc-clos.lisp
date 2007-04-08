@@ -40,13 +40,6 @@
 
 (require "BRIDGE")
 
-;;; All class names and instance variable names are interned in the NS package
-;;; Force all symbols interned in the NS package to be external
-
-(defpackage "NS"
-  (:use))
-
-(package-force-export "NS")
 
 (defparameter *objc-import-private-ivars* t "When true, the CLASS-DIRECT-SLOTS of imported ObjC classes will contain slot definitions for instance variables whose name starts with an underscore.  Note that this may exacerbate compatibility problems.")
 
@@ -126,14 +119,20 @@
        (setq instance (%inc-ptr instance 0))
        (raw-macptr-for-instance instance))))
 
+
 (defun recognize-objc-object (p)
-  (let* ((idx (objc-class-id p)))
-    (if idx
-      (%set-macptr-type p (dpb objc-flag-class objc-type-flags idx))
-      (if (setq idx (objc-metaclass-id p))
-	(%set-macptr-type p (dpb objc-flag-metaclass objc-type-flags idx))
-	(if (setq idx (%objc-instance-class-index p))
-	  (%set-macptr-type p idx))))))
+  (labels ((recognize (p mapped)
+             (let* ((idx (objc-class-id p)))
+               (if idx
+                 (%set-macptr-type p (dpb objc-flag-class objc-type-flags idx))
+                 (if (setq idx (objc-metaclass-id p))
+                   (%set-macptr-type p (dpb objc-flag-metaclass objc-type-flags idx))
+                   (if (setq idx (%objc-instance-class-index p))
+                     (%set-macptr-type p idx)
+                     (unless mapped
+                       (if (maybe-map-objc-classes)
+                         (recognize p t)))))))))
+    (recognize p nil)))
 
 (defun release-canonical-nsobject (object)
   object)
@@ -419,12 +418,12 @@ p))))
              (align (round (log (ceiling (foreign-type-alignment type) 8) 2))))
         (with-cstrs ((name string)
                      (encoding encoding))
-          (unless (eql #$NO (#_class_addIvar class name size align encoding))
-            (with-macptrs ((ivar (#_class_getInstanceVariable class name)))
+          (#_class_addIvar class name size align encoding)
+          (with-macptrs ((ivar (#_class_getInstanceVariable class name)))
               (unless (%null-ptr-p ivar)
                 (let* ((offset (#_ivar_getOffset ivar)))
                   (setf (foreign-direct-slot-definition-bit-offset dslotd)
-                        (ash offset 3)))))))))))
+                        (ash offset 3))))))))))
 
 					       
 
@@ -748,12 +747,13 @@ p))))
 						       initargs))
 	    (send-objc-init-message (allocate-objc-object class) ks vs))))
     (unless (%null-ptr-p instance)
-      (let* ((raw-ptr (raw-macptr-for-instance instance)) 
-	     (slot-vector (create-foreign-instance-slot-vector class)))
+      (let* ((slot-vector (create-foreign-instance-slot-vector class)))
 	(when slot-vector
-	  (setf (slot-vector.instance slot-vector) raw-ptr)
-	  (setf (gethash raw-ptr *objc-object-slot-vectors*) slot-vector))
-	(register-canonical-objc-instance instance raw-ptr)))))
+          (let* ((raw-ptr (raw-macptr-for-instance instance)))
+            (setf (slot-vector.instance slot-vector) raw-ptr)
+            (setf (gethash raw-ptr *objc-object-slot-vectors*) slot-vector)
+            (register-canonical-objc-instance instance raw-ptr))))
+      instance)))
 
 (defmethod terminate ((instance objc:objc-object))
   (objc-message-send instance "release"))
