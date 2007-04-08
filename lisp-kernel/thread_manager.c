@@ -673,6 +673,7 @@ shutdown_thread_tcr(void *arg)
     tcr->tlb_pointer = NULL;
     tcr->tlb_limit = 0;
     tcr->osid = 0;
+    tcr->interrupt_pending = 0;
     termination_semaphore = tcr->termination_semaphore;
     tcr->termination_semaphore = NULL;
 #ifdef HAVE_TLS
