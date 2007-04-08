@@ -566,10 +566,11 @@ satisfy the optional predicate PREDICATE."
                         (dotimes (k namelen)
                           (setf (schar name k)
                                 (schar string (incf i))))
+                        (setq name (escape-foreign-name name))
                         (if (eql ch #\r)
-                          `(:struct ,(escape-foreign-name name))
+                          `(:struct ,name)
                           (if (eql ch #\u)
-                            `(:union ,(escape-foreign-name name))
+                            `(:union ,name)
                             name)))
                       (cdr (assoc ch *arg-spec-encoding*)))))
           (if result
@@ -893,9 +894,9 @@ satisfy the optional predicate PREDICATE."
                  (arg-types ())
                  (arg-type ()))
             (multiple-value-setq (class-name p) (%decode-name buf p t))
-            (multiple-value-setq (result-type p) (%decode-type buf p ftd))
+            (multiple-value-setq (result-type p) (%decode-type buf p ftd t))
             (dotimes (i nargs)
-              (multiple-value-setq (arg-type p) (%decode-type buf p ftd))
+              (multiple-value-setq (arg-type p) (%decode-type buf p ftd t))
               (push arg-type arg-types))
             (unless (dolist (m (objc-message-info-methods info))
                       (when (and (eq (getf (objc-method-info-flags m) :class)  is-class-method)
@@ -1235,7 +1236,7 @@ satisfy the optional predicate PREDICATE."
      (t
       (break "Type spec = ~s" spec))))
 
-(defun encode-ffi-arg-type (spec &optional return-value-p)
+(defun encode-ffi-arg-type (spec)
   (case (car spec)
     (:primitive
      (let ((primtype (cadr spec)))
@@ -1280,13 +1281,7 @@ satisfy the optional predicate PREDICATE."
                 #\u)
            ,@(encode-name (ffi-struct-reference (cadr spec)))))
     (:typedef
-     (let* ((typedef (cadr spec))
-	    (type (ffi-typedef-type typedef)))
-       (if (or return-value-p
-	       (not (member (car type) '(:struct :union)))
-	       #+eabi-target t)
-	 (encode-ffi-arg-type type)
-	 `(#\t ,@(encode-name (ffi-typedef-name typedef))))))
+     `(#\t ,@(encode-name (ffi-typedef-name (cadr spec)))))
     (:pointer
       `(#\a))
     (:array
@@ -1308,7 +1303,7 @@ satisfy the optional predicate PREDICATE."
          (result (ffi-function-return-value f)))
     `(,min-args
       ,@(encode-name name t)		; verbatim
-      ,@(encode-ffi-arg-type result t)
+      ,@(encode-ffi-arg-type result)
       ,@(encode-ffi-arg-list args))))
 
 (defun encode-ffi-objc-method (m)
@@ -1439,28 +1434,32 @@ satisfy the optional predicate PREDICATE."
   (let* ((string (if (typep key 'symbol)
                    (string-downcase key)
                    (string key)))
-	 (nbrackets (count #\< string)))
-    (declare (fixnum nbrackets))
+	 (nleftbrackets (count #\< string))
+         (nrightbrackets (count #\> string))
+         (nbrackets (+ nleftbrackets nrightbrackets)))
+    (declare (fixnum nleftbrackets nrightbrackets nbrackets))
     (if (zerop nbrackets)
       string
-      (let* ((len (length string))
-	     (out (make-string (- len (* 2 nbrackets))))
-	     (j 0)
-	     (state :lower))
-	(dotimes (i len out)
-	  (let* ((ch (schar string i)))
-	    (if (or (and (eq ch #\<)
-			 (eq state :upper))
-		    (and (eq ch #\>)
-			 (eq state :lower)))
-	      (error "Mismatched brackets in ~s." key))
-	    (case ch
-	      (#\< (setq state :upper))
-	      (#\> (setq state :lower))
-	      (t (setf (schar out j) (if (eq state :upper)
-				       (char-upcase ch)
-				       (char-downcase ch))
-		       j (1+ j))))))))))
+      (if (/= nleftbrackets nrightbrackets)
+        (error "Mismatched brackets in ~s." key)
+        (let* ((len (length string))
+               (out (make-string (- len nbrackets)))
+               (j 0)
+               (state :lower))
+          (dotimes (i len out)
+            (let* ((ch (schar string i)))
+              (if (or (and (eq ch #\<)
+                           (eq state :upper))
+                      (and (eq ch #\>)
+                           (eq state :lower)))
+                (error "Mismatched brackets in ~s." key))
+              (case ch
+                (#\< (setq state :upper))
+                (#\> (setq state :lower))
+                (t (setf (schar out j) (if (eq state :upper)
+                                         (char-upcase ch)
+                                         (char-downcase ch))
+                         j (1+ j)))))))))))
 
 	
 	
@@ -1499,7 +1498,7 @@ satisfy the optional predicate PREDICATE."
        
   
 ;; Should return a FOREIGN-TYPE structure.
-(defun %decode-type (buf p ftd)
+(defun %decode-type (buf p ftd &optional suppress-typedef-expansion)
   (declare (type macptr buf) (fixnum p))
   (let* ((q (1+ p)))
     (ecase (ldb encoded-type-type-byte (%get-unsigned-byte buf p))
@@ -1530,7 +1529,7 @@ satisfy the optional predicate PREDICATE."
                                     (if (eql (%get-unsigned-byte buf q)
                                              encoded-type-void)
                                       (values nil (1+ q))
-                                      (%decode-type buf q ftd))
+                                      (%decode-type buf q ftd suppress-typedef-expansion))
                                 (values (make-foreign-pointer-type
                                          :to target
                                          :bits (getf (ftd-attributes ftd)
@@ -1550,8 +1549,11 @@ satisfy the optional predicate PREDICATE."
                               (* (align-offset type-bits type-alignment) size)))
                      qqq)))))
       (#.encoded-type-named-type-ref
-       (multiple-value-bind (name qq) (%decode-name buf q)
-         (values (%parse-foreign-type name) qq)))
+       (multiple-value-bind (name qq) (%decode-name buf q)         
+         (values (if suppress-typedef-expansion
+                   name
+                   (%parse-foreign-type name))
+                 qq)))
       (#.encoded-type-named-struct-ref
        (multiple-value-bind (name qq) (%decode-name buf q)
          (values (or (info-foreign-type-struct name)
@@ -1724,3 +1726,5 @@ satisfy the optional predicate PREDICATE."
     (do-interface-dirs (d)
       (let* ((r (%load-foreign-record (db-records d) name ftd already)))
 	(when r (return r))))))
+
+
