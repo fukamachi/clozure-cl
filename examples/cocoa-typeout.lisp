@@ -30,33 +30,28 @@
    (text-storage :foreign-type :id :reader typeout-view-text-storage))
   (:metaclass ns:+ns-object))
 
-(define-objc-method ((:id :init-with-frame (:<NSR>ect frame))
-                     typeout-view)
-  (send-super :init-with-frame frame)
-  (let* ((scrollview (make-objc-instance 'ns:ns-scroll-view
-					 :with-frame frame))
-	 (scroll-content (send scrollview 'content-view))) 
-    (send scrollview :set-border-type #$NSBezelBorder)
-    (send scrollview :set-has-vertical-scroller t)
-    (send scrollview :set-has-horizontal-scroller nil)
-    (send scrollview :set-rulers-visible nil)
-    (send scrollview :set-autoresizing-mask #$NSViewHeightSizable)
-    (send scroll-content :set-autoresizes-subviews t)
-    (send self :add-subview scrollview)
+(objc:defmethod #/initWithFrame: ((self typeout-view) (frame :<NSR>ect))
+  (call-next-method frame)
+  (let* ((scrollview (make-instance 'ns:ns-scroll-view
+                                    :with-frame frame))
+	 (scroll-content (#/contentView scrollview))) 
+    (#/setBorderType: scrollview #$NSBezelBorder)
+    (#/setHasVerticalScroller: scrollview t)
+    (#/setHasHorizontalScroller: scrollview nil)
+    (#/setRulersVisible: scrollview nil)
+    (#/setAutoresizingMask: scrollview #$NSViewHeightSizable)
+    (#/setAutoresizesSubviews: scroll-content t)
+    (#/addSubview: self scrollview)
     (setf (slot-value self 'scroll-view) scrollview)
-    (slet* ((contentsize (send scrollview 'content-size))
-	    (text-frame (ns-make-rect
-			 +cgfloat-zero+
-			 +cgfloat-zero+
-			 (pref contentsize :<NSS>ize.width)
-			 (pref contentsize :<NSS>ize.height))))
-	   (let* ((text-view (make-objc-instance 'ns:ns-text-view
-					    :with-frame text-frame))
-		  (text-storage (send text-view 'text-storage)))
-	     (send text-view :set-editable 0)
-	     (setf (slot-value self 'text-storage) text-storage)
-	     (send scrollview :set-document-view text-view)
-	     (setf (slot-value self 'text-view) text-view))))
+    (let* ((contentsize (#/contentSize scrollview)))
+      (ns:with-ns-rect (text-frame 0 0 (ns:ns-size-width contentsize) (ns:ns-size-height contentsize))
+        (let* ((text-view (make-instance 'ns:ns-text-view
+                                         :with-frame text-frame))
+               (text-storage (#/textStorage text-view)))
+          (#/setEditable: text-view nil)
+          (setf (slot-value self 'text-storage) text-storage)
+          (#/setDocumentView: scrollview text-view)
+          (setf (slot-value self 'text-view) text-view)))))
   self)
 
 ;;
@@ -68,36 +63,31 @@
     ((typeout-view :foreign-type :id :accessor typeout-panel-typeout-view))
   (:metaclass ns:+ns-object))
 
-(define-objc-class-method ((:id shared-panel) 
-			   typeout-panel)
+(objc:defmethod #/sharedPanel ((self +typeout-panel))
   (cond (*typeout-panel*)
         (t
          (let* ((panel (new-cocoa-window :class self
                                          :title "Typeout"
 					 :width 600
                                          :activate nil)))
-	   (rlet ((size :<NSS>ize
-                    :width (float 600.0f0 +cgfloat-zero+)
-                    :height (float 10000.0f0 +cgfloat-zero+)))
-		 (send panel :set-max-size size)
-		 (setf (pref size :<NSS>ize.height) (float 1.0f0 +cgfloat-zero+))
-		 (send panel :set-min-size size))
-           (slet ((bounds (send (send panel 'content-view) 'bounds)))
-		 (let* ((view (make-instance 'typeout-view :with-frame bounds)))
-		   (send panel :set-content-view view)
-		   (send view :set-needs-display t)
-		   (setf (slot-value panel 'typeout-view) view)
-		   (setq *typeout-panel* panel)))))))
+	   (ns:with-ns-size (size 600 10000)
+             (#/setMaxSize: panel size)
+             (setf (ns:ns-size-height size) 1)
+             (#/setMinSize: panel size))
+           (let* ((view (make-instance 'typeout-view :with-frame (#/bounds (#/contentView panel)))))
+             (#/setContentView: panel view)
+             (#/setNeedsDisplay: view t)
+             (setf (slot-value panel 'typeout-view) view)
+             (setq *typeout-panel* panel))))))
 
-(define-objc-method ((:id init)
-		     typeout-panel)
+(objc:defmethod #/init ((self typeout-panel))
   (let* ((class (class-of self)))
-    (send self 'dealloc)
-    (send class 'shared-panel)))
+    (#/dealloc self)
+    (#/sharedPanel class)))
 
-(define-objc-method ((:void show)
-		     typeout-panel)
-  (send self :order-front (%null-ptr)))
+
+(objc:defmethod (#/show :void) ((self typeout-panel))
+  (#/orderFront: self +null-ptr+))
 
 (defloadvar *typeout-attributes* nil)
 
@@ -107,14 +97,14 @@
    (line-position :initform 0 :accessor typeout-stream-line-position)))
 
 (defun prepare-typeout-stream (stream)
-  (let ((panel (send (@class typeout-panel) 'shared-panel)))
+  (let ((panel (#/sharedPanel typeout-panel)))
     (unless (typeout-stream-text-storage stream)
       (setf (typeout-stream-text-storage stream) (typeout-view-text-storage (typeout-panel-typeout-view panel))))
     (unless *typeout-attributes*
       (setf *typeout-attributes* (create-text-attributes 
 				  :font (default-font :name *default-font-name* :size *default-font-size*)
 				  :line-break-mode :word)))
-    (send panel 'show)))
+    (#/show panel)))
 
 
 ;;;
@@ -150,13 +140,13 @@
   ;;  print the character by converting it to a string and appending
   ;;  it to the text-storage buffer.
   ;;
-  (let* ((typeout-view (typeout-panel-typeout-view *typeout-panel*))
-	 (text-storage (slot-value typeout-view 'text-storage))
+  (let* ((the-typeout-view (typeout-panel-typeout-view *typeout-panel*))
+	 (text-storage (slot-value the-typeout-view 'text-storage))
 	 (str (make-string 1 :initial-element char))
 	 (attr-str (make-instance 'ns:ns-attributed-string 
 				  :with-string str
 				  :attributes *typeout-attributes*)))
-    (send text-storage :append-attributed-string attr-str)))
+    (#/appendAttributedString: text-storage attr-str)))
 
 (defmethod stream-write-string ((stream typeout-stream) string &optional (start 0) end)
   (prepare-typeout-stream stream)
@@ -166,10 +156,10 @@
 	 (attr-str (make-instance 'ns:ns-attributed-string 
 				  :with-string str
 				  :attributes *typeout-attributes*))
-	 (typeout-view (typeout-panel-typeout-view *typeout-panel*))
-	 (text-storage (slot-value typeout-view 'text-storage)))
+	 (the-typeout-view (typeout-panel-typeout-view *typeout-panel*))
+	 (text-storage (slot-value the-typeout-view 'text-storage)))
     (setf (typeout-stream-line-position stream) (length string))
-    (send text-storage :append-attributed-string attr-str)))
+    (#/appendAttributedString: text-storage attr-str)))
 
 (defmethod stream-fresh-line ((stream typeout-stream))
   (prepare-typeout-stream stream)
@@ -180,11 +170,12 @@
 
 (defmethod stream-clear-output ((stream typeout-stream))
   (prepare-typeout-stream stream)
-  (let* ((typeout-view (typeout-panel-typeout-view *typeout-panel*))
-	 (text-storage (slot-value typeout-view 'text-storage))
-	 (len (send text-storage 'length)))
+  (let* ((the-typeout-view (typeout-panel-typeout-view *typeout-panel*))
+	 (text-storage (slot-value the-typeout-view 'text-storage))
+	 (len (#/length text-storage)))
     (declare (type ns:ns-text-storage text-storage))
-    (send text-storage :delete-characters-in-range (ns-make-range 0 len))))
+    (rlet ((range-for-deletion :ns-range :location 0 :length len))
+      (#/deleteCharactersInRange: text-storage range-for-deletion))))
 
 (defloadvar *typeout-stream* (make-instance 'typeout-stream))
 

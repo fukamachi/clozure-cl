@@ -6,11 +6,10 @@
     ((lisp-string :initarg :string :reader ns-lisp-string-string))
   (:metaclass ns:+ns-object))
 
-(define-objc-method ((:unsigned length) ns-lisp-string)
+(objc:defmethod (#/length :<NSUI>nteger) ((self ns-lisp-string))
     (length (ns-lisp-string-string self)))
 
-(define-objc-method ((:unichar :character-at-index (:<NSUI>nteger index))
-		     ns-lisp-string)
+(objc:defmethod (#/characterAtIndex: :unichar) ((self ns-lisp-string) (index :<NSUI>nteger))
   (char-code (schar (ns-lisp-string-string self) index)))
 
 (defclass frame-label (ns-lisp-string)
@@ -31,31 +30,28 @@
      (outline-view :foreign-type :id :reader backtrace-controller-outline-view))
   (:metaclass ns:+ns-object))
 
-(define-objc-method ((:id window-nib-name)
-		     backtrace-window-controller)
+(objc:defmethod #/windowNibName ((self backtrace-window-controller))
   #@"backtrace")
 
-(define-objc-method ((:void close)
-                     backtrace-window-controller)
+(objc:defmethod (#/close :void) ((self backtrace-window-controller))
   (setf (slot-value self 'context) nil)
-  (send-super 'close))
+  (call-next-method))
 
 (defmethod our-frame-label-p ((self backtrace-window-controller) thing)
   (and (typep thing 'frame-label)
        (eql self (frame-label-controller thing))))
 
-(define-objc-method ((:void window-did-load)
-                     backtrace-window-controller)
+(objc:defmethod (#/windowDidLoad :void) ((self backtrace-window-controller))
   (let* ((outline (slot-value self 'outline-view))
          (font (default-font :name "Monaco" :size 12)))
     (unless (%null-ptr-p outline)
-      (let* ((columns (send outline 'table-columns)))
-        (dotimes (i (send columns 'count))
-          (let* ((column (send columns :object-at-index i))
-                 (data-cell (send column 'data-cell)))
-            (send data-cell :set-font font)
+      (let* ((columns (#/tableColumns outline)))
+        (dotimes (i (#/count columns))
+          (let* ((column (#/objectAtIndex:  columns i))
+                 (data-cell (#/dataCell column)))
+            (#/setFont: data-cell font)
             (when (eql i 0)
-              (let* ((header-cell (send column 'header-cell))
+              (let* ((header-cell (#/headerCell column))
                      (inspector (backtrace-controller-inspector self))
                      (break-condition
                       (inspector::break-condition
@@ -68,30 +64,26 @@
                                 (class-name (class-of break-condition))
                                 break-condition))))
                       
-                (send header-cell :set-font (default-font :attributes '(:bold)))
-                (send header-cell :set-string-value
-                      (%make-nsstring break-condition-string))))))))
-    (let* ((window (send self 'window)))
+                (#/setFont: header-cell (default-font :attributes '(:bold)))
+                (#/setStringValue: header-cell (%make-nsstring break-condition-string))))))))
+    (let* ((window (#/window  self)))
       (unless (%null-ptr-p window)
         (let* ((context (backtrace-controller-context self))
                (process (tcr->process (bt.tcr context))))
-          (send window :set-title (%make-nsstring
-                                   (format nil "Backtrace for ~a(~d), break level ~d"
-                                           (process-name process)
-                                           (process-serial-number process)
-                                           (bt.break-level context)))))))))
+          (#/setTitle:  window (%make-nsstring
+                                (format nil "Backtrace for ~a(~d), break level ~d"
+                                        (process-name process)
+                                        (process-serial-number process)
+                                        (bt.break-level context)))))))))
 
-              
-(define-objc-method ((:<BOOL> :outline-view view
-                              :is-item-expandable item)
-                     backtrace-window-controller)
+(objc:defmethod (#/outlineView:isItemExpandable: :<BOOL>)
+    ((self backtrace-window-controller) view item)
     (declare (ignore view))
     (or (%null-ptr-p item)
         (our-frame-label-p self item)))
 
-(define-objc-method ((:<NSI>nteger :outline-view view
-                                   :number-of-children-of-item item)
-                     backtrace-window-controller)
+(objc:defmethod (#/outlineView:numberOfChildrenOfItem: :<NSI>nteger)
+    ((self backtrace-window-controller) view item)
     (declare (ignore view))
     (let* ((inspector (backtrace-controller-inspector self)))
       (cond ((%null-ptr-p item)
@@ -107,12 +99,10 @@
 				:update-line-count t)))))
                (inspector::inspector-line-count frame-inspector)))
             (t -1))))
-             
-(define-objc-method ((:id :outline-view view
-                          :child (:<NSI>nteger index)
-                          :of-item item)
-                     backtrace-window-controller)
-    (declare (ignore view))
+
+(objc:defmethod #/outlineView:child:ofItem:
+    ((self backtrace-window-controller) view (index :<NSI>nteger) item)
+  (declare (ignore view))
   (let* ((inspector (backtrace-controller-inspector self)))
     (cond ((%null-ptr-p item)
            (let* ((label
@@ -153,14 +143,12 @@
                                                         label)))))))
           (t (break) (%make-nsstring "Huh?")))))
 
-(define-objc-method ((:id :outline-view view
-                          :object-value-for-table-column column
-                          :by-item item)
-                     backtrace-window-controller)
-    (declare (ignore view column))
-    (if (%null-ptr-p item)
-      #@"Open this"
-      (%setf-macptr (%null-ptr) item)))
+(objc:defmethod #/outlineView:objectValueForTableColumn:byItem:
+    ((self backtrace-window-controller) view column item)
+  (declare (ignore view column))
+  (if (%null-ptr-p item)
+    #@"Open this"
+    (%setf-macptr (%null-ptr) item)))
 
 (defmethod initialize-instance :after ((self backtrace-window-controller)
                                        &key &allow-other-keys)
@@ -175,9 +163,8 @@
                            :context context))))
 
 #+debug
-(define-objc-method ((:void will-load)
-		     backtrace-window-controller)
-  (#_NSLog #@"will load %@" :address (send self 'window-nib-name)))
+(objc:defmethod (#/willLoad :void) ((self backtrace-window-controller))
+  (#_NSLog #@"will load %@" :address  (#/windowNibName self)))
 
 (defmethod ui-object-enter-backtrace-context ((app ns:ns-application)
                                               context)
@@ -194,11 +181,7 @@
               (cdr (cocoa-listener-process-backtrace-contexts proc)))
         (let* ((window (bt.dialog context)))
           (when window
-            (send window
-                  :perform-selector-on-main-thread
-                  (@selector "close")
-                  :with-object (%null-ptr)
-                  :wait-until-done t)))))))
+            (#/performSelectorOnMainThread:withObject:waitUntilDone: window (@selector @/close)  +null-ptr+ t)))))))
 
   
 

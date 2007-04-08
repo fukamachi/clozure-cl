@@ -37,22 +37,19 @@
 (defun init-cocoa-application ()
   (with-autorelease-pool
       (let* ((bundle (open-main-bundle))
-	     (dict (send bundle 'info-dictionary))
-	     (classname (send dict :object-for-key #@"NSPrincipalClass"))
-	     (mainnibname (send dict :object-for-key  #@"NSMainNibFile"))
-	     (progname (send dict :object-for-key #@"CFBundleName")))
+	     (dict (#/infoDictionary  bundle))
+	     (classname (#/objectForKey: dict #@"NSPrincipalClass"))
+	     (mainnibname (#/objectForKey: dict  #@"NSMainNibFile"))
+	     (progname (#/objectForKey: dict #@"CFBundleName")))
 	(if (%null-ptr-p classname)
 	  (error "problems loading bundle: can't determine class name"))
 	(if (%null-ptr-p mainnibname)
 	  (error "problems loading bundle: can't determine main nib name"))
 	(unless (%null-ptr-p progname)
-	  (send (send (@class ns-process-info) 'process-info)
-		:set-process-name progname))
+          (#/setProcessName: (#/processInfo ns:ns-process-info) progname))
 	(let* ((appclass (#_NSClassFromString classname))
-	       (app (send appclass 'shared-application)))
-	  (send (@class ns-bundle)
-		:load-nib-named mainnibname
-		:owner app)
+	       (app (#/sharedApplication appclass)))
+          (#/loadNibNamed:owner: ns:ns-bundle mainnibname  app)
 	  app))))
 
 
@@ -81,8 +78,8 @@
   (:metaclass ns:+ns-object))
 
 
-(define-objc-method ((:void :post-event-at-start e) ns:ns-application)
-  (send self :post-event e :at-start t))
+(objc:defmethod (#/postEventAtStart: :void) ((self  ns:ns-application) e)
+  (#/postEvent:atStart: self e t))
 
 ;;; Interrupt the AppKit event process, by enqueing an event (if the
 ;;; application event loop seems to be running.)  It's possible that
@@ -94,27 +91,23 @@
 (defmethod process-interrupt ((process appkit-process) function &rest args)
   (if (eq process *current-process*)
     (apply function args)
-    (if (or (not *NSApp*) (not (send *NSApp* 'is-running)))
+    (if (or (not *NSApp*) (not (#/isRunning *NSApp*)))
       (call-next-method)
-      (let* ((e (send (@class ns-event)
-		      :other-event-with-type #$NSApplicationDefined
-		      :location (ns-make-point +cgfloat-zero+ +cgfloat-zero+)
-		      :modifier-flags 0
-		      :timestamp 0.0d0
-		      :window-number 0
-		      :context (%null-ptr)
-		      :subtype process-interrupt-event-subtype
-		      :data1 (register-appkit-process-interrupt
-			      #'(lambda () (apply function args)))
-		      :data2 0)))
-	(send e 'retain)
-	(send *NSApp*
-	      :perform-selector-on-main-thread (@selector
-						"postEventAtStart:")
-	      :with-object e
-	      :wait-until-done t)))))
-
-
+      (rletZ ((point :ns-point))
+        (let* ((e (#/otherEventWithType:location:modifierFlags:timestamp:windowNumber:context:subtype:data1:data2:
+                   ns:ns-event
+                   #$NSApplicationDefined
+                   point
+                   0
+                   0.0d0
+                   0
+                   +null-ptr+
+                   process-interrupt-event-subtype
+                   (register-appkit-process-interrupt
+                    #'(lambda () (apply function args))) 0)))
+	(#/retain e)
+        (#/performSelectorOnMainThread:withObject:waitUntilDone:
+         *NSApp* (@selector "postEventAtStart:") e  t))))))
 
 
 (defloadvar *default-ns-application-proxy-class-name*
@@ -129,25 +122,22 @@
 
 ;;; I'm not sure if there's another way to recognize events whose
 ;;; type is #$NSApplicationDefined.
-(define-objc-method ((:void :send-event e)
-		     lisp-application)
-  (if (and (eql (send (the ns:ns-event e) 'type) #$NSApplicationDefined)
-	   (eql (send (the ns:ns-event e) 'subtype) process-interrupt-event-subtype))
+(objc:defmethod (#/sendEvent: :void) ((self lisp-application) e)
+  (if (and (eql (#/type e) #$NSApplicationDefined)
+	   (eql (#/subtype e)  process-interrupt-event-subtype))
     ;;; The thunk to funcall is identified by the value
     ;;; of the event's data1 attribute.
-    (funcall (appkit-interrupt-function (send e 'data1)))
-    (send-super :send-event e)))
+    (funcall (appkit-interrupt-function (#/data1 e)))
+    (call-next-method e)))
 
 
-
-(define-objc-method ((:void :show-preferences sender) lisp-application)
+(objc:defmethod (#/showPreferences: :void) ((self lisp-application) sender)
   (declare (ignore sender))
-  (send (send (find-class 'preferences-panel) 'shared-panel) 'show))
+  (#/show (#/sharedPanel preferences-panel)))
 
-(define-objc-method ((:void :toggle-typeout sender) lisp-application)
+(objc:defmethod (#/toggleTypeout: :void) ((self lisp-application) sender)
   (declare (ignore sender))
-  (let ((panel (send (find-class 'typeout-panel) 'shared-panel)))
-    (send panel 'show)))
+  (#/show (#/sharedPanel typeout-panel)))
 
 (defun nslog-condition (c)
   (let* ((rep (format nil "~a" c)))
@@ -156,22 +146,19 @@
 	(#_NSLog #@"Error in event loop: %@" :address nsstr)))))
 
 
-
-
 (defmethod process-exit-application ((process appkit-process) thunk)
   (when (eq process *initial-process*)
     (%set-toplevel thunk)
-    (send (the lisp-application *NSApp*) :terminate (%null-ptr))
-    ))
+    (#/terminate: *NSApp* +null-ptr+)))
 
 (defun run-event-loop ()
   (%set-toplevel nil)
   (change-class *cocoa-event-process* 'appkit-process)
   (let* ((app *NSApp*))
     (loop
-	(handler-case (send (the ns-application app) 'run)
+	(handler-case (#/run app)
 	  (error (c) (nslog-condition c)))
-	(unless (send app 'is-running)
+	(unless (#/isRunning app)
 	  (return)))))
 
 
@@ -182,8 +169,6 @@
   
   (flet ((cocoa-startup ()
 	   ;; Start up a thread to run periodic tasks.
-	   ;; Under Linux/GNUstep, some of these might have to run in
-	   ;; the main thread (because of PID/thread conflation.)
 	   (process-run-function "housekeeping"
 				 #'(lambda ()
 				     (loop
@@ -194,16 +179,16 @@
            (with-autorelease-pool
              (enable-foreground)
              (or *NSApp* (setq *NSApp* (init-cocoa-application)))
-             (let* ((icon (send (@class ns-image) :image-named #@"NSApplicationIcon")))
+             (let* ((icon (#/imageNamed: ns:ns-image #@"NSApplicationIcon")))
                (unless (%null-ptr-p icon)
-                 (send *NSApp* :set-application-icon-image icon)))
+                 (#/setApplicationIconImage: *NSApp* icon)))
              (setf (application-ui-object *application*) *NSApp*)
              (when application-proxy-class-name
                (let* ((classptr (%objc-class-classptr
                                  (load-objc-class-descriptor application-proxy-class-name)))
-                      (instance (send (send classptr 'alloc) 'init)))
+                      (instance (#/init (#/alloc classptr))))
 
-                 (send *NSApp* :set-delegate instance))))
+                 (#/setDelegate: *NSApp* instance))))
            (run-event-loop)))
     (process-interrupt *cocoa-event-process* #'(lambda ()
 						 (%set-toplevel 
@@ -214,7 +199,18 @@
   '((:bold . #.#$NSBoldFontMask)
     (:italic . #.#$NSItalicFontMask)
     (:small-caps . #.#$NSSmallCapsFontMask)))
-    
+
+
+;;; The NSFont method #/isFixedPitch has returned random answers
+;;; in many cases for the last few OSX releases.  Try to return
+;;; a reasonable answer, by checking to see if the width of the
+;;; advancement for the #\i glyph matches that of the advancement
+;;; of the #\m glyph.
+
+(defun is-fixed-pitch-font (font)
+  (= (ns:ns-size-width (#/advancementForGlyph: font (#/glyphWithName: font #@"i")))
+     (ns:ns-size-width (#/advancementForGlyph: font (#/glyphWithName: font #@"m")))))
+
 ;;; Try to find the specified font.  If it doesn't exist (or isn't
 ;;; fixed-pitch), try to find a fixed-pitch font of the indicated size.
 (defun default-font (&key (name *default-font-name*)
@@ -227,106 +223,91 @@
 	(rletz ((matrix (:array :<CGF>loat 6)))
 	  (setf (paref matrix (:* :<CGF>loat) 0) size
                 (paref matrix (:* :<CGF>loat) 3) size)
-          (let* ((fontname (send (@class ns-string) :string-with-c-string name))
-		 (font (send (@class ns-font)
-                              :font-with-name fontname :matrix matrix))
+          (let* ((fontname (#/stringWithCString: ns:ns-string name))
+		 (font (#/fontWithName:matrix: ns:ns-font fontname matrix))
                    
 		 (implemented-attributes ()))
 	    (if (or (%null-ptr-p font)
 		    (and 
-		     (not (send font 'is-fixed-pitch))
-		     (not (eql #$YES (objc-message-send font "_isFakeFixedPitch" :<BOOL>)))))
-	      (setq font (send (@class ns-font)
-			       :user-fixed-pitch-font-of-size size)))
+		     (not (is-fixed-pitch-font font))))
+	      (setq font (#/userFixedPitchFontOfSize: ns:ns-font size)))
 	    (when attributes
 	      (dolist (attr-name attributes)
 		(let* ((pair (assoc attr-name *font-attribute-names*))
 		       (newfont))
 		  (when pair
 		    (setq newfont
-			  (send
-			   (send (@class "NSFontManager") 'shared-font-manager)
-			   :convert-font font
-			   :to-have-trait (cdr pair)))
+                          (#/convertFont:toHaveTrait:
+                           (#/sharedFontManager ns:ns-font-manager) font (cdr pair)))
 		    (unless (eql font newfont)
 		      (setq font newfont)
 		      (push attr-name implemented-attributes))))))
-	    (values (send font 'retain) implemented-attributes))))))
+	    (values (#/retain font) implemented-attributes))))))
 
 ;;; Create a paragraph style, mostly so that we can set tabs reasonably.
 (defun create-paragraph-style (font line-break-mode)
-  (let* ((p (make-objc-instance 'ns-mutable-paragraph-style))
-	 (charwidth (slet ((advance
-                            (send font 'maximum-advancement)))
-                      (fround (pref advance :<NSS>ize.width)))))
-    (send p
-	  :set-line-break-mode
-	  (ecase line-break-mode
-	    (:char #$NSLineBreakByCharWrapping)
-	    (:word #$NSLineBreakByWordWrapping)
-	    ;; This doesn't seem to work too well.
-	    ((nil) #$NSLineBreakByClipping)))
+  (let* ((p (make-instance 'ns:ns-mutable-paragraph-style))
+	 (charwidth (fround (ns:ns-size-width (#/maximumAdvancement font)))))
+    (#/setLineBreakMode: p
+                         (ecase line-break-mode
+                           (:char #$NSLineBreakByCharWrapping)
+                           (:word #$NSLineBreakByWordWrapping)
+                           ;; This doesn't seem to work too well.
+                           ((nil) #$NSLineBreakByClipping)))
     ;; Clear existing tab stops.
-    (send p :set-tab-stops (send (@class ns-array) 'array))
+    (#/setTabStops: p (#/array ns:ns-array))
     (do* ((i 1 (1+ i)))
 	 ((= i 100) p)
-      (let* ((tabstop (make-objc-instance
-		       'ns-text-tab
+      (let* ((tabstop (make-instance
+		       'ns:ns-text-tab
 		       :with-type #$NSLeftTabStopType
 		       :location  (* (* i *tab-width*)
 					charwidth))))
-	(send p :add-tab-stop tabstop)
-	(send tabstop 'release)))))
+        (#/addTabStop: p tabstop)
+        (#/release tabstop)))))
     
 (defun create-text-attributes (&key (font (default-font))
 				    (line-break-mode :char)
 				    (color nil)
                                     (obliqueness nil)
                                     (stroke-width nil))
-  (let* ((dict (make-objc-instance
-		'ns-mutable-dictionary
-		:with-capacity 5)))
-    (send dict 'retain)
-    (send dict
-	  :set-object (create-paragraph-style font line-break-mode)
-	  :for-key #&NSParagraphStyleAttributeName)
-    (send dict :set-object font :for-key #&NSFontAttributeName)
+  (let* ((dict (#/retain (make-instance 'ns:ns-mutable-dictionary :with-capacity 5))))
+    (#/setObject:forKey: dict (create-paragraph-style font line-break-mode) #&NSParagraphStyleAttributeName)
+    (#/setObject:forKey: dict font #&NSFontAttributeName)
     (when color
-      (send dict :set-object color :for-key #&NSForegroundColorAttributeName))
+      (#/setObject:forKey: dict color #&NSForegroundColorAttributeName))
     (when stroke-width
-      (send dict :set-object (make-objc-instance 'ns:ns-number
-                                                :with-float (float stroke-width))
-            :for-key #&NSStrokeWidthAttributeName))
+      (#/setObject:forKey: dict (make-instance 'ns:ns-number
+                                               :with-float (float stroke-width)) #&NSStrokeWidthAttributeName))
     (when obliqueness
-      (send dict :set-object (make-objc-instance 'ns:ns-number
-                                                :with-float (float obliqueness))
-            :for-key #&NSObliquenessAttributeName))
+      (#/setObject:forKey:  dict (make-instance 'ns:ns-number
+                                                :with-float (float obliqueness)) #&NSObliquenessAttributeName))
     dict))
 
 
 (defun get-cocoa-window-flag (w flagname)
   (case flagname
     (:accepts-mouse-moved-events
-     (send w 'accepts-mouse-moved-events))
+     (#/acceptsMouseMovedEvents w))
     (:cursor-rects-enabled
-     (send w 'are-cursor-rects-enabled))
+     (#/areCursorRectsEnabled w))
     (:auto-display
-     (send w 'is-autodisplay))))
+     (#/isAutodisplay w))))
 
 
 
 (defun (setf get-cocoa-window-flag) (value w flagname)
   (case flagname
     (:accepts-mouse-moved-events
-     (send w :set-accepts-mouse-moved-events value))
+     (#/setAcceptsMouseMovedEvents: w value))
     (:auto-display
-     (send w :set-autodisplay value))))
+     (#/setAutodisplay: w value))))
 
 
 
 (defun activate-window (w)
   ;; Make w the "key" and frontmost window.  Make it visible, if need be.
-  (send w :make-key-and-order-front nil))
+  (#/makeKeyAndOrderFront: w nil))
 
 (defun new-cocoa-window (&key
                          (class (find-class 'ns:ns-window))
@@ -344,11 +325,7 @@
                          (accepts-mouse-moved-events nil)
                          (auto-display t)
                          (activate t))
-  (rlet ((frame :<NSR>ect
-           :origin.x (float x +cgfloat-zero+)
-           :origin.y (float y +cgfloat-zero+)
-           :size.width (float width +cgfloat-zero+)
-           :size.height (float height +cgfloat-zero+)))
+  (ns:with-ns-rect (frame x y width height)
     (let* ((stylemask
             (logior #$NSTitledWindowMask
                     (if closable #$NSClosableWindowMask 0)
@@ -371,7 +348,7 @@
             (get-cocoa-window-flag w :auto-display)
             auto-display)
       (when activate (activate-window w))
-      (when title (send w :set-title (%make-nsstring title)))
+      (when title (#/setTitle: w (%make-nsstring title)))
       w)))
 
 

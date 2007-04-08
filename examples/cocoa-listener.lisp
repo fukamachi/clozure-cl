@@ -26,6 +26,7 @@
 (defun setup-client-pty (pty)
   ;; Since the same (Unix) process will be reading from and writing
   ;; to the pty, it's critical that we make the pty non-blocking.
+  ;; Has this been true for the last few years (native threads) ?
   (fd-set-flag pty #$O_NONBLOCK)
   (disable-tty-local-modes pty (logior #$ECHO #$ECHOCTL #$ISIG))
   pty)
@@ -62,10 +63,11 @@
                       (doc (if buf (hi::buffer-document buf))))
                  (when doc
                    (setf (hi::buffer-process buf) nil)
-                   (send doc
-                         :perform-selector-on-main-thread (@selector "close")
-                         :with-object (%null-ptr)
-                         :wait-until-done nil))))
+                   (#/performSelectorOnMainThread:withObject:waitUntilDone:
+                    doc
+                    (@selector #/close)
+                    +null-ptr+
+                    nil))))
            :initial-function
            #'(lambda ()
                (setq *listener-autorelease-pool* (create-autorelease-pool))
@@ -87,53 +89,53 @@
 
 ;;; Listener documents are never (or always) ediited.  Don't cause their
 ;;; close boxes to be highlighted.
-(define-objc-method ((:void :set-document-edited (:<BOOL> edited))
-                     hemlock-listener-window-controller)
+(objc:defmethod (#/setDocumentEdited: :void)
+    ((self hemlock-listener-window-controller) (edited :<BOOL>))
   (declare (ignorable edited)))
  
 
-(define-objc-method ((:id :init-with-window w)
-		     hemlock-listener-window-controller)
-  (let* ((self (send-super :init-with-window w)))
-    (unless (%null-ptr-p self)
+(objc:defmethod #/initWithWindow: ((self hemlock-listener-window-controller) w)
+  (let* ((new (call-next-method w)))
+    (unless (%null-ptr-p new)
       (multiple-value-bind (server client) (ignore-errors (open-pty-pair))
 	(when server
-	  (let* ((fh (make-objc-instance
-		      'ns-file-handle
+	  (let* ((fh (make-instance
+		      'ns:ns-file-handle
 		      :with-file-descriptor (setup-server-pty server)
 		      :close-on-dealloc t)))
-	    (setf (slot-value self 'filehandle) fh)
-	    (setf (slot-value self 'clientfd) (setup-client-pty client))
-	    (send (send (@class ns-notification-center) 'default-center)
-		  :add-observer self
-		  :selector (@selector "gotData:")
-		  :name #&NSFileHandleReadCompletionNotification
-		  :object fh)
-	    (send fh 'read-in-background-and-notify)))))
-    self))
+	    (setf (slot-value new 'filehandle) fh)
+	    (setf (slot-value new 'clientfd) (setup-client-pty client))
+            (#/addObserver:selector:name:object:
+             (#/defaultCenter ns:ns-notification-center)
+             new
+             (@selector #/gotData:)
+             #&NSFileHandleReadCompletionNotification
+             fh)
+            (#/readInBackgroundAndNotify fh)))))
+    new))
 
-(define-objc-method ((:void :got-data notification)
-		     hemlock-listener-window-controller)
+(objc:defmethod (#/gotData: :void) ((self hemlock-listener-window-controller)
+                                    notification)
+  #+debug (#_NSLog #@"gotData: !")
   (with-slots (filehandle) self
-    (let* ((data (send (send notification 'user-info)
-		       :object-for-key #&NSFileHandleNotificationDataItem))
-	   (document (send self 'document))
-	   (data-length (send (the ns:ns-data data) 'length))
+    (let* ((data (#/objectForKey: (#/userInfo notification)
+                                  #&NSFileHandleNotificationDataItem))
+	   (document (#/document self))
+	   (data-length (#/length data))
 	   (buffer (hemlock-document-buffer document))
-	   (string (%str-from-ptr (send data 'bytes) data-length))
+	   (string (%str-from-ptr (#/bytes data) data-length))
 	   (fh filehandle))
       (enqueue-buffer-operation
        buffer
        #'(lambda ()
            (hemlock::append-buffer-output buffer string)))
-      (send fh 'read-in-background-and-notify))))
+      (#/readInBackgroundAndNotify fh))))
 	     
 
 
-(define-objc-method ((:void dealloc) hemlock-listener-window-controller)
-  (send (send (@class ns-notification-center) 'default-center)
-	:remove-observer self)
-  (send-super 'dealloc))
+(objc:defmethod (#/dealloc :void) ((self hemlock-listener-window-controller))
+  (#/removeObserver: (#/defaultCenter ns:ns-notification-center) self)
+  (call-next-method))
 
 
 
@@ -145,36 +147,35 @@
   (:metaclass ns:+ns-object))
 
 (defmethod textview-background-color ((doc hemlock-listener-document))
-  (send (find-class 'ns:ns-color)
-        :color-with-calibrated-red (float *listener-background-red-component* +cgfloat-zero+)
-        :green (float *listener-background-green-component* +cgfloat-zero+)
-        :blue (float *listener-background-blue-component* +cgfloat-zero+)
-        :alpha (float *listener-background-alpha-component* +cgfloat-zero+)))
+  (#/colorWithCalibratedRed:green:blue:alpha:
+   ns:ns-color
+   (float *listener-background-red-component* +cgfloat-zero+)
+   (float *listener-background-green-component* +cgfloat-zero+)
+   (float *listener-background-blue-component* +cgfloat-zero+)
+   (float *listener-background-alpha-component* +cgfloat-zero+)))
 
 
 (defun hemlock::listener-document-send-string (document string)
-  (let* ((controller (send (send document 'window-controllers)
-                          :object-at-index 0))
+  (let* ((controller (#/objectAtIndex: (#/windowControllers document) 0))
          (filehandle (slot-value controller 'filehandle))
          (len (length string))
-         (data (send (make-objc-instance 'ns-mutable-data
-                                         :with-length len) 'autorelease))
-         (bytes (send data 'mutable-bytes)))
-    (declare (type ns:ns-file-handle filehandle))
+         (data (#/autorelease (make-instance 'ns:ns-mutable-data
+                                             :with-length len)))
+         (bytes (#/mutableBytes data)))
     (%cstr-pointer string bytes nil)
-    (send filehandle :write-data data)
-    (send filehandle 'synchronize-file)))
+    (#/writeData: filehandle data)
+    (#/synchronizeFile filehandle)))
 
 
-(define-objc-class-method ((:id top-listener) hemlock-listener-document)
-  (let* ((all-documents (send *NSApp* 'ordered-Documents)))
-    (dotimes (i (send all-documents 'count) (%null-ptr))
-      (let* ((doc (send all-documents :object-at-index i)))
-	(when (eql (send doc 'class) self)
+(objc:defmethod #/topListener ((self +hemlock-listener-document))
+  (let* ((all-documents (#/orderedDocuments *NSApp*)))
+    (dotimes (i (#/count all-documents) (%null-ptr))
+      (let* ((doc (#/objectAtIndex: all-documents i)))
+	(when (eql (#/class doc) self)
 	  (return doc))))))
 
 (defun symbol-value-in-top-listener-process (symbol)
-  (let* ((listenerdoc (send (@class hemlock-listener-document) 'top-listener))
+  (let* ((listenerdoc (#/topListener hemlock-listener-document))
 	 (buffer (unless (%null-ptr-p listenerdoc)
 		   (hemlock-document-buffer listenerdoc)))
 	 (process (if buffer (hi::buffer-process buffer))))
@@ -184,13 +185,11 @@
   
 
 
-(define-objc-method ((:<BOOL> is-document-edited) hemlock-listener-document)
+(objc:defmethod (#/isDocumentEdited :<BOOL>) ((self hemlock-listener-document))
   nil)
 
-
-(define-objc-method ((:id init)
-		     hemlock-listener-document)
-  (let* ((doc (send-super 'init)))
+(objc:defmethod #/init ((self hemlock-listener-document))
+  (let* ((doc (call-next-method)))
     (unless (%null-ptr-p doc)
       (let* ((listener-name (if (eql 1 (incf *cocoa-listener-count*))
 			    "Listener"
@@ -198,7 +197,7 @@
 				    "Listener-~d" *cocoa-listener-count*)))
 	     (buffer (hemlock-document-buffer doc)))
 	(setf (slot-value (slot-value self 'textstorage) 'append-edits) 1)
-	(send doc :set-file-name  (%make-nsstring listener-name))
+        (#/setFileName: doc  (%make-nsstring listener-name))
 	(setf (hi::buffer-pathname buffer) nil
 	      (hi::buffer-minor-mode buffer "Listener") t
 	      (hi::buffer-name buffer) listener-name)
@@ -212,43 +211,40 @@
 (defloadvar *next-listener-x-pos* nil) ; set after defaults initialized
 (defloadvar *next-listener-y-pos* nil) ; likewise
 
-(define-objc-method ((:void make-window-controllers) hemlock-listener-document)
+(objc:defmethod (#/makeWindowControllers :void) ((self hemlock-listener-document))
   (let* ((textstorage (slot-value self 'textstorage))
          (window (%hemlock-frame-for-textstorage
-                                    textstorage
-				    *listener-columns*
-				    *listener-rows*
-				    t
-                                    (textview-background-color self)))
-	 (controller (make-objc-instance
+                  textstorage
+                  *listener-columns*
+                  *listener-rows*
+                  t
+                  (textview-background-color self)))
+	 (controller (make-instance
 		      'hemlock-listener-window-controller
 		      :with-window window))
 	 (listener-name (hi::buffer-name (hemlock-document-buffer self))))
-    (let* ((layout-managers (send textstorage 'layout-managers)))
-      (dotimes (i (send layout-managers 'count))
-        (let* ((layout (send layout-managers :object-at-index i)))
-          (send layout :set-background-layout-enabled nil))))
-    (send self :add-window-controller controller)
-    (send controller 'release)
-    (slet ((current-point (ns-make-point (or *next-listener-x-pos*
-                                             (float *initial-listener-x-pos*
-                                                    +cgfloat-zero+))
-                                         (or *next-listener-y-pos*
-                                             (float *initial-listener-y-pos*
-                                                    +cgfloat-zero+)))))
-      (slet ((new-point (send window
-                              :cascade-top-left-from-point current-point)))
-        (setf *next-listener-x-pos* (pref new-point :<NSP>oint.x)
-              *next-listener-y-pos* (pref new-point :<NSP>oint.y))))
+    ;; Disabling background layout on listeners is an attempt to work
+    ;; around a bug.  The bug's probably gone ...
+    (let* ((layout-managers (#/layoutManagers textstorage)))
+      (dotimes (i (#/count layout-managers))
+        (let* ((layout (#/objectAtIndex: layout-managers i)))
+          (#/setBackgroundLayoutEnabled: layout nil))))
+    (#/addWindowController: self controller)
+    (#/release controller)
+    (ns:with-ns-point (current-point
+                       (or *next-listener-x-pos* *initial-listener-x-pos*)
+                       (or *next-listener-y-pos* *initial-listener-y-pos*))
+      (let* ((new-point (#/cascadeTopLeftFromPoint: window current-point)))
+        (setf *next-listener-x-pos* (ns:ns-point-x new-point)
+              *next-listener-y-pos* (ns:ns-point-y new-point))))
     (setf (hi::buffer-process (hemlock-document-buffer self))
 	  (let* ((tty (slot-value controller 'clientfd))
-		 (peer-tty (send (slot-value controller 'filehandle)
-				 'file-descriptor)))
+		 (peer-tty (#/fileDescriptor (slot-value controller 'filehandle))))
 	    (new-cocoa-listener-process listener-name tty tty peer-tty)))
     controller))
 
 ;;; Action methods
-(define-objc-method ((:void :interrupt sender) hemlock-listener-document)
+(objc:defmethod (#/interrupt: :void) ((self hemlock-listener-document) sender)
   (declare (ignore sender))
   (let* ((buffer (hemlock-document-buffer self))
          (process (if buffer (hi::buffer-process buffer))))
@@ -258,15 +254,14 @@
 (defmethod listener-backtrace-context ((proc cocoa-listener-process))
   (car (cocoa-listener-process-backtrace-contexts proc)))
 
-(define-objc-method ((:void :backtrace sender) hemlock-listener-document)
+(objc:defmethod (#/backtrace: :void) ((self hemlock-listener-document) sender)
   (declare (ignore sender))
   (let* ((buffer (hemlock-document-buffer self))
          (process (if buffer (hi::buffer-process buffer))))
     (when (typep process 'cocoa-listener-process)
       (let* ((context (listener-backtrace-context process)))
         (when context
-          (send (backtrace-controller-for-context context)
-                :show-window (%null-ptr)))))))
+          (#/showWindow: (backtrace-controller-for-context context) +null-ptr+))))))
 
 ;;; Menu item action validation.  It'd be nice if we could distribute this a
 ;;; bit better, so that this method didn't have to change whenever a new
@@ -279,21 +274,21 @@
   (let* ((buffer (hemlock-document-buffer doc))
          (process (if buffer (hi::buffer-process buffer))))
     (if (typep process 'cocoa-listener-process)
-      (let* ((action (send item 'action)))
+      (let* ((action (#/action item)))
         (cond
-          ((eql action (@selector "interrupt:")) (values t t))
-          ((eql action (@selector "backtrace:"))
+          ((eql action (@selector #/interrupt:)) (values t t))
+          ((eql action (@selector #/backtrace:))
            (values t
                    (not (null (listener-backtrace-context process)))))))
       (values nil nil))))
 
-(define-objc-method ((:<BOOL> :validate-menu-item item)
-                     hemlock-listener-document)
+(objc:defmethod (#/validateMenuItem: :<BOOL>)
+    ((self hemlock-listener-document) item)
   (multiple-value-bind (have-opinion opinion)
       (document-validate-menu-item self item)
     (if have-opinion
       opinion
-      (send-super :validate-menu-item item))))
+      (call-next-method item))))
 
 (defun shortest-package-name (package)
   (let* ((name (package-name package))
@@ -328,8 +323,7 @@
 (defmethod ui-object-choose-listener-for-selection ((app ns:ns-application)
 						    selection)
   (declare (ignore selection))
-  (let* ((top-listener-document (send (find-class 'hemlock-listener-document)
-				      'top-listener)))
+  (let* ((top-listener-document (#/topListener hemlock-listener-document)))
     (if top-listener-document
       (let* ((buffer (hemlock-document-buffer top-listener-document)))
 	(if buffer

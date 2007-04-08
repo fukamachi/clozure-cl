@@ -57,7 +57,7 @@
   value)
 
 (defun %define-cocoa-default (name type value doc &optional constraint)
-  (proclaim `(special name))
+  (proclaim `(special ,name))
   ;; Make the variable "GLOBAL": its value can be changed, but it can't
   ;; have a per-thread binding.
   (%symbol-bits name (logior (ash 1 $sym_vbit_global)
@@ -79,7 +79,7 @@
     
 (defun update-cocoa-defaults ()
   (update-cocoa-defaults-vector
-   (send (@class "NSUserDefaults") 'standard-user-defaults)
+   (#/standardUserDefaults ns:ns-user-defaults)
    (apply #'vector (reverse (cocoa-defaults)))))
 
 (defun update-cocoa-defaults-vector (domain defaults-vector)
@@ -88,19 +88,17 @@
       (let* ((d (svref defaults-vector i))
              (name (cocoa-default-symbol d))
              (key (objc-constant-string-nsstringptr (cocoa-default-string d))))
-	(if (%null-ptr-p (send domain :object-for-key key))
+	(if (%null-ptr-p (#/objectForKey:  domain key))
           (progn
-            (send domain
-                  :set-object (%make-nsstring (format nil "~a" (cocoa-default-value d)))
-                  :for-key key)
+            (#/setObject:forKey: domain (%make-nsstring (format nil "~a" (cocoa-default-value d))) key)
             (setq need-synch t))
 	  (case (cocoa-default-type d)
 	    (:int
-	     (set name (send domain :integer-for-key key)))
+	     (set name (#/integerForKey: domain key)))
 	    (:float
-	     (set name (send domain :float-for-key key)))
+	     (set name (#/floatForKey: domain key)))
 	    (:string
-	     (let* ((nsstring (send domain :string-for-key key)))
+	     (let* ((nsstring (#/stringForKey: domain key)))
 	       (unless (%null-ptr-p nsstring)
 		 (set name (lisp-string-from-nsstring nsstring)))))))))
-    (when need-synch (send domain 'synchronize))))
+    (when need-synch (#/synchronize domain))))

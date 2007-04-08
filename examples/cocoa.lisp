@@ -25,35 +25,37 @@
   (:metaclass ns:+ns-object))
 
 
-(define-objc-method ((:void :application-will-finish-launching (:id notification))
-		     lisp-application-delegate)
+(objc:defmethod (#/applicationWillFinishLaunching: :void)
+    ((self lisp-application-delegate) notification)
   (declare (ignore notification))
   (initialize-user-interface))
 
-(define-objc-method ((:void :application-will-terminate (:id notification))
-                     lisp-application-delegate)
+(objc:defmethod (#/applicationWillTerminate: :void)
+    ((self lisp-application-delegate) notification)
   (declare (ignore notification))
   ;; UI has decided to quit; terminate other lisp threads.
   (prepare-to-quit))
 
-(define-objc-method ((:void :new-listener sender) lisp-application-delegate)
+(objc:defmethod (#/newListener: :void) ((self lisp-application-delegate)
+                                        sender)
   (declare (ignore sender))
-  (send (send (@class ns-document-controller) 'shared-document-controller)
-	:open-untitled-document-of-type #@"Listener" :display t))
+  (#/openUntitledDocumentOfType:display:
+   (#/sharedDocumentController ns:ns-document-controller)
+   #@"Listener"
+   t))
 
 (defvar *cocoa-application-finished-launching* (make-semaphore)
   "Semaphore that's signaled when the application's finished launching ...")
 
-(define-objc-method ((:void :application-did-finish-launching notification)
-		     lisp-application-delegate)
+(objc:defmethod (#/applicationDidFinishLaunching: :void)
+    ((self lisp-application-delegate) notification)
   (declare (ignore notification))
   (signal-semaphore *cocoa-application-finished-launching*))
 
-
-(define-objc-method ((:<BOOL> :application-open-untitled-file app)
-		     lisp-application-delegate)
+(objc:defmethod (#/applicationOpenUntitledFile: :<BOOL>)
+    ((self lisp-application-delegate) app)
   (when (zerop *cocoa-listener-count*)
-    (send self :new-listener app)
+    (#/newListener: self app)
     t))
 
 
@@ -84,6 +86,6 @@
                                    &rest args)
   (ui-object-exit-backtrace-context o (car args)))
 
-
 (start-cocoa-application)
+
 

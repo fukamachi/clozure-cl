@@ -34,12 +34,12 @@
 (defun reset-ccl-directory ()
   (or (getenv "CCL_DEFAULT_DIRECTORY")
       (with-autorelease-pool
-          (let* ((bundle (send (@class ns-bundle) 'main-bundle))
+          (let* ((bundle (#/mainBundle ns:ns-bundle))
                  (ccl-dir (unless (%null-ptr-p bundle)
-                            (send bundle :object-for-info-dictionary-key
+                            (#/objectForInfoDictionaryKey: bundle
                                   #@"CCLDefaultDirectory")))
                  (bundle-path (unless (%null-ptr-p bundle)
-                                (send bundle 'bundle-path))))
+                                (#/bundlePath bundle))))
             (when (and ccl-dir (not (%null-ptr-p ccl-dir))
                        bundle-path (not (%null-ptr-p bundle-path)))
               (let* ((bundle-string (lisp-string-from-nsstring bundle-path))

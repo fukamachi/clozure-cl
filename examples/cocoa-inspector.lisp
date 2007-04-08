@@ -56,12 +56,14 @@ I'd rather set up this file to be
 
 (require "COCOA")
 
-; This is useful when @ won't work, dynamically creating a NSString pointer from a string
+;;; This is useful when @ won't work, dynamically creating a NSString
+;;; pointer from a string.
+
 (defun nsstringptr (string)
   (objc-constant-string-nsstringptr
    (ns-constant-string string)))
 
-
+#+old
 (defmacro handler-case-for-cocoa (id form)
   (declare (ignorable id))
   `(handler-case
@@ -230,7 +232,7 @@ appropriate windows.  -hel
 ; I get a segfault selecting the browser when they're in window/browser order after doing modifications in the table.
 (defclass inspector-table-view-data-source (ns:ns-object)
     ((inspector-browser :foreign-type :id :reader inspector-browser)
-     (inspector-window :foreign-type :id :reader inspector-browser))
+     (inspector-window :foreign-type :id :reader inspector-window))
   (:metaclass ns:+ns-object))
 
 (defclass inspector-table-view-delegate (ns:ns-object)
@@ -238,32 +240,33 @@ appropriate windows.  -hel
   (:metaclass ns:+ns-object))  
 
 
-;; is there some reason this is called before the cell is actually selected? In any case, 
-;; when a non-leaf cell is selected, this function is called first for the new column,
-;; so it has to push the new element into the cinspector -- what the browserAction will
-;; be left doing it remains to be seen. The only other time this is called AFAICT is
-;; when loadColumnZero or reloadColumn is called
-(define-objc-method ((:int :browser browser
-			   :number-of-rows-in-column (:int column))
-			   inspector-browser-delegate)
-  (or (handler-case-for-cocoa 1
-       (let* ((cinspector (gethash (inspector-window self) *cocoa-inspector-nswindows-table*))
-	      (selected-column (send browser 'selected-column)) ; probably always (1- column), when a column is selected
-	      (cinspector-column (1- selected-column)) ; 2nd column of nsbrowser <-> 1st column of cinspector
-	      (row (send browser :selected-row-in-column selected-column)))
-	 #+ignore
-	 (format t "getting length of column ~d based on row ~d in column ~d~%" column row selected-column)
-	 (cond ((not cinspector) 0)
-	       ((= column 0) 1) ; just displaying the printed representaiton of the top inspected object
-	       ((= selected-column 0) ; selected the printed rep of the inspected object (column should = 1)
-		(setf (max-column cinspector) 0) ; crop object-vector in cinspector
-		(let ((inspector (nth-inspector cinspector 0))) ; inspector for top object
-		  (inspector::inspector-line-count inspector)))
-	       ((>= selected-column 1) ; (-1 is the N/A column)
-		(setf (max-column cinspector) cinspector-column) ; crop object-vector in cinspector
-		(push-object (nth-object-nth-value cinspector cinspector-column row) cinspector)
-		(let ((inspector (nth-inspector cinspector (1+ cinspector-column)))) ; inspector for object just pushed
-		  (inspector::inspector-line-count inspector))))))
+;;; is there some reason this is called before the cell is actually
+;;; selected? In any case, when a non-leaf cell is selected, this
+;;; function is called first for the new column, so it has to push the
+;;; new element into the cinspector -- what the browserAction will be
+;;; left doing it remains to be seen. The only other time this is
+;;; called AFAICT is when loadColumnZero or reloadColumn is called
+(objc:defmethod (#/browser:numberOfRowsInColumn: :<NSI>nteger)
+    ((self inspector-browser-delegate)
+     browser
+     (column :<NSI>nteger))
+  (or (let* ((cinspector (gethash (inspector-window self) *cocoa-inspector-nswindows-table*))
+             (selected-column (#/selectedColumn browser)) ; probably always (1- column), when a column is selected
+             (cinspector-column (1- selected-column)) ; 2nd column of nsbrowser <-> 1st column of cinspector
+             (row (#/selectedRowInColumn: browser selected-column)))
+        #+ignore
+        (format t "getting length of column ~d based on row ~d in column ~d~%" column row selected-column)
+        (cond ((not cinspector) 0)
+              ((= column 0) 1)          ; just displaying the printed representaiton of the top inspected object
+              ((= selected-column 0)    ; selected the printed rep of the inspected object (column should = 1)
+               (setf (max-column cinspector) 0) ; crop object-vector in cinspector
+               (let ((inspector (nth-inspector cinspector 0))) ; inspector for top object
+                 (inspector::inspector-line-count inspector)))
+              ((>= selected-column 1)   ; (-1 is the N/A column)
+               (setf (max-column cinspector) cinspector-column) ; crop object-vector in cinspector
+               (push-object (nth-object-nth-value cinspector cinspector-column row) cinspector)
+               (let ((inspector (nth-inspector cinspector (1+ cinspector-column)))) ; inspector for object just pushed
+                 (inspector::inspector-line-count inspector)))))
       0))
 
 #|
@@ -281,100 +284,99 @@ appropriate windows.  -hel
 
 ;; In the following method defn this is unnecessary, the Browser can tell this for itself
 ;; [cell "setLoaded:" :<BOOL> #$YES]
-(define-objc-method ((:void :browser browser
-			    :will-display-cell cell
-			    :at-row (:int row)
-			    :column (:int column))
-		     inspector-browser-delegate)
+(objc:defmethod (#/browser:willDisplayCell:atRow:column: :void)
+    ((self inspector-browser-delegate)
+     browser
+     cell
+     (row :<NSI>nteger)
+     (column :<NSI>nteger))
   (declare (ignorable browser column))
-  (handler-case-for-cocoa 2
-   (let ((cinspector (gethash (inspector-window self) *cocoa-inspector-nswindows-table*))
+     (let ((cinspector (gethash (inspector-window self) *cocoa-inspector-nswindows-table*))
 	 (cinspector-column (1- column))) ; 2nd column of nsbrowser <-> 1st column of cinspector
      #+ignore
      (format t "asking for value for column ~a, row ~a~%" column row)
      (cond ((not cinspector) nil)
 	   ((= column 0)
-	    (send cell :set-string-value  (nsstringptr (format nil "~s" (nth-object cinspector 0))))
-	    (send cell :set-leaf nil))
+	    (#/setStringValue: cell  (nsstringptr (format nil "~s" (nth-object cinspector 0))))
+	    (#/setLeaf: cell nil))
 	   (t
-	    ;; when switching between widgets to the browser, we can have reloaded a column
-	    ;; and need to drill down a row from where we are at the moment
-	    (send cell :set-string-value  (nsstringptr (nth-object-nth-line cinspector cinspector-column row)))
-	    ;; leaf-p should really consider the type of the object in question
-	    ;; (eventually taking into account whether we're brousing the class heirarchy or into objc or whatever)
-	    (send cell :set-leaf (or (leaf-node-p (nth-object cinspector cinspector-column)) ; i.e. no fields drill down
+	    ;; when switching between widgets to the browser, we can
+	    ;; have reloaded a column and need to drill down a row
+	    ;; from where we are at the moment
+	    (#/setStringValue: cell  (nsstringptr (nth-object-nth-line cinspector cinspector-column row)))
+	    ;; leaf-p should really consider the type of the object in
+	    ;; question (eventually taking into account whether we're
+	    ;; browsing the class heirarchy or into objc or whatever)
+	    (#/setLeaf: cell (or (leaf-node-p (nth-object cinspector cinspector-column)) ; i.e. no fields drill down
 						    (leaf-field-p (nth-object cinspector cinspector-column) row)
 						    ;; for now...
 						    (= row 0)
-						    (not (nth-object-nth-value-editable cinspector cinspector-column row)))))))))
+						    (not (nth-object-nth-value-editable cinspector cinspector-column row))))))))
 
-;; when all is said and done and once the cinspector is properly
-;; populated, the selected object in the browser's nth column is
-;; actually the object in the cinspector's nth column (i.e. because
-;; the selected object is displayed in the next browser column over,
-;; and the cinspector and nsbrowser have a 1-off discrepancy, they
-;; cancel out) -- just a note to make the difference between these
-;; next two functions and the previous two functions
+;;; when all is said and done and once the cinspector is properly
+;;; populated, the selected object in the browser's nth column is
+;;; actually the object in the cinspector's nth column (i.e. because
+;;; the selected object is displayed in the next browser column over,
+;;; and the cinspector and nsbrowser have a 1-off discrepancy, they
+;;; cancel out) -- just a note to make the difference between these
+;;; next two functions and the previous two functions
 
-;; change the focus of the the table view to be the selected object
-(define-objc-method ((:void :browser-action sender)
-		     inspector-browser-delegate) ; don't know why I'd want to, but could use a separate IBTarget class
+;;; change the focus of the the table view to be the selected object
+(objc:defmethod (#/browserAction: :void)
+    ((self inspector-browser-delegate)
+     sender); don't know why I'd want to, but could use a separate IBTarget class
   #+ignore (format t "browserAction~%")
-    (handler-case-for-cocoa 5
-      (let* ((cinspector (gethash (inspector-window self) *cocoa-inspector-nswindows-table*))
-	     (column (send sender 'selected-column)))
-	(when (<= 0 column)
-	  (setf (focal-point cinspector) column)
-	  (send (inspector-table-view self) 'reload-data)
-	  #+ignore
-	  (format t "      responding to selection in column ~d~%" column)))))
+  (let* ((cinspector (gethash (inspector-window self) *cocoa-inspector-nswindows-table*))
+         (column (#/selectedColumn sender)))
+    (when (<= 0 column)
+      (setf (focal-point cinspector) column)
+      (#/reloadData (inspector-table-view self))
+      #+ignore
+      (format t "      responding to selection in column ~d~%" column))))
 
 ;; open a new inspector on the selected object
-(define-objc-method ((:void :browser-double-action sender)
-		     inspector-browser-delegate)
+(objc:defmethod (#/browserDoubleAction: :void)
+    ((self inspector-browser-delegate)
+     sender)
   #+ignore (format t "browserDoubleAction~%")
-  (handler-case-for-cocoa 6
-    (let* ((cinspector (gethash (inspector-window self) *cocoa-inspector-nswindows-table*))
-	   (column (send sender 'selected-column)))
-      (when (<= 0 column)
-        ; this seems to work, but I'm not really paying attention to thread stuff...
-	(cinspect (nth-object cinspector column))))))
+  (let* ((cinspector (gethash (inspector-window self) *cocoa-inspector-nswindows-table*))
+         (column (#/selectedColumn sender)))
+    (when (<= 0 column)
+      ;; this seems to work, but I'm not really paying attention to
+      ;; thread stuff...
+      (cinspect (nth-object cinspector column)))))
 
-(define-objc-method ((:int :number-of-rows-in-table-view table-view)
-		     inspector-table-view-data-source)
+(objc:defmethod (#/numberOfRowsInTableView: :<NSI>nteger)
+    ((self inspector-table-view-data-source)
+     table-view)
   (declare (ignore table-view))
-  (or (handler-case-for-cocoa 3
-       (let ((cinspector (gethash (inspector-window self) *cocoa-inspector-nswindows-table*)))
-	 (if cinspector
-	     (let ((inspector (inspector cinspector)))
-	       (inspector::inspector-line-count inspector))
-	   0)))
+  
+  (or (let ((cinspector (gethash (inspector-window self) *cocoa-inspector-nswindows-table*)))
+        (if cinspector
+          (let ((inspector (inspector cinspector)))
+            (inspector::inspector-line-count inspector))
+          0))
       0))
 
-
-
-
-(define-objc-method ((:id :table-view table-view
-			  :object-value-for-table-column table-column
-			  :row (:int row))
-		     inspector-table-view-data-source)
+(objc:defmethod #/tableView:objectValueForTableColumn:row:
+    ((self inspector-table-view-data-source)
+     table-view
+     table-column
+     (row :<NSI>nteger))
   (declare (ignore table-view))
   (let ((cinspector (gethash (inspector-window self) *cocoa-inspector-nswindows-table*)))
     (cond ((not cinspector)
 	   #@"")
-	  ((send (send table-column 'identifier) :is-equal #@"property")
+	  ((#/isEqual: (#/identifier table-column) #@"property")
 	   (nsstringptr (focus-nth-property cinspector row)))
-	  ((send (send table-column 'identifier) :is-equal #@"value")
+	  ((#/isEqual: (#/identifier table-column) #@"value")
 	   (nsstringptr (focus-nth-value cinspector row))))))
 
 ;; I'm hoping that the delegate will prevent this from being called willy-nilly
-(define-objc-method ((:void :table-view table-view
-			    :set-object-value object
-			    :for-table-column table-column
-			    :row (:int row))
-		     inspector-table-view-data-source)
+(objc:defmethod (#/tableView:setObjectValue:forTableColumn:row: :void)
+    ((self inspector-table-view-data-source)
+     table-view object table-column (row :<NSI>nteger))
   (declare (ignore table-column))
-  (handler-case-for-cocoa 4
    (let ((cinspector (gethash (inspector-window self) *cocoa-inspector-nswindows-table*)))
      ;; without any formatters, object appears to be an NSCFString
      ;; also note we should probably save the original value (including unboundness etc)
@@ -383,53 +385,61 @@ appropriate windows.  -hel
      (when cinspector
        (setf (focus-nth-value cinspector row)
 	     (let ((*package* (find-package :cl-user)))
-	       ;; with-autorelease-pool could possibly be needed to autorelease the cString we're handling (I think)
-	       (eval (read-from-string (%get-cstring (send object 'c-string))))))
-       (send table-view 'reload-data) ; really could just reload that one cell, but don't know how...
-       ;; changing the focused object may effect the browser's path, reload its column and keep the cinspector consistent
-       ;; Here we have to make sure that the column we're reloading and the column after both have values to display,
-       ;; for when reloadColumn: invokes browser:willDisplayCell:atRow:column:
-       (send (inspector-browser self) :reload-column (focal-point cinspector))
+	       ;; with-autorelease-pool could possibly be needed to
+	       ;; autorelease the cString we're handling (I think)
+	       (eval (read-from-string (lisp-string-from-nsstring object)))))
+       (#/reloadData table-view) ; really could just reload that one cell, but don't know how...
+       ;; changing the focused object may effect the browser's path,
+       ;; reload its column and keep the cinspector consistent Here we
+       ;; have to make sure that the column we're reloading and the
+       ;; column after both have values to display, for when
+       ;; reloadColumn: invokes browser:willDisplayCell:atRow:column:
+       (#/reloadColumn: (inspector-browser self) (focal-point cinspector))
        ;; [inspector-browser "scrollColumnToVisible:" :int (focal-point cinspector)] ; maybe need this, too
-       ))))
+       )))
 
-; In the table view, the properties are not editable, but the
-; values (if editable) allow lisp forms to be entered that are
-; read and evaluated to determine the new property value.
-(define-objc-method ((:<BOOL> :table-view table-view
-			      :should-edit-table-column table-column
-			      :row (:int row))
-		     inspector-table-view-delegate)
+;;; In the table view, the properties are not editable, but the
+;;; values (if editable) allow lisp forms to be entered that are
+;;; read and evaluated to determine the new property value.
+(objc:defmethod (#/tableView:shouldEditTableColumn:row: :<BOOL>)
+    ((self inspector-table-view-delegate)
+     table-view table-column (row :<NSI>nteger))
   (declare (ignore table-view))
   (let ((cinspector (gethash (inspector-window self) *cocoa-inspector-nswindows-table*)))
     (and cinspector
-	  (send (send table-column 'identifier) :is-equal #@"value")
-	  (/= row 0) ; in practice the reference to the object isn't editable, and the GUI semantics aren't clear anyway,
-		     ; possibly there will come a time when I put row 0 in the table title, but I need to maintain
-		     ; the 0-indexed focus-nth-whatever API here and elsewhere if I do that
-	  (focus-nth-value-editable cinspector row))))
+         (#/isEqual: (#/identifier table-column) #@"value")
+         (/= row 0)                     ; in practice the reference to
+                                        ; the object isn't editable, and
+                                        ; the GUI semantics aren't clear anyway,
+                                        ; possibly there will come a
+                                        ; time when I put row 0 in the
+                                        ; table title, but I need to
+                                        ; maintain the 0-indexed
+                                        ; focus-nth-whatever API here
+                                        ; and elsewhere if I do that
+         (focus-nth-value-editable cinspector row))))
 
 ;; the inspectorwindowcontroller is set up as the delegate of the window...
 ;; we now eliminate the dangling pointer to the window from the hash table
-(define-objc-method ((:void :window-will-close notification)
-		     inspector-window-controller)
-  (let ((nswindow (send notification 'object)))
+(objc:defmethod (#/windowWillClose: :void)
+    ((self inspector-window-controller) notification)
+  (let ((nswindow (#/object notification)))
     (remhash nswindow *cocoa-inspector-nswindows-table*)))
 
-; hopefully a generally useful function
+;;; hopefully a generally useful function
 (defun load-windowcontroller-from-nib (wc-classname nib-pathname)
   "Takes a NIB name and returns a new window controller"
   (with-autorelease-pool
-      (make-objc-instance 
+      (make-instance 
        wc-classname
        :with-window-nib-name (nsstringptr (namestring nib-pathname)))))
 
-; make a new inspector window from the nib file, and hash the window's
-; browser and tableview to the object
+;;; make a new inspector window from the nib file, and hash the window's
+;;; browser and tableview to the object
 (defun cinspect (object)
   (with-autorelease-pool
       (let* ((windowcontroller (load-windowcontroller-from-nib 'inspector-window-controller *default-inspector-nib-pathname*))
-	     (window (send windowcontroller 'window))
+	     (window (#/window windowcontroller))
 	     (cinspector (make-instance 'cocoa-inspector)))
 	;; set up the window's initial "focused" object -- this may change as
 	;; different parts of the inspector are clicked on, and actually we
@@ -438,11 +448,11 @@ appropriate windows.  -hel
 	;; an inspector for the object or an even bigger wrapper
 	(setf (gethash window *cocoa-inspector-nswindows-table*) cinspector)
 	(push-object object cinspector)
-	;; is this working? it isn't breaking, but double-clicking is being handled as two single actions
+	;; is this working? it isn't breaking, but double-clicking is
+	;; being handled as two single actions
 	(let* ((browser (inspector-browser windowcontroller)))
-	  (send browser
-		:set-double-action (@SELECTOR "browserDoubleAction:"))
-	  (send browser :set-ignores-multi-click t))
-	(send windowcontroller :show-window window)
+	  (#/setDoubleAction: browser (@selector #/browserDoubleAction:))
+	  (#/setIgnoresMultiClick: browser t))
+	(#/showWindow: windowcontroller window)
 	window)))
 
