@@ -335,6 +335,7 @@
      with-string-vector
      with-pointer-to-ivector
      +null-ptr+
+     free
      define-entry-point
      define-callback
      defcallback
