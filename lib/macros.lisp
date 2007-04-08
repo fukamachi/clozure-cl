@@ -690,7 +690,13 @@
        (note-variable-info ',var t ,env))
      (%defparameter ',var ,value ,doc)))
 
-(defmacro defglobal (&environment env var value &optional doc)
+
+(defmacro defstatic (&environment env var value &optional doc)
+  "Syntax is like DEFPARAMETER.  Proclaims the symbol to be special,
+but also asserts that it will never be given a per-thread dynamic
+binding.  The value of the variable can be changed (via SETQ, etc.),
+but since all threads access the same static binding of the variable,
+such changes should be made with care."
   (if (and doc (not (stringp doc))) (signal-program-error "~S is not a string." doc))
   (if (and (compile-file-environment-p env) (not *fasl-save-doc-strings*))
     (setq doc nil))
@@ -700,12 +706,19 @@
      (%defglobal ',var ,value ,doc)))
 
 
+(defmacro defglobal (&rest args)
+  "Synonym for DEFSTATIC."
+  `(defstatic ,@args))
+
+
 (defmacro defloadvar (&environment env var value &optional doc)
   `(progn
-     (defvar ,var ,@(if doc `(nil ,doc)))
+     (defstatic ,var ,nil ,@(if doc `(,doc)))
      (def-ccl-pointers ,var ()
        (setq ,var ,value))
      ',var))
+
+
 
 
 (defmacro qlfun (name args &body body)
@@ -1149,25 +1162,7 @@ are no Forms, OR returns NIL."
 (defmacro multiple-value-list (form)
   `(multiple-value-call #'list ,form))
 
-(defmacro multiple-value-bind (varlist values-form &body body &environment env)
-  (multiple-value-bind (body decls)
-                       (parse-body body env)
-    (let ((ignore (make-symbol "IGNORE")))
-      `(multiple-value-call #'(lambda (&optional ,@varlist &rest ,ignore)
-                                (declare (ignore ,ignore))
-                                ,@decls
-                                ,@body)
-                            ,values-form))))
 
-(defmacro multiple-value-setq (vars val)
-  (if vars
-    `(values (setf (values ,@(mapcar #'(lambda (s) (require-type s 'symbol)) vars))  ,val))
-    `(prog1 ,val)))
-
-(defmacro nth-value (n form)
-  "Evaluate FORM and return the Nth value (zero based). This involves no
-  consing when N is a trivial constant integer."
-  `(car (nthcdr ,n (multiple-value-list ,form))))
 
 
 (defmacro %i> (x y)
@@ -1323,25 +1318,34 @@ are no Forms, OR returns NIL."
 
 (defmacro with-macptrs (varlist &rest body &environment env)
   (multiple-value-bind (body other-decls) (parse-body body env)
-    (collect ((bindings)
+    (collect ((temp-bindings)
+              (temp-decls)
+              (bindings)
               (our-decls)
               (inits))
       (dolist (var varlist)
+        (let* ((temp (gensym)))
+          (temp-decls temp)
         (if (consp var)
           (progn
             (our-decls (car var))
-            (bindings `(,(car var) (%null-ptr)))
+            (temp-bindings `(,temp (%null-ptr)))
+            (bindings `(,(car var) ,temp))
             (if (cdr var)
-              (inits `(%setf-macptr ,(car var) ,@(cdr var)))))
+              (inits `(%setf-macptr ,temp ,@(cdr var)))))
           (progn
             (our-decls var)
-            (bindings `(,var (%null-ptr))))))
-  `(let* ,(bindings)
-     (declare (dynamic-extent ,@(our-decls))
-     (declare (type macptr ,@(our-decls)))
-     ,@other-decls)
+            (temp-bindings  `(,temp  (%null-ptr)))
+            (bindings `(,var ,temp))))))
+  `(let* ,(temp-bindings)
+    (declare (dynamic-extent ,@(temp-decls)))
+    (declare (type macptr ,@(temp-decls)))
     ,@(inits)
-     ,@body))))
+    (let* ,(bindings)
+      (declare (type macptr ,@(our-decls)))
+      ,@other-decls
+      ,@body)))))
+
 
 (defmacro with-loading-file (filename &rest body)
    `(let ((*loading-files* (cons ,filename (locally (declare (special *loading-files*))
@@ -1591,12 +1595,19 @@ to open."
 (defmacro with-encoded-cstr (encoding-name (sym string &optional start end)
                                  &rest body &environment env)
   (let* ((encoding (get-character-encoding encoding-name))
-         (str (gensym)))
+         (nul-vector (character-encoding-nul-encoding encoding))
+         (str (gensym))
+         (len (gensym))
+         (i (gensym)))
     (multiple-value-bind (body decls) (parse-body body env nil)
       `(let* ((,str ,string))
         (%stack-block ((,sym (cstring-encoded-length-in-bytes ,encoding ,str ,start ,end) :clear t))
           ,@decls
-          (encode-string-to-memory ,encoding ,sym 0 ,str ,start ,end)
+          (let* ((,len (encode-string-to-memory ,encoding ,sym 0 ,str ,start ,end)))
+            (declare (fixnum ,len))
+            (dotimes (,i (length ,nul-vector))
+              (setf (%get-unsigned-byte ,sym ,len) (aref ,nul-vector ,i))
+              (incf ,len)))
           ,@body)))))
 
 (defmacro with-encoded-cstrs (encoding-name bindings &body body)
@@ -2783,19 +2794,24 @@ to binary 0."
 (defun rlet-inits (inits &aux result)
   (dolist (item inits result)
     (let* ((name (car item))
-	   (record-name (cadr item))
-	   (inits (cddr item))
-	   (ftype (%foreign-type-or-record record-name)))
+           (record-name (cadr item))
+           (inits (cddr item))
+           (ftype (%foreign-type-or-record record-name))
+           (ordinal (foreign-type-ordinal ftype))
+           (ordinal-form (if (< ordinal max-canonical-foreign-type-ordinal)
+                           ordinal
+                           `(foreign-type-ordinal (load-time-value (%foreign-type-or-record ',record-name))))))
+      (setq result (nconc result `((%set-macptr-type ,name ,ordinal-form))))
       (if (typep ftype 'foreign-record-type)
-        (setq result (nconc result (%foreign-record-field-forms name ftype record-name inits)))
-	(progn
-	  ;(setq result (nconc result `((%assert-macptr-ftype ,name ,ftype))))
-	  (when inits
-	    (if (and ftype (null (cdr inits)))
+        (setq result
+              (nconc result (%foreign-record-field-forms name ftype record-name inits)))
+        (progn
+          (when inits
+            (if (and ftype (null (cdr inits)))
               (setq result
                     (nconc result
                            `((setf ,(%foreign-access-form name ftype 0 nil)
-			      ,(car inits)))))
+                              ,(car inits)))))
               (error "Unexpected or malformed initialization forms: ~s in field type: ~s"
                      inits record-name))))))))
 
@@ -2824,12 +2840,12 @@ to binary 0."
 (defmacro record-length (recname)
   (%foreign-type-or-record-size recname :bytes))
 
-(defmacro make-record (record-name &rest initforms)
-  "Expand into code which allocates and initalizes an instance of the type
-denoted by typespec, on the foreign heap. The record is allocated using the
-C function malloc, and the user of make-record must explicitly call the C
-function free to deallocate the record, when it is no longer needed."
+(defun make-record-form (record-name allocator &rest initforms)
   (let* ((ftype (%foreign-type-or-record record-name))
+         (ordinal (foreign-type-ordinal ftype))
+         (ordinal-form (if (< ordinal max-canonical-foreign-type-ordinal)
+                         ordinal
+                         `(foreign-type-ordinal (load-time-value (%foreign-type-or-record ',record-name)))))
          (bits (ensure-foreign-type-bits ftype))
 	 (bytes (if bits
 		  (ceiling bits 8)
@@ -2837,10 +2853,41 @@ function free to deallocate the record, when it is no longer needed."
 			 (unparse-foreign-type ftype))))
 	 (p (gensym))
 	 (bzero (read-from-string "#_bzero")))    
-    `(let* ((,p (malloc ,bytes)))
+    `(let* ((,p (,allocator ,bytes)))
+      (%set-macptr-type ,p ,ordinal-form)
       (,bzero ,p ,bytes)
       ,@(%foreign-record-field-forms p ftype record-name initforms)
       ,p)))
+  
+(defmacro make-record (record-name &rest initforms)
+  "Expand into code which allocates and initalizes an instance of the type
+denoted by typespec, on the foreign heap. The record is allocated using the
+C function malloc, and the user of make-record must explicitly call the C
+function free to deallocate the record, when it is no longer needed."
+  (apply 'make-record-form record-name 'malloc initforms))
+
+(defmacro make-gcable-record (record-name &rest initforms)
+  "Like MAKE-RECORD, only advises the GC that the foreign memory can
+   be deallocated if the returned pointer becomes garbage."
+  (apply 'make-record-form record-name '%new-gcable-ptr initforms))
+
+(defmacro copy-record (type source dest)
+  (let* ((size (* (%foreign-type-or-record-size type :words) #+64-bit-target 1 #+32-bit-target 2))
+         (src (gensym "SRC"))
+         (dst (gensym "DST"))
+         (accessor #+64-bit-target '%get-unsigned-long #+32-bit-target '%get-unsigned-word)
+         (i (gensym "I"))
+         (j (gensym "J")))
+    `(with-macptrs ((,src ,source)
+                    (,dst ,dest))
+      (do* ((,i 0 (+ ,i #+64-bit-target 4 #+32-bit-target 2))
+            (,j 0 (+ ,j 1)))
+           ((= ,j ,size))
+        (declare (fixnum ,i))
+        (setf (,accessor ,dst ,i) (,accessor ,src ,i))))))
+
+      
+    
 
 (defmacro with-terminal-input (&body body)
   "Execute body in an environment with exclusive read access to the terminal."
@@ -3407,3 +3454,23 @@ to be at least partially steppable."
                                             (the (unsigned-byte 16) (ash (logand #xff0000 ,arg) -8))
                                             (the (unsigned-byte 8) (ash ,arg -24)))))))))))
     
+
+(defmacro multiple-value-bind (varlist values-form &body body &environment env)
+  (multiple-value-bind (body decls)
+                       (parse-body body env)
+    (let ((ignore (make-symbol "IGNORE")))
+      `(multiple-value-call #'(lambda (&optional ,@varlist &rest ,ignore)
+                                (declare (ignore ,ignore))
+                                ,@decls
+                                ,@body)
+                            ,values-form))))
+
+(defmacro multiple-value-setq (vars val)
+  (if vars
+    `(values (setf (values ,@(mapcar #'(lambda (s) (require-type s 'symbol)) vars))  ,val))
+    `(prog1 ,val)))
+
+(defmacro nth-value (n form)
+  "Evaluate FORM and return the Nth value (zero based). This involves no
+  consing when N is a trivial constant integer."
+  `(car (nthcdr ,n (multiple-value-list ,form))))
