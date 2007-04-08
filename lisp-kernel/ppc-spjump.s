@@ -187,6 +187,7 @@ C(spjump_start):
          __ifdef([PPC64])
           .globl C(spjump_end)
 C(spjump_end):
+         .org 0x5000-0x1000
          __endif
         __endif
         _endfile
