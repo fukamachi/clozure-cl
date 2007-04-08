@@ -698,6 +698,27 @@
   (strcx. rzero 0 imm0)
   (blr))
 
+(defppclapfunction %ptr-store-fixnum-conditional ((ptr arg_x) (expected-oldval arg_y) (newval arg_z))
+  (let ((address imm0)
+        (actual-oldval imm1))
+    (macptr-ptr address ptr)
+    @again
+    (lrarx actual-oldval 0 address)
+    (cmpr actual-oldval expected-oldval)
+    (bne- @done)
+    (strcx. newval 0 address)
+    (bne- @again)
+    (isync)
+    (mr arg_z actual-oldval)
+    (blr)
+    @done
+    (li address target::reservation-discharge)
+    (mr arg_z actual-oldval)
+    (strcx. rzero 0 address)
+    (blr)))
+
+
+
 
 (defppclapfunction %macptr->dead-macptr ((macptr arg_z))
   (check-nargs 1)
