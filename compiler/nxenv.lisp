@@ -407,7 +407,9 @@
      (require-u32 . #.(logior operator-single-valued-mask operator-acode-subforms-mask))
      (require-s64 . #.(logior operator-single-valued-mask operator-acode-subforms-mask))
      (require-u64 . #.(logior operator-single-valued-mask operator-acode-subforms-mask))
-     (general-aref2 .  #.(logior operator-acode-subforms-mask operator-assignment-free-mask operator-single-valued-mask)))))
+     (general-aref2 .  #.(logior operator-acode-subforms-mask operator-assignment-free-mask operator-single-valued-mask))
+     (%single-float .  #.(logior operator-acode-subforms-mask operator-assignment-free-mask operator-single-valued-mask))
+     (%double-float . #. #.(logior operator-acode-subforms-mask operator-assignment-free-mask operator-single-valued-mask)))))
 
 (defmacro %nx1-operator (sym)
   (let ((op (assq sym *next-nx-operators*)))
