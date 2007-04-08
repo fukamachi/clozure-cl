@@ -476,7 +476,7 @@
   (%epushval s nil))
 
 (deffaslop $fasl-timm (s)
-  (rlet ((p :long))
+  (rlet ((p :int))
     (setf (%get-long p) (%fasl-read-long s))
     (%epushval s (%get-unboxed-ptr p))))
 
@@ -984,13 +984,20 @@
       (setf (%svref symvec target::symbol.package-predicate-cell) package-or-nil))))
 
 
-(let* ((force-export-packages (list *keyword-package*)))
+(let* ((force-export-packages (list *keyword-package*))
+       (force-export-packages-lock (make-lock)))
   (defun force-export-packages ()
-    force-export-packages)
+    (with-lock-grabbed (force-export-packages-lock)
+      (copy-list force-export-packages)))
   (defun package-force-export (p)
     (let* ((pkg (pkg-arg p)))
-    (pushnew pkg force-export-packages)
-    pkg)))
+      (with-lock-grabbed (force-export-packages-lock)
+        (pushnew pkg force-export-packages))
+    pkg))
+  (defun force-export-package-p (pkg)
+    (with-lock-grabbed (force-export-packages-lock)
+      (if (memq pkg force-export-packages)
+        t))))
 
 
 (defun %insert-symbol (symbol package internal-idx external-idx &optional force-export)
@@ -1002,7 +1009,7 @@
       (if (listp package-predicate)
         (unless (%car package-predicate) (%rplaca package-predicate package)))
       (setf (%svref symvec target::symbol.package-predicate-cell) package))
-    (if (or force-export (memq package (force-export-packages)))
+    (if (or force-export (force-export-package-p package))
       (progn
         (%htab-add-symbol symbol (pkg.etab package) external-idx)
         (if keyword-package
@@ -1014,6 +1021,8 @@
                                   (ash 1 $sym_vbit_const)
                                   (the fixnum (%symbol-bits symbol)))))))
       (%htab-add-symbol symbol (pkg.itab package) internal-idx))
+    (let* ((hook (pkg.intern-hook package)))
+      (when hook (funcall hook symbol)))
     symbol))
 
 ;;; PNAME must be a simple string!
