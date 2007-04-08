@@ -1,3 +1,21 @@
+2007-04-08 13:14  gb
+
+	* lib/nfcomp.lisp: Bump current fasl version.
+
+2007-04-08 13:13  gb
+
+	* lib/ccl-export-syms.lisp: Export CCL:FREE.
+
+2007-04-08 13:12  gb
+
+	* xdump/faslenv.lisp: Bump max fasl version.
+
+2007-04-08 13:11  gb
+
+	* lisp-kernel/darwinppc64/Makefile: Pass -arch ppc64 to C, so that
+	people who try to build this kernel on an x86 mac will take longer
+	to realize that that's usually a bad idea.
+
 2007-04-08 12:09  gb
 
 	* examples/: cocoa-application.lisp, cocoa-backtrace.lisp,
