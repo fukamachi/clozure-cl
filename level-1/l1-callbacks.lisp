@@ -18,7 +18,7 @@
 
 (in-package "CCL")
 
-(defglobal *callback-lock* (make-lock))
+(defstatic *callback-lock* (make-lock))
 
 
 ;;; MacOS toolbox routines were once written mostly in Pascal, so some
@@ -97,6 +97,8 @@
 
 
 (defun %callback-function (pointer)
+  (if (typep pointer 'symbol)
+    (setq pointer (symbol-value pointer)))
   (with-lock-grabbed (*callback-lock*)
     (let* ((index (dotimes (i (length %pascal-functions%))
                     (when (eql (pfe.routine-descriptor (svref %pascal-functions% i)) pointer)
