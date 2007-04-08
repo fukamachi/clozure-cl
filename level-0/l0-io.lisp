@@ -109,11 +109,20 @@
    :unsigned-fullword size :address))
 
 (defun free (ptr)
-  (ff-call 
-   (%kernel-import target::kernel-import-free)
-   :address ptr :void))
+  (let* ((size (uvsize ptr))
+         (flags (if (= size target::xmacptr.size)
+                  (uvref ptr target::xmacptr.flags-cell)
+                  $flags_DisposPtr)))
+    (declare (fixnum size flags))
+    (if (= flags $flags_DisposPtr)
+      (with-macptrs ((addr ptr))
+        (when (= size target::xmacptr.size)
+          (%setf-macptr ptr (%null-ptr))
+          (setf (uvref ptr target::xmacptr.flags-cell) $flags_Normal))
+        (ff-call 
+         (%kernel-import target::kernel-import-free)
+         :address addr :void)))))
 
 
-;;; Yield the CPU, via a platform-specific syscall.
 
 
