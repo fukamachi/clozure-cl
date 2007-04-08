@@ -367,6 +367,7 @@
   (set var value)
   var)
 
+
 (defun %defglobal (var value &optional doc)
   (%symbol-bits var (logior (ash 1 $sym_vbit_global) (the fixnum (%symbol-bits var))))
   (%defparameter var value doc))
@@ -937,7 +938,7 @@ vector
 (defun %str-assoc (str alist)
   (assoc str alist :test #'string-equal))
 
-(defglobal *pathname-escape-character* #\\
+(defstatic *pathname-escape-character* #\\
   "Not CL.  A Coral addition for compatibility between CL spec and the shell.")
 
 
