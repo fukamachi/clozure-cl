@@ -82,10 +82,8 @@ pthread_mutex_t *mach_exception_lock;
 #define SIGNAL_FOR_PROCESS_INTERRUPT SIGEMT
 #endif
 
-#ifdef USE_SIGALTSTACK
-void setup_sigaltstack(area *);
+
 void switch_to_foreign_stack(void*, ...);
-#endif
 
 #define INTN_OPCODE 0xcd
 
@@ -139,4 +137,16 @@ extern void freebsd_sigreturn(ExceptionInformation *);
 #ifdef DARWIN_GS_HACK
 extern Boolean ensure_gs_pthread(void);
 extern void set_gs_address(void *);
+#endif
+
+
+/* sigaltstack isn't thread-specific on The World's Most Advanced OS */
+#ifdef DARWIN
+#undef USE_SIGALTSTACK
+#else
+#define USE_SIGALTSTACK 1
+#endif
+
+#ifdef USE_SIGALTSTACK
+void setup_sigaltstack(area *);
 #endif
