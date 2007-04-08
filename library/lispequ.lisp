@@ -212,6 +212,7 @@
   pkg.names
   pkg.shadowed
   pkg.lock
+  pkg.intern-hook
   )
 
 (defmacro package-deleted-marker ()
