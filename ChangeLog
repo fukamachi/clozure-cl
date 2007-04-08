@@ -1,3 +1,405 @@
+2007-04-08 12:09  gb
+
+	* examples/: cocoa-application.lisp, cocoa-backtrace.lisp,
+	cocoa-defaults.lisp, cocoa-editor.lisp, cocoa-inspector.lisp,
+	cocoa-listener.lisp, cocoa-prefs.lisp, cocoa-typeout.lisp,
+	cocoa-window.lisp, cocoa.lisp: 
+	Use new syntax: OBJC:DEFMETHOD, #/, MAKE-INSTANCE.
+	
+	Some changes in font, nsstring stuff to avoid using deprecated
+	featurs.
+
+2007-04-08 12:07  gb
+
+	* examples/: webkit.lisp, addressbook.lisp: 
+	Use new syntax: OBJC:DEFMETHOD, #/, MAKE-INSTANCE.
+	
+	Use OBJC:LOAD-FRAMEWORK.
+
+2007-04-08 12:06  gb
+
+	* examples/tiny.lisp: 
+	Use new syntax: OBJC:DEFMETHOD, #/, MAKE-INSTANCE.
+
+2007-04-08 12:05  gb
+
+	* examples/rubix/: blocks.lisp, lights.lisp, opengl.lisp,
+	rubix.lisp: 
+	Use new syntax: OBJC:DEFMETHOD, #/, MAKE-INSTANCE.
+	
+	Handle CGFLOAT issues in mouse event handlers.
+
+2007-04-08 12:04  gb
+
+	* examples/bridge.lisp: Define CGFLOAT, ObjC-2 foreign types here.
+	
+	Define "foreign struct classes" for several common structure types
+	(rectangle, point, size); generate inlined accessors for their
+	slots, PRINT-OBJECT methods, initialization functions, WITH-xxx
+	macros.
+	
+	#/ reader macro: reads a string containing "constituent" characters
+	(including #\:), preserving case.  Does a little bit of
+	sanity-checking on it, then interns it in NEXTSTEP-FUNCTIONS
+	package.
+	
+	Try to deal with cases where foreign type info may be parsed or
+	unparsed.
+	
+	Introduce OBJC-DISPATCH-FUNCTIONs, which are funcallable instances.
+	 SHARED-INITIALIZE :AFTER method on OBJC-DISPATCH-FUNCTION looks at
+	message info, tries to determine ambiguity, calls signature
+	function (possibly after trying to resolve ambiguity.)
+	
+	%CALL-NEXT-OBJC-METHOD does some of the same stuff at runtime,
+	calling a signature function that knows how to dispatch to SUPER
+	method. (Likewise, %CALL-NEXT-OBJC-CLASS-METHOD for class methods.)
+	
+	POSTPROCESS-OBJC-MESSAGE-INFO (re-) initializes the associated
+	OBJC-DISPATCH-FUNCTION.
+	
+	Handle PROTOCOLs differently in ambiguous SEND.
+
+2007-04-08 12:04  gb
+
+	* examples/objc-runtime.lisp: Compile message send functions per
+	signature.  Handle vararg message sends, partly at runtime.  INIT
+	messages just have their signature info precomputed.  Defining a
+	named OBJC-CLASS makes the class name a static variable whose value
+	is the class (and likewise for the metaclass.)
+	%DECLARE-OBJC-MESSAGE notes method redefinition, cerrors. 
+	OBJC:DEFMETHOD and support for it.
+
+2007-04-08 12:03  gb
+
+	* examples/objc-support.lisp: Use new syntax.  OBJC:LOAD-FRAMEWORK.
+	 Avoid some deprecated C-string stuff (but wimp out and assume
+	ASCII.) Keep track of objc-class-count, provide
+	MAYBE-MAP-OBJC-CLASSES to map new classes iff class count changes. 
+	Handle OBJC-PROTOCOLs a bit differently.  Move CGFLOAT definitions,
+	etc. elsewhere.
+
+2007-04-08 12:02  gb
+
+	* examples/objc-clos.lisp: RECOGNIZE-OBJC-OBJECT: maybe try mapping
+	classes if first try fails.  ALLOCATE-INSTANCE of objc-object:
+	don't canonicalize instance if no lisp slots (so MAKE-INSTANCE is
+	about as lightweight as MAKE-OBJC-INSTANCE.)
+
+2007-04-08 12:01  gb
+
+	* examples/name-translation.lisp:
+	COMPUTE-OBJC-TO-LISP-FUNCTION-NAME was once going to do something
+	non-trivial, now just interns in NEXSTEP-FUNCTIONS.
+
+2007-04-08 12:00  gb
+
+	* examples/objc-package.lisp: New file; export more stuff.  Import
+	some of it back into CCL.  Provide a NEXTSTEP-FUNCTIONS package for
+	pseudo-GFs.
+
+2007-04-08 11:59  gb
+
+	* lib/foreign-types.lisp: Foreign-type-ordinals, some of which are
+	canonical.  Straighten out the auxiliary-foreign-types mess a bit. 
+	Intern integer types up to 64 bits.
+
+2007-04-08 11:59  gb
+
+	* lib/macros.lisp: DEFGLOBAL = DEFSTATIC.  DEFLOADVAR makes its
+	argument static.  WITH-MACPTRS is saner.  WITH-ENCODED-CSTR writes
+	NUL octet(s) to the end of the encoded string.	MAKE-GCABLE-RECORD,
+	COPY-RECORD.
+
+2007-04-08 11:58  gb
+
+	* lib/db-io.lisp: Slight changes (preserve typedef name) in
+	function/objc method arglists.	UNESCAPE-FOREIGN-NAME: handle
+	missing brackets.
+
+2007-04-08 11:57  gb
+
+	* lisp-kernel/x86-exceptions.c: Handle signals on the altstack if
+	not Darwin.  In Darwin, evactuate off of the lisp stack while
+	interrupts are still disabled.
+
+2007-04-08 11:56  gb
+
+	* lisp-kernel/x86-exceptions.h: USE_SIGALTSTACK, but not on Darwin
+	(where Apple hasn't yet invented the notion that it needs to be
+	thread-specific.)
+
+2007-04-08 11:55  gb
+
+	* lisp-kernel/thread_manager.c: Clear pending interrupt flag when
+	destroying TCR.
+
+2007-04-08 11:54  gb
+
+	* lisp-kernel/ppc-exceptions.c: Lose (commented-out) code which
+	worked around an old Darwin bug.
+
+2007-04-08 11:53  gb
+
+	* lisp-kernel/lisp.h: Don't define USE_SIGALTSTACK here.
+
+2007-04-08 11:52  gb
+
+	* lisp-kernel/image.c: Don't nuke null pointers.
+
+2007-04-08 11:52  gb
+
+	* lisp-kernel/darwinx8664/.gdbinit: Add gtra.
+
+2007-04-08 11:51  gb
+
+	* lisp-kernel/x86-spentry64.s: zeroed stack-block zeroes all bits
+	of macptr.domain, macptr.type.
+
+2007-04-08 11:50  gb
+
+	* xdump/xfasload.lisp: Deal with pkg.intern-hook.
+
+2007-04-08 11:49  gb
+
+	* library/lispequ.lisp: add pkg.intern-hook to package.
+
+2007-04-08 11:48  gb
+
+	* lib/describe.lisp: Start trying to conditionalize some of the
+	stack-frame inspector stuff.
+
+2007-04-08 11:48  gb
+
+	* lib/ffi-darwinppc64.lisp: Structures are basically passed as
+	64-bit word components, with FP fields passed in registers.  This
+	requires some special handling ("hybrid" parameters) in the
+	compiler and %FF-CALL.
+
+2007-04-08 11:47  gb
+
+	* lib/level-2.lisp: %GET-BITFIELD and SETF thereof: deal with
+	endianness.
+
+2007-04-08 11:46  gb
+
+	* lib/nfcomp.lisp: FASL-SCAN: null-pointers as constants are OK.
+
+2007-04-08 11:45  gb
+
+	* lib/source-files.lisp: From Takehiko Abe: handle EQL specializers
+	in %SOURCE-FILES-LIKE-EM.
+
+2007-04-08 11:44  gb
+
+	* lib/streams.lisp: DRIBBLE via PROCESS-DRIBBLE.
+
+2007-04-08 11:43  gb
+
+	* lib/xref.lisp: From Takehiko Abe: handle EQL specializers in
+	MAKE-XREF-ENTRY.
+
+2007-04-08 11:43  gb
+
+	* lib/ccl-export-syms.lisp: Export DEFSTATIC, PAREF, +NULL-PTR+.
+
+2007-04-08 11:42  gb
+
+	* level-1/version.lisp: Bump; new snapshots tomorrow.
+
+2007-04-08 11:41  gb
+
+	* level-1/x86-callback-support.lisp: DEFGLOBAL->DEFSTATIC
+
+2007-04-08 11:40  gb
+
+	* level-1/linux-files.lisp: Very long timeout for
+	WAIT-ON-SEMAPHORE, don't use PROCESS-WAIT, manipulate the whostate
+	if we have to wait at all.
+	
+	Same idea for TIMED-WAIT-ON-SEMAPHORE.
+	
+	Make PIPE code slightly easier to read.
+
+2007-04-08 11:39  gb
+
+	* level-1/l1-utils.lisp: DEFGLOBAL->DEFSTATIC.
+
+2007-04-08 11:38  gb
+
+	* level-1/l1-unicode.lisp: Add NUL-ENCODING field to
+	CHARACTER-ENCODING, use it to determine number/sequence of octets
+	used to encode NUL.
+
+2007-04-08 11:38  gb
+
+	* level-1/l1-streams.lisp: DEFGLOBAL->DEFSTATIC.
+	
+	READ-TOPLEVEL-FORM on ECHO-STREAM has do I/O on the echo stream (so
+	DRIBBLE works); on TWO-WAY-STREAM, should read from the input side
+	so that echoing looks more natural.
+
+2007-04-08 11:37  gb
+
+	* level-1/l1-symhash.lisp: Extra slot  (for intern hook) in PACKAGE
+	object.
+
+2007-04-08 11:36  gb
+
+	* level-1/l1-readloop-lds.lisp: Some changes, then reverted those
+	changes manually and most of the effects were cosmetic. 
+	TOPLEVEL-PRINT takes an output stream arg.
+
+2007-04-08 11:35  gb
+
+	* level-1/l1-processes.lisp: Per-process DRIBBLE-ing.
+
+2007-04-08 11:34  gb
+
+	* level-1/l1-lisp-threads.lisp: %TCR-INTERRUPT: don't signal if
+	interrupt is obviously pending.
+
+2007-04-08 11:33  gb
+
+	* level-1/l1-io.lisp: Change pointer printing.
+
+2007-04-08 11:33  gb
+
+	* level-1/l1-init.lisp: +NULL-PTR+.
+
+2007-04-08 11:31  gb
+
+	* level-1/: l1-dcode.lisp, l1-events.lisp: DEFSTATIC is now the
+	preferred name for DEFGLOBAL.
+
+2007-04-08 11:30  gb
+
+	* level-1/l1-clos-boot.lisp: DEFSTATIC is now the preferred name
+	for DEFGLOBAL.
+	
+	Mechanism for associating a (built-in) class with a foreign type
+	ordinal.
+
+2007-04-08 11:29  gb
+
+	* level-1/l1-callbacks.lisp: DEFSTATIC is now the preferred name
+	for DEFGLOBAL.
+	
+	%CALLBACK-FUNCTION accepts a symbol (as well as a pointer that's
+	likely the global value of some symbol.)
+
+2007-04-08 11:28  gb
+
+	* level-1/l1-boot-2.lisp: DEFSTATIC is now the preferred name for
+	DEFGLOBAL.
+	
+	Standard CL streams now bound per-thread.
+	
+	Install standard foreign types here, not every time that
+	FOREIGN-TYPES is loaded.
+	
+	Canonicalize foreign type ordinals as soon as we can.  (This is
+	part of a scheme to give foreign types "ordinals' that can be used
+	to assert pointer types; we need some of those ordinal numbers to
+	be pre-assigned, since we can't reference foreign types early in
+	the cold load.)
+
+2007-04-08 11:27  gb
+
+	* level-1/l1-aprims.lisp: DEFSTATIC is now the preferred name for
+	DEFGLOBAL.  GCABLE-PTR-P.
+
+2007-04-07 21:25  gb
+
+	* level-0/nfasload.lisp: %INSERT-SYMBOL might call pkg.intern-hook.
+	 Handle maintenance of auto-export packages differently. 
+	$fasl-timm just needs an :int, not a :long.
+
+2007-04-07 21:24  gb
+
+	* level-0/l0-symbol.lisp: SET-TYPE-PREDICATE returns the
+	"functional", not random symbol guts.
+
+2007-04-07 21:23  gb
+
+	* level-0/l0-misc.lisp: Use %PTR-STORE-FIXNUM-CONDITIONAL in
+	%GET-SPIN-LOCK.  Locking code: spin lock must be released before
+	interrupts are re-enabled.
+
+2007-04-07 21:22  gb
+
+	* level-0/l0-io.lisp: FREE tries to handle gcable pointers.
+
+2007-04-07 21:20  gb
+
+	* level-0/: PPC/ppc-misc.lisp, X86/x86-misc.lisp:
+	%PTR-STORE-FIXNUM-CONDITIONAL.
+
+2007-04-07 21:19  gb
+
+	* level-0/PPC/ppc-def.lisp: Handle "hybrid" integer/float arguments
+	in DarwinPPC64 #'%FF-CALL.
+
+2007-04-07 21:19  gb
+
+	* compiler/optimizers.lisp: When trying to infer result type of
+	MAKE-ARRAY call, unquote quoted type specifier.
+	
+	Strength-reduce FLOAT when second argument is of known type.
+
+2007-04-07 21:18  gb
+
+	* compiler/nxenv.lisp: Operators of %SINGLE-FLOAT, %DOUBLE-FLOAT.
+
+2007-04-07 21:17  gb
+
+	* compiler/nx1.lisp: Allow extra "hybrid" ff-call argspecs (for
+	DarwinPPC64.) Cut-and-paste bug re: nx1-%fixnum-to-single/double. 
+	Parse %short-float, %double-float when no "result" arg; can at
+	least try to constant-fold late and/or do some cases if we have
+	more type info.
+
+2007-04-07 21:16  gb
+
+	* compiler/nx0.lisp: Lose some whitespace in the "static var can't
+	be bound" error message.
+
+2007-04-07 21:15  gb
+
+	* compiler/X86/x862.lisp: Same inline/lambda-bind/dynamic-extent
+	bug as on PPC.	%SINGLE-FLOAT, %DOUBLE-FLOAT here, too.
+
+2007-04-07 21:14  gb
+
+	* compiler/X86/X8664/x8664-backend.lisp: In EXPAND-FF-CALL, adjust
+	remaning GPR/FPR counts even if arg is "simple" and passes straight
+	through to %FF-CALL.
+
+2007-04-07 21:13  gb
+
+	* compiler/PPC/ppc2.lisp: Fix a long-standing bug involving
+	LAMBDA-BIND operator, dynamic-extent &REST, and stack memoization. 
+	Handle DarwinPPC64 ABI conventions, where SINGLE-FLOATs may be
+	passed in the same doubleword as GPRs.	%DOUBLE-FLOAT,
+	%SINGLE-FLOAT stuff: do inlining late, catch some other cases.
+
+2007-04-07 21:12  gb
+
+	* compiler/PPC/PPC64/ppc64-vinsns.lisp: RELOAD-SINGLE-C-ARG-HIGH,
+	for Darwin structure-passing ABI.
+
+2007-04-07 21:10  gb
+
+	* OpenMCL.app/Contents/Resources/English.lproj/:
+	MainMenu.nib/info.nib, MainMenu.nib/keyedobjects.nib,
+	MainMenu.nib/objects.nib, OpenmclInspector.nib/info.nib,
+	OpenmclInspector.nib/keyedobjects.nib,
+	OpenmclInspector.nib/objects.nib, backtrace.nib/info.nib,
+	backtrace.nib/keyedobjects.nib, backtrace.nib/objects.nib,
+	lispeditor.nib/info.nib, lispeditor.nib/keyedobjects.nib,
+	lispeditor.nib/objects.nib: Convert .nib to use utf-8
+	representation, not binary.
+
 2007-04-06 22:10  gb
 
 	* lisp-kernel/pmcl-kernel.c: Patch from Andi Kleen: set vmemoryuse
