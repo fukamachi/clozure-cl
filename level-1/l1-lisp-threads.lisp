@@ -348,12 +348,20 @@
     nil))
 
 (defun %tcr-interrupt (tcr)
-  (with-macptrs (tcrp)
-    (%setf-macptr-to-object tcrp tcr)
-    (ff-call
-     (%kernel-import target::kernel-import-raise-thread-interrupt)
-     :address tcrp
-     :signed-fullword)))
+  ;; The other thread's interrupt-pending flag might get cleared
+  ;; right after we look and see it set, but since this is called
+  ;; with the lock on the thread's interrupt queue held, the
+  ;; pending interrupt won't have been taken yet.
+  ;; When a thread dies, it should try to clear its interrupt-pending
+  ;; flag.
+  (or (not (eql 0 (%fixnum-ref tcr target::tcr.interrupt-pending)))
+      (with-macptrs (tcrp)
+        (%setf-macptr-to-object tcrp tcr)
+        (ff-call
+         (%kernel-import target::kernel-import-raise-thread-interrupt)
+         :address tcrp
+         :signed-fullword))))
+
 
 
      
