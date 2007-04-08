@@ -342,7 +342,10 @@ prepare_to_write_dynamic_space()
     if (immheader_tag_p(tag)) {
       subtag = header_subtag(x1);
       if (subtag == subtag_macptr) {
-	*start = make_header(subtag_dead_macptr,header_element_count(x1));
+        if (start[1]) {
+          /* Leave NULL pointers alone */
+          *start = make_header(subtag_dead_macptr,header_element_count(x1));
+        }
       }
       start = (LispObj *)skip_over_ivector((natural)start, x1);
     } else if (nodeheader_tag_p(tag)) {
