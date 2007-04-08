@@ -899,7 +899,7 @@ Will differ from *compiling-file* during an INCLUDE")
 (defvar *fasdump-global-offsets*)
 (defvar *make-load-form-hash*)
 
-;Return a hash table containing subexp's which are referenced more than once.
+;;;Return a hash table containing subexp's which are referenced more than once.
 (defun fasl-scan (forms)
   (let* ((*fasdump-hash* (make-hash-table :size (length forms)          ; Crude estimate
                                           :rehash-threshold 0.9
@@ -985,7 +985,7 @@ Will differ from *compiling-file* during an INCLUDE")
                                  (ash 1 x8664::fulltag-immheader-1)
                                  (ash 1 x8664::fulltag-immheader-2))))
            (case type-code
-             ((#.target::subtag-macptr #.target::subtag-dead-macptr) (fasl-unknown exp))
+             ((#.target::subtag-macptr #.target::subtag-dead-macptr) (unless (%null-ptr-p exp) (fasl-unknown exp)))
              (t (fasl-scan-ref exp)))
            (case type-code
              ((#.target::subtag-pool #.target::subtag-weak #.target::subtag-lock) (fasl-unknown exp))
