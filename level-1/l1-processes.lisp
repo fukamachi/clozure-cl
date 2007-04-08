@@ -135,8 +135,9 @@
      (allocation-quantum :initform (default-allocation-quantum)
                          :initarg :allocation-quantum
                          :reader process-allocation-quantum
-                         :type (satisfies valid-allocation-quantum-p)))
-  
+                         :type (satisfies valid-allocation-quantum-p))
+     (dribble-stream :initform nil)
+     (dribble-saved-terminal-io :initform nil))
   (:primary-p t))
 
 (defmethod print-object ((p process) s)
@@ -184,7 +185,7 @@
     p))
 
 
-(defglobal *initial-process*
+(defstatic *initial-process*
     (let* ((p (make-process
 	       "Initial"
 	       :thread *initial-lisp-thread*
@@ -196,7 +197,7 @@
 (defvar *current-process* *initial-process*
   "Bound in each process, to that process itself.")
 
-(defglobal *interactive-abort-process* *initial-process*)
+(defstatic *interactive-abort-process* *initial-process*)
 
 
 
@@ -382,7 +383,7 @@ a given process."
 		(let* ((defenv (if env (definition-environment env))))
 		  (if defenv
 		    (eq :global (%cdr (assq s (defenv.specials defenv)))))))
-      (error "~s not defined with ~s" s 'defglobal))
+      (error "~s not defined with ~s" s 'defstatic))
     s))
 
 
@@ -632,3 +633,28 @@ had invoked abort."
 (defmethod exit-interactive-process ((p tty-listener))
   (when (eq p *current-process*)
     (quit)))
+
+(defmethod process-stop-dribbling ((p process))
+  (with-slots (dribble-stream dribble-saved-terminal-io) p
+    (when dribble-stream
+      (close dribble-stream)
+      (setq dribble-stream nil))
+    (when dribble-saved-terminal-io
+      (setq *terminal-io* dribble-saved-terminal-io
+            dribble-saved-terminal-io nil))))
+
+(defmethod process-dribble ((p process) path)
+  (with-slots (dribble-stream dribble-saved-terminal-io) p
+    (process-stop-dribbling p)
+    (when path
+      (let* ((in (two-way-stream-input-stream *terminal-io*))
+             (out (two-way-stream-output-stream *terminal-io*))
+             (f (open path :direction :output :if-exists :append 
+                      :if-does-not-exist :create)))
+        (without-interrupts
+         (setq dribble-stream f
+               dribble-saved-terminal-io *terminal-io*
+               *terminal-io* (make-echoing-two-way-stream
+                              (make-echo-stream in f)
+                              (make-broadcast-stream out f)))))
+      path)))
