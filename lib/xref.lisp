@@ -181,7 +181,7 @@ from FASLs.")
     (method
      (let ((name (method-name input))
            (qualifiers (method-qualifiers input))
-           (specializers (mapcar #'class-name (method-specializers input))))
+           (specializers (canonicalize-specializers (method-specializers input))))
        (%make-xref-entry :name name :type 'method
                          :method-qualifiers (unless (eql qualifiers t) qualifiers)
                          :method-specializers specializers)))
