@@ -2318,7 +2318,7 @@ Or something. Right? ~s ~s" var varbits))
              (or (null defenv)
                  (not (assq sym (defenv.constants defenv)))))) ; check compile-time-constants, too
     (if (and check-bindable (nx-global-p sym))
-      (nx-error "~S is global and can not be bound . " sym)
+      (nx-error "~S is declared static and can not be bound" sym)
       sym)
     (nx-error "Can't bind or assign to constant ~S." sym)))
 
