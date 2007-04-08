@@ -7,6 +7,11 @@ set $temp=*((long *)((long)($arg0-6)))
 x86_lisp_string $temp
 end
 
+define gtra
+br *$r10
+cont
+end
+
 
 define pname
  x86pname $arg0
