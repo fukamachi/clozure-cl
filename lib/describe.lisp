@@ -1723,17 +1723,7 @@
    (vsp-range :accessor vsp-range :initarg :vsp-range)
    (tsp-range :accessor tsp-range :initarg :tsp-range)))
 
-(defun make-tsp-stack-range (tcr bt-info)
-  (list (cons (ccl::%catch-tsp (ccl::bt.top-catch bt-info))
-              (ccl::%fixnum-ref (ccl::%fixnum-ref tcr target::tcr.ts-area)
-                                target::area.high))))
 
-(defun make-vsp-stack-range (tcr bt-info)
-  (list (cons (ccl::%fixnum-ref
-               (ccl::%svref (ccl::bt.top-catch bt-info) target::catch-frame.csp-cell)
-               target::lisp-frame.savevsp)
-              (ccl::%fixnum-ref (ccl::%fixnum-ref tcr target::tcr.vs-area)
-                                target::area.high))))
 
                            
 (defmethod initialize-instance ((i stack-inspector) &rest initargs &key context)
@@ -1926,6 +1916,25 @@
     (setf (inspector-line-count i) nil)
     frame-number))
 )
+
+(defun make-tsp-stack-range (tcr bt-info)
+  (list (cons (ccl::%catch-tsp (ccl::bt.top-catch bt-info))
+              (ccl::%fixnum-ref (ccl::%fixnum-ref tcr target::tcr.ts-area)
+                                target::area.high))))
+
+#+ppc-target
+(defun make-vsp-stack-range (tcr bt-info)
+  (list (cons (ccl::%fixnum-ref
+               (ccl::%svref (ccl::bt.top-catch bt-info) target::catch-frame.csp-cell)
+               target::lisp-frame.savevsp)
+              (ccl::%fixnum-ref (ccl::%fixnum-ref tcr target::tcr.vs-area)
+                                target::area.high))))
+
+#+x8664-target
+(defun make-vsp-stack-range (tcr bt-info)
+  (list (cons (ccl::%svref (ccl::bt.top-catch bt-info) target::catch-frame.rsp-cell)
+              (ccl::%fixnum-ref (ccl::%fixnum-ref tcr target::tcr.vs-area)
+                                target::area.high))))
 
 
 ;;; Inspector
