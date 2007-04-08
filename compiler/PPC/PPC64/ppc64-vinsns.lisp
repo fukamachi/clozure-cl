@@ -2217,6 +2217,10 @@
 					 ((argnum :u16const)))
   (lfs argval (:apply + ppc64::c-frame.param0 4 (:apply ash argnum ppc64::word-shift)) ppc::sp))
 
+(define-ppc64-vinsn reload-single-c-arg-high (((argval :single-float))
+                                              ((argnum :u16const)))
+  (lfs argval (:apply + ppc64::c-frame.param0 (:apply ash argnum ppc64::word-shift)) ppc::sp))
+
 (define-ppc64-vinsn reload-double-c-arg (((argval :double-float))
 					 ((argnum :u16const)))
   (lfd argval (:apply + ppc64::c-frame.param0 (:apply ash argnum ppc64::word-shift)) ppc::sp))
