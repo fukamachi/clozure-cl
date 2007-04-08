@@ -1,3 +1,11 @@
+2007-04-08 15:12  gb
+
+	* lisp-kernel/image.h, xdump/heap-image.lisp: Bump image version.
+
+2007-04-08 15:10  gb
+
+	* xdump/faslenv.lisp: Bump min fasl version.
+
 2007-04-08 14:11  gb
 
 	* lisp-kernel/ppc-spjump.s: Org to the next page boundary at end of
