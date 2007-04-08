@@ -337,6 +337,11 @@
                                 :test #'eq)
                         (typep arg-type-spec 'unsigned-byte))
                   (progn
+                    (if (or (eq arg-type-spec :double-float)
+                            (eq arg-type-spec :single-float))
+                      (decf remaining-fprs)
+                      (unless (typep arg-type-spec 'unsigned-byte)
+                        (decf remaining-gprs)))
                     (argforms arg-type-spec)
                     (argforms arg-value-form))
                   (let* ((ftype (parse-foreign-type arg-type-spec)))
@@ -372,6 +377,7 @@
                                 (argforms :unsigned-doubleword)
                                 (argforms `(%%get-unsigned-longlong ,valform 0))))
                             (when second8
+                              (setq valform structure-arg-temp)
                               (if (eq second8 :float)
                                 (progn
                                 (decf remaining-fprs)
