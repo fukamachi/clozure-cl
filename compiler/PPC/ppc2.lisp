@@ -7868,13 +7868,13 @@
                 (ppc2-vpush-register seg temp))
               (setq restloc (%i+ restloc *ppc2-target-node-size*))))
           (ppc2-set-nargs seg (length rest-arg))
+          (ppc2-set-vstack restloc)
           (if (%ilogbitp $vbitdynamicextent (nx-var-bits rest))
             (progn
               (! stack-cons-list)
               (ppc2-open-undo $undostkblk))
             (! list))
-          (ppc2-vpush-register seg ppc::arg_z)
-          (ppc2-set-vstack (%i+ restloc *ppc2-target-node-size*)))
+          (ppc2-vpush-register seg ppc::arg_z))
         (when rest (ppc2-bind-var seg rest restloc))
         (destructuring-bind (vars inits) auxen
           (while vars
@@ -8231,7 +8231,8 @@
             (:registers
              (setq return-registers t)
              (ppc2-push-register seg (ppc2-one-untargeted-reg-form seg valform ppc::arg_z)))
-            ((:signed-doubleword :unsigned-doubleword)
+            ((:signed-doubleword :unsigned-doubleword :hybrid-int-float :hybrid-float-float :hybrid-float-int)
+                                 
              (ppc2-one-targeted-reg-form seg valform ($ ppc::arg_z))
              (if (eq spec :signed-doubleword)
                (! gets64)
@@ -8241,7 +8242,13 @@
               (:ppc32
                (incf nextarg)
                (! set-c-arg ($ ppc::imm1) nextarg))
-              (:ppc64)))
+              (:ppc64
+               (case spec
+                 (:hybrid-int-float (push (cons :single-float nextarg) fp-loads))
+                 (:hybrid-float-int (push (cons :single-float-high nextarg) fp-loads))
+                 (:hybrid-float-float
+                  (push (cons :single-float-high nextarg) fp-loads)
+                  (push (cons :single-float nextarg) fp-loads))))))
             (:double-float
              (let* ((df ($ ppc::fp1 :class :fpr :mode :double-float)))
                (ppc2-one-targeted-reg-form seg valform df)
@@ -8294,7 +8301,9 @@
                (from (cdr reload)))
           (if (eq size :double-float)
             (! reload-double-c-arg fpreg from)
-            (! reload-single-c-arg fpreg from))))
+            (if (eq size :single-float-high)
+              (! reload-single-c-arg-high fpreg from)
+              (! reload-single-c-arg fpreg from)))))
       return-registers)))
 
 (defun ppc2-poweropen-foreign-return (seg vreg xfer resultspec)
@@ -8942,7 +8951,66 @@
       (! fixnum->fpr dreg r)
       (<- (set-regspec-mode dreg hard-reg-class-fpr-mode-single))
       (^))))
-        
+
+(defppc2 ppc2-%double-float %double-float (seg vreg xfer arg)
+  (let* ((real (or (acode-fixnum-form-p arg)
+                   (let* ((form (acode-unwrapped-form arg)))
+                     (if (and (acode-p form)
+                              (eq (acode-operator form)
+                                  (%nx1-operator immediate))
+                              (typep (cadr form) 'real))
+                       (cadr form))))))
+    (if real
+      (ppc2-immediate seg vreg xfer (float real 0.0d0))
+      (if (ppc2-form-typep arg 'single-float)
+        (ppc2-use-operator (%nx1-operator %single-to-double)
+                           seg
+                           vreg
+                           xfer
+                           arg)
+        (if (ppc2-form-typep arg 'fixnum)
+          (ppc2-use-operator (%nx1-operator %fixnum-to-double)
+                             seg
+                             vreg
+                             xfer
+                             arg)
+          (ppc2-use-operator (%nx1-operator call)
+                             seg
+                             vreg
+                             xfer
+                             (make-acode (%nx1-operator immediate)
+                                         '%double-float)
+                             (list nil (list arg))))))))
+
+(defppc2 ppc2-%single-float %single-float (seg vreg xfer arg)
+  (let* ((real (or (acode-fixnum-form-p arg)
+                   (let* ((form (acode-unwrapped-form arg)))
+                     (if (and (acode-p form)
+                              (eq (acode-operator form)
+                                  (%nx1-operator immediate))
+                              (typep (cadr form) 'real))
+                       (cadr form))))))
+    (if real
+      (ppc2-immediate seg vreg xfer (float real 0.0f0))
+      (if (ppc2-form-typep arg 'double-float)
+        (ppc2-use-operator (%nx1-operator %double-to-single)
+                           seg
+                           vreg
+                           xfer
+                           arg)
+        (if (ppc2-form-typep arg 'fixnum)
+          (ppc2-use-operator (%nx1-operator %fixnum-to-single)
+                             seg
+                             vreg
+                             xfer
+                             arg)
+          (ppc2-use-operator (%nx1-operator call)
+                             seg
+                             vreg
+                             xfer
+                             (make-acode (%nx1-operator immediate)
+                                         '%short-float)
+                             (list nil (list arg))))))))
 
 ;------
 
