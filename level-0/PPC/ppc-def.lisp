@@ -1043,7 +1043,9 @@ result-type-keyword is :VOID or NIL"
                             :single-float :double-float
                             :signed-fullword :unsigned-fullword
                             :signed-halfword :unsigned-halfword
-                            :signed-byte :unsigned-byte)
+                            :signed-byte :unsigned-byte
+                            :hybrid-int-float :hybrid-float-float
+                            :hybrid-float-int)
                   (incf total-words))
                  (t (if (typep spec 'unsigned-byte)
                       (incf total-words spec)
@@ -1075,15 +1077,42 @@ result-type-keyword is :VOID or NIL"
                                                   :unsigned-byte)
                             (setf (%%get-unsigned-longlong argptr offset) val)
                             (incf offset 8))
+                           (:hybrid-int-float
+                            (setf (%%get-unsigned-longlong argptr offset) val)
+                            (when (< n-fp-args 13)
+                              (setf (%get-double-float fp-args (* n-fp-args 8))
+                                    (%double-float (%get-single-float argptr (+ offset 4)))))
+                            (incf n-fp-args)
+                            (incf offset 8))
+                           (:hybrid-float-int
+                            (setf (%%get-unsigned-longlong argptr offset) val)
+                            (when (< n-fp-args 13)
+                              (setf (%get-double-float fp-args (* n-fp-args 8))
+                                    (%double-float (%get-single-float argptr offset))))
+                            (incf n-fp-args)
+                            (incf offset 8))
+                           (:hybrid-float-float
+                            (setf (%%get-unsigned-longlong argptr offset) val)
+                            (when (< n-fp-args 13)
+                              (setf (%get-double-float fp-args (* n-fp-args 8))
+                                    (%double-float (%get-single-float argptr offset))))
+                            (incf n-fp-args)
+                            (when (< n-fp-args 13)
+                              (setf (%get-double-float fp-args (* n-fp-args 8))
+                                    (%double-float (%get-single-float argptr (+ offset 4)))))
+                            (incf n-fp-args)
+                            (incf offset 8))
                            (:double-float
                             (setf (%get-double-float argptr offset) val)
-                            (setf (%get-double-float fp-args (* n-fp-args 8)) val)
+                            (when (< n-fp-args 13)
+                              (setf (%get-double-float fp-args (* n-fp-args 8)) val))
                             (incf n-fp-args)
                             (incf offset 8))
                            (:single-float
                             (setf (%get-single-float argptr offset) val)
-                            (setf (%get-double-float fp-args (* n-fp-args 8))
-                                  (%double-float val))
+                            (when (< n-fp-args 13)
+                              (setf (%get-double-float fp-args (* n-fp-args 8))
+                                    (%double-float val)))
                             (incf n-fp-args)
                             (incf offset 8))
                            (t
