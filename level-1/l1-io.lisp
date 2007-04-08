@@ -1563,17 +1563,36 @@ printed using \"#:\" syntax.  NIL means no prefix is printed.")
     (print-unreadable-object (macptr stream)
       (if null
 	(progn
-	  (%write-string "A Null Mac Pointer" stream))
+	  (%write-string "A Null Foreign Pointer" stream))
 	(progn
-	  (pp-start-block stream "A Mac Pointer")
-	  (%write-macptr-termination-info macptr stream)
+	  (pp-start-block stream "A Foreign Pointer")
+	  (%write-macptr-allocation-info macptr stream)
 	  (stream-write-char stream #\ )
+          (%write-macptr-type-info macptr stream)
 	  (write-an-integer (%ptr-to-int macptr) stream 16. t))))))
 
-; redefined by macptr-termination.lisp
-(defun %write-macptr-termination-info (macptr stream)
-  (declare (ignore macptr stream)))
+(defun %macptr-allocation-string (macptr)
+  (if (or (on-any-csp-stack macptr)
+          (on-any-tsp-stack macptr))
+    "[stack-allocated]"
+    (if (eql (uvsize macptr) target::xmacptr.element-count)
+      "[gcable]")))
 
+(defun %write-macptr-allocation-info (macptr stream)
+  (let* ((s (%macptr-allocation-string macptr)))
+    (if s (format stream " ~a" s))))
+
+(defun %write-macptr-type-info (macptr stream)
+  (let* ((ordinal (%macptr-type macptr)))
+    (unless (eql 0 ordinal)
+      (let* ((type (gethash ordinal (ftd-ordinal-types *target-ftd*)))
+             (form
+              (if (typep type 'foreign-record-type)
+                `(:* (,(foreign-record-type-kind type)
+                        ,(foreign-record-type-name type)))
+                `(:* ,(unparse-foreign-type type)))))
+        (when form (format stream "~s " form))))))
+          
 
 
 ; This special-casing for wrappers is cheaper than consing a class
