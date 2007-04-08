@@ -514,8 +514,8 @@ congruent with lambda lists of existing methods." lambda-list gf)))
 	  (logand bits (logior (ash 1 $lfbits-gfn-bit)
 			       (ash 1 $lfbits-method-bit)))))))
 
-(defglobal *generic-function-class-wrapper* nil)
-(defglobal *standard-generic-function-class-wrapper* nil)
+(defstatic *generic-function-class-wrapper* nil)
+(defstatic *standard-generic-function-class-wrapper* nil)
 
 (defun generic-function-p (thing)
   (and (typep thing 'function)
