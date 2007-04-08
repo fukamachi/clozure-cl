@@ -185,6 +185,63 @@
           (split-if-char #\: str :elide)))
 
 
+(defparameter *objc-colon-replacement-character* #\.)
+
+
+(defun compute-objc-to-lisp-function-name (str &optional (package "NSFUN"))
+  #-nil
+  (intern str package)
+  #+nil
+  (let* ((n (length str))
+         (i 0)
+         (trailing t))
+      (let* ((subs (if (not (position #\: str))
+                     (progn (setq trailing nil)
+                            (list str))
+                     (collect ((substrings))
+                       (do* ()
+                            ((= i n) (substrings))
+                         (let* ((pos (position #\: str :start i)))
+                           (unless pos
+                             (break "Huh?"))
+                           (substrings (subseq str i pos))
+                           (setq i (1+ pos)))))))
+             (split 
+              (mapcar #'(lambda (s)
+                    (collapse-prefix
+                     (split-if #'(lambda (ch)
+                                   (or (upper-case-p ch) (digit-char-p ch)))
+                               s)))
+                
+                subs))
+             (namelen (+ (if trailing (length split) 0)
+                           (let* ((c 0))
+                             (dolist (s split c)
+                               (if s (incf c (1- (length s))))))
+                           (let* ((c 0))
+                             (dolist (s split c)
+                               (dolist (sub s)
+                                 (incf c (length sub)))))))
+             (name (make-string namelen)))
+        (declare (dynamic-extent name))
+        (let* ((p 0))
+          (flet ((out-ch (ch)
+                   (setf (schar name p) ch)
+                   (incf p)))
+            (dolist (sub split)
+              (when sub
+                (do* ((string (pop sub) (pop sub)))
+                     ((null string))
+                  (dotimes (i (length string))
+                    (out-ch (char-upcase (schar string i))))
+                  (when sub
+                    (out-ch #\-))))
+              (when trailing (out-ch *objc-colon-replacement-character*)))))
+        (values
+         (or (find-symbol name package)
+             (intern (copy-seq name) package))))))
+
+        
 ;;; Convert a Lisp list of keywords into an ObjC method selector string
 ;;; Example: (:next-event-matching-mask :until-date :in-mode :dequeue) ==>
 ;;;          "nextEventMatchingMask:untilDate:inMode:dequeue:"
