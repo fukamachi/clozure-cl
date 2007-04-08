@@ -21,10 +21,12 @@
 ;;; regardless of the types of their elements, when they are passed
 ;;; by value.
 ;;; Structures which contain unions are passed in N GPRs when passed
-;;; by value
+;;; by value.
 ;;; All other structures passed by value are passed by passing their
-;;; constituent elements as scalars.  (For bitfields, the containing
-;;; integer counts as a constituent element.)
+;;; constituent elements as scalars.  (Sort of.)  GPR's are "consumed"
+;;; for and possibly/partly loaded with the contents of each 64-bit
+;;; word; FPRs (and vector registers) are consumed/loaded for each
+;;; field of the indicated type.
 ;;; Structures whose size is exactly 16 bytes are returned in GPR3
 ;;; and GPR4.
 ;;; Structures which contain unions are "returned" by passing a pointer
@@ -74,6 +76,10 @@
            (not (= (ensure-foreign-type-bits ftype) 128))
            (darwin64::record-type-contains-union ftype)))))
 
+
+
+
+
 ;;; Generate code to set the fields in a structure R of record-type
 ;;; RTYPE, based on the register values in REGBUF (8 64-bit GPRs,
 ;;; followed by 13 64-bit GPRs.)
@@ -83,82 +89,64 @@
   (let* ((bits (ccl::ensure-foreign-type-bits rtype)))
     (collect ((forms))
       (cond ((= bits 128)               ;(and (eql day 'tuesday) ...)
-             (forms `(setf (ccl::%%get-signed-longlong ,r 0)
-                      (ccl::%%get-signed-longlong ,regbuf 0)
-                      (ccl::%%get-signed-longlong ,r 8)
-                      (ccl::%%get-signed-longlong ,regbuf 8))))
+             (forms `(setf (ccl::%get-signed-long ,r 0)
+                      (ccl::%get-signed-long ,regbuf 0)
+                      (ccl::%get-signed-long ,r 4)
+                      (ccl::%get-signed-long ,regbuf 4)
+                      (ccl::%get-signed-long ,r 8)
+                      (ccl::%get-signed-long ,regbuf 8)
+                      (ccl::%get-signed-long ,r 12)
+                      (ccl::%get-signed-long ,regbuf 12))))
+            ;;; One (slightly naive) way to do this is to just
+            ;;; copy GPRs into the structure until it's full,
+            ;;; then go back and overwrite float-typed fields
+            ;;; with FPRs.  That'd be very naive if all fields
+            ;;; were float-typed, slightly naive if some fields
+            ;;; were properly-aligned DOUBLE-FLOATs or if two
+            ;;; SINGLE-FLOATs were packed inro a 64-bit word,
+            ;;; and not that bad if a SINGLE-FLOAT shared a
+            ;;; 64-bit word with a non-FP field.
             (t
-             (let* ((gpr-offset 0)
-                    (fpr-offset (* 8 8)))
-               (flet ((next-gpr-offset ()
-                        (prog1 gpr-offset
-                          (incf gpr-offset 8)))
-                      (next-fpr-offset ()
+             (let* ((fpr-offset (* 8 8))
+                    (fields (foreign-record-type-fields rtype)))
+               (flet ((next-fpr-offset ()
                         (prog1 fpr-offset
-                          (incf gpr-offset 8)
                           (incf fpr-offset 8))))
-                 (labels ((do-fields (fields accessors)
-                            (dolist (field fields)
-                              (let* ((field-type (foreign-record-field-type field))
-                                     (field-accessor-list (append accessors (list (foreign-record-field-name field))))
-                                     (valform ()))
-                                (etypecase field-type
-                                  (foreign-record-type
-                                   (do-fields (foreign-record-type-fields field-type)
-                                     field-accessor-list))
-                                  (foreign-pointer-type
-                                   (setq valform
-                                         `(%get-ptr ,regbuf ,(next-gpr-offset))))
-                                  (foreign-double-float-type
-                                   (setq valform
-                                         `(%get-double-float  ,regbuf ,(next-fpr-offset))))
-                                  (foreign-single-float-type
-                                   (setq valform
-                                         `(%get-single-float-from-double-ptr
-                                           ,regbuf ,(next-fpr-offset))))
-                                  (foreign-integer-type
-                                   (let* ((bits (foreign-integer-type-bits field-type))
-                                          (signed (foreign-integer-type-signed field-type)))
-                                     (case bits
-                                       (64
-                                        (setq valform
-                                              `(,(if signed
-                                                     '%%get-signed-longlong
-                                                     '%%get-unsigned-longlong)
-                                                ,regbuf
-                                                ,(next-gpr-offset))))
-                                       (32
-                                        (setq valform
-                                              `(,(if signed
-                                                     '%get-signed-long
-                                                     '%get-unsigned-long)
-                                                ,regbuf
-                                                (+ 4 ,(next-gpr-offset)))))
-                                       (16
-                                        (setq valform
-                                              `(,(if signed
-                                                     '%get-signed-word
-                                                     '%get-unsigned-word)
-                                                ,regbuf
-                                                (+ 6 ,(next-gpr-offset)))))
-                                       (8
-                                        (setq valform
-                                              `(,(if signed
-                                                     '%get-signed-byte
-                                                     '%get-unsigned-byte)
-                                                ,regbuf
-                                                (+ 7 ,(next-gpr-offset))))))))
-                                  (foreign-array-type
-                                   (error "Embedded array-type."))
-                                  )
-                                (when valform
-                                  (forms `(setf ,(%foreign-access-form
-                                                  r
-                                                  rtype
-                                                  0
-                                                  field-accessor-list)
-                                           ,valform)))))))
-                   (do-fields (foreign-record-type-fields rtype) nil ))))))
+                 (unless (all-floats-in-field-list fields)
+                   (do* ((b 0 (+ b 32))
+                         (w 0 (+ w 4)))
+                        ((>= b bits))
+                     (declare (fixnum b 0))
+                     (forms `(setf (%get-unsigned-long ,r ,w)
+                              (%get-unsigned-long ,regbuf ,w)))))
+                 (when (some-floats-in-field-list fields)
+                   (labels ((do-fp-fields (fields accessors)
+                              (dolist (field fields)
+                                (let* ((field-type (foreign-record-field-type field))
+                                       (field-accessor-list (append accessors (list (foreign-record-field-name field))))
+                                       (valform ()))
+                                  (etypecase field-type
+                                    (foreign-record-type
+                                     (do-fp-fields (foreign-record-type-fields field-type)
+                                       field-accessor-list))
+                                    (foreign-double-float-type
+                                     (setq valform
+                                           `(%get-double-float  ,regbuf ,(next-fpr-offset))))
+                                    (foreign-single-float-type
+                                     (setq valform
+                                           `(%get-single-float-from-double-ptr
+                                             ,regbuf ,(next-fpr-offset))))
+                                    (foreign-array-type
+                                     (error "Embedded array-type."))
+                                    )
+                                  (when valform
+                                    (forms `(setf ,(%foreign-access-form
+                                                    r
+                                                    rtype
+                                                    0
+                                                    field-accessor-list)
+                                             ,valform)))))))
+                     (do-fp-fields (foreign-record-type-fields rtype) nil )))))))
       `(progn ,@(forms) nil))))
 
 ;;; "Return" the structure R of foreign type RTYPE, by storing the
@@ -167,70 +155,44 @@
   (let* ((bits (require-foreign-type-bits rtype)))
     (collect ((forms))
       (cond ((= bits 128)               ;(and (eql day 'tuesday) ...)
-             (forms `(setf (ccl::%%get-signed-longlong ,stack-ptr 0)
-                      (ccl::%%get-signed-longlong ,r 0)
-                      (ccl::%%get-signed-longlong ,stack-ptr 8)
-                      (ccl::%%get-signed-longlong ,r 8))))
+             (forms `(setf (ccl::%get-unsigned-long ,stack-ptr 0)
+                      (ccl::%get-unsigned-long ,r 0)
+                      (ccl::%get-unsigned-long ,stack-ptr 4)
+                      (ccl::%get-unsigned-long ,r 4)
+                      (ccl::%get-unsigned-long ,stack-ptr 8)
+                      (ccl::%get-unsigned-long ,r 8)
+                      (ccl::%get-unsigned-long ,stack-ptr 12)
+                      (ccl::%get-unsigned-long ,r 12))))
             (t
-             (let* ((gpr-offset 0)
-                    (fpr-offset 0))
-               (flet ((next-gpr-offset ()
-                        (prog1 gpr-offset
-                          (incf gpr-offset 8)))
-                      (next-fpr-offset ()
+             (let* ((fpr-offset 0)
+                    (fields (foreign-record-type-fields rtype)))
+               (unless (all-floats-in-field-list fields)
+                   (do* ((b 0 (+ b 32))
+                         (w 0 (+ w 4)))
+                        ((>= b bits))
+                     (declare (fixnum b 0))
+                     (forms `(setf (%get-unsigned-long ,stack-ptr ,w)
+                              (%get-unsigned-long ,r ,w)))))
+               (when (some-floats-in-field-list fields)
+               (flet ((next-fpr-offset ()
                         (prog1 fpr-offset
-                          (incf gpr-offset 8)
                           (incf fpr-offset 8))))
-                 (labels ((do-fields (fields accessors)
+                 (labels ((do-fp-fields (fields accessors)
                             (dolist (field fields)
                               (let* ((field-type (foreign-record-field-type field))
                                      (field-accessor-list (append accessors (list (foreign-record-field-name field))))
                                      (valform ()))
                                 (etypecase field-type
                                   (foreign-record-type
-                                   (do-fields (foreign-record-type-fields field-type)
+                                   (do-fp-fields (foreign-record-type-fields field-type)
                                      field-accessor-list))
-                                  (foreign-pointer-type
-                                   (setq valform
-                                         `(%get-ptr ,stack-ptr ,(next-gpr-offset))))
                                   (foreign-double-float-type
                                    (setq valform
                                          `(%get-double-float  ,fp-args-ptr ,(next-fpr-offset))))
                                   (foreign-single-float-type
                                    (setq valform
                                          `(%get-double-float  ,fp-args-ptr ,(next-fpr-offset))))
-                                  (foreign-integer-type
-                                   (let* ((bits (foreign-integer-type-bits field-type))
-                                          (signed (foreign-integer-type-signed field-type)))
-                                     (case bits
-                                       (64
-                                        (setq valform
-                                              `(,(if signed
-                                                     '%%get-signed-longlong
-                                                     '%%get-unsigned-longlong)
-                                                ,stack-ptr
-                                                ,(next-gpr-offset))))
-                                       (32
-                                        (setq valform
-                                              `(,(if signed
-                                                     '%get-signed-long
-                                                     '%get-unsigned-long)
-                                                ,stack-ptr
-                                                (+ 4 ,(next-gpr-offset)))))
-                                       (16
-                                        (setq valform
-                                              `(,(if signed
-                                                     '%get-signed-word
-                                                     '%get-unsigned-word)
-                                                ,stack-ptr
-                                                (+ 6 ,(next-gpr-offset)))))
-                                       (8
-                                        (setq valform
-                                              `(,(if signed
-                                                     '%get-signed-byte
-                                                     '%get-unsigned-byte)
-                                                ,stack-ptr
-                                                (+ 7 ,(next-gpr-offset))))))))
+
                                   (foreign-array-type
                                    (error "Embedded array-type."))
                                   )
@@ -240,12 +202,46 @@
                                                       rtype
                                                       0
                                                       field-accessor-list)))
-                                    (when (typep field-form 'foreign-single-float-type)
+                                    (when (typep field-type 'foreign-single-float-type)
                                       (setq field-form `(float ,field-form 0.0d0)))
                                     (forms `(setf ,valform ,field-form))))))))
-                   (do-fields (foreign-record-type-fields rtype) nil ))))))
+                   (do-fp-fields fields nil )))))))
       `(progn ,@(forms) nil))))
-                                  
+
+;;; Return an ordered list of all scalar fields in the record type FTYPE.
+(defun darwin64::flatten-fields (ftype)
+  (if (darwin64::record-type-contains-union ftype)
+    (error "Can't flatten fields in ~s: contains union" ftype))
+  (collect ((fields))
+    (labels ((flatten (field-list bit-offset)
+               (dolist (field field-list)
+                 (let* ((field-type (foreign-record-field-type field))
+                        (next-offset (+ bit-offset (foreign-record-field-offset field))))
+                   (typecase field-type
+                     (foreign-record-type
+                      (flatten (foreign-record-type-fields field-type) next-offset))
+                     (foreign-array-type
+                      (let* ((element-type (foreign-array-type-element-type field-type))
+                             (nbits (foreign-type-bits element-type))
+                             (align (foreign-type-alignment  element-type))
+                             (dims (foreign-array-type-dimensions field-type))
+                             (n (or (and (null (cdr dims)) (car dims))
+                                    (error "Can't handle multidimensional foreign arrays")))
+                             (pos next-offset))
+                        (dotimes (i n)
+                          (fields (make-foreign-record-field :type element-type
+                                                             :bits nbits
+                                                             :offset pos))
+                          (setq pos (align-offset (+ pos nbits) align)))))
+                     (t
+                      (fields (make-foreign-record-field :type field-type
+                                                         :bits (foreign-record-field-bits field)
+                                                         :offset next-offset))))))))
+      (flatten (foreign-record-type-fields ftype) 0)
+      (fields))))
+
+               
+             
 
 (defun darwin64::expand-ff-call (callform args &key (arg-coerce #'null-coerce-foreign-arg) (result-coerce #'null-coerce-foreign-result))
   (let* ((result-type-spec (or (car (last args)) :void))
@@ -277,64 +273,86 @@
               (argforms :registers)
               (argforms regbuf))))
         (let* ((valform nil))
-          (labels ((do-fields (rtype fields accessors)
-                     (dolist (field fields)
-                       (let* ((field-type (foreign-record-field-type field))
-                              (field-accessor-list (append accessors (list (foreign-record-field-name field))))
-                              (access-form ()))
-                         (typecase field-type
-                           (foreign-record-type
-                            (do-fields rtype (foreign-record-type-fields field-type) field-accessor-list))
-                           ((or foreign-pointer-type foreign-integer-type
-                                foreign-single-float-type foreign-double-float-type)
-                            (setq access-form
-                                  (%foreign-access-form valform rtype 0 field-accessor-list))))
-                         (when access-form
-                           (argforms (foreign-type-to-representation-type field-type))
-                           (argforms access-form)
-                           (setq valform structure-arg-temp))))))
-            (unless (evenp (length args))
-              (error "~s should be an even-length list of alternating foreign types and values" args))
-            (do* ((args args (cddr args)))
-                 ((null args))
-              (let* ((arg-type-spec (car args))
-                     (arg-value-form (cadr args)))
-                (if (or (member arg-type-spec *foreign-representation-type-keywords*
-                                :test #'eq)
-                        (typep arg-type-spec 'unsigned-byte))
-                  (progn
-                    (argforms arg-type-spec)
-                    (argforms arg-value-form))
-                  (let* ((ftype (parse-foreign-type arg-type-spec)))
-                    (if (typep ftype 'foreign-record-type)
-                      (if (darwin64::record-type-contains-union ftype)
-                        (progn
-                          (argforms (ceiling (foreign-record-type-bits ftype) 64))
-                          (argforms arg-value-form))
-                        (progn
-                          (unless structure-arg-temp
-                            (setq structure-arg-temp (gensym)))
-                          (setq valform `(%setf-macptr ,structure-arg-temp ,arg-value-form))
-                          (do-fields ftype (foreign-record-type-fields ftype) nil)))
+          (unless (evenp (length args))
+            (error "~s should be an even-length list of alternating foreign types and values" args))
+          (do* ((args args (cddr args)))
+               ((null args))
+            (let* ((arg-type-spec (car args))
+                   (arg-value-form (cadr args)))
+              (if (or (member arg-type-spec *foreign-representation-type-keywords*
+                              :test #'eq)
+                      (typep arg-type-spec 'unsigned-byte))
+                (progn
+                  (argforms arg-type-spec)
+                  (argforms arg-value-form))
+                (let* ((ftype (parse-foreign-type arg-type-spec))
+                       (bits (foreign-type-bits ftype)))
+                  (if (typep ftype 'foreign-record-type)
+                    (if (or (darwin64::record-type-contains-union ftype)
+                            (= bits 128))
                       (progn
-                        (argforms (foreign-type-to-representation-type ftype))
-                        (argforms (funcall arg-coerce arg-type-spec arg-value-form))))))))
-            (argforms (foreign-type-to-representation-type result-type))
-            (let* ((call (funcall result-coerce result-type-spec `(,@callform ,@(argforms)))))
-              (when structure-arg-temp
-                (setq call `(let* ((,structure-arg-temp (%null-ptr)))
-                             (declare (dynamic-extent ,structure-arg-temp)
-                                      (type macptr ,structure-arg-temp))
-                             ,call)))
-              (if regbuf
-                `(let* ((,result-temp (%null-ptr)))
-                  (declare (dynamic-extent ,result-temp)
-                           (type macptr ,result-temp))
-                  (%setf-macptr ,result-temp ,result-form)
-                  (%stack-block ((,regbuf (+ (* 8 8) (* 8 13))))
-                    ,call
-                    ,(darwin64::struct-from-regbuf-values result-temp struct-result-type regbuf)))
-                call))))))))
+                        (argforms (ceiling (foreign-record-type-bits ftype) 64))
+                        (argforms arg-value-form))
+                      (let* ((flattened-fields (darwin64::flatten-fields ftype)))
+
+                        (flet ((single-float-at-offset (offset)
+                                 (dolist (field flattened-fields)
+                                   (let* ((field-offset (foreign-record-field-offset field)))
+                                     (when (> field-offset offset)
+                                       (return nil))
+                                     (if (and (= field-offset offset)
+                                              (typep (foreign-record-field-type field)
+                                                     'foreign-single-float-type))
+                                       (return t)))))
+                               (double-float-at-offset (offset)
+                                 (dolist (field flattened-fields)
+                                   (let* ((field-offset (foreign-record-field-offset field)))
+                                     (when (> field-offset offset)
+                                       (return nil))
+                                     (if (and (= field-offset offset)
+                                              (typep (foreign-record-field-type field)
+                                                     'foreign-double-float-type))
+                                       (return t))))))
+                        (unless structure-arg-temp
+                          (setq structure-arg-temp (gensym)))
+                        (setq valform `(%setf-macptr ,structure-arg-temp ,arg-value-form))
+                        (do* ((bit-offset 0 (+ bit-offset 64))
+                              (byte-offset 0 (+ byte-offset 8)))
+                             ((>= bit-offset bits))
+                          (if (double-float-at-offset bit-offset)
+                            (progn
+                              (argforms :double-float)
+                              (argforms `(%get-double-float ,valform ,byte-offset)))
+                            (let* ((high-single (single-float-at-offset bit-offset))
+                                   (low-single (single-float-at-offset (+ bit-offset 32))))
+                              (if high-single
+                                (if low-single
+                                  (argforms :hybrid-float-float)
+                                  (argforms :hybrid-float-int))
+                                (if low-single
+                                  (argforms :hybrid-int-float)
+                                  (argforms :unsigned-doubleword)))
+                              (argforms `(%%get-unsigned-longlong ,valform ,byte-offset))))
+                          (setq valform structure-arg-temp)))))
+                    (progn
+                      (argforms (foreign-type-to-representation-type ftype))
+                      (argforms (funcall arg-coerce arg-type-spec arg-value-form))))))))
+          (argforms (foreign-type-to-representation-type result-type))
+          (let* ((call (funcall result-coerce result-type-spec `(,@callform ,@(argforms)))))
+            (when structure-arg-temp
+              (setq call `(let* ((,structure-arg-temp (%null-ptr)))
+                           (declare (dynamic-extent ,structure-arg-temp)
+                                    (type macptr ,structure-arg-temp))
+                           ,call)))
+            (if regbuf
+              `(let* ((,result-temp (%null-ptr)))
+                (declare (dynamic-extent ,result-temp)
+                         (type macptr ,result-temp))
+                (%setf-macptr ,result-temp ,result-form)
+                (%stack-block ((,regbuf (+ (* 8 8) (* 8 13))))
+                  ,call
+                  ,(darwin64::struct-from-regbuf-values result-temp struct-result-type regbuf)))
+              call)))))))
             
             
 ;;; Return 7 values:
@@ -362,7 +380,8 @@
             (setq argvars (cons struct-result-name argvars)
                   argspecs (cons :address argspecs)
                   rtype *void-foreign-type*)
-            (rlets (list struct-result-name (foreign-record-type-name rtype)))))
+            (rlets (list struct-result-name (or (foreign-record-type-name rtype)
+                                                result-spec)))))
         (when (typep rtype 'foreign-float-type)
           (set-fp-regs-form))
         (do* ((argvars argvars (cdr argvars))
@@ -429,42 +448,65 @@
                          ,(if use-fp-args (* 8 (1- fp-arg-num))
                               (+ offset bias)))
                      (incf offset delta))))
-          (let* ((name (car argvars))
-                 (spec (car argspecs))
-                 (argtype (parse-foreign-type spec)))
-            (if (typep argtype 'foreign-record-type)
-              (if (darwin64::record-type-contains-union argtype)
-                (progn (setq delta (* (ceiling (foreign-record-type-bits argtype) 64) 8))
-                       (lets (list name `(%inc-ptr ,stack-ptr ,offset )))
-                       (incf offset delta))
+            (let* ((name (car argvars))
+                   (spec (car argspecs))
+                   (argtype (parse-foreign-type spec))
+                   (bits (foreign-type-bits argtype)))
+              (if (typep argtype 'foreign-record-type)
+                (if (or (darwin64::record-type-contains-union argtype)
+                        (= bits 128))
+                  (progn (setq delta (* (ceiling bits 64) 8))
+                         (lets (list name `(%inc-ptr ,stack-ptr ,offset )))
+                         (incf offset delta))
 
-                 (labels ((do-fields (fields accessors)
-                            (dolist (field fields)
-                              (let* ((field-type (foreign-record-field-type field))
-                                     (field-accessor-list (append accessors (list (foreign-record-field-name field))))
-                                     (valform ()))
-                                (typecase field-type
-                                  (foreign-record-type
-                                   (do-fields (foreign-record-type-fields field-type)
-                                     field-accessor-list))
-                                  (foreign-array-type
-                                   (error "Embedded array type"))
-                                  (t
-                                   (setq valform (next-scalar-arg field-type))))
-                                (when valform
-                                  (inits `(setf ,(%foreign-access-form
-                                                      name
-                                                      argtype
-                                                      0
-                                                      field-accessor-list)
-                                           ,valform)))))))
-                   (rlets (list name (foreign-record-type-name argtype)))
-                   (do-fields (foreign-record-type-fields argtype) nil)))
-              (lets (list name (next-scalar-arg argtype))))
-            (when (or (typep argtype 'foreign-pointer-type)
-                      (typep argtype 'foreign-array-type))
-              (dynamic-extent-names name))
-            (when use-fp-args (set-fp-regs-form)))))))))
+                  (let* ((flattened-fields (darwin64::flatten-fields argtype)))
+                    (flet ((double-float-at-offset (offset)
+                             (dolist (field flattened-fields)
+                               (let* ((field-offset (foreign-record-field-offset field)))
+                                 (when (> field-offset offset) (return))
+                                 (if (and (= field-offset offset)
+                                          (typep (foreign-record-field-type field)
+                                                 'foreign-double-float-type))
+                                   (return t)))))
+                           (single-float-at-offset (offset)
+                             (dolist (field flattened-fields)
+                               (let* ((field-offset (foreign-record-field-offset field)))
+                                 (when (> field-offset offset) (return))
+                                 (if (and (= field-offset offset)
+                                          (typep (foreign-record-field-type field)
+                                                 'foreign-single-float-type))
+                                   (return t))))))
+                      (rlets (list name (or (foreign-record-type-name argtype)
+                                            spec)))
+                      (do* ((bit-offset 0 (+ bit-offset 64))
+                            (byte-offset 0 (+ byte-offset 8)))
+                           ((>= bit-offset bits))
+                        (if (double-float-at-offset bit-offset)
+                          (inits `(setf (%get-double-float ,name ,byte-offset)
+                                   ,(next-scalar-arg (parse-foreign-type :double-float))))
+                          (let* ((high-single (single-float-at-offset bit-offset))
+                                 (low-single (single-float-at-offset (+ bit-offset 32))))
+                            (inits `(setf (%%get-unsigned-longlong ,name ,byte-offset)
+                                     ,(next-scalar-arg (parse-foreign-type '(:unsigned 64)))))
+                            (when high-single
+                              (when (< (incf fp-arg-num) 14)
+                                (set-fp-regs-form)
+                                (inits `(setf (%get-single-float ,name ,byte-offset)
+                                         (%get-single-float-from-double-ptr
+                                          ,fp-args-ptr
+                                          ,(* 8 (1- fp-arg-num)))))))
+                            (when low-single
+                              (when (< (incf fp-arg-num) 14)
+                                (set-fp-regs-form)
+                                (inits `(setf (%get-single-float ,name ,(+ 4 byte-offset))
+                                         (%get-single-float-from-double-ptr
+                                          ,fp-args-ptr
+                                          ,(* 8 (1- fp-arg-num)))))))))))))
+                (lets (list name (next-scalar-arg argtype))))
+              (when (or (typep argtype 'foreign-pointer-type)
+                        (typep argtype 'foreign-array-type))
+                (dynamic-extent-names name))
+              (when use-fp-args (set-fp-regs-form)))))))))
 
 (defun darwin64::generate-callback-return-value (stack-ptr fp-args-ptr result return-type struct-return-arg)
   (unless (eq return-type *void-foreign-type*)
