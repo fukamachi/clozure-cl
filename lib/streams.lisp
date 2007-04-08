@@ -179,36 +179,9 @@ The stream has dynamic extent; its extent ends when the form is exited."
 
 ;;;File Stuff here
 
-(let* ((dribble-stream nil)
-       (old-standard-input nil)
-       (old-standard-output nil)
-       (old-error-output nil))
-  (defun undribble ()
-    (when dribble-stream
-      (close dribble-stream)
-      (setq dribble-stream nil
-	    *standard-output* old-standard-output
-	    old-standard-output nil
-	    *standard-input* old-standard-input
-	    old-standard-input nil
-	    *error-output* old-error-output
-	    old-error-output nil)))
-  (defun dribble (&optional filename)
-    "With a file name as an argument, dribble opens the file and sends a
+(defun dribble (&optional filename)
+  "With a file name as an argument, dribble opens the file and sends a
      record of further I/O to that file. Without an argument, it closes
      the dribble file, and quits logging."
-    (undribble)
-    (when filename
-      (setq dribble-stream
-	    (open filename :direction :output :if-exists :append 
-		  :if-does-not-exist :create)
-	    old-standard-input *standard-input*
-	    *standard-input* (make-echo-stream
-			      old-standard-input dribble-stream)
-	    old-standard-output *standard-output*
-	    *standard-output* (make-broadcast-stream
-			       old-standard-output dribble-stream)
-	    old-error-output *error-output*
-	    *error-output* (make-broadcast-stream
-			    old-error-output dribble-stream)))))
+  (process-dribble *current-process* filename))
 
