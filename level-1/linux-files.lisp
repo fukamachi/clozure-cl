@@ -75,37 +75,44 @@
      (values result status))))
 
 (defun %process-wait-on-semaphore-ptr (s seconds milliseconds &optional
-                                       (whostate "semaphore wait") flag)
-  (process-wait whostate #'%wait-on-semaphore-ptr s seconds milliseconds flag))
+                                         (whostate "semaphore wait") flag)
+  (or (%wait-on-semaphore-ptr s 0 0 flag)
+      (with-process-whostate  (whostate)
+        (loop
+          (when (%wait-on-semaphore-ptr s seconds milliseconds flag)
+            (return))))))
+
   
 (defun wait-on-semaphore (s &optional flag (whostate "semaphore wait"))
   "Wait until the given semaphore has a positive count which can be
 atomically decremented."
-  (%process-wait-on-semaphore-ptr (semaphore-value s) 1 0 whostate flag)
+  (%process-wait-on-semaphore-ptr (semaphore-value s) #xffffff 0 whostate flag)
   t)
 
 
 (defun %timed-wait-on-semaphore-ptr (semptr duration notification)
-  (multiple-value-bind (secs millis) (milliseconds duration)
-    (let* ((now (get-internal-real-time))
-           (stop (+ now
-                    (* secs 1000)
-                    millis)))
-      (loop
-        (multiple-value-bind (success err)
-            (progn
-              (%wait-on-semaphore-ptr semptr secs millis notification))
-          (when success
-            (return t))
-          (when (or (not (eql err #$EINTR))
-                    (>= (setq now (get-internal-real-time)) stop))
-            (return nil))
-          (unless (zerop duration)
-            (let* ((diff (- stop now)))
-              (multiple-value-bind (remaining-seconds remaining-millis)
-                  (floor diff 1000)
-                (setq secs remaining-seconds
-                      millis remaining-millis)))))))))
+  (or (%wait-on-semaphore-ptr semptr 0 0 notification)
+      (with-process-whostate ("Semaphore timed wait")
+        (multiple-value-bind (secs millis) (milliseconds duration)
+          (let* ((now (get-internal-real-time))
+                 (stop (+ now
+                          (* secs 1000)
+                          millis)))
+            (loop
+              (multiple-value-bind (success err)
+                  (progn
+                    (%wait-on-semaphore-ptr semptr secs millis notification))
+                (when success
+                  (return t))
+                (when (or (not (eql err #$EINTR))
+                          (>= (setq now (get-internal-real-time)) stop))
+                  (return nil))
+                (unless (zerop duration)
+                  (let* ((diff (- stop now)))
+                    (multiple-value-bind (remaining-seconds remaining-millis)
+                        (floor diff 1000)
+                      (setq secs remaining-seconds
+                            millis remaining-millis)))))))))))
 
 (defun timed-wait-on-semaphore (s duration &optional notification)
   "Wait until the given semaphore has a postive count which can be
@@ -592,8 +599,6 @@ any EXTERNAL-ENTRY-POINTs known to be defined by it to become unresolved."
 
 
 
-
-
 #+linux-target
 (defun pipe ()
   (%stack-block ((pipes 8))
@@ -607,10 +612,10 @@ any EXTERNAL-ENTRY-POINTs known to be defined by it to become unresolved."
 ;;; Use libc's interface.
 #+(or darwin-target freebsd-target)
 (defun pipe ()
-  (%stack-block ((pipes 8))
-    (let* ((status (#_pipe pipes)))
+  (%stack-block ((filedes 8))
+    (let* ((status (#_pipe filedes)))
       (if (zerop status)
-        (values (%get-long pipes 0) (%get-long pipes 4))
+        (values (paref filedes (:array :int)  0) (paref filedes (:array :int)  1))
         (%errno-disp (%get-errno))))))
 
 
