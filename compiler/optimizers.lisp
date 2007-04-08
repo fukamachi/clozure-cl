@@ -615,7 +615,7 @@
           ;; Wimp out
           (setf (array-ctype-dimensions ctype)
                 '*))))
-    (let* ((element-type (specifier-type (if element-type-p element-type t))))
+    (let* ((element-type (specifier-type (if element-type-p (nx-unquote element-type) t))))
       (setf (array-ctype-element-type ctype) element-type)
       (if (typep element-type 'unknown-ctype)
         (setf (array-ctype-specialized-element-type ctype) *wild-type*)
@@ -1525,9 +1525,7 @@
           (arch::target-fixnum-tag (backend-target-arch *target-backend*))))
     `(eql (lisptag ,arg) ,fixnum-tag)))
 
-(define-compiler-macro float (&whole w number &optional other)
-  (declare (ignore number other))
-  w)
+
 
 (define-compiler-macro double-float-p (n)
   (let* ((tag (arch::target-double-float-tag (backend-target-arch *target-backend*))))
@@ -1787,13 +1785,19 @@
            (>= ,code (the fixnum (char-code ,third))))))
       call)))
 
-(define-compiler-macro float (&whole call number &optional other &environment env)
+(define-compiler-macro float (&whole call number &optional (other 0.0f0 other-p) &environment env)
+  
   (cond ((and (typep other 'single-float)
               (nx-form-typep number 'double-float env))
          `(the single-float (%double-to-single ,number)))
         ((and (typep other 'double-float)
               (nx-form-typep number 'single-float env))
          `(the double-float (%single-to-double ,number)))
+        ((or (typep other 'single-float)
+             (null other-p))
+         `(the single-float (%short-float ,number)))
+        ((typep other 'double-float)
+         `(the double-float (%double-float ,number)))
         (t call)))
 
 (define-compiler-macro coerce (&whole call thing type)
