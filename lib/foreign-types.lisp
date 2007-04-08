@@ -36,7 +36,16 @@
     (format stream "~s ~s"
             (interface-dir-name d)
             (interface-dir-subdir d))))
-  
+
+;;; We can't reference foreign types early in the cold load,
+;;; but we want things like RLET to be able to set a pointer's
+;;; type based on the foreign-type's "ordinal".  We therefore
+;;; seem to have to arrange that certain types have fixed,
+;;; "canonical" ordinals.  I doubt if we need more than a handful
+;;; of these, but let's burn 100
+
+(defconstant max-canonical-foreign-type-ordinal 100)
+
 ;;; This is intended to try to encapsulate foreign type stuff, to
 ;;; ease cross-compilation (among other things.)
 
@@ -57,7 +66,13 @@
   (ff-call-expand-function ())
   (ff-call-struct-return-by-implicit-arg-function ())
   (callback-bindings-function ())
-  (callback-return-value-function ()))
+  (callback-return-value-function ())
+  (ordinal max-canonical-foreign-type-ordinal)
+  (ordinal-lock (make-lock))
+  (ordinal-types (make-hash-table :test #'eq :weak :value))
+  (pointer-types (make-hash-table :test #'eq))
+  (array-types (make-hash-table :test #'equal)))
+
 
 
 
@@ -89,6 +104,11 @@
 (defvar *target-ftd* *host-ftd*)
 (setf (backend-target-foreign-type-data *host-backend*)
       *host-ftd*)
+
+(defun next-foreign-type-ordinal (&optional (ftd *target-ftd*))
+  (with-lock-grabbed ((ftd-ordinal-lock ftd))
+    (incf (ftd-ordinal ftd))))
+
 
 (defmacro do-interface-dirs ((dir &optional (ftd '*target-ftd*)) &body body)
   `(do-dll-nodes  (,dir (ftd-dirlist ,ftd))
@@ -175,14 +195,20 @@ list, NIL otherwise."
 
 
   (defvar *foreign-type-classes* (make-hash-table :test #'eq))
-  
+
   (defun info-foreign-type-translator (x &optional (ftd *target-ftd*))
     (gethash (make-keyword x) (ftd-translators ftd)))
   (defun (setf info-foreign-type-translator) (val x &optional (ftd *target-ftd*))
     (setf (gethash (make-keyword x) (ftd-translators ftd)) val))
 
+  (defun note-foreign-type-ordinal (type ftd)
+    (let* ((ordinal (and type (foreign-type-ordinal type))))
+      (when (and ordinal (not (eql 0 ordinal)))
+        (with-lock-grabbed ((ftd-ordinal-lock ftd))
+          (setf (gethash ordinal (ftd-ordinal-types ftd)) type)))))
+  
   (defun info-foreign-type-kind (x &optional (ftd *target-ftd*))
-    (if (info-foreign-type-translator x)
+    (if (info-foreign-type-translator x ftd)
       :primitive
       (or (gethash (make-keyword x) (ftd-kind-info ftd)) :unknown)))
   (defun (setf info-foreign-type-kind) (val x &optional (ftd *target-ftd*))
@@ -191,6 +217,7 @@ list, NIL otherwise."
   (defun info-foreign-type-definition (x &optional (ftd *target-ftd*))
     (gethash (make-keyword x) (ftd-definitions ftd)))
   (defun (setf info-foreign-type-definition) (val x &optional (ftd *target-ftd*))
+    (note-foreign-type-ordinal val ftd)
     (setf (gethash (make-keyword x) (ftd-definitions ftd)) val))
   (defun clear-info-foreign-type-definition (x &optional (ftd *target-ftd*))
     (remhash (make-keyword x) (ftd-definitions ftd)))
@@ -198,16 +225,19 @@ list, NIL otherwise."
   (defun info-foreign-type-struct (x &optional (ftd *target-ftd*))
     (gethash (make-keyword x) (ftd-struct-definitions ftd)))
   (defun (setf info-foreign-type-struct) (val x &optional (ftd *target-ftd*))
+    (note-foreign-type-ordinal val ftd)
     (setf (gethash (make-keyword x) (ftd-struct-definitions ftd)) val))
 
   (defun info-foreign-type-union (x &optional (ftd *target-ftd*))
     (gethash (make-keyword x) (ftd-union-definitions ftd)))
   (defun (setf info-foreign-type-union) (val x  &optional (ftd *target-ftd*))
+    (note-foreign-type-ordinal val ftd)
     (setf (gethash (make-keyword x) (ftd-union-definitions ftd)) val))
 
   (defun info-foreign-type-enum (x  &optional (ftd *target-ftd*))
     (gethash (make-keyword x) (ftd-enum-definitions ftd)))
   (defun (setf info-foreign-type-enum) (val x &optional (ftd *target-ftd*))
+    (note-foreign-type-ordinal val ftd)
     (setf (gethash (make-keyword x) (ftd-enum-definitions ftd)) val))
 
   (defun require-foreign-type-class (name)
@@ -319,14 +349,15 @@ list, NIL otherwise."
   (find-or-create-foreign-type-class 'root nil))
 
 (defstruct (foreign-type
-	    (:constructor make-foreign-type (&key class bits alignment))
+	    (:constructor make-foreign-type (&key class bits alignment ordinal))
 	    (:print-object
 	     (lambda (s out)
 	       (print-unreadable-object (s out :type t :identity t)
 		 (prin1 (unparse-foreign-type s) out)))))
   (class 'root :type symbol)
   (bits nil :type (or null unsigned-byte))
-  (alignment (guess-alignment bits) :type (or null unsigned-byte)))
+  (alignment (guess-alignment bits) :type (or null unsigned-byte))
+  (ordinal (next-foreign-type-ordinal)))
 
 
 
@@ -388,23 +419,17 @@ list, NIL otherwise."
            (error "Unknown foreign type: ~S" type))))))
 
 (defun auxiliary-foreign-type (kind name &optional (ftd *target-ftd*))
-  (or
-   (ecase kind
-     (:struct
-      (info-foreign-type-struct name ftd))
-     (:union
-      (info-foreign-type-union name ftd))
-     (:enum
-      (info-foreign-type-enum name ftd)))
-   (flet ((aux-defn-matches (x)
-            (and (eq (first x) kind) (eq (second x) name))))
-     (let ((in-auxiliaries
-            (or (find-if #'aux-defn-matches *new-auxiliary-types*)
-                (find-if #'aux-defn-matches *auxiliary-type-definitions*))))
-       (if in-auxiliaries
-         (values (third in-auxiliaries) t))))))
+  (declare (ignore ftd))
+  (flet ((aux-defn-matches (x)
+           (and (eq (first x) kind) (eq (second x) name))))
+    (let ((in-auxiliaries
+           (or (find-if #'aux-defn-matches *new-auxiliary-types*)
+               (find-if #'aux-defn-matches *auxiliary-type-definitions*))))
+      (if in-auxiliaries
+        (values (third in-auxiliaries) t)))))
 
 (defun %set-auxiliary-foreign-type (kind name defn &optional (ftd *target-ftd*))
+  (declare (ignore ftd))
   (flet ((aux-defn-matches (x)
 	   (and (eq (first x) kind) (eq (second x) name))))
     (when (find-if #'aux-defn-matches *new-auxiliary-types*)
@@ -412,17 +437,15 @@ list, NIL otherwise."
     (when (find-if #'aux-defn-matches *auxiliary-type-definitions*)
       (error "Attempt to shadow definition of ~A ~S." kind name)))
   (push (list kind name defn) *new-auxiliary-types*)
-  (ecase kind
-    (:struct
-     (setf (info-foreign-type-struct name ftd) defn))
-    (:union
-     (setf (info-foreign-type-union name ftd) defn))
-    (:enum
-     (setf (info-foreign-type-enum name ftd) defn)))
   defn)
 
 (defsetf auxiliary-foreign-type %set-auxiliary-foreign-type)
 
+
+(defun ensure-foreign-type (x)
+  (if (typep x 'foreign-type)
+    x
+    (parse-foreign-type x)))
 
 ;;; *record-type-already-unparsed* -- internal
 ;;;
@@ -595,7 +618,7 @@ Which one name refers to depends on foreign-type-spec in the obvious manner."
 
 ;;;; Default methods.
 
-(defvar *void-foreign-type* (make-foreign-type :class 'root :bits 0 :alignment 0))
+(defvar *void-foreign-type* (make-foreign-type :class 'root :bits 0 :alignment 0 :ordinal 0))
 
 (def-foreign-type-method (root :unparse) (type)
   (if (eq type *void-foreign-type*)
@@ -650,8 +673,8 @@ Which one name refers to depends on foreign-type-spec in the obvious manner."
   (signed t :type (member t nil)))
 
 (defvar *unsigned-integer-types*
-  (let* ((a (make-array 33)))
-    (dotimes (i 33 a)
+  (let* ((a (make-array 65)))
+    (dotimes (i 65 a)
       (setf (svref a i) (make-foreign-integer-type :signed nil
 						   :bits i
 						   :alignment
@@ -660,8 +683,8 @@ Which one name refers to depends on foreign-type-spec in the obvious manner."
                                                      1))))))
 
 (defvar *signed-integer-types*
-  (let* ((a (make-array 33)))
-    (dotimes (i 33 a)
+  (let* ((a (make-array 65)))
+    (dotimes (i 65 a)
       (setf (svref a i) (make-foreign-integer-type :signed t
 						   :bits i
 						   :alignment
@@ -670,7 +693,7 @@ Which one name refers to depends on foreign-type-spec in the obvious manner."
                                                      1))))))
          
 
-(defvar *bool-type* (make-foreign-integer-type :bits 8 :signed #+darwinppc-target t #-darwinppc-target nil))
+(defvar *bool-type* (make-foreign-integer-type :bits 8 :signed #+darwin-target t #-darwin-target nil))
 
 						  
 
@@ -878,7 +901,7 @@ Which one name refers to depends on foreign-type-spec in the obvious manner."
   (values
    `(etypecase ,value
       (null
-       (int-sap 0))
+       (%int-to-ptr 0))
       (macptr
        ,value)
       ((foreign ,type)
@@ -965,79 +988,102 @@ Which one name refers to depends on foreign-type-spec in the obvious manner."
   ;; of record fields and the overall alignment of the record.
   (alt-align nil :type (or unsigned-byte null)))
 
+(defmethod make-load-form ((r foreign-record-type) &optional environment)
+  (declare (ignore environment))
+  `(parse-foreign-type ',(unparse-foreign-type r)))
 
-(defun parse-foreign-record-type (kind name fields)
-  (if fields
-    (let* ((old (and name (auxiliary-foreign-type kind name)))
-           (result (or old
-                       (make-foreign-record-type :name name :kind kind))))
-      (when (and name (not (eq old result)))
-        (setf (auxiliary-foreign-type kind name) result))
-      (parse-foreign-record-fields result fields)
-      result)
+
+(defun parse-foreign-record-type (kind name fields &optional (ftd *target-ftd*))
+  (let* ((result (if name
+                   (or
+                    (ecase kind
+                      (:struct (info-foreign-type-struct name ftd))
+                      (:union (info-foreign-type-union name ftd)))
+                    (case kind
+                      (:struct (setf (info-foreign-type-struct name ftd)
+                                     (make-foreign-record-type :name name :kind :struct)))
+                      (:union  (setf (info-foreign-type-union name ftd)
+                                     (make-foreign-record-type :name name :kind :union)))))
+                   (make-foreign-record-type :kind kind))))
+    (when fields
+      (multiple-value-bind (parsed-fields alignment bits)
+          (parse-field-list fields kind (foreign-record-type-alt-align result))
+        (let* ((old-fields (foreign-record-type-fields result)))
+          (setf (foreign-record-type-fields result) parsed-fields
+                (foreign-record-type-alignment result) alignment
+                (foreign-record-type-bits result) bits)
+          (when old-fields
+            (unless (record-fields-match old-fields parsed-fields 5)
+              (warn "Redefining ~a ~s fields to be:~%~s~%were~%~s"
+                    kind name parsed-fields old-fields))))))
     (if name
-      (or (auxiliary-foreign-type kind name)
-          (setf (auxiliary-foreign-type kind name)
-                (make-foreign-record-type :name name :kind kind)))
-      (make-foreign-record-type :kind kind))))
+      (unless (eq (auxiliary-foreign-type kind name) result)
+        (setf (auxiliary-foreign-type kind name) result)))
+    result))
 
 ;;; PARSE-FOREIGN-RECORD-FIELDS -- internal
 ;;;
 ;;; Used by parse-foreign-type to parse the fields of struct and union
 ;;; types.  RESULT holds the record type we are paring the fields of,
 ;;; and FIELDS is the list of field specifications.
-;;; 
+;;;
+(defun parse-field-list (fields kind &optional alt-alignment)
+  (collect ((parsed-fields))
+    (let* ((total-bits 0)
+           (overall-alignment 1)
+           (first-field-p t)
+           (attributes (ftd-attributes *target-ftd*))
+           (poweropen-alignment (getf attributes :poweropen-alignment)))
+          
+      (dolist (field fields)
+        (destructuring-bind (var type &optional bits) field
+          (declare (ignore bits))
+          (let* ((field-type (parse-foreign-type type))
+                 (bits (ensure-foreign-type-bits field-type))
+                 (natural-alignment (foreign-type-alignment field-type))
+                 (alignment (if alt-alignment
+                              (min natural-alignment alt-alignment)
+                              (if poweropen-alignment
+                                (if first-field-p
+                                  (progn
+                                    (setq first-field-p nil)
+                                    natural-alignment)
+                                  (min 32 natural-alignment))
+                                natural-alignment)))
+                 (parsed-field
+                  (make-foreign-record-field :type field-type
+                                             :name var)))
+            (parsed-fields parsed-field)
+            (when (null bits)
+              (error "Unknown size: ~S"
+                     (unparse-foreign-type field-type)))
+            (when (null alignment)
+              (error "Unknown alignment: ~S"
+                     (unparse-foreign-type field-type)))
+            (setf overall-alignment (max overall-alignment (if (< alignment 8) 32 alignment)))
+            (ecase kind
+              (:struct
+               (let ((offset (align-offset total-bits alignment)))
+                 (setf (foreign-record-field-offset parsed-field) offset)
+                 (setf (foreign-record-field-bits parsed-field) bits)
+                 (setf total-bits (+ offset bits))))
+              (:union
+               (setf total-bits (max total-bits bits)))))))
+      (values (parsed-fields)
+              (or alt-alignment overall-alignment)
+              (align-offset total-bits (or alt-alignment overall-alignment))))))
+            
+
+
 (defun parse-foreign-record-fields (result fields)
   (declare (type foreign-record-type result)
 	   (type list fields))
-  (let* ((total-bits 0)
-         (overall-alignment 1)
-         (parsed-fields nil)
-         (first-field-p t)
-         (alt-alignment (foreign-record-type-alt-align result))
-         (attributes (ftd-attributes *target-ftd*))
-         (poweropen-alignment (getf attributes :poweropen-alignment)))
-          
-    (dolist (field fields)
-      (destructuring-bind (var type &optional bits) field
-	(declare (ignore bits))
-	(let* ((field-type (parse-foreign-type type))
-	       (bits (ensure-foreign-type-bits field-type))
-	       (natural-alignment (foreign-type-alignment field-type))
-	       (alignment (if alt-alignment
-			    (min natural-alignment alt-alignment)
-			    (if poweropen-alignment
-                              (if first-field-p
-                                (progn
-                                  (setq first-field-p nil)
-                                  natural-alignment)
-                                (min 32 natural-alignment))
-                              natural-alignment)))
-	       (parsed-field
-		(make-foreign-record-field :type field-type
-					   :name var)))
-	  (push parsed-field parsed-fields)
-	  (when (null bits)
-	    (error "Unknown size: ~S"
-		   (unparse-foreign-type field-type)))
-	  (when (null alignment)
-	    (error "Unknown alignment: ~S"
-		   (unparse-foreign-type field-type)))
-	  (setf overall-alignment (max overall-alignment (if (< alignment 8) 32 alignment)))
-	  (ecase (foreign-record-type-kind result)
-	    (:struct
-	     (let ((offset (align-offset total-bits alignment)))
-	       (setf (foreign-record-field-offset parsed-field) offset)
-               (setf (foreign-record-field-bits parsed-field) bits)
-	       (setf total-bits (+ offset bits))))
-	    (:union
-	     (setf total-bits (max total-bits bits)))))))
-    (let ((new (nreverse parsed-fields)))
-      (setf (foreign-record-type-fields result) new))
-    (setf (foreign-record-type-alignment result) (or alt-alignment
-						     overall-alignment))
-    (setf (foreign-record-type-bits result)
-	  (align-offset total-bits (or alt-alignment overall-alignment)))))
+  (multiple-value-bind (parsed-fields alignment bits)
+      (parse-field-list fields (foreign-record-type-kind result) (foreign-record-type-alt-align result))
+    (setf (foreign-record-type-fields result) parsed-fields
+          (foreign-record-type-alignment result) alignment
+          (foreign-record-type-bits result) bits)))
+
 
 (def-foreign-type-method (record :unparse) (type)
   `(,(case (foreign-record-type-kind type)
@@ -1365,7 +1411,10 @@ result-type-specifer is :VOID or NIL"
     (let* ((addr (fv.addr fv))
 	   (container (fv.container fv)))
       (if addr
+        #+32-bit-target
 	(format out " (#x~8,'0x) " (logand #xffffffff (%ptr-to-int addr)))
+        #+64-bit-target
+        	(format out " (#x~168,'0x) " (logand #xfffffffffffffffff (%ptr-to-int addr)))
 	(format out " {unresolved} "))
       (when (and container (or (not (typep container 'macptr))
 				    (not (%null-ptr-p container))))
@@ -1564,22 +1613,87 @@ result-type-specifer is :VOID or NIL"
 	    (accessors s))
 	  (accessors field-name))))))
 
+;;; Are all (scalar) fields in the field-list FIELDS floats ?'
+(defun all-floats-in-field-list (fields)
+  (dolist (field fields t)
+    (let* ((field-type (foreign-record-field-type field)))
+      (cond ((typep field-type 'foreign-record-type)
+             (unless (all-floats-in-field-list (foreign-record-type-fields field-type))
+                                     (return nil)))
+            ((typep field-type 'foreign-array-type)
+             (unless (typep (foreign-array-type-element-type field-type) 'foreign-float-type)
+               (return nil)))
+            (t (unless (typep field-type 'foreign-float-type)
+                 (return nil)))))))
+
+;;; Are any (scalar) fields in the field-list FIELDS floats ?
+(defun some-floats-in-field-list (fields)
+  (dolist (field fields)
+    (let* ((field-type (foreign-record-field-type field)))
+      (cond ((typep field-type 'foreign-float-type)
+             (return t))
+            ((typep field-type 'foreign-record-type)
+             (if (some-floats-in-field-list (foreign-record-type-fields field-type))
+               (return t)))
+            ((typep field-type 'foreign-array-type)
+             (if (typep (foreign-array-type-element-type field-type)
+                        'foreign-float-type)
+               (return t)))))))
+
+
+(defun canonicalize-foreign-type-ordinals (ftd)
+  (let* ((canonical-ordinal 0))          ; used for :VOID
+    (flet ((canonicalize-foreign-type-ordinal (spec)
+             (let* ((new-ordinal (incf canonical-ordinal)))
+               (when spec
+                 (let* ((type (parse-foreign-type spec))
+                        (old-ordinal (foreign-type-ordinal type)))
+                   (unless (eql new-ordinal old-ordinal)
+                     (remhash old-ordinal (ftd-ordinal-types ftd))
+                     (setf (foreign-type-ordinal type) new-ordinal)
+                     (note-foreign-type-ordinal type ftd))))
+               new-ordinal)))
+      (canonicalize-foreign-type-ordinal :signed)
+      (canonicalize-foreign-type-ordinal :unsigned)
+      (canonicalize-foreign-type-ordinal #+64-bit-target :long #-64-bit-target nil)
+      (canonicalize-foreign-type-ordinal :address)
+      (canonicalize-foreign-type-ordinal #-darwin-target
+                                         :<D>l_info
+                                         #+darwin-target nil)
+      (canonicalize-foreign-type-ordinal '(:struct :timespec))
+      (canonicalize-foreign-type-ordinal '(:struct :timeval))
+      (canonicalize-foreign-type-ordinal '(:struct :sockaddr_in))
+      (canonicalize-foreign-type-ordinal '(:struct :sockaddr_un))
+      (canonicalize-foreign-type-ordinal '(:struct :linger))
+      (canonicalize-foreign-type-ordinal '(:struct :hostent))
+      (canonicalize-foreign-type-ordinal '(:array :unsigned-long 3))
+      (canonicalize-foreign-type-ordinal '(:* :char))
+      (canonicalize-foreign-type-ordinal '(:struct :stat))
+      (canonicalize-foreign-type-ordinal '(:struct :passwd))
+      (canonicalize-foreign-type-ordinal #+darwin-target '(:struct :host_basic_info) #-darwin-target nil)
+      (canonicalize-foreign-type-ordinal '(:struct :in_addr))
+      (canonicalize-foreign-type-ordinal '(:struct :cdb-datum))
+      (canonicalize-foreign-type-ordinal '(:struct :dbm-constant))
+      (canonicalize-foreign-type-ordinal '(:* (:struct :hostent)))
+      )))
+
 (defun install-standard-foreign-types (ftd)
   (let* ((*target-ftd* ftd)
          (natural-word-size (getf (ftd-attributes ftd) :bits-per-word)))
+
     (def-foreign-type-translator signed (&optional (bits 32))
-      (if (<= bits 32)
+      (if (<= bits 64)
         (svref *signed-integer-types* bits)
         (make-foreign-integer-type :bits bits)))
 
 
     (def-foreign-type-translator integer (&optional (bits 32))
-      (if (<= bits 32)
+      (if (<= bits 64)
         (svref *signed-integer-types* bits)
         (make-foreign-integer-type :bits bits)))
 
     (def-foreign-type-translator unsigned (&optional (bits 32))
-      (if (<= bits 32)
+      (if (<= bits 64)
         (svref *unsigned-integer-types* bits)
         (make-foreign-integer-type :bits bits :signed nil)))
 
@@ -1612,6 +1726,7 @@ result-type-specifer is :VOID or NIL"
        :result-type (let ((*values-type-okay* t))
                       (parse-foreign-type result-type))
        :arg-types (mapcar #'parse-foreign-type arg-types)))
+
     (def-foreign-type-translator struct (name &rest fields)
       (parse-foreign-record-type :struct name fields))
     
@@ -1628,22 +1743,35 @@ result-type-specifer is :VOID or NIL"
           (when loser
             (error "Dimension is not a non-negative fixnum: ~S" loser))))
 	
-      (let ((type (parse-foreign-type ele-type)))
-        (make-foreign-array-type
-         :element-type type
-         :dimensions dims
-         :alignment (foreign-type-alignment type)
-         :bits (if (and (ensure-foreign-type-bits type)
-                        (every #'integerp dims))
-                 (* (align-offset (foreign-type-bits type)
-                                  (foreign-type-alignment type))
-                    (reduce #'* dims))))))
+      (let* ((type (parse-foreign-type ele-type))
+             (pair (cons type dims)))
+        (declare (dynamic-extent pair))
+        (ensure-foreign-type-bits type)
+        (or (gethash pair (ftd-array-types *target-ftd*))
+            (setf (gethash (cons type dims) (ftd-array-types *target-ftd*))
+                  
+                  (make-foreign-array-type
+                   :element-type type
+                   :dimensions dims
+                   :alignment (foreign-type-alignment type)
+                   :bits (if (and (ensure-foreign-type-bits type)
+                                  (every #'integerp dims))
+                           (* (align-offset (foreign-type-bits type)
+                                            (foreign-type-alignment type))
+                              (reduce #'* dims))))))))
+
     (def-foreign-type-translator * (to)
-      (make-foreign-pointer-type
-       :to (if (eq to t) *void-foreign-type* (parse-foreign-type to))
-       :bits natural-word-size))
+      (let* ((ftd *target-ftd*)
+             (to (if (eq to t) *void-foreign-type* (parse-foreign-type to ftd))))
+        (or (gethash to (ftd-pointer-types ftd))
+            (setf (gethash to (ftd-pointer-types *target-ftd*))
+                  (make-foreign-pointer-type
+                   :to to
+                   :bits natural-word-size)))))
+    
     (def-foreign-type-translator boolean (&optional (bits 32))
       (make-foreign-boolean-type :bits bits :signed nil))
+
     (def-foreign-type signed-char (signed 8))
     (def-foreign-type signed-byte (signed 8))
     (def-foreign-type short (signed 16))
@@ -1681,28 +1809,36 @@ result-type-specifer is :VOID or NIL"
     ;; to build OpenMCL here ensures that all backends see appropriate
     ;; definitions of them.
     ;;
-    (def-foreign-type nil
-        (struct :cdb-datum
-                (:data (* t))
-                (:size (:unsigned 32))))
-    (def-foreign-type nil
-        (:struct :dbm-constant
-                 (:class (:unsigned 32))
-                 (:pad (:unsigned 32))
-                 (:value
-                  (:union nil
-                          (:s32 (:signed 32))
-                          (:u32 (:unsigned 32))
-                          (:single-float :float)
-                          (:double-float :double)))))
+    ;; Don't use DEF-FOREIGN-TYPE here; this often runs too
+    ;; early in the cold load for that to work.
+    ;;
+    (parse-foreign-type
+     '(:struct :cdb-datum
+       (:data (* t))
+       (:size (:unsigned 32)))
+     ftd)
+    (parse-foreign-type
+     '(:struct :dbm-constant
+       (:class (:unsigned 32))
+       (:pad (:unsigned 32))
+       (:value
+        (:union nil
+         (:s32 (:signed 32))
+         (:u32 (:unsigned 32))
+         (:single-float :float)
+         (:double-float :double))))
+     ftd)
     ;; This matches the xframe-list struct definition in
     ;; "ccl:lisp-kernel;constants.h"
-    (def-foreign-type nil
-        (struct :xframe-list
-                (this (* t #|(struct :ucontext)|#))
-                (prev (* (struct  :xframe-list)))))
-    ))
+    (parse-foreign-type
+     '(:struct :xframe-list
+       (:this (:* t #|(struct :ucontext)|#))
+       (:prev (:* (:struct  :xframe-list))))
+    ftd)
+  ))
 
 
-(install-standard-foreign-types *host-ftd*)
+
+
+
 
