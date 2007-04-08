@@ -30,6 +30,7 @@
      *lisp-cleanup-functions*
      *lisp-startup-functions*
      defloadvar
+     defstatic
      *break-on-warnings*
 					; misc
      record-source-file
@@ -41,7 +42,7 @@
      %set-toplevel
      toplevel-loop
      toplevel-function
-    toplevel
+     toplevel
      cancel
      catch-cancel
      throw-cancel
@@ -329,10 +330,11 @@
      make-record
      pref
      rref
+     paref
      with-cstrs
      with-string-vector
      with-pointer-to-ivector
-
+     +null-ptr+
      define-entry-point
      define-callback
      defcallback
