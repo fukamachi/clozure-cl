@@ -525,6 +525,20 @@
   (movq (% temp0) (% arg_z))
   (single-value-return))
 
+(defx86lapfunction %ptr-store-fixnum-conditional ((ptr arg_x) (expected-oldval arg_y) (newval arg_z))
+  (let ((address imm1))
+    (macptr-ptr ptr address)
+    @again
+    (movq (@ (% address)) (% imm0))
+    (cmpq (% imm0) (% expected-oldval))
+    (jne @done)
+    (lock)
+    (cmpxchgq (% newval) (@ (% address)))
+    (jne @again)
+    @done
+    (movq (% imm0) (% arg_z))
+    (single-value-return)))
+
 
 (defx86lapfunction %macptr->dead-macptr ((macptr arg_z))
   (check-nargs 1)
