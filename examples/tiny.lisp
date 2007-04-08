@@ -42,29 +42,30 @@
 (defconstant short-pi (coerce pi 'short-float))
 (defconstant numsides 12)
 
-(define-objc-method ((:void :draw-rect (:<NSR>ect rect)) 
-		     demo-view)
+(objc:defmethod (#/drawRect: :void) ((self demo-view) (rect :<NSR>ect))
   (declare (ignore rect))
-  (slet ((bounds (send self 'bounds)))
-    (let ((width (ns-width bounds))
-          (height (ns-height bounds)))
-      (macrolet ((X (tt) `(* (1+ (sin ,tt)) width 0.5))
-                 (Y (tt) `(* (1+ (cos ,tt)) height 0.5)))
-        ;; Fill the view with white
-        (send (the ns-color (send (@class ns-color) 'white-color)) 'set)
-        (#_NSRectFill bounds)
-        ;; Trace two polygons with N sides and connect all of the vertices 
-        ;; with lines
-        (send (the ns-color (send (@class ns-color) 'black-color)) 'set)
+  (let* ((bounds (#/bounds self))
+         (width (ns:ns-rect-width bounds))
+         (height (ns:ns-rect-height bounds)))
+    (macrolet ((X (tt) `(* (1+ (sin ,tt)) width 0.5))
+               (Y (tt) `(* (1+ (cos ,tt)) height 0.5)))
+      ;; Fill the view with white
+      (#/set (#/whiteColor ns:ns-color))
+      (#_NSRectFill bounds)
+      ;; Trace two polygons with N sides and connect all of the vertices 
+      ;; with lines
+      (#/set (#/blackColor ns:ns-color))
+      (rlet ((source-point :ns-point)
+             (dest-point :ns-point))
+      (loop 
+        for f from 0.0 below (* 2 short-pi) by (* 2 (/ short-pi numsides))
+        do
         (loop 
-          for f from 0.0 below (* 2 short-pi) by (* 2 (/ short-pi numsides))
+          for g from 0.0 below (* 2 short-pi) by (* 2 (/ short-pi numsides))
           do
-          (loop 
-            for g from 0.0 below (* 2 short-pi) by (* 2 (/ short-pi numsides))
-            do
-            (send (@class ns-bezier-path)
-                  :stroke-line-from-point (ns-make-point (X f) (Y f)) 
-                  :to-point (ns-make-point (X g) (Y g)))))))))
+          (ns:init-ns-point source-point (X f) (Y f))
+          (ns:init-ns-point dest-point (X g) (Y g))
+          (#/strokeLineFromPoint:toPoint: ns:ns-bezier-path source-point dest-point)))))))
 
 
 ;;; This performs the actions that would normally be performed by loading
@@ -72,11 +73,8 @@
 
 (defun tiny-setup ()
   (with-autorelease-pool
-   (slet ((r (ns-make-rect (float 100.0 +cgfloat-zero+)
-                           (float 350.0 +cgfloat-zero+)
-                           (float 400.0 +cgfloat-zero+)
-                           (float 400.0 +cgfloat-zero+))))
-	 (let ((w (make-instance 
+    (let* ((r (ns:make-ns-rect 100 350 400 400))
+           (w (make-instance 
 		   'ns:ns-window
 		   :with-content-rect r
 		   :style-mask (logior #$NSTitledWindowMask 
@@ -84,12 +82,12 @@
 				       #$NSMiniaturizableWindowMask)
 		   :backing #$NSBackingStoreBuffered
 		   :defer t)))
-	   (send w :set-title #@"Tiny Window Application")
-	   (let ((my-view (make-instance 'demo-view :with-frame r)))
-	     (send w :set-content-view my-view)
-	     (send w :set-delegate my-view))
-	   (send w :make-key-and-order-front nil)
-	   w))))
+      (#/setTitle: w "Tiny Window Application")
+      (let ((my-view (make-instance 'demo-view :with-frame r)))
+        (#/setContentView: w my-view)
+        (#/setDelegate: w my-view))
+      (#/makeKeyAndOrderFront: w nil)
+      w)))
 
 
 ;;; Neither the windowWillClose method nor the main from the original Tiny
