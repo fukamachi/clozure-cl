@@ -190,7 +190,8 @@
                       nil
                       (list (new-package-name name))
                       nil
-                      (make-read-write-lock))))
+                      (make-read-write-lock)
+                      nil)))
       (use-package use pkg)
       (%add-nicknames nicknames pkg)
       (with-package-list-write-lock
