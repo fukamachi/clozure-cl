@@ -432,7 +432,10 @@
 ;;; faster than trying to be more clever about it would be.
 (defun %get-bitfield (ptr start-bit width)
   (declare (fixnum start-bit width))
-  (do* ((bit start-bit (1+ bit))
+  (do* ((bit #+big-endian-target start-bit
+             #+little-endian-target (the fixnum (1- (the fixnum (+ start-bit width))))
+             #+big-endian-target (1+ bit)
+             #+little-endian-target (1- bit))
 	(i 0 (1+ i))
 	(val 0))
        ((= i width) val)
@@ -442,7 +445,10 @@
 (defun %set-bitfield (ptr start width val)
   (declare (fixnum val start width))
   (do* ((v val (ash v -1))
-	(bit (1- (+ start width)) (1- bit))
+	(bit #+big-endian-target (1- (+ start width))
+             #+little-endian-target start
+             #+big-endian-target (1- bit)
+             #+little-endian-target (1+ bit))
 	(i 0 (1+ i)))
        ((= i width) val)
     (declare (fixnum v bit i))
