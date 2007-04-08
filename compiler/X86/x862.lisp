@@ -4650,7 +4650,7 @@
          (diff (%i- current-catch target-catch))
          target
          (exit-vstack current-vstack))
-    (declare (ignore-if-unused target))
+    (declare (ignorable target))
     (when (neq 0 diff)
       (setq exit-vstack (x862-nlexit seg xfer diff))
       (multiple-value-setq (target current-cstack current-vstack)
@@ -8058,13 +8058,13 @@
                 (x862-vpush-register seg temp))
               (setq restloc (%i+ restloc *x862-target-node-size*))))
           (x862-set-nargs seg (length rest-arg))
+          (x862-set-vstack restloc)
           (if (%ilogbitp $vbitdynamicextent (nx-var-bits rest))
             (progn
               (! stack-cons-list)
               (x862-open-undo $undostkblk))
             (! list))
-          (x862-vpush-register seg x8664::arg_z)
-          (x862-set-vstack (%i+ restloc *x862-target-node-size*)))
+          (x862-vpush-register seg x8664::arg_z))
         (when rest (x862-bind-var seg rest restloc))
         (destructuring-bind (vars inits) auxen
           (while vars
@@ -8892,6 +8892,67 @@
       (! fixnum->double-float dreg r)
       (<- dreg)
       (^))))
+
+(defx862 x862-%double-float %double-float (seg vreg xfer arg)
+  (let* ((real (or (acode-fixnum-form-p arg)
+                   (let* ((form (acode-unwrapped-form arg)))
+                     (if (and (acode-p form)
+                              (eq (acode-operator form)
+                                  (%nx1-operator immediate))
+                              (typep (cadr form) 'real))
+                       (cadr form))))))
+    (if real
+      (x862-immediate seg vreg xfer (float real 0.0d0))
+      (if (x862-form-typep arg 'single-float)
+        (x862-use-operator (%nx1-operator %single-to-double)
+                           seg
+                           vreg
+                           xfer
+                           arg)
+        (if (x862-form-typep arg 'fixnum)
+          (x862-use-operator (%nx1-operator %fixnum-to-double)
+                             seg
+                             vreg
+                             xfer
+                             arg)
+          (x862-use-operator (%nx1-operator call)
+                             seg
+                             vreg
+                             xfer
+                             (make-acode (%nx1-operator immediate)
+                                         '%double-float)
+                             (list nil (list arg))))))))
+
+(defx862 x862-%single-float %single-float (seg vreg xfer arg)
+  (let* ((real (or (acode-fixnum-form-p arg)
+                   (let* ((form (acode-unwrapped-form arg)))
+                     (if (and (acode-p form)
+                              (eq (acode-operator form)
+                                  (%nx1-operator immediate))
+                              (typep (cadr form) 'real))
+                       (cadr form))))))
+    (if real
+      (x862-immediate seg vreg xfer (float real 0.0f0))
+      (if (x862-form-typep arg 'double-float)
+        (x862-use-operator (%nx1-operator %double-to-single)
+                           seg
+                           vreg
+                           xfer
+                           arg)
+        (if (x862-form-typep arg 'fixnum)
+          (x862-use-operator (%nx1-operator %fixnum-to-single)
+                             seg
+                             vreg
+                             xfer
+                             arg)
+          (x862-use-operator (%nx1-operator call)
+                             seg
+                             vreg
+                             xfer
+                             (make-acode (%nx1-operator immediate)
+                                         '%short-float)
+                             (list nil (list arg))))))))
+    
 
 ;------
 
