@@ -62,7 +62,7 @@
   vector-decode-function                ;(VECTOR INDEX NOCTETS STRING)
   
   ;; Sets one or more units in memory at the address denoted by
-  ;; the pointer and idx arguments and returns (+ idx number of
+  ;; the pointer and index arguments and returns (+ idx number of
   ;; units written to memory), else returns NIL if any character
   ;; can't be encoded.
   memory-encode-function                ;(STRING POINTER INDEX START END)
@@ -103,6 +103,9 @@
   ;; What does a native byte-order-mark look like (as a sequence of octets)
   ;; in this encoding ? (NIL if a BOM can't be encoded.)
   (bom-encoding nil)
+  ;; How is #\NUL encoded, as a sequence of octets ?  (Typically, as a minimal-
+  ;; length sequenve of 0s, but there are exceptions.)
+  (nul-encoding #(0))
   )
 
 (defconstant byte-order-mark #\u+feff)
@@ -3273,6 +3276,7 @@ interpreted on input or prepended to output."
              (return (values nchars i))
              (setq i nexti nchars (1+ nchars)))))))
     :literal-char-code-limit #x10000
+    :nul-encoding #(0 0)
     )
 
 ;;; utf-16, reversed byte order
@@ -3435,6 +3439,7 @@ interpreted on input or prepended to output."
            (return (values nchars i))
            (setq i nexti nchars (1+ nchars)))))))
   :literal-char-code-limit #x10000
+  :nul-encoding #(0 0)
   )
 
 ;;; UTF-16.  Memory and vector functions determine endianness of
@@ -3649,6 +3654,7 @@ in native byte-order with a leading byte-order mark."
   #+big-endian-target :utf-16le
   #+little-endian-target :utf-16be
   :bom-encoding #+big-endian-target #(#xfe #xff) #+little-endian-target #(#xff #xfe)
+  :nul-encoding #(0 0)
   )
 
 
@@ -3769,6 +3775,7 @@ to output."
      (declare (ignore pointer))
      (values (floor noctets 2) (+ start noctets))))
   :literal-char-code-limit #x10000
+  :nul-encoding #(0 0)
   )
 
 ;;; UCS-2, reversed byte order
@@ -3866,6 +3873,7 @@ to output."
      (declare (ignore pointer))
      (values (floor noctets 2) (+ start noctets))))
   :literal-char-code-limit #x10000
+  :nul-encoding #(0 0)
   )
 
 (define-character-encoding :ucs-2
@@ -3988,6 +3996,7 @@ big-endian order."
   :use-byte-order-mark
   #+big-endian-target :ucs-2le
   #+little-endian-target :ucs-2be
+  :nul-encoding #(0 0)
   )
 
 
@@ -4169,6 +4178,7 @@ or prepended to output."
      (declare (ignore pointer))
      (values (floor noctets 4) (+ start noctets))))
   :literal-char-code-limit #x110000
+  :nul-encoding #(0 0 0 0)
   )
 
 ;;; UTF-32/UCS-4, reversed byte order
@@ -4265,6 +4275,7 @@ or prepended to output."
      (declare (ignore pointer))
      (values (floor noctets 4) (+ start noctets))))
   :literal-char-code-limit #x110000
+  :nul-encoding #(0 0 0 0)  
   )
 
 (define-character-encoding :utf-32
@@ -4388,7 +4399,7 @@ or prepended to output."
   #+big-endian-target :utf-32le
   #+little-endian-target :utf-32be
   :bom-encoding #+big-endian-target #(#x00 #x00 #xfe #xff) #+little-endian-target #(#xff #xfe #x00 #x00)
-  
+  :nul-encoding #(0 0 0 0)  
   )
 
 (defun describe-character-encoding (name)
@@ -4422,6 +4433,7 @@ or prepended to output."
 (defvar *unicode-newline-string* (make-string 1 :initial-element #\Line_Separator))
 (defvar *cr-newline-string* (make-string 1 :initial-element #\Return))
 (defvar *crlf-newline-string* (make-array 2 :element-type 'character :initial-contents '(#\Return #\Linefeed)))
+(defvar *nul-string (make-string 1 :initial-element #\Nul))
 
 (defun string-size-in-octets (string &key
                                      (start 0)
@@ -4526,6 +4538,8 @@ or prepended to output."
                     nlpos (position #\Newline simple-string :start start :end end)))))
         (values vector vector-offset)))))
 
+
+
 (defun count-characters-in-octet-vector (vector &key
                                                 (start 0)
                                                 end
@@ -4577,7 +4591,7 @@ or prepended to output."
                               
                                      
 (defun cstring-encoded-length-in-bytes (encoding string start end)
-  (+ 1                             ; NULL terminator
+  (+ (length (character-encoding-nul-encoding encoding))                             ; NUL terminator
      (funcall (character-encoding-octets-in-string-function encoding)
               string
               (or start 0)
