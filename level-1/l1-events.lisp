@@ -111,7 +111,7 @@
 
 
 
-(defglobal *running-periodic-tasks* nil)
+(defstatic *running-periodic-tasks* nil)
 
 (defun cmain ()
   (thread-handle-interrupts))
