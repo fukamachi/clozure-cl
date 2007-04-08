@@ -95,7 +95,6 @@
     (if (consp pp)
       (%cdr pp))))
 
-
 (defun set-type-predicate (name function)
   (let* ((bits (%symbol-bits name))
          (symvec (symptr->symvector (%symbol->symptr name)))
@@ -105,7 +104,8 @@
       (%rplacd spp function)
       (progn
         (%symbol-bits name (the fixnum (bitset $sym_vbit_typeppred bits)))
-        (setf (%svref symvec target::symbol.package-predicate-cell) (cons spp function))))))
+        (setf (%svref symvec target::symbol.package-predicate-cell) (cons spp function))))
+    function))
 
 (defun symbol-value (sym)
   "Return SYMBOL's current bound value."
