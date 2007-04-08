@@ -1016,7 +1016,7 @@ terminate the list"
 
 
 
-(defglobal %pascal-functions%
+(defstatic %pascal-functions%
     #(NIL NIL NIL NIL NIL NIL NIL NIL
       NIL NIL NIL NIL NIL NIL NIL NIL
       NIL NIL NIL NIL NIL NIL NIL NIL
@@ -1121,6 +1121,11 @@ of 32KBytes in earlier versions.)"
     (if clear-p
       (#_bzero p size))
     p))
+
+(defun %gcable-ptr-p (p)
+  (and (typep p 'macptr)
+       (= (uvsize p) target::xmacptr.element-count)))
+
 
 ;True for a-z.
 (defun lower-case-p (c)
