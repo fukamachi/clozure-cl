@@ -1038,34 +1038,66 @@ bogus_signal_handler()
 #endif
 
 void
-altstack_signal_handler(int signum, siginfo_t *info, ExceptionInformation  *context)
-{
-  TCR* tcr = get_tcr(true);
-  LispObj *foreign_rsp = find_foreign_rsp(xpGPR(context,Isp), tcr->cs_area, tcr);
-#if 1
-  if (tcr->valence != TCR_STATE_LISP) {
-    Bug(context, "exception in foreign context");
-  }
+handle_signal_on_foreign_stack(TCR *tcr,
+                               void *handler, 
+                               int signum, 
+                               siginfo_t *info, 
+                               ExceptionInformation *context,
+                               LispObj return_address
+#ifdef DARWIN_GS_HACK
+                               , Boolean gs_was_tcr
 #endif
+                               )
+{
 #ifdef LINUX
   fpregset_t fpregs = NULL;
 #else
   void *fpregs = NULL;
 #endif
+#ifdef DARWIN
+  MCONTEXT_T mcontextp = NULL;
+#endif
   siginfo_t *info_copy = NULL;
   ExceptionInformation *xp = NULL;
+  LispObj *foreign_rsp = find_foreign_rsp(xpGPR(context,Isp), tcr->cs_area, tcr);
 
-  if (foreign_rsp) {
 #ifdef LINUX
-    foreign_rsp = copy_fpregs(context, foreign_rsp, &fpregs);
+  foreign_rsp = copy_fpregs(context, foreign_rsp, &fpregs);
 #endif
-    foreign_rsp = copy_siginfo(info, foreign_rsp);
-    info_copy = (siginfo_t *)foreign_rsp;
-    foreign_rsp = copy_ucontext(context, foreign_rsp, fpregs);
-    xp = (ExceptionInformation *)foreign_rsp;
-    *--foreign_rsp = (LispObj)__builtin_return_address(0);
-    switch_to_foreign_stack(foreign_rsp,signal_handler,signum,info_copy,xp);
+#ifdef DARWIN
+  foreign_rsp = copy_darwin_mcontext(UC_MCONTEXT(context), foreign_rsp, &mcontextp);
+#endif
+  foreign_rsp = copy_siginfo(info, foreign_rsp);
+  info_copy = (siginfo_t *)foreign_rsp;
+  foreign_rsp = copy_ucontext(context, foreign_rsp, fpregs);
+  xp = (ExceptionInformation *)foreign_rsp;
+#ifdef DARWIN
+  UC_MCONTEXT(xp) = mcontextp;
+#endif
+  *--foreign_rsp = return_address;
+#ifdef DARWIN_GS_HACK
+  if (gs_was_tcr) {
+    set_gs_address(tcr);
   }
+#endif
+  switch_to_foreign_stack(foreign_rsp,handler,signum,info_copy,xp);
+}
+
+
+void
+altstack_signal_handler(int signum, siginfo_t *info, ExceptionInformation  *context)
+{
+  TCR* tcr = get_tcr(true);
+#if 1
+  if (tcr->valence != TCR_STATE_LISP) {
+    Bug(context, "exception in foreign context");
+  }
+#endif
+  handle_signal_on_foreign_stack(tcr,signal_handler,signum,info,context,(LispObj)__builtin_return_address(0)
+#ifdef DARWIN_GS_HACK
+                                 , false
+#endif
+);
 }
 
 void
@@ -1133,6 +1165,43 @@ interrupt_handler (int signum, siginfo_t *info, ExceptionInformation *context)
   SIGRETURN(context);
 }
 
+#ifndef USE_SIGALTSTACK
+void
+arbstack_interrupt_handler (int signum, siginfo_t *info, ExceptionInformation *context)
+{
+#ifdef DARWIN_GS_HACK
+  Boolean gs_was_tcr = ensure_gs_pthread();
+#endif
+  TCR *tcr = get_interrupt_tcr(false);
+  area *vs = tcr->vs_area;
+  BytePtr current_sp = (BytePtr) current_stack_pointer();
+
+  if ((current_sp >= vs->low) &&
+      (current_sp < vs->high)) {
+    handle_signal_on_foreign_stack(tcr,
+                                   interrupt_handler,
+                                   signum,
+                                   info,
+                                   context,
+                                   (LispObj)__builtin_return_address(0)
+#ifdef DARWIN_GS_HACK
+                                   ,gs_was_tcr
+#endif
+                                   );
+  } else {
+    /* If we're not on the value stack, we pretty much have to be on
+       the C stack.  Just run the handler. */
+#ifdef DARWIN_GS_HACK
+    if (gs_was_tcr) {
+      set_gs_address(tcr);
+    }
+#endif
+    interrupt_handler(signum, info, context);
+  }
+}
+
+#else /* altstack works */
+  
 void
 altstack_interrupt_handler (int signum, siginfo_t *info, ExceptionInformation *context)
 {
@@ -1140,41 +1209,14 @@ altstack_interrupt_handler (int signum, siginfo_t *info, ExceptionInformation *c
   Boolean gs_was_tcr = ensure_gs_pthread();
 #endif
   TCR *tcr = get_interrupt_tcr(false);
-  LispObj *foreign_rsp = find_foreign_rsp(xpGPR(context,Isp), tcr->cs_area, tcr);
-#ifdef LINUX
-  fpregset_t fpregs = NULL;
-#else
-  void *fpregs = NULL;
-#endif
-#ifdef DARWIN
-  MCONTEXT_T mcontextp = NULL;
-#endif
-  siginfo_t *info_copy = NULL;
-  ExceptionInformation *xp = NULL;
-
-  if (foreign_rsp) {
-#ifdef LINUX
-    foreign_rsp = copy_fpregs(context, foreign_rsp, &fpregs);
-#endif
-#ifdef DARWIN
-    foreign_rsp = copy_darwin_mcontext(UC_MCONTEXT(context), foreign_rsp, &mcontextp);
-#endif
-    foreign_rsp = copy_siginfo(info, foreign_rsp);
-    info_copy = (siginfo_t *)foreign_rsp;
-    foreign_rsp = copy_ucontext(context, foreign_rsp, fpregs);
-    xp = (ExceptionInformation *)foreign_rsp;
-#ifdef DARWIN
-    UC_MCONTEXT(xp) = mcontextp;
-#endif
-    *--foreign_rsp = (LispObj)__builtin_return_address(0);
+  handle_signal_on_foreign_stack(tcr,interrupt_handler,signum,info,context,(LispObj)__builtin_return_address(0)
 #ifdef DARWIN_GS_HACK
-    if (gs_was_tcr) {
-      set_gs_address(tcr);
-    }
+                                 ,gs_was_tcr
 #endif
-    switch_to_foreign_stack(foreign_rsp,interrupt_handler,signum,info_copy,xp);
-  }
+                                 );
 }
+
+#endif
 
 
 void
@@ -1194,7 +1236,9 @@ install_signal_handler(int signo, void * handler)
 #endif
   sa.sa_flags = 
     SA_RESTART
+#ifdef USE_SIGALTSTACK
     | SA_ONSTACK
+#endif
     | SA_SIGINFO;
 
   sigaction(signo, &sa, NULL);
@@ -1220,11 +1264,52 @@ install_pmcl_exception_handlers()
 #endif
   
   install_signal_handler(SIGNAL_FOR_PROCESS_INTERRUPT,
-			 altstack_interrupt_handler);
+#ifdef USE_SIGALTSTACK
+			 altstack_interrupt_handler
+#else
+                         arbstack_interrupt_handler
+#endif
+);
   signal(SIGPIPE, SIG_IGN);
 }
 
+#ifndef USE_SIGALTSTACK
+void
+arbstack_suspend_resume_handler(int signum, siginfo_t *info, ExceptionInformation  *context)
+{
+#ifdef DARWIN_GS_HACK
+  Boolean gs_was_tcr = ensure_gs_pthread();
+#endif
+  TCR *tcr = get_interrupt_tcr(false);
+  area *vs = tcr->vs_area;
+  BytePtr current_sp = (BytePtr) current_stack_pointer();
 
+  if ((current_sp >= vs->low) &&
+      (current_sp < vs->high)) {
+    handle_signal_on_foreign_stack(tcr,
+                                   suspend_resume_handler,
+                                   signum,
+                                   info,
+                                   context,
+                                   (LispObj)__builtin_return_address(0)
+#ifdef DARWIN_GS_HACK
+                                   ,gs_was_tcr
+#endif
+                                   );
+  } else {
+    /* If we're not on the value stack, we pretty much have to be on
+       the C stack.  Just run the handler. */
+#ifdef DARWIN_GS_HACK
+    if (gs_was_tcr) {
+      set_gs_address(tcr);
+    }
+#endif
+    suspend_resume_handler(signum, info, context);
+  }
+}
+
+
+#else /* altstack works */
 void
 altstack_suspend_resume_handler(int signum, siginfo_t *info, ExceptionInformation  *context)
 {
@@ -1232,45 +1317,22 @@ altstack_suspend_resume_handler(int signum, siginfo_t *info, ExceptionInformatio
   Boolean gs_was_tcr = ensure_gs_pthread();
 #endif
   TCR* tcr = get_tcr(true);
-  LispObj *foreign_rsp = find_foreign_rsp(xpGPR(context,Isp), tcr->cs_area, tcr);
-#ifdef LINUX
-  fpregset_t fpregs = NULL;
-#else
-  void *fpregs = NULL;
-#endif
-#ifdef DARWIN
-  MCONTEXT_T mcontextp = NULL;
-#endif
-
-  siginfo_t *info_copy = NULL;
-  ExceptionInformation *xp = NULL;
-
-  if (foreign_rsp) {
-#ifdef LINUX
-    foreign_rsp = copy_fpregs(context, foreign_rsp, &fpregs);
-#endif
-#ifdef DARWIN
-    foreign_rsp = copy_darwin_mcontext(UC_MCONTEXT(context), foreign_rsp, &mcontextp);
-#endif
-    foreign_rsp = copy_siginfo(info, foreign_rsp);
-    info_copy = (siginfo_t *)foreign_rsp;
-    foreign_rsp = copy_ucontext(context, foreign_rsp, fpregs);
-    xp = (ExceptionInformation *)foreign_rsp;
-#ifdef DARWIN
-    UC_MCONTEXT(xp) = mcontextp;
-#endif
-    *--foreign_rsp = (LispObj)__builtin_return_address(0);
+  handle_signal_on_foreign_stack(tcr,
+                                 suspend_resume_handler,
+                                 signum,
+                                 info,
+                                 context,
+                                 (LispObj)__builtin_return_address(0)
 #ifdef DARWIN_GS_HACK
-    if (gs_was_tcr) {
-      set_gs_address(tcr);
-    }
+                                 ,gs_was_tcr
 #endif
-    switch_to_foreign_stack(foreign_rsp,suspend_resume_handler,signum,info_copy,xp);
-  }
+                                 );
 }
 
+#endif
+
 void
-quit_handler(int signum, siginfo_t info, ExceptionInformation *xp)
+quit_handler(int signum, siginfo_t *info, ExceptionInformation *xp)
 {
   TCR *tcr = get_tcr(false);
   area *a;
@@ -1299,6 +1361,42 @@ quit_handler(int signum, siginfo_t info, ExceptionInformation *xp)
   pthread_exit(NULL);
 }
 
+#ifndef USE_SIGALTSTACK
+arbstack_quit_handler(int signum, siginfo_t *info, ExceptionInformation *context)
+{
+#ifdef DARWIN_GS_HACK
+  Boolean gs_was_tcr = ensure_gs_pthread();
+#endif
+  TCR *tcr = get_interrupt_tcr(false);
+  area *vs = tcr->vs_area;
+  BytePtr current_sp = (BytePtr) current_stack_pointer();
+
+  if ((current_sp >= vs->low) &&
+      (current_sp < vs->high)) {
+    handle_signal_on_foreign_stack(tcr,
+                                   quit_handler,
+                                   signum,
+                                   info,
+                                   context,
+                                   (LispObj)__builtin_return_address(0)
+#ifdef DARWIN_GS_HACK
+                                   ,gs_was_tcr
+#endif
+                                   );
+  } else {
+    /* If we're not on the value stack, we pretty much have to be on
+       the C stack.  Just run the handler. */
+#ifdef DARWIN_GS_HACK
+    if (gs_was_tcr) {
+      set_gs_address(tcr);
+    }
+#endif
+    quit_handler(signum, info, context);
+  }
+}
+
+
+#else
 void
 altstack_quit_handler(int signum, siginfo_t *info, ExceptionInformation *context)
 {
@@ -1306,37 +1404,26 @@ altstack_quit_handler(int signum, siginfo_t *info, ExceptionInformation *context
   Boolean gs_was_tcr = ensure_gs_pthread();
 #endif
   TCR* tcr = get_tcr(true);
-  LispObj *foreign_rsp = find_foreign_rsp(xpGPR(context,Isp), tcr->cs_area, tcr);
-#ifdef LINUX
-  fpregset_t fpregs = NULL;
-#else
-  void *fpregs = NULL;
+  handle_signal_on_foreign_stack(tcr,
+                                 quit_handler,
+                                 signum,
+                                 info,
+                                 context,
+                                 (LispObj)__builtin_return_address(0)
+#ifdef DARWIN_GS_HACK
+                                 ,gs_was_tcr
 #endif
-#ifdef DARWIN
-  MCONTEXT_T mcontextp = NULL;
-#endif
-
-  siginfo_t *info_copy = NULL;
-  ExceptionInformation *xp = NULL;
-
-  if (foreign_rsp) {
-#ifdef LINUX
-    foreign_rsp = copy_fpregs(context, foreign_rsp, &fpregs);
-#endif
-#ifdef DARWIN
-    foreign_rsp = copy_darwin_mcontext(UC_MCONTEXT(context), foreign_rsp, &mcontextp);
-#endif
-    foreign_rsp = copy_siginfo(info, foreign_rsp);
-    info_copy = (siginfo_t *)foreign_rsp;
-    foreign_rsp = copy_ucontext(context, foreign_rsp, fpregs);
-    xp = (ExceptionInformation *)foreign_rsp;
-#ifdef DARWIN
-    UC_MCONTEXT(xp) = mcontextp;
-#endif
-    *--foreign_rsp = (LispObj)__builtin_return_address(0);
-    switch_to_foreign_stack(foreign_rsp,quit_handler,signum,info_copy,xp);
-  }
+                                 );
 }
+#endif
+
+#ifdef USE_SIGALTSTACK
+#define SUSPEND_RESUME_HANDLER altstack_suspend_resume_handler
+#define QUIT_HANDLER altstack_quit_handler
+#else
+#define SUSPEND_RESUME_HANDLER arbstack_suspend_resume_handler
+#define QUIT_HANDLER arbstack_quit_handler
+#endif
 
 void
 thread_signal_setup()
@@ -1344,9 +1431,9 @@ thread_signal_setup()
   thread_suspend_signal = SIG_SUSPEND_THREAD;
   thread_resume_signal = SIG_RESUME_THREAD;
 
-  install_signal_handler(thread_suspend_signal, (void *)altstack_suspend_resume_handler);
-  install_signal_handler(thread_resume_signal, (void *)altstack_suspend_resume_handler);
-  install_signal_handler(SIGQUIT, (void *)altstack_quit_handler);
+  install_signal_handler(thread_suspend_signal, (void *)SUSPEND_RESUME_HANDLER);
+  install_signal_handler(thread_resume_signal, (void *)SUSPEND_RESUME_HANDLER);
+  install_signal_handler(SIGQUIT, (void *)QUIT_HANDLER);
 }
 
 
@@ -1402,6 +1489,7 @@ restore_soft_stack_limit(unsigned restore_tsp)
 }
 
 
+#ifdef USE_SIGALTSTACK
 void
 setup_sigaltstack(area *a)
 {
@@ -1411,8 +1499,12 @@ setup_sigaltstack(area *a)
   stack.ss_size = 8192;
   stack.ss_flags = 0;
   mmap(stack.ss_sp,stack.ss_size, PROT_READ|PROT_WRITE|PROT_EXEC,MAP_FIXED|MAP_ANON|MAP_PRIVATE,-1,0);
-  sigaltstack(&stack, NULL);
+  if (sigaltstack(&stack, NULL) != 0) {
+    perror("sigaltstack");
+    exit(-1);
+  }
 }
+#endif
 
 extern opcode egc_write_barrier_start, egc_write_barrier_end,
   egc_store_node_conditional_success_test,egc_store_node_conditional,
