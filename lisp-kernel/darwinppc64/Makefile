@@ -61,7 +61,7 @@ COPT = #-O2
 .s.o:
 	$(M4) $(M4FLAGS) -I../ $< | $(AS) $(ASFLAGS) -o $@
 .c.o:
-	$(CC) -c $< -m64 $(CDEFINES) $(CDEBUG) $(COPT) $(MDYNAMIC_NO_PIC) -o $@
+	$(CC) -c  $< -arch ppc64 -m64 $(CDEFINES) $(CDEBUG) $(COPT) $(MDYNAMIC_NO_PIC) -o $@
 
 SPOBJ = ppc-spjump.o ppc-spentry.o ppc-subprims.o 
 ASMOBJ = ppc-asmutils.o imports.o
