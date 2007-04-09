@@ -1,3 +1,450 @@
+OpenMCL 1.1-pre-070408
+- The FASL version changed (old FASL files won't work with this
+  lisp version), as did the version information which tries to
+  keep the kernel in sync with heap images.  Note that it's generally
+  a lot easier to recompile recent sources with recent images, e.g.,
+  trying to compile 070408 sources with an 070214 image is unlikely
+  to work without tricky bootstrapping.
+- There's now a Trac bug-tracking/wiki site for OpenMCL at 
+  <http://trac.clozure.com/openmcl>.  It needs bug reports; please
+  visit that site and use the features there to report any bugs
+  that you find.
+- DEFSTATIC (aka DEFGLOBAL)
+  (CCL:DEFSTATIC var value &optional doc-string)
+  is like DEFPARAMETER in that it proclaims the variable "var" to
+  be special, sets its value to "value", and sets the symbol's
+  VARIABLE documentation to the optional doc-string.  It differs
+  from DEFPARAMETER in that it further asserts that the variable
+  should never be bound dynamically in any thread (via LET/LAMBDA/etc.);
+  the compiler treats any attempts to bind a "static" variable as an
+  error.
+  It is legal to change the value of a "static" variable, but since
+  all threads see the same (static) binding of that variable it may
+  be necessary to synchronize assignments made from multiple threads.
+  (A "static" variable binding is effectively a shared, global resource;
+  a dynamic binding is thread-private.)
+  Access to the value of a static variable is typically faster than
+  is access to the value a special variable that's not proclaimed to
+  be "static".
+  This functionality has been in MCL/OpenMCL for a long time under
+  the name CCL:DEFGLOBAL; CCL:DEFGLOBAL is an alias for CCL:DEFSTATIC,
+  but the latter seemed to be a better name.
+- The type of foreign object that a MACPTR points to can now be
+  asserted (this means that a MACPTR object can contain a small
+  integer which identifies the alleged FOREIGN-TYPE of the object that
+  the points to.  RLET, MAKE-RECORD, and MAKE-GCABLE-RECORD (see below)
+  assert the foreign type of the object that the MACPTR object they
+  create (as do some new features of the ObjC bridge, described further
+  below.)
+  PRINT-OBJECT on a MACPTR will try to print information about the
+  asserted type of that pointer, as well as information about where
+  the pointer was allocated (heap, stack) and whether it's scheduled
+  for automatic reclamation by the GC.
+  A few constructs that conceivable should assert the type of the
+  pointers they create (e.g., some flavor of PREF, SLOT-VALUE in
+  the ObjC bridge) don't yet do so.
+  A rather obvious way of exploiting typed pointers - namely, extending
+  DESCRIBE and INSPECT to show the contents of foreign records - is
+  not yet implemented.
+- MAKE-GCABLE-RECORD is like MAKE-RECORD, in that it "makes an instance
+  of a foreign record type".  (Or, to be more banal about it, uses
+  #_malloc to allocate a block of foreign memory of the size of the
+  foreign record type named by its argument.)  MAKE-GCABLE-RECORD
+  additionally tells the lisp garbage collector that it should free
+  the foreign memory when the MACPTR object that describes it becomes
+  garbage.
+  When using "gcable pointers", it's important to remember the
+  distinction between a MACPTR object (which is a lisp object, more-
+  or-less like any other) and the block of foreign memory that the
+  MACPTR object points to.  If a gcable MACPTR is the only thing
+  in the world ("lisp world" or "foreign world") that references
+  the underlying block of foreign memory, then freeing the foreign
+  memory when it becomes impossible to reference it is convenient
+  and sane.  If other lisp MACPTRs reference the underlying block
+  of foreign memory or if the address of that foreign memory is
+  passed to and retained by foreign code, having the GC free the
+  memory may have unpleasant consequences if those other references
+  are used.
+- CCL:FREE (which is mostly just a wrapper around #_free that allows
+  #_free to be called early in the bootstrapping process) is now 
+  exported; if its argument is a gcable pointer (e.g., created via
+  MAKE-GCABLE-POINTER), it will tell the GC that the pointer's
+  foreign memory has been freed "manually" before calling #_free.
+- The mechanisms used to implement locks has changed (for the curious,
+  the changes involve the use of spinlocks rather than a sequence
+  of atomic additions.)  Someone demonstrated a case of deadlock
+  (where a thread was waiting for a lock that was available) under
+  the old implementation.  I'm not sure that I fully understand how
+  that could have happened, but the new implementation at least has
+  the advantage of being a little easier to understand and might be
+  a tiny bit faster.  Please let me know if either of these assumptions
+  was incorrect.
+- An EOF (control-d) in the REPL (when standard input is a tty or pty
+  device) has traditionally caused an exit to the outer break loop
+  (or had no effect if the REPL was not in a break loop).  If
+  CCL:*QUIT-ON-EOF* is set, an EOF causes the lisp to quit.  (It
+  actually invokes a listener-specific method, so in a multi-listener
+  window system environemt, it might simply cause the listener which
+  receives the EOF to exit.)
+  None of this has any effect when running under environments like
+  SLIME, and (as mentioned above) only matters if the standard input
+  devices is a tty or pseudo-tty (where it's possible to continue
+  reading after an EOF has been read.)  If running under an xterm
+  or OSX Terminal.app, standard input is probably a pty; if running
+  in an Emacs shell buffer or under other means under emacs, different
+  types of IPC mechanisms (pipes, sockets) might be used.
+- SAVE-APPLICATION has historically changed the type of all MACPTR
+  objects (turning them into "dead macptrs", since it's generally
+  meaningless to refer to a foreign pointer from a previous session
+  and generally better to get a type error than some more mysterious
+  or severe failure).  This no longer happens for null pointers (pointers
+  to address 0); COMPILE-FILE also now allows null pointers to be referenced
+  as constants in compiled code.
+- Not entirely coincidentally, CCL:+NULL-PTR+ is now defined as a constant
+  (whose value is a null pointer.)  In some cases, it may be more
+  efficient or convenient to pass CCL:+NULL-PTR+ to foreign code than
+  it would be to call (CCL:%NULL-PTR) to "produce" one.
+- Historically, OpenMCL (and MCL) have maintained a list of open file
+  streams in the value of CCL:*OPEN-FILE-STREAMS*; maintaining this
+  list helps to ensure that streams get closed in as orderly a manner
+  as possible when the lisp exits.  The code which accessed this list
+  didn't do so in a thread-safe manner.
+  The list is now maintained in a lexical variable; the function
+  CCL:OPEN-FILE-STREAMS returns a copy of that list, 
+  CCL:NOTE-OPEN-FILE-STREAM adds its argument (a file stream) to the
+  list, and CCL:REMOVE-OPEN-FILE-STREAM removes its argument (a file stream)
+  from the list.  (All of these functions use appropriate locking.)
+- There were a number of timing-related problems related to PROCESS-INTERRUPT
+  (usually involving rapidly and repeatedly interrupting a thread over
+  a long period of time.)  This should be a lot more reliable now
+  (exactly what could go wrong and why and how is all a little hard to
+  describe.) 
+- Some Linux distributions may initialize the user's environment in
+  a way that imposes a soft limit on the amount of virtual memory that
+  a process is allowed to map.  OpenMCL now tries to raise this limit
+  before reserving what may be a very large amount of address space,
+  thanks to a patch from Andi Kleen.
+- There were a number of problems with UTF-16 streams, found and
+  fixed by Takehiko Abe.
+- Takehiko Abe also provided fixes for some code in "ccl:lib;xref.lisp"
+  and in source-file recording/reporting that (still) didn't understand
+  the concept of EQL-SPECIALIZER metaobjects.
+- ObjC bridge and ObjC examples
+  The ObjC bridge provides a few new mechanisms for defining ObjC
+  methods, for calling ObjC "generic functions" (e.g., message sending),
+  and for dealing with frequently-used record types and with differences
+  between 32-bit and (forthcoming) 64-bit ObjC/Cocoa implementations.
+  
+  A lot of macros/functions/other things that really should have been
+  exported from some package for the last few years finally have been
+  exported from the OBJC or NS packages (and a lot of things that have
+  historically been internal to CCL are re-imported into CCL).
+
+  Cocoa (and the underlying Core Graphics libraries) have historically
+  used 32-bit floats and 32-bit integers in data structures that describe
+  geometry, font sizes and metrics, and elsewhere.  64-bit Cocoa will
+  use 64-bit floats and 64-bit integers in many cases.
+
+  The bridge defines the type NS:CGFLOAT as the lisp type of the 
+  preferred float type on the platform, and the constant NS:+CGFLOAT+.
+  On DarwinPPC32, the foreign types :cgfloat, :<NSUI>nteger, and
+  :<NSI>nteger are defined by the bridge (as 32-bit float, 32-bit
+  unsigned integer, and 32-bit signed integer, respectively.); these 
+  types are defined (as 64-bit variants) in the 64-bit interfaces.
+
+  All ObjC classes are properly named, either with a name exported
+  from the NS package (in the case of a predefined class declared in
+  the interface files) or with the name provided in the DEFCLASS
+  form (with :METACLASS NS:+NS-OBJECT) which defines the class from
+  lisp.  The class's lisp name is now proclaimed to be a "static"
+  variable (as if by DEFSTATIC, as described above) and given the
+  class object as its value.  In other words:
+
+(send (find-class 'ns:ns-application) 'shared-application)
+
+  and
+
+(send ns:ns-application 'shared-application)
+
+  are equivalent.  (Since it's not legal to bind a "static" variable,
+  it may be necessary to rename some things so that unrelated
+  variables whose names coincidentally conflict with ObjC class names
+  don't do so.)
+
+- A new reader macro - #/ - reads a sequence of "constituent" characters
+  (including colons) from the stream on which it appears and interns
+  that sequence - with case preserved and colons intact - in a new package
+  whose name is NEXTSTEP-FUNCTIONS, exporting the symbol from that package.
+  This means that the act of reading "#/alloc" returns the the symbol
+  NEXTSTEP-FUNCTIONS:|alloc|, and the act of reading "#/initWithFrame:"
+  returns the symbol NEXTSTEP-FUNCTIONS:|initWithFrame:|.  The intent
+  is that the reader macro can be used to construct symbols whose names
+  match ObjC message names; the reader macro tries to do some sanity
+  checks (such as insisting that a name that contains at least one
+  colon ends in a colon), but isn't totally rigourous about enforcing
+  ObjC message name conventions.
+
+  A symbol read using this macro can be used as an operand in
+  most places where an ObjC message name can be used, such as
+  in the (@SELECTOR ...) construct (which is now OBJC:@SELECTOR, 
+  btw.)
+
+  Marco Baringer proposed the idea of using a reader macro to
+  construct lisp symbols which matched ObjC message names.
+
+- The act of interning a new symbol in the NEXTSTEP-FUNCTIONS
+  package triggers an interface database lookup of Objc methods
+  with the corresponding message name.  If any such information
+  is found, a special type of dispatching function is created
+  and initialized and the weird-looking symbol is given that
+  dispatching function as its function definition.
+
+  The dispatching knows how to call declared ObjC methods defined on
+  the message.  In many cases, all methods have the same foreign type
+  signature, and the dispatching function merely passes any arguments
+  that it receives to a function that does an ObjC message send with
+  the indicated foreign argument and return types.  In other cases,
+  where different ObjC messages have different type signatures, the
+  dispatching function tries to choose a function that handles the
+  right type signature based on the class of the dispatching function's
+  first argument.
+
+  If new information about ObjC methods is introduced (e.g., by
+  using additional interface files or as ObjC methods are defined
+  from lisp), the dispatch function is reinitialized to recognize
+  newly-introduced foreign type signatures.
+
+  The argument and result coercion that the bridge has tradionally
+  supported is supported by the new mechanism (e.g., :<BOOL> arguments
+  can be specified as lisp booleans and :<BOOL> results are returned
+  as lisp boolean values, and an argument value of NIL is coerced to
+  a null pointer if the corresponding argument type is :ID.
+
+  Some ObjC methods accept variable numbers of arguments; the
+  foreign types of non-required arguments are determined by the
+  lisp types of those arguments (e.g., integers are passed as
+  integers, floats as floats, pointers as pointers, record types
+  by reference.)
+
+  Some examples:
+
+;;; #/alloc is a known message.
+? #'#/alloc
+#<OBJC-DISPATCH-FUNCTION NEXTSTEP-FUNCTIONS:|alloc| #x300040E94EBF>
+;;; Sadly, #/foo is not ...
+? #'#/foo
+> Error: Undefined function: NEXTSTEP-FUNCTIONS:|foo|
+
+;;; We can send an "init" message to a newly-allocated instance of
+;;; "NSObject" by:
+
+(send (send ns:ns-object 'alloc) 'init)
+
+;;; or by
+
+(#/init (#/alloc ns:ns-object))
+
+  ObjC methods that "return" structures return them as gcable pointers
+  when called via dispatch functions.  E.g., if "my-window" is an
+  NS:NS-WINDOW instance, then
+
+(#/frame my-window)
+
+  will return a gcable pointer to a structure that describes that window's
+  frame rectangle.  (The good news is that there's no need to use SLET
+  or special structure-returning message send syntax; the bad news is
+  that #_malloc, #_free, and the GC are all involved in the creation
+  and eventual destruction of structure-typed return values.  Unless
+  and until those factors negatively affect performance, the advantages
+  seem to outweigh the disadvantages.)
+
+- Since foreign pointers are now (sometimes, somewhat) typed, it's
+  possible to treat pointers to some foreign types as "instances of
+  built-in classes."  Specifically, a pointer to an :<NSR>ect is
+  recognized as an instance of the built-in class NS:NS-RECT, a
+  pointer to an <NSS>ize is treated as an instance of NS:NS-SIZE,
+  <NSP>oint is recognized as NS:NS-POINT, and <NSR>ange maps to
+  NS:NS-RANGE.  (There are a few other more obscure structure
+  types that get this treatment, and with a little more work the
+  mechanism could be made extensible.)
+
+  For each of these built-in classes:
+
+  - a PRINT-OBJECT method is defined
+
+  - a foreign type name derived from the class name (e.g., :NS-RECT
+    for NS:NS-RECT) is made an alias for the corresponding type
+    (so it's possible to say (RLET ((R :NS-RECT)) ...)).
+
+  - the class is is integrated into the type system (so that 
+    (TYPEP R 'NS:NS-RECT) is fairly efficently implemented.)
+
+  - inlined accessor and setf inverses are defined for the structure
+    type's fields.  In the case of an :<NSR>ect, the fields in question
+    are the fields of the embedded point and size, so NS:NS-RECT-X,
+    NS:NS-RECT-Y, NS:NS-RECT-WIDTH, NS-RECT-HEIGHT and SETF inverses
+    are defined.  The accessors and setter functions typecheck their
+    arguments and the setters handle coercion to the approprate type
+    of CGFLOAT where applicable.
+
+  - an initialization function is defined; (NS:INIT-NS-SIZE s w h) is
+    roughly equivalent to (SETF (NS:NS-SIZE-WIDTH s) w
+    (NS:NS-SIZE-HEIGHT s) h), but might be a little more efficient.
+
+  - a creation function is defined: (NS:NS-MAKE-POINT x y) is basically
+    equivalent to:
+    (LET ((P (MAKE-GCABLE-RECORD :NS-POINT)))
+      (NS:INIT-NS-POINT P X Y)
+      p)
+
+  - a macro is defined which (much like RLET) stack-allocates an
+    instance of the foreign record type, optionally iniitializes
+    that instance, and executes a body of code with a variable
+    bound to that instance.  E.g.
+
+    (ns:with-ns-range (r loc len)
+      (format t "~& range has location ~s, length ~s" 
+         (ns:ns-range-location r) (ns:ns-range-length r)))
+
+    which is probably not the world's most realistic example.
+
+   Note that it's possible to construct a record
+   instance that has a very short useful lifetime:
+
+   (#/initWithFrame: new-view (ns:ns-make-rect 100 100 200 200))
+
+   The rectangle above will -eventually- get reclaimed by the GC;
+   if you don't want to give the GC so much work to do, you might
+   prefer to do:
+
+   (ns:with-ns-rect (r 100 100 200 200)
+     (#/initWithFrame: new-view r))
+
+
+ - The macro OBJC:DEFMETHOD can be used to define ObjC methods.
+   It looks superficially like CL:DEFMETHOD in some respects.
+   The syntax is:
+
+   (OBC:DEFMETHOD name-and-result-type ((receiver-arg-and-class) &rest other-args) &body body)
+
+   where:
+
+   "name-and-result-type" is either an ObjC message name (use #/ !)
+   for methods that return a value of type :ID, or a list of an ObjC
+   message name and a foreign type specifier for methods with a different
+   foreign result type
+
+   "receiver-type-and-class" is a two-element list whose CAR is 
+   a variable name and whose CADR is the lisp name of an ObjC class
+   or metaclass.  The receiver variable name can be any bindable
+   lisp variable name, but SELF (in some package) might be a reasonable
+   choice.  The receiver variable is declared to be "unsettable", i.e.,
+   it is an error to try to change the value of the receiver in the
+   body of the method definition.
+
+   "other-args" are either variable names (denoting parameters of type
+   :ID) or 2-element lists whose first element is a variable name and
+    whose second element is a foreign type specifier.
+
+  For example:
+
+(objc:defmethod (#/characterAtIndex: :unichar)
+    ((self hemlock-buffer-string) (index :<NSUI>nteger))
+  ...)
+  
+  The method "characterAtIndex:", when invoked on an object of class
+  HEMLOCK-BUFFER-STRING with an additional argument of type :<NSU>integer
+  returns a value of type :unichar.)
+
+  Arguments that wind up as some non-:ID pointer type (pointers,
+  records passed by value) are represented as typed foreign pointers
+  (so the higher-level, type-checking accessors can be used on
+  arguments of type :ns-rect, :ns-pointe, etc.)
+
+  Within the body of methods defined via OBJC:DEFMETHOD, the local
+  function CL:CALL-NEXT-METHOD is defined.  It isn't quite as
+  general as CL:CALL-NEXT-METHOD is when used in a CLOS method,
+  but it has some of the same semantics.  It accepts as many arguments
+  as are present in the containing method's "other args" list and
+  invokes version of the containing method that would have been
+  invoked on instances of the receiver's class's superclass with
+  the receiver and other provided arguments.  (The idiom of passing
+  the current method's arguments to the next method is common enough
+  that the CALL-NEXT-METHOD in OBJC:DEFMETHODs should probably do
+  this if it receives no arguments.)
+
+  A method defined via OBJC:DEFMETHOD that returns a structure "by value"
+  can do so by returning a record created via MAKE-GCABLE-RECORD, by
+  returning the value returned via CALL-NEXT-METHOD, or by other similar
+  means.  Behind the scenes, there may be a pre-allocated instance of
+  the record type (used to support native structure-return conventions),
+  and any value returned by the method body will be copied to this
+  internal record instance.  Within the body of a method defined with
+  OBJC:DEFMETHOD that's declared to return a structure type, the local
+  macro OBJC:RETURNING-FOREIGN-STRUCT can be used to access the internal
+  structure:
+
+  (objc:defmethod (#/reallyTinyRectangleAtPoint: :ns-rect) 
+    ((self really-tiny-view) (where :ns-point))
+    (objc:returning-foreign-struct (r)
+      (ns:init-ns-rect r (ns:ns-point-x where) (ns:ns-point-y where)
+                          single-float-epsilon single-float-epsilon)
+      r))
+
+ - If OBJC:DEFMETHOD introduces a new ObjC message, a ... message
+   to that effect.  Sometimes, these messages are merely informative
+   (and barely informative, at that ...), but they may also indicate
+   that a message name is misspelled (or possibly missing a trailing
+   colon.)  If a method is redefined in such a way that it's type
+   signature changes, a continuable error is signaled.
+
+ - there used to be some fairly obscure reasons that led to 
+   MAKE-OBJC-INSTANCE being a bit more efficient than MAKE-INSTANCE
+   in some cases (some of the methods invoked by MAKE-INSTANCE did
+   some extra work to handle Lisp slots even if the class didn't
+   define any Lisp slots.  This work isn't done anymore, and consequently
+   there's less reason to prefer MAKE-OBJC-INSTANCE.  (MAKE-OBJC-INSTANCE
+   is still defined and exported from the OBJC:PACKAGE).
+
+ - the preferred means of loading an add-on framework and processing
+   the declarations in its interfaces has changed several times over
+   the last several months.  The currently preferred (new) way to
+   do that is via the new function OBJC:LOAD-FRAMEWORK
+
+   (OBJC:LOAD-FRAMEWORK framework-name interface-dir)
+
+   where "framework-name" is a string which names the framework and
+   "interface-dir" is a keyword that names the associated set of
+   interfaces.  OBJC:LOAD-FRAMEWORK should find and initialize the 
+   framework bundle (looking in standard framework search paths),
+   introduce new ObjC classes to CLOS, update information about
+   declared messages and their methods' type signatures, adjust
+   affected dispatch functions, and make the interfaces other
+   definitions available.  The order in which it does these
+   things isn't specified, and may change in the future.
+
+ - Most Cocoa-related examples (the demo IDE, the Rubix and Webkit
+   examples) have been rewritten to use the new bridge features.
+   (I may have missed some contributed examples; if people want
+   to convert these, that'd be great.)  It's too early to say
+   whether the new approach is better or worse than the old, but
+   I've (so far) found some of the code easier to read and maintain.
+   We might find that some things that (for instance) SEND does
+   more efficiently could and should be done via SEND (I'm thinking
+   mostly of struct-return stuff), but so far I haven't seen the
+   new stuff keel over.
+
+   The converted code looks like "lisp code with strange-looking
+   function names" at first glance, and that seems about right.
+   The function names might get to look more familiar as the
+   reader becomes more familiar with Cocoa; as someone here pointed
+   out, it's arguably good that the function names are distinctive
+   in that that helps to remind the reader that these are likely
+   lower-level functions that are less tolerant of type- and other
+   errors than the typical lisp function would be.
+
+
+
 OpenMCL 1.1-pre-070214
 - The FASL version changed (old FASL files won't work with this
   lisp version), as did the version information which tries to
