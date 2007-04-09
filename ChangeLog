@@ -1,3 +1,9 @@
+2007-04-09 00:10  gb
+
+	* release-notes.txt: Update for 070408.
+	
+	(Yes, it's 070409 here already ...)
+
 2007-04-08 15:12  gb
 
 	* lisp-kernel/image.h, xdump/heap-image.lisp: Bump image version.
