@@ -1,3 +1,25 @@
+2007-04-10 00:11  gb
+
+	* examples/: cocoa-editor.lisp, cocoa-typeout.lisp,
+	cocoa-window.lisp, objc-support.lisp, tiny.lisp: Don't bother using
+	RLET or equivalent to avoid making GCable pointers for ObjC
+	dispatch function args; trust the compiler to do that for us.
+
+2007-04-10 00:10  gb
+
+	* examples/bridge.lisp: If any method defined on a message passes a
+	structure by value, install a compiler macro on the dispatch
+	function.
+	
+	In that compiler, look for apparent calls to know structure
+	constructors; replace those with calls to the corresponding
+	initialization function, and stack-allocate a structure instance
+	around the call.  (Suggested by Kevin Reid, and something that
+	SEND/SLET did - sort of - that the new approach didn't.)
+	
+	Keep track of info about common foreign structs (initializer,
+	constructor, etc.) to make doing stuff like this easier.
+
 2007-04-09 16:10  gb
 
 	* examples/objc-clos.lisp: ALLOCATE-INSTANCE of OBJC:OBJC:CLASS: if
