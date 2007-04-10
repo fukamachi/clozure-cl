@@ -54,7 +54,66 @@
   (format stream " ~@[~a ~](#x~x)"
           (%macptr-allocation-string p)
           (%ptr-to-int p)))
+
+(defstruct typed-foreign-struct-info
+  foreign-type
+  lisp-class-name
+  initializer
+  constructor
+  with-form-name
+  predicate-name)
+
+(defparameter *typed-foreign-struct-info* ())
+
+(defun note-typed-foreign-struct-info (foreign-type lisp-class-name initializer constructor with-form-name predicate-name)
+  (let* ((info (find foreign-type *typed-foreign-struct-info* :test #'equal :key #'typed-foreign-struct-info-foreign-type)))
+    (unless info
+      (setq info (make-typed-foreign-struct-info :foreign-type foreign-type))
+      (push info *typed-foreign-struct-info*))
+    (setf (typed-foreign-struct-info-lisp-class-name info) lisp-class-name
+          (typed-foreign-struct-info-initializer info) initializer
+          (typed-foreign-struct-info-constructor info) constructor
+          (typed-foreign-struct-info-with-form-name info) with-form-name
+          (typed-foreign-struct-info-predicate-name info) predicate-name)
+    info))
   
+;;; This gets installed as the COMPILER-MACRO-FUNCTION on any dispatch
+;;; function associated with a method that passes structures by value.
+(defun hoist-struct-constructors (whole env)
+  (declare (ignorable env))
+  (destructuring-bind (operator receiver &rest args) whole
+    ;;See if any arguments are "obviously" known structure-creation forms.
+    (if (null (dolist (arg args)
+                (if (and (consp arg)
+                         (find (car arg) *typed-foreign-struct-info* :key #'typed-foreign-struct-info-constructor))
+                  (return t))))
+      whole
+      ;;; Simplest to hoist one call, then let compiler-macroexpand
+      ;;; call us again.
+      (let* ((with-name nil)
+             (info nil)
+             (temp (gensym)))
+        (collect ((new-args))
+          (new-args operator)
+          (new-args receiver)
+          (dolist (arg args)
+            (if (or info
+                    (atom arg)
+                    (not (setq info (find (car arg) *typed-foreign-struct-info* :key #'typed-foreign-struct-info-constructor))))
+              (new-args arg)
+              (progn
+                (setq with-name (typed-foreign-struct-info-with-form-name info))
+                (if (cdr arg)
+                  (new-args `(progn (,(typed-foreign-struct-info-initializer info)
+                                     ,temp
+                                     ,@(cdr arg))
+                              ,temp))
+                  (new-args temp)))))
+          `(,with-name (,temp)
+            (values ,(new-args))))))))
+          
+        
+      
 (defun define-typed-foreign-struct-accessor (type-name lisp-accessor-name foreign-accessor &optional (transform-output #'identity) (transform-input #'identity))
   (let* ((arg (gensym))
          (val (gensym)))
@@ -90,7 +149,8 @@
           (declaim (inline ,init-function-name))
           (defun ,init-function-name ,(args)
             (declare (ignorable ,struct))
-            ,@(initforms)))))))
+            ,@(initforms)
+            ,struct))))))
 
 (defun define-typed-foreign-struct-creation-function (creation-function-name init-function-name foreign-type accessors)
   (when creation-function-name
@@ -119,6 +179,7 @@
       (%register-type-ordinal-class (parse-foreign-type ',foreign-type) ',class-name)
       (def-foreign-type ,class-name  ,foreign-type)
       (declaim (inline ,predicate-name))
+      (note-typed-foreign-struct-info ',foreign-type ',class-name ',init-function-name ',creation-function-name ',with-form-name ',predicate-name)
       (defun ,predicate-name (,arg)
         (and (typep ,arg 'macptr)
              (<= (the fixnum (%macptr-domain ,arg)) 1)
@@ -944,7 +1005,16 @@
                     (objc-method-info-result-type m)))
                  (method-accepts-varargs (m)
                    (eq (car (last (objc-method-info-arglist m)))
-                       *void-foreign-type*)))
+                       *void-foreign-type*))
+                 (method-has-structure-arg (m)
+                   (dolist (arg (objc-method-info-arglist m))
+                     (when (typep (ensure-foreign-type arg) 'foreign-record-type)
+                       (return t)))))
+            (when (dolist (method methods)
+                    (when (method-has-structure-arg method)
+                      (return t)))
+              (setf (compiler-macro-function lisp-name)
+                    'hoist-struct-constructors))
             (let* ((first-result-is-structure (method-returns-structure first-method))
                    (first-accepts-varargs (method-accepts-varargs first-method)))
               (if (dolist (m (cdr methods) t)
