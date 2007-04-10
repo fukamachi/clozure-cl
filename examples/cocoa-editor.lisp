@@ -444,8 +444,7 @@
 (objc:defmethod (#/noteDeletion: :void) ((self hemlock-text-storage) params)
   (let* ((pos (#/longValue (#/objectAtIndex: params 0)))
          (n (#/longValue (#/objectAtIndex: params 1))))
-    (rlet ((range :ns-range :location pos :length n))
-      (#/edited:range:changeInLength: self #$NSTextStorageEditedCharacters range (- n)))
+    (#/edited:range:changeInLength: self #$NSTextStorageEditedCharacters (ns:make-ns-range pos n) (- n))
     (let* ((display (hemlock-buffer-string-cache (#/string self))))
       (reset-buffer-cache display) 
       (update-line-cache-for-index display pos))))
@@ -455,16 +454,14 @@
          (n (#/longValue (#/objectAtIndex: params 1))))
     #+debug
     (#_NSLog #@"Note modification: pos = %d, n = %d" :int pos :int n)
-    (rlet ((range :ns-range :location pos :length n))
-      (#/edited:range:changeInLength: self (logior #$NSTextStorageEditedCharacters
-                                                  #$NSTextStorageEditedAttributes) range 0))))
+    (#/edited:range:changeInLength: self (logior #$NSTextStorageEditedCharacters
+                                                 #$NSTextStorageEditedAttributes) (ns:make-ns-range pos n) 0)))
 
 (objc:defmethod (#/noteAttrChange: :void) ((self hemlock-text-storage) params)
   (let* ((pos (#/longValue (#/objectAtIndex: params 0)))
          (n (#/longValue (#/objectAtIndex: params 1))))
     #+debug (#_NSLog #@"attribute-change at %d/%d" :int pos :int n)
-    (rlet ((range :ns-range :location pos :length n))
-      (#/edited:range:changeInLength: self #$NSTextStorageEditedAttributes range 0))))
+    (#/edited:range:changeInLength: self #$NSTextStorageEditedAttributes (ns:make-ns-range pos n) 0)))
 
 (objc:defmethod (#/beginEditing :void) ((self hemlock-text-storage))
   #+debug
@@ -697,11 +694,7 @@
     (setf (text-view-blink-enabled self) #$NO)
     ;; Force the blinked character to be redrawn.  Let the text
     ;; system do the drawing.
-    (let* ((layout (#/layoutManager self)))
-      (rlet ((invalid-range :ns-range 
-                            :location  (text-view-blink-location self)
-                            :length 1))
-        (#/invalidateDisplayForCharacterRange: layout invalid-range)))))
+    (#/invalidateDisplayForCharacterRange: (#/layoutManager self) (ns:make-ns-range (text-view-blink-location self) 1))))
 
 (defmethod update-blink ((self hemlock-textstorage-text-view))
   (disable-blink self)
@@ -976,9 +969,8 @@
 	(setq *modeline-text-attributes*
 	      (create-text-attributes :color (#/blackColor ns:ns-color)
 				      :font (default-font
-					      :name *modeline-font-name*
+                                                :name *modeline-font-name*
 					      :size *modeline-font-size*))))
-      
       (let* ((string
               (apply #'concatenate 'string
                      (mapcar
@@ -986,10 +978,9 @@
                           (funcall (hi::modeline-field-function field)
                                    buffer pane))
                       (hi::buffer-modeline-fields buffer)))))
-        (rletZ ((zpoint :ns-point))
-          (#/drawAtPoint:withAttributes: (%make-nsstring string)
-                                         zpoint
-                                         *modeline-text-attributes*))))))
+        (#/drawAtPoint:withAttributes: (%make-nsstring string)
+                                       (ns:make-ns-point 0 0)
+                                       *modeline-text-attributes*)))))
 
 ;;; Draw the underlying buffer's modeline string on a white background
 ;;; with a bezeled border around it.
@@ -1627,12 +1618,10 @@
 (defun textstorage-note-insertion-at-position (textstorage pos n)
   #+debug
   (#_NSLog #@"insertion at position %d, len %d" :int pos :int n)
-  (rlet ((range ns:ns-range :location pos :length 0))
-    (#/edited:range:changeInLength:
-     textstorage #$NSTextStorageEditedAttributes range n)
-    (setf (ns:ns-range-length range) n)
-    (#/edited:range:changeInLength:
-     textstorage  #$NSTextStorageEditedCharacters range 0)))
+  (#/edited:range:changeInLength:
+   textstorage #$NSTextStorageEditedAttributes (ns:make-ns-range pos 0) n)
+  (#/edited:range:changeInLength:
+   textstorage  #$NSTextStorageEditedCharacters (ns:make-ns-range pos n) 0))
 
 
 (defun hi::buffer-note-font-change (buffer region)
@@ -1678,13 +1667,12 @@
                  :int (mark-absolute-position mark)
                  :int n)
         #-all-in-cocoa-thread
-        (rlet ((range :ns-range) :location (mark-absolute-position mark) :length n)
-          (#/edited:range:changeInLength:
-           textstorage
-           (logior #$NSTextStorageEditedCharacters
-                          #$NSTextStorageEditedAttributes)
-           range
-           0))
+        (#/edited:range:changeInLength:
+         textstorage
+         (logior #$NSTextStorageEditedCharacters
+                 #$NSTextStorageEditedAttributes)
+         (ns:make-ns-range (mark-absolute-position mark) n)
+         0)
         #+all-in-cocoa-thread
         (perform-edit-change-notification textstorage
                                           (@selector #/noteModification:)
@@ -1699,9 +1687,8 @@
       (when textstorage
         #-all-in-cocoa-thread
         (let* ((pos (mark-absolute-position mark)))
-          (rlet ((range :ns-range :location pos :length n))
           (#/edited:range:changeInLength:
-           textstorage #$NSTextStorageEditedCharacters range (- n)))
+           textstorage #$NSTextStorageEditedCharacters (ns:make-ns-range pos n) (- n))
           (let* ((display (hemlock-buffer-string-cache (#/string textstorage))))
             (reset-buffer-cache display) 
             (update-line-cache-for-index display pos)))
@@ -1813,23 +1800,20 @@
          (point (hi::buffer-point buffer))
          (pointpos (mark-absolute-position point)))
     (#/beginEditing textstorage)
-    (rlet ((changed :ns-range :location 0 :length old-length))
-      (#/edited:range:changeInLength:
-       textstorage #$NSTextStorageEditedCharacters changed (- old-length)))
+    (#/edited:range:changeInLength:
+     textstorage #$NSTextStorageEditedCharacters (ns:make-ns-range 0 old-length) (- old-length))
     (nsstring-to-buffer nsstring buffer)
-    (rletZ ((new-range :ns-range))
-      (let* ((newlen (hemlock-buffer-length buffer)))
-        (#/edited:range:changeInLength: textstorage  #$NSTextStorageEditedAttributes new-range newlen)
-        (setf (ns:ns-range-length new-range) newlen)
-        (#/edited:range:changeInLength: textstorage #$NSTextStorageEditedCharacters new-range 0)
-        (let* ((ts-string (#/string textstorage))
-               (display (hemlock-buffer-string-cache ts-string)))
-          (reset-buffer-cache display) 
-          (update-line-cache-for-index display 0)
-          (move-hemlock-mark-to-absolute-position point
-                                                  display
-                                                  (min newlen pointpos))))
-      (#/endEditing textstorage))
+    (let* ((newlen (hemlock-buffer-length buffer)))
+      (#/edited:range:changeInLength: textstorage  #$NSTextStorageEditedAttributes (ns:make-ns-range 0 0) newlen)
+      (#/edited:range:changeInLength: textstorage #$NSTextStorageEditedCharacters (ns:make-ns-range 0 newlen) 0)
+      (let* ((ts-string (#/string textstorage))
+             (display (hemlock-buffer-string-cache ts-string)))
+        (reset-buffer-cache display) 
+        (update-line-cache-for-index display 0)
+        (move-hemlock-mark-to-absolute-position point
+                                                display
+                                                (min newlen pointpos))))
+    (#/endEditing textstorage)
     (hi::document-set-point-position self)
     (setf (hi::buffer-modified buffer) nil)
     (hi::queue-buffer-change buffer)

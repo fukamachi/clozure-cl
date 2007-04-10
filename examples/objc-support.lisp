@@ -314,10 +314,9 @@ NSObjects describe themselves in more detail than others."
 ;;; This can fail if the nsstring contains non-8-bit characters.
 (defun lisp-string-from-nsstring-substring (nsstring start length)
   (%stack-block ((cstring (1+ length)))
-    (rlet ((range :ns-range :location start :length length))
-      (#/getCString:maxLength:range:remainingRange:
-       nsstring  cstring  length range +null-ptr+)
-      (%get-cstring cstring))))
+    (#/getCString:maxLength:range:remainingRange:
+       nsstring  cstring  length (ns:make-ns-range start length) +null-ptr+)
+    (%get-cstring cstring)))
 
 (def-standard-initial-binding *listener-autorelease-pool* nil)
 

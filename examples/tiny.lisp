@@ -55,17 +55,13 @@
       ;; Trace two polygons with N sides and connect all of the vertices 
       ;; with lines
       (#/set (#/blackColor ns:ns-color))
-      (rlet ((source-point :ns-point)
-             (dest-point :ns-point))
       (loop 
         for f from 0.0 below (* 2 short-pi) by (* 2 (/ short-pi numsides))
         do
         (loop 
           for g from 0.0 below (* 2 short-pi) by (* 2 (/ short-pi numsides))
           do
-          (ns:init-ns-point source-point (X f) (Y f))
-          (ns:init-ns-point dest-point (X g) (Y g))
-          (#/strokeLineFromPoint:toPoint: ns:ns-bezier-path source-point dest-point)))))))
+          (#/strokeLineFromPoint:toPoint: ns:ns-bezier-path (ns:make-ns-point (X f) (Y f)) (ns:make-ns-point (X g) (Y g))))))))
 
 
 ;;; This performs the actions that would normally be performed by loading

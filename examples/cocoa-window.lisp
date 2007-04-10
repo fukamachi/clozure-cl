@@ -93,11 +93,10 @@
     (apply function args)
     (if (or (not *NSApp*) (not (#/isRunning *NSApp*)))
       (call-next-method)
-      (rletZ ((point :ns-point))
         (let* ((e (#/otherEventWithType:location:modifierFlags:timestamp:windowNumber:context:subtype:data1:data2:
                    ns:ns-event
                    #$NSApplicationDefined
-                   point
+                   (ns:make-ns-point 0 0)
                    0
                    0.0d0
                    0
@@ -107,7 +106,7 @@
                     #'(lambda () (apply function args))) 0)))
 	(#/retain e)
         (#/performSelectorOnMainThread:withObject:waitUntilDone:
-         *NSApp* (@selector "postEventAtStart:") e  t))))))
+         *NSApp* (@selector "postEventAtStart:") e  t)))))
 
 
 (defloadvar *default-ns-application-proxy-class-name*

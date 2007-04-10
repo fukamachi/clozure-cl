@@ -174,8 +174,7 @@
 	 (text-storage (slot-value the-typeout-view 'text-storage))
 	 (len (#/length text-storage)))
     (declare (type ns:ns-text-storage text-storage))
-    (rlet ((range-for-deletion :ns-range :location 0 :length len))
-      (#/deleteCharactersInRange: text-storage range-for-deletion))))
+    (#/deleteCharactersInRange: text-storage (ns:make-ns-range 0 len))))
 
 (defloadvar *typeout-stream* (make-instance 'typeout-stream))
 
