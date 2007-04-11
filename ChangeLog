@@ -1,3 +1,12 @@
+2007-04-10 22:10  gb
+
+	* lisp-kernel/x86-spentry64.s: Branch at
+	C(egc_store_node_conditional_success_test) should bracnch
+	backwards, not forwards.  (This was leading to spurious
+	"<something> is not a proper list" errors, because the next label
+	named "0" is in middle of the the _SPprogvsage code that tests for
+	a proper list.)
+
 2007-04-10 00:11  gb
 
 	* examples/: cocoa-editor.lisp, cocoa-typeout.lisp,
