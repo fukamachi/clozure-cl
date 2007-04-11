@@ -3078,7 +3078,7 @@
     (when (or share-buffers-p outsize)
       (setup-ioblock-output ioblock character-p element-type sharing encoding line-termination))
     (when element-type
-      (setf (ioblock-element-type ioblock) element-type))
+      (setf (ioblock-element-type ioblock) (if character-p 'character element-type)))
 ;    (when element-shift
 ;      (setf (ioblock-element-shift ioblock) element-shift))
     (when device
@@ -3530,9 +3530,10 @@
     (gvector :basic-stream class 0 nil nil nil nil nil)
     (gvector :basic-stream class 0 nil nil)))
 
-(defmethod initialize-basic-stream ((s basic-stream) &key element-type &allow-other-keys)
-  (setf (getf (basic-stream.info s) :element-type) element-type))
 
+(defmethod initialize-basic-stream ((s basic-stream) &key &allow-other-keys)
+  )
+  
 (defmethod initialize-basic-stream :after  ((s basic-input-stream) &key &allow-other-keys)
   (setf (basic-stream.flags s)
         (logior (ash 1 basic-stream-flag.open-input) (basic-stream.flags s))))
@@ -4577,8 +4578,7 @@
 ;;; to buffer I/O.
 
 (defclass buffered-stream-mixin ()
-  ((ioblock :reader %stream-ioblock :writer (setf stream-ioblock) :initform nil)
-   (element-type :initarg :element-type :reader %buffered-stream-element-type)))
+  ((ioblock :reader %stream-ioblock :writer (setf stream-ioblock) :initform nil)))
 
 (defmethod open-stream-p ((s buffered-stream-mixin))
   (with-slots (ioblock) s
@@ -4602,10 +4602,10 @@
     (and ioblock (ioblock-device ioblock))))
   
 (defmethod stream-element-type ((s buffered-stream-mixin))
-  (%buffered-stream-element-type s))
+  (ioblock-element-type (stream-ioblock s t)))
 
 (defmethod stream-element-type ((s basic-stream))
-  (getf (basic-stream.info s) :element-type))
+  (ioblock-element-type (basic-stream-ioblock s)))
 
 
 (defmethod stream-create-ioblock ((stream buffered-stream-mixin) &rest args &key)
