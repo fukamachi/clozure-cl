@@ -1846,7 +1846,7 @@ C(egc_store_node_conditional):
         __(cmpxchgq %arg_z,(%arg_x,%imm1))
         .globl C(egc_store_node_conditional_success_test)
 C(egc_store_node_conditional_success_test):
-	__(jne 0f)
+	__(jne 0b)
         __(lea (%arg_x,%imm1),%imm0)
         __(subq lisp_global(heap_start),%imm0)
         __(shrq $dnode_shift,%imm0)
