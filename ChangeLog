@@ -1,3 +1,14 @@
+2007-04-12 02:11  gb
+
+	* compiler/: PPC/ppc2.lisp, X86/x862.lisp: (SETF (AREF ...) ...) of
+	two-dimensional arrays: need to target specific registers if array
+	has element type T.
+
+2007-04-12 02:10  gb
+
+	* level-0/l0-init.lisp: Add features :x86-64 and :x86_64 if
+	appropriate, not :x86-64 twice.
+
 2007-04-11 05:10  gb
 
 	* level-1/l1-streams.lisp: Set IOBLOCK-ELEMENT-TYPE to CHARACTER
