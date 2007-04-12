@@ -1647,11 +1647,19 @@
           (multiple-value-setq (src val-reg)
             (x862-two-targeted-reg-forms seg array ($ x8664::temp0) new val-reg))
           (multiple-value-setq (src unscaled-i unscaled-j val-reg)
-            (x862-four-untargeted-reg-forms seg
-                                            array ($ x8664::temp0)
-                                            i ($ x8664::arg_x)
-                                            j ($ x8664::arg_y)
-                                            new val-reg)))
+            (if needs-memoization
+              (progn
+                (x862-four-targeted-reg-forms seg
+                                              array ($ x8664::temp0)
+                                              i ($ x8664::arg_x)
+                                              j ($ x8664::arg_y)
+                                              new val-reg)
+                (values ($ x8664::temp0) ($ x8664::arg_x) ($ x8664::arg_y) ($ x8664::arg_z)))
+              (x862-four-untargeted-reg-forms seg
+                                              array ($ x8664::temp0)
+                                              i ($ x8664::arg_x)
+                                              j ($ x8664::arg_y)
+                                              new val-reg))))
         (when safe      
           (when (typep safe 'fixnum)
             (! trap-unless-simple-array-2

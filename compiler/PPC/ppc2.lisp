@@ -1568,11 +1568,19 @@
           (multiple-value-setq (src val-reg)
             (ppc2-two-targeted-reg-forms seg array ($ ppc::temp0) new val-reg))
           (multiple-value-setq (src unscaled-i unscaled-j val-reg)
+            (if needs-memoization
+              (progn
+                (ppc2-four-untargeted-reg-forms seg
+                                                array ($ ppc::temp0)
+                                                i ($ ppc::arg_x)
+                                                j ($ ppc::arg_y)
+                                                new val-reg)
+                (values ($ ppc::temp0) ($ ppc::arg_x) ($ ppc::arg_y) ($ ppc::arg_z)))
             (ppc2-four-untargeted-reg-forms seg
                                             array ($ ppc::temp0)
                                             i ($ ppc::arg_x)
                                             j ($ ppc::arg_y)
-                                            new val-reg)))
+                                            new val-reg))))
         (when safe      
           (when (typep safe 'fixnum)
             (! trap-unless-simple-array-2
