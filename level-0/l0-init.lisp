@@ -49,7 +49,7 @@
     #+ppc64-target :ppc64-target
     #+ppc64-target :ppc64-host
     #+x8664-target :x86-64
-    #+x8664-target :x86-64
+    #+x8664-target :x86_64
     #+x86-target :x86-target
     #+x86-target :x86-host
     #+x8664-target :x8664-target
