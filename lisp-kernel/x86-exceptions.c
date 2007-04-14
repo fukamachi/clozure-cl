@@ -872,7 +872,8 @@ unlock_exception_lock_in_handler(TCR *tcr)
 void
 raise_pending_interrupt(TCR *tcr)
 {
-  if (TCR_INTERRUPT_LEVEL(tcr) > 0) {
+  if ((TCR_INTERRUPT_LEVEL(tcr) >= 0) &&
+      (tcr->interrupt_pending)) {
     pthread_kill((pthread_t)(tcr->osid), SIGNAL_FOR_PROCESS_INTERRUPT);
   }
 }
