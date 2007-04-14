@@ -1,3 +1,13 @@
+2007-04-14 00:13  gb
+
+	* lisp-kernel/x86-exceptions.c: I have no idea why SIGSYS is
+	generated when it is in ... unmentionable OS releases.
+
+2007-04-14 00:11  gb
+
+	* lisp-kernel/: Threads.h, lisp.h: Say "extern" a few times, to
+	work around laughable Apple ld64 gibberish.
+
 2007-04-12 02:11  gb
 
 	* compiler/: PPC/ppc2.lisp, X86/x862.lisp: (SETF (AREF ...) ...) of
