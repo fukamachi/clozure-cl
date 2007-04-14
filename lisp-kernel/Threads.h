@@ -46,7 +46,7 @@
 #include "lisp_globals.h"
 #include "gc.h"
 
-Boolean threads_initialized;
+Boolean extern threads_initialized;
 
 #define TCR_TO_TSD(tcr) ((void *)((natural)(tcr)+TCR_BIAS))
 #define TCR_FROM_TSD(tsd) ((TCR *)((natural)(tsd)-TCR_BIAS))
@@ -170,7 +170,7 @@ atomic_ior(natural*, natural);
 #define SIG_RESUME_THREAD SIGUSR2
 #endif
 
-int thread_suspend_signal, thread_resume_signal;
+extern int thread_suspend_signal, thread_resume_signal;
 
 void
 suspend_resume_handler(int, siginfo_t *, ExceptionInformation *);
