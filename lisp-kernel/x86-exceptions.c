@@ -1261,6 +1261,8 @@ install_pmcl_exception_handlers()
   install_signal_handler(SIGBUS, bogus_signal_handler);
   install_signal_handler(SIGSEGV,bogus_signal_handler);
   install_signal_handler(SIGFPE, bogus_signal_handler);
+  /*  9.0.0d8 generates spurious SIGSYS from mach_msg_trap */
+  install_signal_handler(SIGSYS, bogus_signal_handler);
 #endif
   
   install_signal_handler(SIGNAL_FOR_PROCESS_INTERRUPT,
