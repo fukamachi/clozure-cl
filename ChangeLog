@@ -1,3 +1,8 @@
+2007-04-14 18:10  gb
+
+	* lisp-kernel/x86-exceptions.c: raise_pending_interrupt():
+	unscramble what it means for an interrupt to be pending on x86-64.
+
 2007-04-14 00:13  gb
 
 	* lisp-kernel/x86-exceptions.c: I have no idea why SIGSYS is
