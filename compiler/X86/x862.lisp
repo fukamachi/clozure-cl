@@ -1664,7 +1664,7 @@
           (when (and (= (hard-regspec-class val-reg) hard-reg-class-gpr)
                      (logbitp (hard-regspec-value val-reg)
                               *backend-imm-temps*))
-            (use-imm-temp val-reg))      
+            (use-imm-temp (hard-regspec-value val-reg)))
           (when safe      
             (when (typep safe 'fixnum)
               (! trap-unless-simple-array-2
@@ -1738,7 +1738,7 @@
           (when (and (= (hard-regspec-class val-reg) hard-reg-class-gpr)
                      (logbitp (hard-regspec-value val-reg)
                               *backend-imm-temps*))
-            (use-imm-temp val-reg))
+            (use-imm-temp (hard-regspec-value val-reg)))
         
           (when safe      
             (when (typep safe 'fixnum)
