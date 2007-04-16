@@ -129,6 +129,7 @@ typedef ucontext64_t ExceptionInformation;
 #define __fpu_mxcsr fpu_mxcsr
 #define __rsp rsp
 #define __faultvaddr faultvaddr
+#define __err err
 #define __rip rip
 #define __rsi rsi
 #define __rdi rdi
