@@ -1,3 +1,16 @@
+2007-04-16 02:12  gb
+
+	* lisp-kernel/x86-exceptions.c: is_write_fault for FreeBSD.
+
+2007-04-16 02:11  gb
+
+	* lisp-kernel/x86-exceptions.c: is_write_vault for x86-64 Linux.
+
+2007-04-16 02:10  gb
+
+	* level-1/l1-error-system.lisp: Change wording of
+	INVALID-MEMORY-ACCESS error message, a little.
+
 2007-04-16 01:13  gb
 
 	* lisp-kernel/x86-exceptions.c: Call out to lisp on unhandled
