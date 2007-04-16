@@ -1,3 +1,8 @@
+2007-04-16 15:10  gb
+
+	* compiler/nx0.lisp: Don't try to access ARRAY-CTYPE-ELEMENT-TYPE
+	of things that aren't ARRAY-CTYPEs in ACODE-FORM-TYPE.
+
 2007-04-16 14:11  gb
 
 	* level-1/ppc-trap-support.lisp: :signed-doubleword, not
