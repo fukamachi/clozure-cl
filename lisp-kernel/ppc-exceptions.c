@@ -893,19 +893,16 @@ handle_protection_violation(ExceptionInformation *xp, siginfo_t *info, TCR *tcr)
     return 0;
   }
 
-  if (! is_write_fault(xp, info)) {
-    return -1;
+
+  if (is_write_fault(xp,info)) {
+    area = find_protected_area(addr);
+    if (area != NULL) {
+      handler = protection_handlers[area->why];
+      return handler(xp, area, addr);
+    }
   }
-
-  area = find_protected_area(addr);
-
-  if (area == NULL) {		/* Don't know why this fault happened. */
-    return -1;
-  }
-  
-  handler = protection_handlers[area->why];
-
-  return handler(xp, area, addr);
+  callback_for_trap(nrs_CMAIN.vcell, xp, (pc)xpPC(xp), SIGBUS, (natural)addr, is_write_fault(xp,info));
+  return -1;
 }
 
 
