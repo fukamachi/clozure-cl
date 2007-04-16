@@ -473,9 +473,8 @@
 					:unsigned-fullword fn-reg 
 					:address pc-or-index 
 					:unsigned-fullword the-trap
-					:signed-fullword  ignore-0
-					:signed-fullword ignore-1)
-  (declare (ignore ignore-1  ignore-0))
+					:signed-fullword  arg-0
+					:signed-fullword arg-1)
   ;; twgti nargs,0
   ;; time for event polling.
   ;; This used to happen a lot so we test for it first.
@@ -487,6 +486,12 @@
           (let ((pc-index (if (eql fn-reg 0) pc-or-index (%ptr-to-int pc-or-index)))
                 instr ra temp rs condition)
             (cond
+              ((= the-trap #$SIGBUS)
+               (%error (make-condition 'invalid-memory-access
+                                       :address arg-0
+                                       :write-p (not (zerop arg-1)))
+                       ()
+                       frame-ptr))              
              ;; tweqi RA nil-value - resolve-eep, or resolve-foreign-variable
 	      ((and (match-instr the-trap
 				 (ppc-instruction-mask  :opcode :to :d)
@@ -702,9 +707,8 @@
 					:unsigned-fullword fn-reg 
 					:address pc-or-index 
 					:unsigned-fullword the-trap
-					:signed-fullword  ignore-0
-					:signed-fullword ignore-1)
-  (declare (ignore ignore-1  ignore-0))
+					:signed-doubleword  arg0
+					:signed-doublewod arg1)
   ;; tdgti nargs,0
   ;; time for event polling.
   ;; This used to happen a lot so we test for it first.
@@ -736,6 +740,12 @@
                     (resolve-foreign-variable eep-or-fv)
                     (setf (xp-gpr-lisp xp (RA-field the-trap))
                           (fv.addr eep-or-fv))))))
+              ((= the-trap #$SIGBUS)
+               (%error (make-condition 'invalid-memory-access
+                                       :address arg-0
+                                       :write-p (not (zerop arg-1)))
+                       ()
+                       frame-ptr))
               ;; tdnei RA,N; RA = nargs
               ;; nargs check, no optional or rest involved
 	      ((match-instr the-trap
