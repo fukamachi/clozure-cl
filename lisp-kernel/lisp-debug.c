@@ -400,12 +400,14 @@ debug_lisp_registers(ExceptionInformation *xp, siginfo_t *info, int arg)
   return debug_continue;
 }
 
+#ifdef PPC
 debug_command_return
 debug_advance_pc(ExceptionInformation *xp, siginfo_t *info, int arg)
 {
   adjust_exception_pc(xp,4);
   return debug_continue;
 }
+#endif
 
 debug_command_return
 debug_identify_exception(ExceptionInformation *xp, siginfo_t *info, int arg)
@@ -661,11 +663,13 @@ debug_command_entry debug_command_entries[] =
    DEBUG_COMMAND_FLAG_AUX_REGNO,
    "GPR to set (0-31) ?",
    'G'},
+#ifdef PPC
   {debug_advance_pc,
    "Advance the program counter by one instruction (use with caution!)",
    DEBUG_COMMAND_FLAG_REQUIRE_XP | DEBUG_COMMAND_FLAG_EXCEPTION_ENTRY_ONLY,
    NULL,
    'A'},
+#endif
   {debug_identify_exception,
    "Describe the current exception in greater detail",
    DEBUG_COMMAND_FLAG_REQUIRE_XP | DEBUG_COMMAND_FLAG_EXCEPTION_ENTRY_ONLY |
