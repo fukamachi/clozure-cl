@@ -1,3 +1,8 @@
+2007-04-16 04:34  gb
+
+	* lisp-kernel/lisptypes.h: Define __err, to work around Leopard
+	renaming nonsense.
+
 2007-04-16 02:12  gb
 
 	* lisp-kernel/x86-exceptions.c: is_write_fault for FreeBSD.
