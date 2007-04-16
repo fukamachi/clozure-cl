@@ -551,6 +551,14 @@ do_soft_stack_overflow(ExceptionInformation *xp, protected_area_ptr prot_area, B
 }
 
 Boolean
+is_write_fault(ExceptionInformation *xp, siginfo_t *info)
+{
+#ifdef DARWIN
+  return (UC_MCONTEXT(xp)->__es.__err & 0x2) != 0;
+#endif
+}
+
+Boolean
 handle_fault(TCR *tcr, ExceptionInformation *xp, siginfo_t *info)
 {
 #ifdef FREEBSD
@@ -571,6 +579,11 @@ handle_fault(TCR *tcr, ExceptionInformation *xp, siginfo_t *info)
       handler = protection_handlers[a->why];
       return handler(xp, a, addr);
     }
+  }
+  {
+    LispObj xcf = create_exception_callback_frame(xp),
+      cmain = nrs_CMAIN.vcell;
+    callback_to_lisp(tcr, cmain, xp, xcf, SIGBUS, is_write_fault(xp,info), (natural)addr, 0);
   }
   return false;
 }
