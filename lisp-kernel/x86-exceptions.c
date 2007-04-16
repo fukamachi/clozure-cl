@@ -559,6 +559,9 @@ is_write_fault(ExceptionInformation *xp, siginfo_t *info)
 #ifdef LINUX
   return (xpGPR(xp,REG_ERR) & 0x2) != 0;
 #endif
+#ifdef FREEBSD
+  return (xp->uc_mcontext.mc_err & 0x2) != 0;
+#endif
 }
 
 Boolean
