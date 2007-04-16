@@ -86,7 +86,7 @@
    (write-p :initform nil :initarg :write-p))
   (:report (lambda (c s)
              (with-slots (address write-p) c
-               (format s "Illegal memory ~a address #x~x" (if write-p "write to" "read of") address)))))
+               (format s "Fault during ~a memory address #x~x" (if write-p "write to" "read of") address)))))
   
 (define-condition type-error (error)
   ((datum :initarg :datum)
