@@ -708,7 +708,7 @@
 					:address pc-or-index 
 					:unsigned-fullword the-trap
 					:signed-doubleword  arg0
-					:signed-doublewod arg1)
+					:signed-doubleword arg1)
   ;; tdgti nargs,0
   ;; time for event polling.
   ;; This used to happen a lot so we test for it first.
