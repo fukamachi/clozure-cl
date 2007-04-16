@@ -556,6 +556,9 @@ is_write_fault(ExceptionInformation *xp, siginfo_t *info)
 #ifdef DARWIN
   return (UC_MCONTEXT(xp)->__es.__err & 0x2) != 0;
 #endif
+#ifdef LINUX
+  return (xpGPR(xp,REG_ERR) & 0x2) != 0;
+#endif
 }
 
 Boolean
