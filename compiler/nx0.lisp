@@ -447,7 +447,7 @@ function to the indicated name is true.")
                     (if (eq op (%nx1-operator %aref1))
                       (let* ((atype (acode-form-type (cadr form) t))
                              (actype (if atype (specifier-type atype))))
-                        (if actype
+                        (if (typep actype 'array-ctype)
                           (type-specifier (array-ctype-specialized-element-type
                                            actype))))
                       (if (member op *numeric-acode-ops*)
