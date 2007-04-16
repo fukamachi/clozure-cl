@@ -1,3 +1,22 @@
+2007-04-16 01:13  gb
+
+	* lisp-kernel/x86-exceptions.c: Call out to lisp on unhandled
+	memory faults.
+
+2007-04-16 01:12  gb
+
+	* lisp-kernel/lisp-debug.c: "advance PC" command is PPC-only, for
+	now.
+
+2007-04-16 01:11  gb
+
+	* level-1/x86-trap-support.lisp: Map SIGBUS signal to
+	INVALID-MEMORY-ACCESS condition.
+
+2007-04-16 01:10  gb
+
+	* level-1/l1-error-system.lisp: INVALID-MEMORY-ACCESS condition.
+
 2007-04-15 19:11  gb
 
 	* compiler/X86/x862.lisp: Use HARD-REGSPEC-VALUE in recent
