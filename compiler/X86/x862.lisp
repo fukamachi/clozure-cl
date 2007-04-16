@@ -1660,30 +1660,35 @@
                                               i ($ x8664::arg_x)
                                               j ($ x8664::arg_y)
                                               new val-reg))))
-        (when safe      
-          (when (typep safe 'fixnum)
-            (! trap-unless-simple-array-2
-               src
-               (dpb safe target::arrayH.flags-cell-subtag-byte
-                    (ash 1 $arh_simple_bit))
-               (nx-error-for-simple-2d-array-type type-keyword)))
-          (unless i-known-fixnum
-            (! trap-unless-fixnum unscaled-i))
-          (unless j-known-fixnum
-            (! trap-unless-fixnum unscaled-j)))
-        (with-imm-target () dim1
-          (let* ((idx-reg ($ x8664::arg_y)))
-            (if constidx
-              (if needs-memoization
-                (x862-lri seg x8664::arg_y (ash constidx *x862-target-fixnum-shift*)))
-              (progn
-                (if safe                  
-                  (! check-2d-bound dim1 unscaled-i unscaled-j src)
-                  (! 2d-dim1 dim1 src))
-                (! 2d-unscaled-index idx-reg dim1 unscaled-i unscaled-j)))
-            (let* ((v ($ x8664::arg_x)))
-              (! array-data-vector-ref v src)
-              (x862-vset1 seg vreg xfer type-keyword v idx-reg constidx val-reg (x862-unboxed-reg-for-aset seg type-keyword val-reg safe constval) constval needs-memoization))))))))
+        (let* ((*available-backend-imm-temps* *available-backend-imm-temps*))
+          (when (and (= (hard-regspec-class val-reg) hard-reg-class-gpr)
+                     (logbitp (hard-regspec-value val-reg)
+                              *backend-imm-temps*))
+            (use-imm-temp val-reg))      
+          (when safe      
+            (when (typep safe 'fixnum)
+              (! trap-unless-simple-array-2
+                 src
+                 (dpb safe target::arrayH.flags-cell-subtag-byte
+                      (ash 1 $arh_simple_bit))
+                 (nx-error-for-simple-2d-array-type type-keyword)))
+            (unless i-known-fixnum
+              (! trap-unless-fixnum unscaled-i))
+            (unless j-known-fixnum
+              (! trap-unless-fixnum unscaled-j)))
+          (with-imm-target () dim1
+            (let* ((idx-reg ($ x8664::arg_y)))
+              (if constidx
+                (if needs-memoization
+                  (x862-lri seg x8664::arg_y (ash constidx *x862-target-fixnum-shift*)))
+                (progn
+                  (if safe                  
+                    (! check-2d-bound dim1 unscaled-i unscaled-j src)
+                    (! 2d-dim1 dim1 src))
+                  (! 2d-unscaled-index idx-reg dim1 unscaled-i unscaled-j)))
+              (let* ((v ($ x8664::arg_x)))
+                (! array-data-vector-ref v src)
+                (x862-vset1 seg vreg xfer type-keyword v idx-reg constidx val-reg (x862-unboxed-reg-for-aset seg type-keyword val-reg safe constval) constval needs-memoization)))))))))
 
 
 (defun x862-aset3 (seg vreg xfer  array i j k new safe type-keyword  dim0 dim1 dim2)
@@ -1724,38 +1729,44 @@
              seg
              (x862-one-untargeted-reg-form seg array ($ x8664::arg_z)))
             (x862-four-targeted-reg-forms seg
-                                            i ($ x8664::temp0)
-                                            j ($ x8664::arg_x)
-                                            k ($ x8664::arg_y)
-                                            new val-reg)
+                                          i ($ x8664::temp0)
+                                          j ($ x8664::arg_x)
+                                          k ($ x8664::arg_y)
+                                          new val-reg)
             (x862-pop-register seg src)))
-        (when safe      
-          (when (typep safe 'fixnum)
-            (! trap-unless-simple-array-3
-               src
-               (dpb safe target::arrayH.flags-cell-subtag-byte
-                    (ash 1 $arh_simple_bit))
-               (nx-error-for-simple-3d-array-type type-keyword)))
-          (unless i-known-fixnum
-            (! trap-unless-fixnum unscaled-i))
-          (unless j-known-fixnum
-            (! trap-unless-fixnum unscaled-j))
-          (unless k-known-fixnum
-            (! trap-unless-fixnum unscaled-k)))
-        (with-imm-target () dim1
-          (with-imm-target (dim1) dim2
-            (let* ((idx-reg ($ x8664::arg_y)))
-              (if constidx
-                (when needs-memoization
-                  (x862-lri seg idx-reg (ash constidx *x862-target-fixnum-shift*)))
-                (progn
-                  (if safe                  
-                    (! check-3d-bound dim1 dim2 unscaled-i unscaled-j unscaled-k src)
-                    (! 3d-dims dim1 dim2 src))
-                  (! 3d-unscaled-index idx-reg dim1 dim2 unscaled-i unscaled-j unscaled-k)))
-              (let* ((v ($ x8664::arg_x)))
-                (! array-data-vector-ref v src)
-                (x862-vset1 seg vreg xfer type-keyword v idx-reg constidx val-reg (x862-unboxed-reg-for-aset seg type-keyword val-reg safe constval) constval needs-memoization)))))))))
+        (let* ((*available-backend-imm-temps* *available-backend-imm-temps*))
+          (when (and (= (hard-regspec-class val-reg) hard-reg-class-gpr)
+                     (logbitp (hard-regspec-value val-reg)
+                              *backend-imm-temps*))
+            (use-imm-temp val-reg))
+        
+          (when safe      
+            (when (typep safe 'fixnum)
+              (! trap-unless-simple-array-3
+                 src
+                 (dpb safe target::arrayH.flags-cell-subtag-byte
+                      (ash 1 $arh_simple_bit))
+                 (nx-error-for-simple-3d-array-type type-keyword)))
+            (unless i-known-fixnum
+              (! trap-unless-fixnum unscaled-i))
+            (unless j-known-fixnum
+              (! trap-unless-fixnum unscaled-j))
+            (unless k-known-fixnum
+              (! trap-unless-fixnum unscaled-k)))
+          (with-imm-target () dim1
+            (with-imm-target (dim1) dim2
+              (let* ((idx-reg ($ x8664::arg_y)))
+                (if constidx
+                  (when needs-memoization
+                    (x862-lri seg idx-reg (ash constidx *x862-target-fixnum-shift*)))
+                  (progn
+                    (if safe                  
+                      (! check-3d-bound dim1 dim2 unscaled-i unscaled-j unscaled-k src)
+                      (! 3d-dims dim1 dim2 src))
+                    (! 3d-unscaled-index idx-reg dim1 dim2 unscaled-i unscaled-j unscaled-k)))
+                (let* ((v ($ x8664::arg_x)))
+                  (! array-data-vector-ref v src)
+                  (x862-vset1 seg vreg xfer type-keyword v idx-reg constidx val-reg (x862-unboxed-reg-for-aset seg type-keyword val-reg safe constval) constval needs-memoization))))))))))
 
 
 (defun x862-aref2 (seg vreg xfer array i j safe typekeyword &optional dim0 dim1)
