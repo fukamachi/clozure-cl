@@ -1734,12 +1734,11 @@
                                           k ($ x8664::arg_y)
                                           new val-reg)
             (x862-pop-register seg src)))
-        (let* ((*available-backend-imm-temps* *available-backend-imm-temps*))
-          (when (and (= (hard-regspec-class val-reg) hard-reg-class-gpr)
+        (let* ((need-push-val-reg
+                (and (= (hard-regspec-class val-reg) hard-reg-class-gpr)
                      (logbitp (hard-regspec-value val-reg)
-                              *backend-imm-temps*))
-            (use-imm-temp (hard-regspec-value val-reg)))
-        
+                              *backend-imm-temps*))))
+          (when need-push-val-reg (x862-push-register seg val-reg))
           (when safe      
             (when (typep safe 'fixnum)
               (! trap-unless-simple-array-3
@@ -1766,6 +1765,8 @@
                     (! 3d-unscaled-index idx-reg dim1 dim2 unscaled-i unscaled-j unscaled-k)))
                 (let* ((v ($ x8664::arg_x)))
                   (! array-data-vector-ref v src)
+                  (when need-push-val-reg
+                    (x862-pop-register seg val-reg))
                   (x862-vset1 seg vreg xfer type-keyword v idx-reg constidx val-reg (x862-unboxed-reg-for-aset seg type-keyword val-reg safe constval) constval needs-memoization))))))))))
 
 
