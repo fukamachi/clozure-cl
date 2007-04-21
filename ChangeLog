@@ -1,3 +1,10 @@
+2007-04-21 00:10  gb
+
+	* lib/dumplisp.lisp: In SAVE-APPLICATION: check for containing
+	directory after translating logical pathnames; it's generally
+	meaningless to do PROBE-FILE on the directory component of a
+	logical pathname.
+
 2007-04-19 15:10  gb
 
 	* compiler/X86/x862.lisp: In x862-aset3, maybe push/pop the val reg
