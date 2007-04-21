@@ -54,7 +54,7 @@
                    resources clear-clos-caches init-file impurify
 		   mode prepend-kernel))
   (unless (probe-file (make-pathname :defaults nil
-                                     :directory (pathname-directory filename)))
+                                     :directory (pathname-directory (translate-logical-pathname filename))))
     (error "Directory containing ~s does not exist." filename))
   (let* ((kind (%unix-file-kind (namestring (translate-logical-pathname filename)))))
     (when (and kind (not (eq kind :file )))
