@@ -77,6 +77,11 @@
                    (:exception (:unsigned 32))
                    (:pad1 (:array (:unsigned 32) 4))))
       (def-foreign-type nil
+          ;; The real record type is defined with
+          ;; #pragma pack(4) in effect.
+          ;; The :struct parser should really accept
+          ;; some option to deal with that, but Apple
+          ;; should also stop mis-aligning things.
           (:struct :darwin-ppc-thread-state64
                    (:srr0 (:unsigned 64))
                    (:srr1 (:unsigned 64))
@@ -113,9 +118,12 @@
                    (:r30  (:unsigned 64))
                    (:r31  (:unsigned 64))
                    (:cr   (:unsigned 32))
-                   (:xer  (:unsigned 64))
-                   (:lr   (:unsigned 64))
-                   (:ctr  (:unsigned 64))
+                   (:xer  (:unsigned 32))
+                   (:xer-low (:unsigned 32))
+                   (:lr   (:unsigned 32))
+                   (:lr-low (:unsigned 32))
+                   (:ctr  (:unsigned 32))
+                   (:ctr-low (:unsigned 32))
                    (:vrsave (:unsigned 32))))
       (def-foreign-type nil
           (:struct :darwin-sigaltstack64
@@ -742,8 +750,8 @@
                           (fv.addr eep-or-fv))))))
               ((= the-trap #$SIGBUS)
                (%error (make-condition 'invalid-memory-access
-                                       :address arg-0
-                                       :write-p (not (zerop arg-1)))
+                                       :address arg0
+                                       :write-p (not (zerop arg1)))
                        ()
                        frame-ptr))
               ;; tdnei RA,N; RA = nargs
