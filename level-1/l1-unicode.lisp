@@ -2699,7 +2699,7 @@ bytes."
                        s2
                        (locally
                            (declare (type (unsigned-byte 8) s2))
-                         (if (< s2 #xf0)
+                         (if (< 1st-unit #xf0)
                            (if (and (< (the fixnum (logxor s1 #x80)) #x40)
                                     (< (the fixnum (logxor s2 #x80)) #x40)
                                     (or (>= 1st-unit #xe1)
@@ -3275,7 +3275,7 @@ interpreted on input or prepended to output."
            (if (> nexti end)
              (return (values nchars i))
              (setq i nexti nchars (1+ nchars)))))))
-    :literal-char-code-limit #x10000
+    :literal-char-code-limit #xd800    ; use separate encode/decode limits
     :nul-encoding #(0 0)
     )
 
@@ -3438,7 +3438,7 @@ interpreted on input or prepended to output."
          (if (> nexti end)
            (return (values nchars i))
            (setq i nexti nchars (1+ nchars)))))))
-  :literal-char-code-limit #x10000
+  :literal-char-code-limit #xd800
   :nul-encoding #(0 0)
   )
 
@@ -3649,7 +3649,7 @@ in native byte-order with a leading byte-order mark."
                          (>= code #xdc00))
                    2
                    4)))))))
-  :literal-char-code-limit #x10000
+  :literal-char-code-limit #xd800
   :use-byte-order-mark
   #+big-endian-target :utf-16le
   #+little-endian-target :utf-16be
