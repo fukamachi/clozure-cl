@@ -1733,9 +1733,11 @@ signal_handler(int signum, siginfo_t *info, ExceptionInformation  *context, TCR 
   xframe_list xframe_link;
   int old_valence;
 
+#ifdef DARWIN
   if (running_under_rosetta) {
     fprintf(stderr, "signal handler: signal = %d, pc = 0x%08x\n", signum, xpPC(context));
   }
+#endif
   if (!use_mach_exception_handling) {
     
     tcr = (TCR *) get_interrupt_tcr(false);
