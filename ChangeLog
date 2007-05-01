@@ -1,3 +1,20 @@
+2007-05-01 06:11  gb
+
+	* level-1/l1-unicode.lisp: Set literal-code-limit to #xd800 for
+	utf-16 variants.
+	
+	Fix the typo (found by Takekiko Abe) in the utf-8 stream-decode
+	function.
+
+2007-05-01 06:10  gb
+
+	* level-1/ppc-trap-support.lisp: Mis-align some fields in the
+	darwin ppc64 thread state structure, just like Apple does.  Can I
+	blame them for getting this wrong, please ?
+	
+	Use the right argument names in ppc64 cmain callback; can't blame
+	Apple.
+
 2007-04-30 23:12  gb
 
 	* lisp-kernel/ppc-exceptions.c: running_under_rosetta only exists
