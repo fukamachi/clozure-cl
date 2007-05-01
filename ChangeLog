@@ -1,3 +1,21 @@
+2007-04-30 23:12  gb
+
+	* lisp-kernel/ppc-exceptions.c: running_under_rosetta only exists
+	on Darwin, and should probably be removed completely.  Now that
+	it's explicitly extern, don't try to reference it at runtime on
+	linuxppc.
+
+2007-04-30 23:11  gb
+
+	* lisp-kernel/pmcl-kernel.c: use_mach_exception_handling is
+	referenced at runtime and explicitly extern, so make sure that it's
+	initialized on all platforms.
+
+2007-04-30 23:10  gb
+
+	* lisp-kernel/lisp.h: running_under_rosetta - which is kind of an
+	oxymoron - is specific to Darwin.
+
 2007-04-21 00:10  gb
 
 	* lib/dumplisp.lisp: In SAVE-APPLICATION: check for containing
