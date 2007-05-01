@@ -67,6 +67,14 @@
 #endif
 #endif
 
+Boolean use_mach_exception_handling = 
+#ifdef DARWIN
+  true
+#else
+  false
+#endif
+;
+
 #ifdef DARWIN
 #include <sys/types.h>
 #include <sys/time.h>
@@ -79,13 +87,6 @@
 #include <sys/sysctl.h>
 
 Boolean running_under_rosetta = false;
-Boolean use_mach_exception_handling = 
-#ifdef DARWIN
-  true
-#else
-  false
-#endif
-;
 
 #if WORD_SIZE == 64
 /* Assume that if the OS is new enough to support PPC64/X8664, it has
@@ -1609,6 +1610,7 @@ xMakeDataExecutable(void *start, unsigned long nbytes)
   
   base = (ustart) & ~(cache_block_size-1);
   end = (ustart + nbytes + cache_block_size - 1) & ~(cache_block_size-1);
+#ifdef DARWIN
   if (running_under_rosetta) {
     /* We probably need to flush something's cache even if running
        under Rosetta, but (a) this is agonizingly slow and (b) we're
@@ -1616,6 +1618,7 @@ xMakeDataExecutable(void *start, unsigned long nbytes)
     */
     return;
   }
+#endif
 #ifndef X86
   flush_cache_lines(base, (end-base)/cache_block_size, cache_block_size);
 #endif
