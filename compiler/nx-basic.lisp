@@ -160,7 +160,7 @@
                   (return
                    (if (and (consp (cdr found))(eq (%cadr found) 'macro))
                      (values :macro t nil)
-                     (values :function t decls))))))))))))
+                     (values :function (caddr found) decls))))))))))))
 
 (defun variable-information (var &optional env)
   (setq var (require-type var 'symbol))
