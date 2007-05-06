@@ -1,3 +1,8 @@
+2007-05-05 18:10  gb
+
+	* level-0/l0-hash.lisp: If PUTHASH decides that it wants to grow
+	the hash table, it tries to enable the GC before doing so.
+
 2007-05-04 22:10  gb
 
 	* compiler/nx-basic.lisp: FUNCTION-INFORMATION returns what it
