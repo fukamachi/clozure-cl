@@ -787,7 +787,12 @@ terminate the list"
   (seq-dispatch
    sequence
    (let* ((cell (nthcdr idx sequence)))
-     (if cell (car cell) (%err-disp $XACCESSNTH idx sequence)))
+     (if (consp cell)
+       (car (the cons cell))
+       (if cell
+         (report-bad-arg sequence '(satisfies proper-list-p))
+         (%err-disp $XACCESSNTH idx sequence))))
+       
    (progn
      (unless (and (typep idx 'fixnum) (>= (the fixnum idx) 0))
        (report-bad-arg idx 'unsigned-byte))
@@ -803,11 +808,11 @@ terminate the list"
   (seq-dispatch
    sequence
    (let* ((cell (nthcdr idx sequence)))
-     (if cell 
-       (locally 
-         (declare (cons cell))
-         (setf (car cell) value))
-       (%err-disp $XACCESSNTH idx sequence)))
+     (if (consp cell)
+       (setf (car (the cons cell)) value)
+       (if cell
+         (report-bad-arg sequence '(satisfies proper-list-p))
+         (%err-disp $XACCESSNTH idx sequence))))
    (progn
      (unless (and (typep idx 'fixnum) (>= (the fixnum idx) 0))
        (report-bad-arg idx 'unsigned-byte))
