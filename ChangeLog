@@ -1,3 +1,9 @@
+2007-05-07 19:10  gb
+
+	* level-1/l1-aprims.lisp: ELT, SET-ELT: don't assume that NTHCDR
+	returns a CONS, signal the right flavor of TYPE-ERROR if it
+	doesn't.
+
 2007-05-05 18:10  gb
 
 	* level-0/l0-hash.lisp: If PUTHASH decides that it wants to grow
