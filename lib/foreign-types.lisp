@@ -78,8 +78,14 @@
 
 (defvar *host-ftd* (make-ftd
                     :interface-db-directory
-                    #.(ftd-interface-db-directory *target-ftd*)
-
+                    #.(ecase (backend-name *target-backend*)
+                        (:linuxppc32 "ccl:headers;")
+                        (:darwinppc32 "ccl:darwin-headers;")
+                        (:darwinppc64 "ccl:darwin-headers64;")
+                        (:linuxppc64 "ccl:headers64;")
+                        (:linuxx8664 "ccl:x86-headers64;")
+                        (:darwinx8664 "ccl:darwin-x86-headers64;")
+                        (:freebsdx8664 "ccl:freebsd-headers64;"))
                     :interface-package-name
                     #.(ftd-interface-package-name *target-ftd*)
                     :attributes
