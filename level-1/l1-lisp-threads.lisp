@@ -147,7 +147,7 @@
 (defvar *current-lisp-thread*
   (%cons-lisp-thread "Initial" (%current-tcr)))
 
-(defvar *initial-lisp-thread* *current-lisp-thread*)
+(defstatic *initial-lisp-thread* *current-lisp-thread*)
 
 (defun thread-change-state (thread oldstate newstate)
   (with-lock-grabbed ((lisp-thread.state-change-lock thread))
@@ -228,9 +228,9 @@
   #+64-bit-target (ash 2 19))
 
 
-(defparameter *initial-listener-default-control-stack-size* *default-control-stack-size*)
-(defparameter *initial-listener-default-value-stack-size* *default-value-stack-size*)
-(defparameter *initial-listener-default-temp-stack-size* *default-temp-stack-size*)
+(defstatic *initial-listener-default-control-stack-size* *default-control-stack-size*)
+(defstatic *initial-listener-default-value-stack-size* *default-value-stack-size*)
+(defstatic *initial-listener-default-temp-stack-size* *default-temp-stack-size*)
 
 
 (def-ccl-pointers listener-stack-sizes ()
