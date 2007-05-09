@@ -2,6 +2,11 @@ define x86_lisp_string
 x/s $arg0-5
 end
 
+define gtra
+br *$r10
+cont
+end
+
 define x86pname
 set $temp=*((long *)((long)($arg0-6)))
 x86_lisp_string $temp
