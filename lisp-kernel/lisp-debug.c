@@ -382,7 +382,6 @@ debug_lisp_registers(ExceptionInformation *xp, siginfo_t *info, int arg)
   show_lisp_register(xp, "arg_x", Iarg_x);
   fprintf(stderr,"------\n");
   show_lisp_register(xp, "fn", Ifn);
-  show_lisp_register(xp, "ra0", Ira0);
   fprintf(stderr,"------\n");
   show_lisp_register(xp, "save0", Isave0);
   show_lisp_register(xp, "save1", Isave1);
@@ -393,8 +392,8 @@ debug_lisp_registers(ExceptionInformation *xp, siginfo_t *info, int arg)
   show_lisp_register(xp, "temp1", Itemp1);
   show_lisp_register(xp, "temp2", Itemp2);
   fprintf(stderr,"------\n");
-  if (tag_of(xpGPR(xp,Itemp2)) == tag_fixnum) {
-    fprintf(stderr,"%%cx (nargs) = %d (maybe)\n", unbox_fixnum(xpGPR(xp,Itemp2)&0xffff));
+  if (tag_of(xpGPR(xp,Inargs)) == tag_fixnum) {
+    fprintf(stderr,"%%cx (nargs) = %d (maybe)\n", unbox_fixnum(xpGPR(xp,Inargs)&0xffff));
   }
 #endif
   return debug_continue;
@@ -458,18 +457,18 @@ debug_get_string_value(char *prompt)
   return NULL;
 }
 
-unsigned
-debug_get_u32_value(char *prompt)
+natural
+debug_get_natural_value(char *prompt)
 {
   char s[32];
   int n;
-  unsigned val;
+  natural val;
 
   do {
     fpurge(stdin);
     fprintf(stderr, "\n  %s :", prompt);
     fgets(s, 24, stdin);
-    n = sscanf(s, "%i", &val);
+    n = sscanf(s, "%lu", &val);
   } while (n != 1);
   return val;
 }
@@ -507,10 +506,10 @@ debug_command_return
 debug_set_gpr(ExceptionInformation *xp, siginfo_t *info, int arg)
 {
   char buf[32];
-  unsigned val;
+  natural val;
 
   sprintf(buf, "value for GPR %d", arg);
-  val = debug_get_u32_value(buf);
+  val = debug_get_natural_value(buf);
   set_xpGPR(xp, arg, val);
   return debug_continue;
 }
@@ -584,21 +583,37 @@ debug_show_fpu(ExceptionInformation *xp, siginfo_t *info, int arg)
 #ifdef X8664
 #ifdef LINUX
   struct _libc_xmmreg * xmmp = &(xp->uc_mcontext.fpregs->_xmm[0]);
+#endif
+#ifdef DARWIN
+  struct xmm {
+    char fpdata[16];
+  };
+  struct xmm *xmmp = (struct xmm *)(xpFPRvector(xp));
+#endif
+#ifdef FREEBSD
+  struct xmmacc *xmmp = xpXMMregs(xp);
+#endif
   float *sp;
 
-  dp = (double *) sp;
-  np = (int *) sp;
 
   for (i = 0; i < 16; i++, xmmp++) {
     sp = (float *) xmmp;
     dp = (double *) xmmp;
     np = (int *) xmmp;
-    fprintf(stderr, "f%02d: 0x%08x (%f), 0x%08x%08x (%f)\n", i, *np, (double)(*sp), np[1], np[0], *dp);
+    fprintf(stderr, "f%02d: 0x%08x (%e), 0x%08x%08x (%e)\n", i, *np, (double)(*sp), np[1], np[0], *dp);
   }
-  fprintf(stderr, "mxcsr = 0x%08x\n",xp->uc_mcontext.fpregs->mxcsr);
-      
+  fprintf(stderr, "mxcsr = 0x%08x\n",
+#ifdef LINUX
+          xp->uc_mcontext.fpregs->mxcsr
 #endif
+#ifdef DARWIN
+          xp->uc_mcontext->__fs.__fpu_mxcsr
 #endif
+#ifdef FREEBSD
+          (((struct savefpu *)(&(xp)->uc_mcontext.mc_fpstate))->sv_env.en_mxcsr)
+#endif
+          );
+#endif  
   return debug_continue;
 }
 
