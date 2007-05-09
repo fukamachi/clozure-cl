@@ -1126,22 +1126,200 @@ created with :WAIT NIL.) Return T if successful; signal an error otherwise."
                          (incf ncpu)))))))
              1)
             #+freebsd-target
-            (%stack-block ((ret (record-length :uint))
-                           (mib (* (record-length :uint))))
-              (setf (%get-unsigned-long mib 0)
+            (rlet ((ret :uint))
+              (%stack-block ((mib (* (record-length :uint) 2)))
+              (setf (paref mib (:array :uint) 0)
                     #$CTL_HW
-                    (%get-unsigned-long mib (record-length :uint))
+                    (paref mib (:array :uint) 1)
                     #$HW_NCPU)
               (rlet ((oldsize :uint (record-length :uint)))
                 (if (eql 0 (#_sysctl mib 2 ret oldsize (%null-ptr) 0))
                   (pref ret :uint)
-                  1)))
+                  1))))
             )))
 
 (def-load-pointers spin-count ()
   (if (eql 1 (cpu-count))
-    (setq *spin-lock-tries* 1)
-    (setq *spin-lock-tries* 1024)))
+    (%defglobal '*spin-lock-tries* 1)
+    (%defglobal '*spin-lock-tries* 1024)))
 
 (defun yield ()
   (#_sched_yield))
+
+(defloadvar *host-page-size* (#_getpagesize))
+
+;;(assert (= (logcount *host-page-size*) 1))
+
+(defun map-file-to-ivector (pathname element-type)
+  (let* ((upgraded-type (upgraded-array-element-type element-type))
+         (upgraded-ctype (specifier-type upgraded-type)))
+    (unless (and (typep upgraded-ctype 'numeric-ctype)
+                 (eq 'integer (numeric-ctype-class upgraded-ctype)))
+      (error "Invalid element-type: ~s" element-type))
+    (let* ((bits-per-element (integer-length (- (numeric-ctype-high upgraded-ctype)
+                                                (numeric-ctype-low upgraded-ctype))))
+           (fd (fd-open (native-translated-namestring pathname) #$O_RDONLY)))
+      (if (< fd 0)
+        (signal-file-error fd pathname)
+        (let* ((len (fd-size fd)))
+          (if (< len 0)
+            (signal-file-error fd pathname)
+            (let* ((nbytes (+ *host-page-size*
+                              (logandc2 (+ len
+                                           (1- *host-page-size*))
+                                        (1- *host-page-size*))))
+
+                   (ndata-elements
+                    (ash len
+                         (ecase bits-per-element
+                           (1 3)
+                           (8 0)
+                           (16 -1)
+                           (32 -2)
+                           (64 -3))))
+                   (nalignment-elements
+                    (ash target::nbits-in-word
+                         (ecase bits-per-element
+                           (1 0)
+                           (8 -3)
+                           (16 -4)
+                           (32 -5)
+                           (64 -6)))))
+              (if (>= (+ ndata-elements nalignment-elements)
+                      array-total-size-limit)
+                (progn
+                  (fd-close fd)
+                  (error "Can't make a vector with ~s elements in this implementation." (+ ndata-elements nalignment-elements)))
+                (let* ((addr (#_mmap +null-ptr+
+                                     nbytes
+                                     #$PROT_NONE
+                                     (logior #$MAP_ANON #$MAP_PRIVATE)
+                                     -1
+                                     0)))              
+                  (if (eql addr (%int-to-ptr (1- (ash 1 target::nbits-in-word)))) ; #$MAP_FAILED
+                    (let* ((errno (%get-errno)))
+                      (fd-close fd)
+                      (error "Can't map ~d bytes: ~a" nbytes (%strerror errno)))
+              ;;; Remap the first page so that we can put a vector header
+              ;;; there; use the first word on the first page to remember
+              ;;; the file descriptor.
+                    (progn
+                      (#_mmap addr
+                              *host-page-size*
+                              (logior #$PROT_READ #$PROT_WRITE)
+                              (logior #$MAP_ANON #$MAP_PRIVATE #$MAP_FIXED)
+                              -1
+                              0)
+                      (setf (pref addr :int) fd)
+                      (let* ((header-addr (%inc-ptr addr (- *host-page-size*
+                                                            (* 2 target::node-size)))))
+                        (setf (pref header-addr :unsigned-long)
+                              (logior (element-type-subtype upgraded-type)
+                                      (ash (+ ndata-elements nalignment-elements) target::num-subtag-bits)))
+                        (when (> len 0)
+                          (let* ((target-addr (%inc-ptr header-addr (* 2 target::node-size))))
+                            (unless (eql target-addr
+                                         (#_mmap target-addr
+                                                 len
+                                                 #$PROT_READ
+                                                 (logior #$MAP_PRIVATE #$MAP_FIXED)
+                                                 fd
+                                                 0))
+                              (let* ((errno (%get-errno)))
+                                (fd-close fd)
+                                (#_munmap addr nbytes)
+                                (error "Mapping failed: ~a" (%strerror errno))))))
+                        (with-macptrs ((v (%inc-ptr header-addr target::fulltag-misc)))
+                          (let* ((vector (rlet ((p :address v)) (%get-object p 0))))
+                            ;; Tell some parts of OpenMCL - notably the
+                            ;; printer - that this thing off in foreign
+                            ;; memory is a real lisp object and not
+                            ;; "bogus".
+                            (with-lock-grabbed (*heap-ivector-lock*)
+                              (push vector *heap-ivectors*))
+                            (make-array ndata-elements
+                                        :element-type upgraded-type
+                                        :displaced-to vector
+                                        :adjustable t
+                                        :displaced-index-offset nalignment-elements)))))))))))))))
+
+(defun map-file-to-octet-vector (pathname)
+  (map-file-to-ivector pathname '(unsigned-byte 8)))
+
+(defun mapped-vector-data-address-and-size (displaced-vector)
+  (let* ((v (array-displacement displaced-vector))
+         (element-type (array-element-type displaced-vector)))
+    (if (or (eq v displaced-vector)
+            (not (with-lock-grabbed (*heap-ivector-lock*)
+                   (member v *heap-ivectors*))))
+      (error "~s doesn't seem to have been allocated via ~s and not yet unmapped" displaced-vector 'map-file-to-ivector))
+    (let* ((pv (rlet ((x :address)) (%set-object x 0 v) (pref x :address)))
+           (ctype (specifier-type element-type))
+           (arch (backend-target-arch *target-backend*)))
+      (values (%inc-ptr pv (- (* 2 target::node-size) target::fulltag-misc))
+              (- (funcall (arch::target-array-data-size-function arch)
+                          (ctype-subtype ctype)
+                          (length v))
+                 target::node-size)))))
+
+  
+;;; Argument should be something returned by MAP-FILE-TO-IVECTOR;
+;;; this should be called at most once for any such object.
+(defun unmap-ivector (displaced-vector)
+  (multiple-value-bind (data-address size-in-octets)
+      (mapped-vector-data-address-and-size displaced-vector)
+  (let* ((v (array-displacement displaced-vector))
+         (base-address (%inc-ptr data-address (- *host-page-size*)))
+         (fd (pref base-address :int)))
+      (let* ((element-type (array-element-type displaced-vector)))
+        (adjust-array displaced-vector 0
+                      :element-type element-type
+                      :displaced-to (make-array 0 :element-type element-type)
+                      :displaced-index-offset 0))
+      (with-lock-grabbed (*heap-ivector-lock*)
+        (setq *heap-ivectors* (delete v *heap-ivectors*)))
+      (#_munmap base-address (+ size-in-octets *host-page-size*))      
+      (fd-close fd)
+      t)))
+
+(defun unmap-octet-vector (v)
+  (unmap-ivector v))
+
+(defun lock-mapped-vector (v)
+  (multiple-value-bind (address nbytes)
+      (mapped-vector-data-address-and-size v)
+    (eql 0 (#_mlock address nbytes))))
+
+(defun unlock-mapped-vector (v)
+  (multiple-value-bind (address nbytes)
+      (mapped-vector-data-address-and-size v)
+    (eql 0 (#_munlock address nbytes))))
+
+(defun bitmap-for-mapped-range (address nbytes)
+  (let* ((npages (ceiling nbytes *host-page-size*)))
+    (%stack-block ((vec npages))
+      (when (eql 0 (#_mincore address nbytes vec))
+        (let* ((bits (make-array npages :element-type 'bit)))
+          (dotimes (i npages bits)
+            (setf (sbit bits i)
+                  (logand 1 (%get-unsigned-byte vec i)))))))))
+
+(defun percentage-of-resident-pages (address nbytes)
+  (let* ((npages (ceiling nbytes *host-page-size*)))
+    (%stack-block ((vec npages))
+      (when (eql 0 (#_mincore address nbytes vec))
+        (let* ((nresident 0))
+          (dotimes (i npages (* 100.0 (/ nresident npages)))
+            (when (logbitp 0 (%get-unsigned-byte vec i))
+              (incf nresident))))))))
+
+(defun mapped-vector-resident-pages (v)
+  (multiple-value-bind (address nbytes)
+      (mapped-vector-data-address-and-size v)
+    (bitmap-for-mapped-range address nbytes)))
+
+(defun mapped-vector-resident-pages-percentage (v)
+  (multiple-value-bind (address nbytes)
+      (mapped-vector-data-address-and-size v)
+    (percentage-of-resident-pages address nbytes)))
+  
