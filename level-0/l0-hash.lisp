@@ -282,7 +282,7 @@
         (values (mixup-hash-code (instance.hash key)) nil)
         (if (symbolp key)
           (let* ((name (if key (%svref (symptr->symvector key) target::symbol.pname-cell) "NIL")))
-            (values (mixup-hash-code (%pname-hash name 0 (length name))) nil))
+            (values (mixup-hash-code (%pname-hash name (length name))) nil))
           (let ((hash (mixup-hash-code (strip-tag-to-fixnum key))))
             (if (immediate-p-macro key)
               (values hash nil)
