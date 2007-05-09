@@ -80,4 +80,6 @@ handle SIGUSR2 pass nostop noprint
 handle SIGEMT pass nostop noprint
 # Work around apparent Apple GDB bug
 handle SIGTTIN nopass nostop noprint
+# Work around Leopard bug du jour
+handle SIGSYS pass nostop noprint
 
