@@ -500,7 +500,6 @@ return a fixnum representation of that address, else return NIL."
 (progn
 
 (defun %library-base-containing-address (address)
-  (declare (ignore name))
   (rletZ ((info :<D>l_info))
     (let* ((status (ff-call *dladdr-entry*
                             :address address
