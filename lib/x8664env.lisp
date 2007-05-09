@@ -64,7 +64,8 @@
 
 (defconstant x8664-imm-regs (make-mask
                              x8664::imm0
-                             x8664::imm1))
+                             x8664::imm1
+                             x8664::imm2))
 
 (defconstant x8664-temp-fp-regs (make-mask x8664::fp0
                                            x8664::fp1
