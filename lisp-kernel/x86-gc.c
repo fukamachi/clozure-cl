@@ -100,16 +100,18 @@ check_node(LispObj n)
        check the function it (should) identify.
     */
     {
-      int disp = ((int *)n)[-1];
+      int disp = 0;
       LispObj m = n;
 
-      if (disp > 0) {
-        n = m - disp;
+      if ((*((unsigned short *)n) == RECOVER_FN_FROM_RIP_WORD0) &&
+          (*((unsigned char *)(n+2)) == RECOVER_FN_FROM_RIP_BYTE2)) {
+        disp = (*(int *) (n+3));
+        n = RECOVER_FN_FROM_RIP_LENGTH+m+disp;
       }
-      if ((disp <= 0) ||
+      if ((disp == 0) ||
           (fulltag_of(n) != fulltag_function) ||
           (heap_area_containing((BytePtr)ptr_from_lispobj(n)) != a)) {
-        Bug(NULL, "TRA at 0x%lx has bad displacement ~d\n", n, disp);
+        Bug(NULL, "TRA at 0x%lx has bad displacement %d\n", n, disp);
       }
     }
     /* Otherwise, fall through and check the header on the function
@@ -289,8 +291,15 @@ mark_root(LispObj n)
   }
 
   if (tag_of(n) == tag_tra) {
-    n = n - (((int *)n)[-1]);
-    tag_n = fulltag_function;
+    if ((*((unsigned short *)n) == RECOVER_FN_FROM_RIP_WORD0) &&
+        (*((unsigned char *)(n+2)) == RECOVER_FN_FROM_RIP_BYTE2)) {
+      int sdisp = (*(int *) (n+3));
+      n = RECOVER_FN_FROM_RIP_LENGTH+n+sdisp;
+      tag_n = fulltag_function;
+    }
+    else {
+      return;
+    }
   }
 
 
@@ -454,8 +463,14 @@ rmark(LispObj n)
   }
 
   if (tag_of(n) == tag_tra) {
-    n -= ((int *)n)[-1];
-    tag_n = fulltag_function;    
+    if ((*((unsigned short *)n) == RECOVER_FN_FROM_RIP_WORD0) &&
+        (*((unsigned char *)(n+2)) == RECOVER_FN_FROM_RIP_BYTE2)) {
+      int sdisp = (*(int *) (n+3));
+      n = RECOVER_FN_FROM_RIP_LENGTH+n+sdisp;
+      tag_n = fulltag_function;
+    } else {
+      return;
+    }
   }
 
   dnode = gc_area_dnode(n);
@@ -708,7 +723,7 @@ rmark(LispObj n)
   MarkVector:
     if ((tag_n == fulltag_tra_0) ||
         (tag_n == fulltag_tra_1)) {
-      int disp = ((int *)n)[-1];
+      int disp = (*(int *) (n+3)) + RECOVER_FN_FROM_RIP_LENGTH;
 
       base = (LispObj *) (untag(n-disp));
       header = *((natural *) base);
@@ -1452,8 +1467,10 @@ markhtabvs()
 void
 mark_xp(ExceptionInformation *xp)
 {
-  natural *regs = (natural *) xpGPRvector(xp);
-
+  natural *regs = (natural *) xpGPRvector(xp), dnode;
+  LispObj rip;
+    
+  
 
   mark_root(regs[Iarg_z]);
   mark_root(regs[Iarg_y]);
@@ -1462,13 +1479,28 @@ mark_xp(ExceptionInformation *xp)
   mark_root(regs[Isave2]);
   mark_root(regs[Isave1]);
   mark_root(regs[Isave0]);
-  mark_root(regs[Ira0]);
   mark_root(regs[Ifn]);
   mark_root(regs[Itemp0]);
   mark_root(regs[Itemp1]);
   mark_root(regs[Itemp2]);
-  /* If the IP isn't pointing into a marked function,
-     we're in big trouble.  Check for that here ? */
+  /* If the RIP isn't pointing into a marked function,
+     we can -maybe- recover from that if it's tagged as
+     a TRA. */
+  rip = regs[Iip];
+  dnode = gc_area_dnode(rip);
+  if ((dnode < GCndnodes_in_area) &&
+      (! ref_bit(GCmarkbits,dnode))) {
+    if (tag_of(rip) == tag_tra) {
+      mark_root(rip);
+    } else if ((fulltag_of(rip) == fulltag_function) &&
+               (*((unsigned short *)rip) == RECOVER_FN_FROM_RIP_WORD0) &&
+               (*((unsigned char *)(rip+2)) == RECOVER_FN_FROM_RIP_BYTE2) &&
+               ((*(int *) (rip+3))) == -RECOVER_FN_FROM_RIP_LENGTH) {
+      mark_root(rip);
+    } else {
+      Bug(NULL, "Can't find function for rip 0x%16lx",rip);
+    }
+  }
 }
 
 void
@@ -2037,7 +2069,6 @@ forward_xp(ExceptionInformation *xp)
   update_noderef(&(regs[Isave2]));
   update_noderef(&(regs[Isave1]));
   update_noderef(&(regs[Isave0]));
-  update_noderef(&(regs[Ira0]));
   update_noderef(&(regs[Ifn]));
   update_noderef(&(regs[Itemp0]));
   update_noderef(&(regs[Itemp1]));
@@ -3025,7 +3056,6 @@ purify_xp(ExceptionInformation *xp, BytePtr low, BytePtr high, area *to, int wha
   copy_ivector_reference(&(regs[Isave2]), low, high, to, what);
   copy_ivector_reference(&(regs[Isave1]), low, high, to, what);
   copy_ivector_reference(&(regs[Isave0]), low, high, to, what);
-  copy_ivector_reference(&(regs[Ira0]), low, high, to, what);
   copy_ivector_reference(&(regs[Ifn]), low, high, to, what);
   copy_ivector_reference(&(regs[Itemp0]), low, high, to, what);
   copy_ivector_reference(&(regs[Itemp1]), low, high, to, what);
@@ -3232,7 +3262,6 @@ impurify_xp(ExceptionInformation *xp, LispObj low, LispObj high, int delta)
   impurify_noderef(&(regs[Isave2]), low, high, delta);
   impurify_noderef(&(regs[Isave1]), low, high, delta);
   impurify_noderef(&(regs[Isave0]), low, high, delta);
-  impurify_noderef(&(regs[Ira0]), low, high, delta);
   impurify_noderef(&(regs[Ifn]), low, high, delta);
   impurify_noderef(&(regs[Itemp0]), low, high, delta);
   impurify_noderef(&(regs[Itemp1]), low, high, delta);
@@ -3516,7 +3545,6 @@ adjust_pointers_in_xp(ExceptionInformation *xp,
   adjust_noderef((LispObj *) (&(regs[Isave2])),base,limit,delta);
   adjust_noderef((LispObj *) (&(regs[Isave1])),base,limit,delta);
   adjust_noderef((LispObj *) (&(regs[Isave0])),base,limit,delta);
-  adjust_noderef((LispObj *) (&(regs[Ira0])),base,limit,delta);
   adjust_noderef((LispObj *) (&(regs[Ifn])),base,limit,delta);
   adjust_noderef((LispObj *) (&(regs[Itemp0])),base,limit,delta);
   adjust_noderef((LispObj *) (&(regs[Itemp1])),base,limit,delta);
@@ -3538,7 +3566,6 @@ nuke_pointers_in_xp(ExceptionInformation *xp,
   nuke_noderef((LispObj *) (&(regs[Isave2])),base,limit);
   nuke_noderef((LispObj *) (&(regs[Isave1])),base,limit);
   nuke_noderef((LispObj *) (&(regs[Isave0])),base,limit);
-  nuke_noderef((LispObj *) (&(regs[Ira0])),base,limit);
   nuke_noderef((LispObj *) (&(regs[Ifn])),base,limit);
   nuke_noderef((LispObj *) (&(regs[Itemp0])),base,limit);
   nuke_noderef((LispObj *) (&(regs[Itemp1])),base,limit);
