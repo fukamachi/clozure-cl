@@ -386,6 +386,7 @@
 	 ;; now look for tracible methods.
 	 ;; It's possible, but not likely, that we will be both
 	 ;; a callback and a function or method, if so we trace both.
+         ;; This isn't possible.
 	 ;; If we're neither, signal an error.
 	 ;;
 	 ((multiple-value-setq (def trace-thing) 
