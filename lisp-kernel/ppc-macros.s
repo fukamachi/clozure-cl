@@ -598,7 +598,7 @@ define([mkcatch],[
 	Set_TSP_Frame_Boxed()
 	str(nargs,tcr.catch_top(rcontext))
         li nargs,0
-	blr
+
 ])	
 
 define([restore_catch_nvrs],[
