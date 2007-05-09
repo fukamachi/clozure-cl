@@ -607,7 +607,7 @@ debug_show_fpu(ExceptionInformation *xp, siginfo_t *info, int arg)
           xp->uc_mcontext.fpregs->mxcsr
 #endif
 #ifdef DARWIN
-          xp->uc_mcontext->__fs.__fpu_mxcsr
+          UC_MCONTEXT(xp)->__fs.__fpu_mxcsr
 #endif
 #ifdef FREEBSD
           (((struct savefpu *)(&(xp)->uc_mcontext.mc_fpstate))->sv_env.en_mxcsr)
