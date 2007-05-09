@@ -91,7 +91,6 @@
   (pushq ($ nil))
   (jmp-subprim .SPvalues))
   
-
         
 
 (defx86lapfunction %make-code-executable ((codev arg_z))
@@ -155,6 +154,7 @@
 
 
 (defx86lapfunction %fixnum-ref ((fixnum arg_y) #| &optional |# (offset arg_z))
+  (:arglist (fixnum &optional offset))
   (check-nargs 1 2)
   (cmpw ($ x8664::fixnumone) (% nargs))
   (jne @2-args)
@@ -166,6 +166,7 @@
   (single-value-return))
 
 (defx86lapfunction %fixnum-ref-natural ((fixnum arg_y) #| &optional |# (offset arg_z))
+  (:arglist (fixnum &optional offset))
   (check-nargs 1 2)
   (cmpw ($ x8664::fixnumone) (% nargs))
   (jne @2-args)
@@ -177,6 +178,7 @@
   (jmp-subprim .SPmakeu64))
 
 (defx86lapfunction %fixnum-set ((fixnum arg_x) (offset arg_y) #| &optional |# (new-value arg_z))
+  (:arglist (fixnum offset &optional newval))
   (check-nargs 2 3)
   (cmpw ($ '2) (% nargs))
   (jne @3-args)
@@ -189,8 +191,8 @@
   (single-value-return))
 
 
-
 (defx86lapfunction %fixnum-set-natural ((fixnum arg_x) (offset arg_y) #| &optional |# (new-value arg_z))
+  (:arglist (fixnum offset &optional newval))
   (check-nargs 2 3)
   (save-simple-frame)
   (cmpw ($ '2) (% nargs))
@@ -222,15 +224,20 @@
   (movq (@ (% arg_z)) (% arg_z))
   (single-value-return))
 
-
+;;; Look for "lea -nnnn(%rip),%fn" AT the tra; if that's present, use
+;;; the dispacement -nnnn to find the function.  The end of the
+;;; encoded displacement is
+;;; x8664::recover-fn-from-rip-disp-offset (= 7) bytes from the tra.
 (defx86lapfunction %return-address-function ((r arg_z))
   (extract-lisptag r imm0)
   (cmpb ($ x8664::tag-tra) (% imm0.b))
   (jne @fail)
-  (movl (@ -4 (% r)) (% imm0.l))
-  (testl (% imm0.l) (% imm0.l))
-  (jle @fail)
-  (subq (% imm0) (% arg_z))
+  (cmpw ($ x8664::recover-fn-from-rip-word0) (@ (% r)))
+  (jne @fail)
+  (cmpb ($ x8664::recover-fn-from-rip-byte2) (@ 2 (% r)))
+  (movslq (@ x8664::recover-fn-from-rip-disp-offset (% r)) (% imm0))
+  (jne @fail)
+  (lea (@ x8664::recover-fn-from-rip-length (% imm0) (% r)) (% arg_z))
   (single-value-return)
   @fail
   (movl ($ x8664::nil-value) (% arg_z.l))
@@ -240,10 +247,13 @@
   (extract-lisptag r imm0)
   (cmpb ($ x8664::tag-tra) (% imm0.b))
   (jne @fail)
-  (movl (@ -4 (% r)) (% imm0.l))
-  (testl (% imm0.l) (% imm0.l))
-  (jle @fail)
-  (box-fixnum imm0 arg_z)
+  (cmpw ($ x8664::recover-fn-from-rip-word0) (@ (% r)))
+  (jne @fail)
+  (cmpb ($ x8664::recover-fn-from-rip-byte2) (@ 2 (% r)))
+  (movslq (@ x8664::recover-fn-from-rip-disp-offset (% r)) (% imm0))
+  (jne @fail)
+  (negq (% imm0))
+  (leaq (@ (ash x8664::recover-fn-from-rip-length x8664::fixnumshift) (% imm0) 8) (% arg_z))
   (single-value-return)
   @fail
   (movl ($ x8664::nil-value) (% arg_z.l))
@@ -251,30 +261,11 @@
 
 ;;; It's always been the case that the function associated with a
 ;;; frame pointer is the caller of the function that "uses" that frame.
-(defx86lapfunction %cfp-lfun ((p arg_z))
-  (ref-global ret1valaddr imm0)
-  (movq (@ x8664::lisp-frame.return-address (% p)) (% arg_y))
-  (cmpq (% imm0) (% arg_y))
-  (cmoveq (@ x8664::lisp-frame.xtra (% p)) (% arg_y))
-  (extract-lisptag arg_y imm0)
-  (cmpb ($ x8664::tag-tra) (%b imm0))
-  (jne @no)
-  (movl (@ -4 (% arg_y)) (%l imm0))
-  (testl (% imm0.l) (% imm0.l))
-  (je @no)
-  (subq (% imm0) (% arg_y))
-  (box-fixnum imm0 arg_z)
-  (movq (% rsp) (% temp0))
-  (pushq (% arg_y))
-  (pushq (% arg_z))
-  (set-nargs 2)
-  (jmp-subprim .SPvalues)
-  @no
-  (movq (% rsp) (% temp0))
-  (pushq ($ x8664::nil-value))
-  (pushq ($ x8664::nil-value))
-  (set-nargs 2)
-  (jmp-subprim .SPvalues))
+(defun %cfp-lfun (p)
+  (let* ((ra (%fixnum-ref p x8664::lisp-frame.return-address)))
+    (if (eq ra (%get-kernel-global ret1valaddr))
+      (setq ra (%fixnum-ref p x8664::lisp-frame.xtra)))
+    (values (%return-address-function ra) (%return-address-offset ra))))
 
 
 
@@ -349,6 +340,7 @@
   ;; Set nargs to 0, then spread "args" on stack (clobbers arg_x, arg_y, arg_z,
   ;;   but preserves x866::xfn/x8664::next-method-context.
   ;; Jump to the function in x8664::xfn.
+  (popq (% ra0))
   (movq (% magic) (% next-method-context))
   (movq (% function) (% xfn))
   (set-nargs 0)
@@ -380,8 +372,8 @@
   (jb @one)
   (jmp @three)
   @go
-  (xchgq (% xfn) (% fn))
-  (jmp (% fn)))
+  (push (% ra0))
+  (jmp (% xfn)))
 
 (defx86lapfunction %apply-with-method-context ((magic arg_x)
                                                (function arg_y)
@@ -392,8 +384,7 @@
   ;; Set nargs to 0, then spread "args" on stack (clobbers arg_x, arg_y, arg_z,
   ;;   but preserves x8664::xfn/x8664::next-method-context.
   ;; Jump to the function in x8664::xfn.
-  ;; We need to inline the "spreadargz" operation, 'cause there's no
-  ;; good place to keep %ra0.
+  (pop (% ra0))  
   (movq (% magic) (% x8664::next-method-context))
   (movq (% function) (% x8664::xfn))
   (movq (% args) (% arg_y))             ; in case of error
@@ -430,8 +421,8 @@
   (pop (% arg_x))
   (je @discard-and-go)
   @go
-  (xchgq (% xfn) (% fn))
-  (jmp (% fn))
+  (push (% ra0))
+  (jmp (% xfn))
   @bad
   (addq (% imm0) (% rsp))
   (movq (% arg_y) (% arg_z))
@@ -446,6 +437,7 @@
 ;;; must have been tail-called, and the frame built on lexpr
 ;;; entry must be in %rbp.
 (defx86lapfunction %apply-lexpr-tail-wise ((method arg_y) (args arg_z))
+  (addq ($ x8664::node-size) (% rsp))   ; discard extra return address
   (movq (% method) (% xfn))
   (movq (% args) (% rsp))
   (pop (%q nargs))
@@ -477,8 +469,8 @@
   @discard
   (discard-reserved-frame)
   @popped
-  (xchgq (% xfn) (% fn))
-  (jmp (% fn)))
+  (push (% ra0))
+  (jmp (% xfn)))
 
 
 
@@ -494,8 +486,10 @@
 
 (defun apply+ (&lap function arg1 arg2 &rest other-args)
   (x86-lap-function apply+ ()
+   (:arglist (function arg1 arg2 &rest other-args))
    (check-nargs 3 nil)
    (cmpw ($ '3) (% nargs))
+   (pop (% ra0))
    (ja @no-frame)
    (pushq ($ x8664::reserved-frame-marker))
    (pushq ($ x8664::reserved-frame-marker))
@@ -532,6 +526,7 @@
    (discard-reserved-frame)
    @no-discard
    (load-constant funcall temp0)
+   (push (% ra0))
    (jmp-subprim .SPfuncall)
    @bad                                 ; error spreading list.
    (add (% imm0) (% rsp))               ; discard whatever's been pushed
@@ -540,8 +535,7 @@
    (set-nargs 2)
    (jmp-subprim .SPksignalerr) ))
 
-(lfun-bits #'apply+ (logior $lfbits-rest-bit
-                            (dpb 3 $lfbits-numreq 0)))
+
 
 ;;; This needs to:
 ;;; (a) load FP arg regs from the FP-REGS argument
@@ -550,8 +544,9 @@
 ;;; (c) re-establish the same foreign stack frame and store the result regs
 ;;;     (%rax/%xmm0) there
 (defx86lapfunction %do-ff-call ((nfp 0) (frame arg_x) (fp-regs arg_y) (entry arg_z))
+  (popq (% ra0))
   (popq (% rax))
-  (movq (% rbp) (@ @ (% rsp)))
+  (movq (% rbp) (@  (% rsp)))
   (movq (% rsp) (% rbp))
   (movq (% ra0) (@ 8 (% rbp)))
   (macptr-ptr fp-regs temp0)
