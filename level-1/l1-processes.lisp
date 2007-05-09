@@ -102,7 +102,6 @@
                              (constantly valform))))))
           alist))
 
-(defloadvar *host-page-size* (#_getpagesize))
 
 (defun valid-allocation-quantum-p (x)
   (and (>= x *host-page-size*)
