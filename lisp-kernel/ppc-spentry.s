@@ -60,16 +60,19 @@ _spentry(funcall)
 _spentry(mkcatch1v)
 	__(li imm2,0)
 	__(mkcatch())
-
+        __(blr)
+        
 _spentry(mkunwind)
 	__(lwi(arg_z,unbound_marker))
 	__(li imm2,fixnum_one)
 	__(mkcatch())
-	
+	__(blr)
+        
 _spentry(mkcatchmv)
 	__(li imm2,fixnum_one)
 	__(mkcatch())
-
+        __(blr)
+        
 /* Caller has pushed tag and 0 or more values; nargs = nvalues.  */
 /* Otherwise, process unwind-protects and throw to indicated catch frame.  */
 	
@@ -6835,8 +6838,22 @@ _spentry(aset3)
 
         
 
-_spentry(unused_5)
-         __(b _SPbreakpoint)
+_spentry(nmkunwind)
+        __(li imm2,-fixnumone)
+        __(li imm3,INTERRUPT_LEVEL_BINDING_INDEX)
+        __(ldr(imm4,tcr.tlb_pointer(rcontext)))
+        __(ldr(arg_y,INTERRUPT_LEVEL_BINDING_INDEX(imm4)))
+        __(ldr(imm1,tcr.db_link(rcontext)))
+        __(vpush(arg_y))
+        __(vpush(imm3))
+        __(vpush(imm1))
+        __(str(imm2,INTERRUPT_LEVEL_BINDING_INDEX(imm4)))
+        __(str(vsp,tcr.db_link(rcontext)))
+	__(lwi(arg_z,unbound_marker))
+	__(li imm2,fixnum_one)
+	__(mkcatch())
+        __(mr arg_z,arg_y)
+        __(b _SPbind_interrupt_level)
 
 _spentry(unused_6)
          __(b _SPbreakpoint)
