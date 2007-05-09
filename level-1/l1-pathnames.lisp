@@ -351,6 +351,12 @@
 
 (defvar %empty-logical-pathname% (%cons-logical-pathname nil nil nil nil nil))
 
+(defun logical-pathname-namestring-p (string)
+  (multiple-value-bind (sstr start end) (get-sstring string)
+    (let ((host (pathname-host-sstr sstr start end t)))
+      (and host (not (eq host :unspecific))))))
+
+  
 ;; This extends CL in that it allows a host-less pathname, like "foo;bar;baz".
 (defun logical-pathname (thing &aux (path thing))
   "Converts the pathspec argument to a logical-pathname and returns it."
@@ -362,6 +368,8 @@
      (multiple-value-bind (sstr start end) (get-sstring path)
        ;; Prescan the host, to avoid unknown host errors.
        (let ((host (pathname-host-sstr sstr start end t)))
+         (when (or (null host) (eq host :unspecific))
+           (report-bad-arg path '(satisfies logical-pathname-namestring-p)))
 	 (let ((%logical-host-translations% (cons (list host) %logical-host-translations%)))
 	   (declare (special %logical-host-translations%))
 	   ;; By calling string-to-pathname with a logical pathname as default, we force
