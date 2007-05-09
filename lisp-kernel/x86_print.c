@@ -316,8 +316,16 @@ sprint_function(LispObj o, int depth)
 void
 sprint_tra(LispObj o, int depth)
 {
-  unsigned disp = *(((unsigned *)o)-1);
-  LispObj f = o-disp;
+  signed sdisp;
+  unsigned disp;
+  LispObj f = 0;
+
+  if ((*((unsigned short *)o) == RECOVER_FN_FROM_RIP_WORD0) &&
+      (*((unsigned char *)(o+2)) == RECOVER_FN_FROM_RIP_BYTE2)) {
+    sdisp = (*(int *) (o+3));
+    f = RECOVER_FN_FROM_RIP_LENGTH+o+sdisp;
+    disp = o-f;
+  }
 
   if (fulltag_of(f) == fulltag_function) {
     add_c_string("tagged return address: ");
@@ -490,7 +498,9 @@ sprint_lisp_object(LispObj o, int depth)
           }
 #ifdef X8664
         } else if (header_subtag(o) == subtag_single_float) {
-          sprintf(numbuf, "%f", o>>32);
+          LispObj xx = o;
+          float f = ((float *)&xx)[1];
+          sprintf(numbuf, "%f", f);
           add_c_string(numbuf);
 #endif
         } else {
