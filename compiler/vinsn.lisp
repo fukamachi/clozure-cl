@@ -384,16 +384,21 @@
           (temps temp-specs (cdr temps)))
          ((null temps) vp)
       (declare (fixnum i))
-      (let* ((lreg (allocate-temporary-vreg (car temps)))
-	     (class (hard-regspec-class lreg))
-	     (value (hard-regspec-value lreg)))
-	(when value
-	  (case class
-	    (#.hard-reg-class-gpr (note-vinsn-sets-gpr vinsn value))
-	    (#.hard-reg-class-fpr (note-vinsn-sets-fpr vinsn value))))
-        (setf (svref vp i) lreg)
-        (pushnew vinsn (lreg-defs lreg))
-        (pushnew vinsn (lreg-refs lreg))))))
+      (let* ((spec (cadar temps)))
+        (if (and (consp spec) (eq (car spec) :label))
+          (let* ((label (aref *backend-labels* (cadr spec))))
+            (push vinsn (vinsn-label-refs label))
+            (setf (svref vp i) label))
+          (let* ((lreg (allocate-temporary-vreg (car temps)))
+                 (class (hard-regspec-class lreg))
+                 (value (hard-regspec-value lreg)))
+            (when value
+              (case class
+                (#.hard-reg-class-gpr (note-vinsn-sets-gpr vinsn value))
+                (#.hard-reg-class-fpr (note-vinsn-sets-fpr vinsn value))))
+            (setf (svref vp i) lreg)
+            (pushnew vinsn (lreg-defs lreg))
+            (pushnew vinsn (lreg-refs lreg))))))))
 
 ;;; "spec" is (<name> <class>).
 ;;;  <class> is keyword or (<keyword> <val>)
