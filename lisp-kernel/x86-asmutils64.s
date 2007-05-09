@@ -28,7 +28,7 @@ _exportfn(C(flush_cache_lines))
 	__(addq %rdx,%rdi)
 	__(subq $1,%rsi)
 2:	__(jg 1b)	
-	__(ret)
+	__(repret)
 _endfn
 
 _exportfn(C(current_stack_pointer))
@@ -187,7 +187,7 @@ _exportfn(C(ensure_gs_pthread))
         __(movl $0x3000003,%eax)
         __(syscall)
         __(movl $1,%eax)
-9:      __(ret)
+9:      __(repret)
 _endfn
 
         /* Ensure that %gs addresses the linear address in %rdi */
