@@ -26,14 +26,18 @@ foreign_name_and_offset(void *frame, unsigned *delta)
 void
 print_lisp_frame(lisp_frame *frame)
 {
-  LispObj pc = frame->tra, fun;
+  LispObj pc = frame->tra, fun=0;
   int delta = 0;
 
   if (pc == lisp_global(RET1VALN)) {
     pc = frame->xtra;
   }
   if (tag_of(pc) == tag_tra) {
-    fun = pc - (((unsigned *)pc)[-1]);
+    if ((*((unsigned short *)pc) == RECOVER_FN_FROM_RIP_WORD0) &&
+        (*((unsigned char *)(pc+2)) == RECOVER_FN_FROM_RIP_BYTE2)) {
+      int sdisp = (*(int *) (pc+3));
+      fun = RECOVER_FN_FROM_RIP_LENGTH+pc+sdisp;
+    }
     if (fulltag_of(fun) == fulltag_function) {
       delta = pc - fun;
       Dprintf("(#x%016lX) #x%016lX : %s + %d", frame, pc, print_lisp_object(fun), delta);
@@ -52,21 +56,22 @@ lisp_frame_p(lisp_frame *f)
 {
   LispObj fun, ra;
   unsigned offset;
+  int sdisp;
 
   if (f) {
     ra = f->tra;
     if (ra == lisp_global(RET1VALN)) {
       ra = f->xtra;
     }
+
     if (tag_of(ra) == tag_tra) {
-      offset = (((unsigned *)ra)[-1]);
-      if (offset == 0) {
-	return true;
-      } else {
-	fun = ra - (((unsigned *)ra)[-1]);
-	if (fulltag_of(fun) == fulltag_function) {
-	  return true;
-	}
+      if ((*((unsigned short *)ra) == RECOVER_FN_FROM_RIP_WORD0) &&
+          (*((unsigned char *)(ra+2)) == RECOVER_FN_FROM_RIP_BYTE2)) {
+        sdisp = (*(int *) (ra+3));
+        fun = RECOVER_FN_FROM_RIP_LENGTH+ra+sdisp;
+      }
+      if (fulltag_of(fun) == fulltag_function) {
+        return true;
       }
     } else if ((ra == lisp_global(LEXPR_RETURN)) ||
 	       (ra == lisp_global(LEXPR_RETURN1V))) {
