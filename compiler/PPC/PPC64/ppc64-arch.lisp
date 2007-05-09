@@ -931,7 +931,7 @@
 (defppc64archmacro ccl::%get-kernel-global-ptr (name dest)
   `(ccl::%setf-macptr
     ,dest
-    (ccl::%fixnum-ref-natural 0 (+ ppc64::nil-value
+    (ccl::%fixnum-ref-macptr 0 (+ ppc64::nil-value
                                  ,(%kernel-global
                                    (if (ccl::quoted-form-p name)
                                      (cadr name)
