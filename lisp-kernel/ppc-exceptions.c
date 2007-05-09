@@ -576,9 +576,16 @@ new_heap_segment(ExceptionInformation *xp, natural need, Boolean extend, TCR *tc
 	      align_to_power_of_2(need, log2_allocation_quantum));
   if (newlimit > (natural) (a->high)) {
     if (extend) {
-      if (! resize_dynamic_heap(a->active, (newlimit-oldlimit)+lisp_heap_gc_threshold)) {
-        return false;
-      }
+      natural extend_by = lisp_heap_gc_threshold;
+      do {
+        if (resize_dynamic_heap(a->active, (newlimit-oldlimit)+extend_by)) {
+          break;
+        }
+        extend_by = align_to_power_of_2(extend_by>>1, log2_allocation_quantum);
+        if (extend_by < 4<<20) {
+          return false;
+        }
+      } while (1);
     } else {
       return false;
     }
@@ -867,7 +874,7 @@ is_write_fault(ExceptionInformation *xp, siginfo_t *info)
 }
 
 OSStatus
-handle_protection_violation(ExceptionInformation *xp, siginfo_t *info, TCR *tcr)
+handle_protection_violation(ExceptionInformation *xp, siginfo_t *info, TCR *tcr, int old_valence)
 {
   BytePtr addr;
   protected_area_ptr area;
@@ -883,6 +890,7 @@ handle_protection_violation(ExceptionInformation *xp, siginfo_t *info, TCR *tcr)
 
   if (addr && (addr == tcr->safe_ref_address)) {
     adjust_exception_pc(xp,4);
+
     xpGPR(xp,imm0) = 0;
     return 0;
   }
@@ -901,7 +909,9 @@ handle_protection_violation(ExceptionInformation *xp, siginfo_t *info, TCR *tcr)
       return handler(xp, area, addr);
     }
   }
-  callback_for_trap(nrs_CMAIN.vcell, xp, (pc)xpPC(xp), SIGBUS, (natural)addr, is_write_fault(xp,info));
+  if (old_valence == TCR_STATE_LISP) {
+    callback_for_trap(nrs_CMAIN.vcell, xp, (pc)xpPC(xp), SIGBUS, (natural)addr, is_write_fault(xp,info));
+  }
   return -1;
 }
 
@@ -1206,7 +1216,8 @@ OSStatus
 PMCL_exception_handler(int xnum, 
                        ExceptionInformation *xp, 
                        TCR *tcr, 
-                       siginfo_t *info)
+                       siginfo_t *info,
+                       int old_valence)
 {
   unsigned oldMQ;
   OSStatus status = -1;
@@ -1224,7 +1235,7 @@ PMCL_exception_handler(int xnum,
     status = handle_alloc_trap(xp, tcr);
   } else if ((xnum == SIGSEGV) ||
 	     (xnum == SIGBUS)) {
-    status = handle_protection_violation(xp, info, tcr);
+    status = handle_protection_violation(xp, info, tcr, old_valence);
   } else if (xnum == SIGFPE) {
     status = handle_sigfpe(xp, tcr);
   } else if ((xnum == SIGILL) || (xnum == SIGTRAP)) {
@@ -1728,10 +1739,9 @@ exit_signal_handler(TCR *tcr, int old_valence)
 
 
 void
-signal_handler(int signum, siginfo_t *info, ExceptionInformation  *context, TCR *tcr)
+signal_handler(int signum, siginfo_t *info, ExceptionInformation  *context, TCR *tcr, int old_valence)
 {
   xframe_list xframe_link;
-  int old_valence;
 
 #ifdef DARWIN
   if (running_under_rosetta) {
@@ -1753,7 +1763,7 @@ signal_handler(int signum, siginfo_t *info, ExceptionInformation  *context, TCR 
   }
   
   wait_for_exception_lock_in_handler(tcr, context, &xframe_link);
-  if ((noErr != PMCL_exception_handler(signum, context, tcr, info))) {
+  if ((noErr != PMCL_exception_handler(signum, context, tcr, info, old_valence))) {
     char msg[512];
     snprintf(msg, sizeof(msg), "Unhandled exception %d at 0x%lx, context->regs at #x%lx", signum, xpPC(context), (natural)xpGPRvector(context));
     if (lisp_Debugger(context, info, signum, msg)) {
@@ -2049,7 +2059,7 @@ interrupt_handler (int signum, siginfo_t *info, ExceptionInformation *context)
 #ifdef DEBUG
           fprintf(stderr, "[0x%x acquired exception lock for interrupt]\n",tcr);
 #endif
-	  PMCL_exception_handler(signum, context, tcr, info);
+	  PMCL_exception_handler(signum, context, tcr, info, old_valence);
           if (disp) {
             xpGPR(context,allocptr) -= disp;
           }
@@ -2228,11 +2238,14 @@ exception_init()
 
 #ifdef DARWIN
 
+
 #define TCR_FROM_EXCEPTION_PORT(p) ((TCR *)((natural)p))
 #define TCR_TO_EXCEPTION_PORT(tcr) ((mach_port_t)((natural)(tcr)))
 
-pthread_mutex_t _mach_exception_lock, *mach_exception_lock;
 
+#if USE_MACH_EXCEPTION_LOCK
+pthread_mutex_t _mach_exception_lock, *mach_exception_lock;
+#endif
 
 #define LISP_EXCEPTIONS_HANDLED_MASK \
  (EXC_MASK_SOFTWARE | EXC_MASK_BAD_ACCESS | EXC_MASK_BAD_INSTRUCTION | EXC_MASK_ARITHMETIC)
@@ -2499,7 +2512,7 @@ setup_signal_frame(mach_port_t thread,
 #endif
   mach_msg_type_number_t thread_state_count;
   ExceptionInformation *pseudosigcontext;
-  int i, j;
+  int i, j, old_valence = tcr->valence;
   kern_return_t result;
   natural stackp;
 
@@ -2525,6 +2538,7 @@ setup_signal_frame(mach_port_t thread,
   ts.__r3 = signum;
   ts.__r4 = (natural)pseudosigcontext;
   ts.__r5 = (natural)tcr;
+  ts.__r6 = (natural)old_valence;
   ts.__lr = (natural)pseudo_sigreturn;
 
 
@@ -2548,9 +2562,9 @@ setup_signal_frame(mach_port_t thread,
 
 
 void
-pseudo_signal_handler(int signum, ExceptionInformation *context, TCR *tcr)
+pseudo_signal_handler(int signum, ExceptionInformation *context, TCR *tcr, int old_valence)
 {
-  signal_handler(signum, NULL, context, tcr);
+  signal_handler(signum, NULL, context, tcr, old_valence);
 } 
 
 
@@ -2659,7 +2673,13 @@ catch_exception_raise(mach_port_t exception_port,
   fprintf(stderr, "obtaining Mach exception lock in exception thread\n");
 #endif
 
-  if (pthread_mutex_trylock(mach_exception_lock) == 0) {
+  if (
+#if USE_MACH_EXCEPTION_LOCK
+    pthread_mutex_trylock(mach_exception_lock) == 0
+#else
+    1
+#endif
+    ) {
     if (tcr->flags & (1<<TCR_FLAG_BIT_PENDING_EXCEPTION)) {
       CLR_TCR_FLAG(tcr,TCR_FLAG_BIT_PENDING_EXCEPTION);
     } 
@@ -2717,10 +2737,12 @@ catch_exception_raise(mach_port_t exception_port,
         kret = 17;
       }
     }
+#if USE_MACH_EXCEPTION_LOCK
 #ifdef DEBUG_MACH_EXCEPTIONS
     fprintf(stderr, "releasing Mach exception lock in exception thread\n");
 #endif
     pthread_mutex_unlock(mach_exception_lock);
+#endif
   } else {
     SET_TCR_FLAG(tcr,TCR_FLAG_BIT_PENDING_EXCEPTION);
 #if 0
@@ -2812,9 +2834,10 @@ mach_exception_port_set()
   static mach_port_t __exception_port_set = MACH_PORT_NULL;
   kern_return_t kret;  
   if (__exception_port_set == MACH_PORT_NULL) {
+#if USE_MACH_EXCEPTION_LOCK
     mach_exception_lock = &_mach_exception_lock;
     pthread_mutex_init(mach_exception_lock, NULL);
-
+#endif
     kret = mach_port_allocate(mach_task_self(),
 			      MACH_PORT_RIGHT_PORT_SET,
 			      &__exception_port_set);
@@ -3089,7 +3112,9 @@ mach_raise_thread_interrupt(TCR *target)
   mach_msg_type_number_t info_count = THREAD_BASIC_INFO_COUNT;
 
   LOCK(lisp_global(TCR_AREA_LOCK), current);
+#if USE_MACH_EXCEPTION_LOCK
   pthread_mutex_lock(mach_exception_lock);
+#endif
 
   if (suspend_mach_thread(mach_thread)) {
     if (thread_info(mach_thread,
@@ -3117,7 +3142,9 @@ mach_raise_thread_interrupt(TCR *target)
     thread_resume(mach_thread);
     
   }
+#if USE_MACH_EXCEPTION_LOCK
   pthread_mutex_unlock(mach_exception_lock);
+#endif
   UNLOCK(lisp_global(TCR_AREA_LOCK), current);
   return 0;
 }
