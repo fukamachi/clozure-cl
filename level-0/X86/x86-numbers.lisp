@@ -28,7 +28,7 @@
   (cmovnsq (% arg_y) (% arg_z))
   (single-value-return))
 
-;;; see %logcount (ppc-bignum.lisp)
+;;; see %logcount.
 (defx86lapfunction %ilogcount ((number arg_z))
   (let ((rshift imm0)
         (temp imm1))
@@ -47,18 +47,16 @@
 (defx86lapfunction %iash ((number arg_y) (count arg_z))
   (unbox-fixnum count imm1)
   (unbox-fixnum number imm0)
-  (xorq (% rcx) (% rcx))                ;rcx = temp1
+  (xorq (% rcx) (% rcx))                ;rcx = imm2
   (testq (% count) (% count))
   (jge @left)
   (subb (% imm1.b) (% cl))
   (sar (% cl) (% imm0))
-  (xorb (% cl) (% cl))
   (box-fixnum imm0 arg_z)
   (single-value-return)
   @left
   (movb (% imm1.b) (% cl))
   (shl (% cl) (% number))
-  (xorb (% cl) (% cl))
   (movq (% number) (% arg_z))
   (single-value-return))
 
@@ -135,18 +133,14 @@
   (movq ($ nil) (% arg_z))
   (cmoveq (% imm0) (% arg_z))
   (single-value-return))
-  
-
-
-
 
 
 ;;; n1 and n2 must be positive (esp non zero)
 (defx86lapfunction %fixnum-gcd ((boxed-u arg_y) (boxed-v arg_z))
   (let ((u imm0)
         (v imm1)
-        (k temp2))
-    (xorl (% temp2.l) (% temp2.l))
+        (k imm2))
+    (xorl (% imm2.l) (% imm2.l))
     (bsfq (% boxed-u) (% u))
     (bsfq (% boxed-v) (% v))
     (rcmp (% u) (% v))
