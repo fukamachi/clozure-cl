@@ -77,9 +77,16 @@ new_heap_segment(ExceptionInformation *xp, natural need, Boolean extend, TCR *tc
 	      align_to_power_of_2(need, log2_allocation_quantum));
   if (newlimit > (natural) (a->high)) {
     if (extend) {
-      if (! resize_dynamic_heap(a->active, (newlimit-oldlimit)+lisp_heap_gc_threshold)) {
-        return false;
-      }
+      natural extend_by = lisp_heap_gc_threshold;
+      do {
+        if (resize_dynamic_heap(a->active, (newlimit-oldlimit)+extend_by)) {
+          break;
+        }
+        extend_by = align_to_power_of_2(extend_by>>1,log2_allocation_quantum);
+        if (extend_by < 4<<20) {
+          return false;
+        }
+      } while (1);
     } else {
       return false;
     }
@@ -315,7 +322,11 @@ create_exception_callback_frame(ExceptionInformation *xp)
   f = xpGPR(xp,Ifn);
   tra = xpGPR(xp,Ira0);
   if (tag_of(tra) == tag_tra) {
-    tra_f = tra - ((int *)tra)[-1];
+    if ((*((unsigned short *)tra) == RECOVER_FN_FROM_RIP_WORD0) &&
+        (*((unsigned char *)(tra+2)) == RECOVER_FN_FROM_RIP_BYTE2)) {
+      int sdisp = (*(int *) (tra+3));
+      tra_f = RECOVER_FN_FROM_RIP_LENGTH+tra+sdisp;
+    }
     if (fulltag_of(tra_f) != fulltag_function) {
       tra_f = 0;
     }
@@ -565,7 +576,7 @@ is_write_fault(ExceptionInformation *xp, siginfo_t *info)
 }
 
 Boolean
-handle_fault(TCR *tcr, ExceptionInformation *xp, siginfo_t *info)
+handle_fault(TCR *tcr, ExceptionInformation *xp, siginfo_t *info, int old_valence)
 {
 #ifdef FREEBSD
   BytePtr addr = (BytePtr) xp->uc_mcontext.mc_addr;
@@ -586,10 +597,14 @@ handle_fault(TCR *tcr, ExceptionInformation *xp, siginfo_t *info)
       return handler(xp, a, addr);
     }
   }
-  {
-    LispObj xcf = create_exception_callback_frame(xp),
-      cmain = nrs_CMAIN.vcell;
-    callback_to_lisp(tcr, cmain, xp, xcf, SIGBUS, is_write_fault(xp,info), (natural)addr, 0);
+  if (old_valence == TCR_STATE_LISP) {
+    LispObj cmain = nrs_CMAIN.vcell,
+      xcf;
+    if ((fulltag_of(cmain) == fulltag_misc) &&
+      (header_subtag(header_of(cmain)) == subtag_macptr)) {
+      xcf = create_exception_callback_frame(xp);
+      callback_to_lisp(tcr, cmain, xp, xcf, SIGBUS, is_write_fault(xp,info), (natural)addr, 0);
+    }
   }
   return false;
 }
@@ -718,7 +733,7 @@ get_lisp_string(LispObj lisp_string, char *c_string, natural max)
 }
 
 Boolean
-handle_exception(int signum, siginfo_t *info, ExceptionInformation  *context, TCR *tcr)
+handle_exception(int signum, siginfo_t *info, ExceptionInformation  *context, TCR *tcr, int old_valence)
 {
   pc program_counter = (pc)xpPC(context);
 
@@ -769,7 +784,7 @@ handle_exception(int signum, siginfo_t *info, ExceptionInformation  *context, TC
       }
 
     } else {
-      return handle_fault(tcr, context, info);
+      return handle_fault(tcr, context, info, old_valence);
     }
     break;
 
@@ -823,12 +838,12 @@ handle_exception(int signum, siginfo_t *info, ExceptionInformation  *context, TC
 
 #if SIGBUS != SIGNUM_FOR_INTN_TRAP
   case SIGBUS:
-    return handle_fault(tcr, context, info);
+    return handle_fault(tcr, context, info, old_valence);
 #endif
     
 #if SIGSEGV != SIGNUM_FOR_INTN_TRAP
   case SIGSEGV:
-    return handle_fault(tcr, context, info);
+    return handle_fault(tcr, context, info, old_valence);
 #endif    
     
   default:
@@ -923,7 +938,7 @@ signal_handler(int signum, siginfo_t *info, ExceptionInformation  *context, TCR 
   wait_for_exception_lock_in_handler(tcr,context, &xframe_link);
 
 
-  if (! handle_exception(signum, info, context, tcr)) {
+  if (! handle_exception(signum, info, context, tcr, old_valence)) {
     char msg[512];
 
     snprintf(msg, sizeof(msg), "Unhandled exception %d at 0x%lx, context->regs at #x%lx", signum, xpPC(context), (natural)xpGPRvector(context));
@@ -1040,20 +1055,12 @@ find_foreign_rsp(LispObj rsp, area *foreign_area, TCR *tcr)
 
 
 #ifdef DARWIN
-/* 
-   There seems to be a problem with thread-level exception handling;
-   Mach seems (under some cirumstances) to conclude that there's
-   no thread-level handler and exceptions get passed up to a
-   handler that raises Un*x signals.  Ignore those signals so that
-   the exception will repropagate and eventually get caught by
-   catch_exception_raise() at the thread level.
-
-   Mach sucks, but no one understands how.
-*/
 void
-bogus_signal_handler()
+bogus_signal_handler(int signum, siginfo_t *info, ExceptionInformation *xp)
 {
-  /* This does nothing, but does it with signals masked */
+  if (signum == SIGSYS) {
+    return;                     /* Leopard lossage */
+  }
 }
 #endif
 
@@ -1159,7 +1166,7 @@ interrupt_handler (int signum, siginfo_t *info, ExceptionInformation *context)
         pc_luser_xp(context, tcr, &alloc_displacement);
         old_valence = prepare_to_wait_for_exception_lock(tcr, context);
         wait_for_exception_lock_in_handler(tcr, context, &xframe_link);
-        handle_exception(signum, info, context, tcr);
+        handle_exception(signum, info, context, tcr, old_valence);
         if (alloc_displacement) {
           tcr->save_allocptr -= alloc_displacement;
         }
@@ -1728,7 +1735,14 @@ pc_luser_xp(ExceptionInformation *xp, TCR *tcr, signed_natural *interrupt_displa
         }
       }
     }
-    xpPC(xp) = xpGPR(xp,Ira0);
+    {
+      /* These subprimitives are called via CALL/RET; need
+         to pop the return address off the stack and set
+         the PC there. */
+      LispObj *rsp = (LispObj *)xpGPR(xp,Isp), ra = *rsp++;
+      xpPC(xp) = ra;
+      xpGPR(xp,Isp)=(LispObj)rsp;
+    }
     return;
   }
 }
@@ -1899,7 +1913,9 @@ gc_from_xp(ExceptionInformation *xp, signed_natural param)
 #define TCR_FROM_EXCEPTION_PORT(p) ((TCR *)((natural)p))
 #define TCR_TO_EXCEPTION_PORT(tcr) ((mach_port_t)((natural)(tcr)))
 
+#if USE_MACH_EXCEPTION_LOCK
 pthread_mutex_t _mach_exception_lock, *mach_exception_lock;
+#endif
 extern void pseudo_sigreturn(void);
 
 
@@ -2275,6 +2291,7 @@ setup_signal_frame(mach_port_t thread,
 #define DARWIN_EXCEPTION_HANDLER pseudo_signal_handler
 #endif
 
+
 kern_return_t
 catch_exception_raise(mach_port_t exception_port,
 		      mach_port_t thread,
@@ -2294,18 +2311,27 @@ catch_exception_raise(mach_port_t exception_port,
   mach_msg_type_number_t thread_state_count;
 
 
+
 #ifdef DEBUG_MACH_EXCEPTIONS
   fprintf(stderr, "obtaining Mach exception lock in exception thread\n");
 #endif
 
 
-  if (pthread_mutex_trylock(mach_exception_lock) == 0) {
+  if (
+#if USE_MACH_EXCEPTION_LOCK
+      pthread_mutex_trylock(mach_exception_lock) == 0
+#else
+      1
+#endif
+      ) {
 #ifdef X8664
-    thread_state_count = x86_THREAD_STATE64_COUNT;
-    call_kret = thread_get_state(thread,
-                                 x86_THREAD_STATE64,
-                                 (thread_state_t)&ts,
-                     &thread_state_count);
+    do {
+      thread_state_count = x86_THREAD_STATE64_COUNT;
+      call_kret = thread_get_state(thread,
+                                   x86_THREAD_STATE64,
+                                   (thread_state_t)&ts,
+                                   &thread_state_count);
+    } while (call_kret == KERN_ABORTED);
   MACH_CHECK_ERROR("getting thread state",call_kret);
 #else
     thread_state_count = x86_THREAD_STATE_COUNT;
@@ -2343,15 +2369,15 @@ catch_exception_raise(mach_port_t exception_port,
           signum = SIGILL;
         }
         break;
-      
+          
       case EXC_SOFTWARE:
-          signum = SIGILL;
+        signum = SIGILL;
         break;
-      
+        
       case EXC_ARITHMETIC:
         signum = SIGFPE;
         break;
-
+        
       default:
         break;
       }
@@ -2363,24 +2389,26 @@ catch_exception_raise(mach_port_t exception_port,
                                   tcr, 
                                   &ts);
 #if 0
-      fprintf(stderr, "Setup pseudosignal handling in 0x%x\n",tcr);
+        fprintf(stderr, "Setup pseudosignal handling in 0x%x\n",tcr);
 #endif
-
+        
       } else {
         kret = 17;
       }
     }
+#if USE_MACH_EXCEPTION_LOCK
 #ifdef DEBUG_MACH_EXCEPTIONS
     fprintf(stderr, "releasing Mach exception lock in exception thread\n");
 #endif
     pthread_mutex_unlock(mach_exception_lock);
+#endif
   } else {
     SET_TCR_FLAG(tcr,TCR_FLAG_BIT_PENDING_EXCEPTION);
       
 #if 0
     fprintf(stderr, "deferring pending exception in 0x%x\n", tcr);
 #endif
-    kret = 0;
+    kret = KERN_SUCCESS;
     if (tcr == gc_tcr) {
       int i;
       write(1, "exception in GC thread. Sleeping for 60 seconds\n",sizeof("exception in GC thread.  Sleeping for 60 seconds\n"));
@@ -2436,8 +2464,10 @@ mach_exception_port_set()
   static mach_port_t __exception_port_set = MACH_PORT_NULL;
   kern_return_t kret;  
   if (__exception_port_set == MACH_PORT_NULL) {
+#if USE_MACH_EXCEPTION_LOCK
     mach_exception_lock = &_mach_exception_lock;
     pthread_mutex_init(mach_exception_lock, NULL);
+#endif
 
     kret = mach_port_allocate(mach_task_self(),
 			      MACH_PORT_RIGHT_PORT_SET,
