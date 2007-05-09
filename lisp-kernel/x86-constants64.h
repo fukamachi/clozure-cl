@@ -60,17 +60,17 @@
 #define Itemp0      REG_RBX
 #define Iarg_y      REG_RDI
 #define Iarg_x      REG_R8
+#define Iarg_z      REG_RSI
 #define Isave3      REG_R11
 #define Isave2      REG_R12
-#define Itemp2      REG_RCX
 #define Isave1      REG_R14
 #define Isave0      REG_R15
-#define Ira0        REG_R10
+#define Itemp2        REG_R10
 #define Ifn         REG_R13
 #define Irbp        REG_RBP
-#define Iarg_z      REG_RSI
-#define Iimm1       REG_RDX
 #define Iimm0       REG_RAX
+#define Iimm1       REG_RDX
+#define Iimm2       REG_RCX
 #define Itemp1      REG_R9
 #define Isp         REG_RSP
 #define Iip         REG_RIP
@@ -84,7 +84,8 @@
 
 
 #define Iallocptr Itemp0
-#define Inargs Itemp2
+#define Ira0 Itemp2
+#define Inargs Iimm2
 #define Ixfn Itemp1
 
 
