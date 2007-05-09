@@ -37,6 +37,8 @@ define([jump_builtin],[
 	jump_fname()
 ])
 
+        
+
 _spentry(bad_funcall)	
 	.globl C(bad_funcall)	
 __(tra(C(bad_funcall)))
@@ -54,10 +56,10 @@ C(fix_one_bit_overflow):
 	__(mov %temp0,%arg_z)
 	__(xorq %imm1,%imm0)
 	__(movq %imm0,misc_data_offset(%arg_z))
-	__(jmp *%ra0)	
+	__(ret)	
 _endsubp(fix_overflow)
 
-	
+
 /* Make a lisp integer (fixnum or two-digit bignum) from the signed  */
 /* 64-bit value in %imm0.   */
 
@@ -72,9 +74,10 @@ _spentry(makes64)
 	__(movq $two_digit_bignum_header,%imm0)
 	__(Misc_Alloc_Fixed(%arg_z,aligned_bignum_size(2)))
 	__(movq %mm0,misc_data_offset(%arg_z))
-0:	__(jmp *%ra0)
+0:	__(repret)
 _endsubp(makes64)	
-				
+
+        				
 
 /* %imm1:%imm0 constitute a signed integer, almost certainly a bignum.  */
 /* Make a lisp integer out of those 128 bits ..   */
@@ -110,14 +113,15 @@ _startfn(C(makes128))
 	__(Misc_Alloc_Fixed(%arg_z,aligned_bignum_size(4)))
 	__(movq %mm0,misc_data_offset(%arg_z))
 	__(movq %mm1,misc_data_offset+8(%arg_z))
-	__(jmp *%ra0)
+	__(ret)
 3:	__(mov $three_digit_bignum_header,%imm0)
 	__(Misc_Alloc_Fixed(%arg_z,aligned_bignum_size(3)))
 	__(movq %mm0,misc_data_offset(%arg_z))
 	__(movd %mm1,misc_data_offset+8(%arg_z))
-	__(jmp *%ra0)
+	__(ret)
 _endfn
 
+        
 /* %imm1:%imm0 constitute an unsigned integer, almost certainly a bignum.  */
 /* Make a lisp integer out of those 128 bits ..  */
 	
@@ -151,7 +155,7 @@ _startfn(C(makeu128))
 	__(Misc_Alloc_Fixed(%arg_z,aligned_bignum_size(3)))
 	__(movq %mm0,misc_data_offset(%arg_z))
 	__(movd %mm1,misc_data_offset+8(%arg_z))
-	__(jmp *%ra0)
+	__(ret)
 4:	__(movq $four_digit_bignum_header,%imm0)
 	__(Misc_Alloc_Fixed(%arg_z,aligned_bignum_size(4)))
 	__(jmp 6f)
@@ -159,7 +163,7 @@ _startfn(C(makeu128))
 	__(Misc_Alloc_Fixed(%arg_z,aligned_bignum_size(5)))
 6:	__(movq %mm0,misc_data_offset(%arg_z))
 	__(movq %mm0,misc_data_offset+8(%arg_z))
-	__(jmpq *%ra0)
+	__(ret)
 _endfn
 
 _spentry(misc_ref)
@@ -185,8 +189,8 @@ _endsubp(misc_ref)
 	
 _startfn(C(misc_ref_common))
 	__(movzbl %imm1_b,%imm1_l)
-        __(lea local_label(misc_ref_jmp)(%rip),%temp2)
-	__(jmp *(%temp2,%imm1,8))
+        __(lea local_label(misc_ref_jmp)(%rip),%imm2)
+	__(jmp *(%imm2,%imm1,8))
 	.p2align 3
 local_label(misc_ref_jmp):	
 	/* 00-0f   */
@@ -474,7 +478,7 @@ local_label(misc_ref_function):
 	__(jb local_label(misc_ref_u64))
 local_label(misc_ref_node):
 	__(movq misc_data_offset(%arg_y,%arg_z),%arg_z)
-	__(jmp *%ra0)
+	__(ret)
 local_label(misc_ref_u64):
 	__(movq misc_data_offset(%arg_y,%arg_z),%imm0)
 	__(jmp _SPmakeu64)
@@ -483,11 +487,11 @@ local_label(misc_ref_double_float_vector):
 	__(movq $double_float_header,%imm0)
 	__(Misc_Alloc_Fixed(%arg_z,double_float.size))
 	__(movsd %fp1,double_float.value(%arg_z))
-	__(jmp *%ra0)
+	__(ret)
 local_label(misc_ref_fixnum_vector):	
 	__(movq misc_data_offset(%arg_y,%arg_z),%imm0)
         __(box_fixnum(%imm0,%arg_z))
-        __(jmp *%ra0)
+        __(ret)
 local_label(misc_ref_s64):	
 	__(movq misc_data_offset(%arg_y,%arg_z),%imm0)
 	__(jmp _SPmakes64)
@@ -496,13 +500,13 @@ local_label(misc_ref_u32):
 	__(shr $1,%imm0)
 	__(movl misc_data_offset(%arg_y,%imm0),%imm0_l)
 	__(box_fixnum(%imm0,%arg_z))
-	__(jmp *%ra0)
+	__(ret)
 local_label(misc_ref_s32):
 	__(movq %arg_z,%imm0)
 	__(shr $1,%imm0)
 	__(movslq misc_data_offset(%arg_y,%imm0),%imm0)
 	__(box_fixnum(%imm0,%arg_z))
-	__(jmp *%ra0)
+	__(ret)
 local_label(misc_ref_single_float_vector):
 	__(movq %arg_z,%imm0)
 	__(shr $1,%imm0)
@@ -510,45 +514,45 @@ local_label(misc_ref_single_float_vector):
 	__(movd %fp1,%imm0_l)
 	__(shl $32,%imm0)
 	__(lea subtag_single_float(%imm0),%arg_z)
-	__(jmp *%ra0)
+	__(ret)
 local_label(misc_ref_u8):
 	__(movq %arg_z,%imm0)
 	__(shr $3,%imm0)
 	__(movzbl misc_data_offset(%arg_y,%imm0),%imm0_l)
 	__(box_fixnum(%imm0,%arg_z))
-	__(jmp *%ra0)
+	__(ret)
 local_label(misc_ref_s8):	
 	__(movq %arg_z,%imm0)
 	__(shr $3,%imm0)
 	__(movsbq misc_data_offset(%arg_y,%imm0),%imm0)
 	__(box_fixnum(%imm0,%arg_z))
-	__(jmp *%ra0)
+	__(ret)
 local_label(misc_ref_string):
 	__(movq %arg_z,%imm0)
 	__(shr $3,%imm0)
 	__(movzbl misc_data_offset(%arg_y,%imm0),%imm0_l)
 	__(shlq $charcode_shift,%imm0)
 	__(leaq subtag_character(%imm0),%arg_z)
-	__(jmp *%ra0)
+	__(ret)
 local_label(misc_ref_new_string):
 	__(movq %arg_z,%imm0)
 	__(shr $1,%imm0)
 	__(movl misc_data_offset(%arg_y,%imm0),%imm0_l)
 	__(shlq $charcode_shift,%imm0)
 	__(leaq subtag_character(%imm0),%arg_z)
-	__(jmp *%ra0)        
+	__(ret)        
 local_label(misc_ref_u16):	
 	__(movq %arg_z,%imm0)
 	__(shrq $2,%imm0)
 	__(movzwl misc_data_offset(%arg_y,%imm0),%imm0_l)
 	__(box_fixnum(%imm0,%arg_z))
-	__(jmp *%ra0)
+	__(ret)
 local_label(misc_ref_s16):	
 	__(movq %arg_z,%imm0)
 	__(shrq $2,%imm0)
 	__(movswq misc_data_offset(%arg_y,%imm0),%imm0)
 	__(box_fixnum(%imm0,%arg_z))
-	__(jmp *%ra0)
+	__(ret)
 local_label(misc_ref_bit_vector):
 	__(unbox_fixnum(%arg_z,%imm0))
 	__(movl $63,%imm1_l)
@@ -559,7 +563,7 @@ local_label(misc_ref_bit_vector):
 	__(negb %imm0_b)
 	__(andl $fixnum_one,%imm0_l)
 	__(movq %imm0,%arg_z)
-	__(jmp *%ra0)
+	__(ret)
 local_label(misc_ref_invalid):
 	__(movq $XBADVEC,%arg_x)
 	__(set_nargs(3))
@@ -627,8 +631,8 @@ _endsubp(misc_set)
 		
 _startfn(C(misc_set_common))
 	__(movzbl %imm1_b,%imm1_l)
-        __(lea local_label(misc_set_jmp)(%rip),%temp2)
-	__(jmp *(%temp2,%imm1,8))
+        __(lea local_label(misc_set_jmp)(%rip),%imm2)
+	__(jmp *(%imm2,%imm1,8))
 	.p2align 3
 local_label(misc_set_jmp):		
 	/* 00-0f   */
@@ -938,14 +942,14 @@ local_label(misc_set_u64):
 	__(cmpl $0,misc_data_offset+8(%arg_z))
 	__(jne local_label(misc_set_bad))
 9:	__(movq %imm0,misc_data_offset(%arg_x,%arg_y))
-	__(jmp *%ra0)
+	__(ret)
 local_label(misc_set_fixnum_vector):
 	__(movq %arg_z,%imm0)
 	__(sarq $fixnumshift,%imm0)
 	__(testb $fixnummask,%arg_z_b)
 	__(jne local_label(misc_set_bad))
 	__(movq %imm0,misc_data_offset(%arg_x,%arg_y))
-	__(jmp *%ra0)	
+	__(ret)	
 local_label(misc_set_s64):
 	__(movq %arg_z,%imm0)
 	__(sarq $fixnumshift,%imm0)
@@ -963,7 +967,7 @@ local_label(misc_set_s64):
 	__(movq misc_data_offset(%arg_z),%imm0)
 	__(jne local_label(misc_set_bad))
 9:	__(movq %imm0,misc_data_offset(%arg_x,%arg_y))
-	__(jmp *%ra0)	
+	__(ret)	
 local_label(misc_set_bad):
 	__(movq %arg_z,%arg_y)
 	__(movq %arg_x,%arg_z)
@@ -979,7 +983,7 @@ local_label(misc_set_double_float_vector):
 	__(jne local_label(misc_set_bad))
 	__(movq double_float.value(%arg_z),%imm0)
 	__(movq %imm0,misc_dfloat_offset(%arg_x,%arg_y))
-	__(jmp *%ra0)
+	__(ret)
 local_label(misc_set_s32):	
 	__(movq %arg_z,%imm0)
 	__(movq %arg_y,%imm1)
@@ -992,7 +996,7 @@ local_label(misc_set_s32):
 	__(jne local_label(misc_set_bad))
 	__(shr $fixnumshift,%imm0)
 	__(movl %imm0_l,misc_data_offset(%arg_x,%imm1))
-	__(jmp *%ra0)
+	__(ret)
 local_label(misc_set_single_float_vector):
 	__(cmpb $tag_single_float,%arg_z_b)
 	__(movq %arg_z,%imm0)
@@ -1001,7 +1005,7 @@ local_label(misc_set_single_float_vector):
 	__(shrq $1,%imm1)
 	__(shr $32,%imm0)
 	__(movl %imm0_l,misc_data_offset(%arg_x,%imm1))
-	__(jmp *%ra0)
+	__(ret)
 local_label(misc_set_u32):
 	__(movq %arg_y,%imm1)	
 	__(movq $~(0xffffffff<<fixnumshift),%imm0)
@@ -1010,7 +1014,7 @@ local_label(misc_set_u32):
 	__(jne local_label(misc_set_bad))
 	__(unbox_fixnum(%arg_z,%imm0))
 	__(movl %imm0_l,misc_data_offset(%arg_x,%imm1))
-	__(jmp *%ra0)
+	__(ret)
 local_label(misc_set_bit_vector):	
 	__(testq $~fixnumone,%arg_z)
 	__(jne local_label(misc_set_bad))
@@ -1022,10 +1026,10 @@ local_label(misc_set_bit_vector):
 	__(je local_label(misc_set_clr_bit))
 local_label(misc_set_set_bit):	
 	__(btsq %imm0,misc_data_offset(%arg_x,%imm1,8))
-	__(jmp *%ra0)
+	__(ret)
 local_label(misc_set_clr_bit):	
 	__(btrq %imm0,misc_data_offset(%arg_x,%imm1,8))
-	__(jmp *%ra0)
+	__(ret)
 local_label(misc_set_u8):	
 	__(testq $~(0xff<<fixnumshift),%arg_z)
 	__(jne local_label(misc_set_bad))
@@ -1033,7 +1037,7 @@ local_label(misc_set_u8):
 	__(unbox_fixnum(%arg_z,%imm0))
 	__(shrq $3,%imm1)
 	__(movb %imm0_b,misc_data_offset(%arg_x,%imm1))
-	__(jmp *%ra0)
+	__(ret)
 local_label(misc_set_s8):
 	__(movq %arg_z,%imm0)
 	__(shlq $64-(8+fixnumshift),%imm0)	
@@ -1046,7 +1050,7 @@ local_label(misc_set_s8):
 	__(shrq $fixnumshift,%imm0)
 	__(shrq $3,%imm1)
 	__(movb %imm0_b,misc_data_offset(%arg_x,%imm1))
-	__(jmp *%ra0)
+	__(ret)
 local_label(misc_set_string):
 	__(cmpb $subtag_character,%arg_z_b)
 	__(movq %arg_z,%imm0)
@@ -1055,7 +1059,7 @@ local_label(misc_set_string):
 	__(shrq $charcode_shift,%imm0)
 	__(shrq $3,%imm1)
 	__(movb %imm0_b,misc_data_offset(%arg_x,%imm1))
-	__(jmp *%ra0)
+	__(ret)
 local_label(misc_set_new_string):
 	__(cmpb $subtag_character,%arg_z_b)
 	__(movq %arg_z,%imm0)
@@ -1064,7 +1068,7 @@ local_label(misc_set_new_string):
 	__(shrq $charcode_shift,%imm0)
 	__(shrq $1,%imm1)
 	__(movl %imm0_l,misc_data_offset(%arg_x,%imm1))
-	__(jmp *%ra0)        
+	__(ret)        
 local_label(misc_set_s16):	
 	__(movq %arg_z,%imm0)
 	__(movq %arg_y,%imm1)
@@ -1077,7 +1081,7 @@ local_label(misc_set_s16):
 	__(jne local_label(misc_set_bad))
 	__(shrq $fixnumshift,%imm0)
 	__(movw %imm0_w,misc_data_offset(%arg_x,%imm1))
-	__(jmp *%ra0)
+	__(ret)
 local_label(misc_set_u16):
 	__(movq %arg_y,%imm1)
 	__(testq $~(0xffff<<fixnumshift),%arg_z)
@@ -1085,7 +1089,7 @@ local_label(misc_set_u16):
 	__(shrq $2,%imm1)
 	__(unbox_fixnum(%arg_z,%imm0))
 	__(movw %imm0_w,misc_data_offset(%arg_x,%imm1))
-	__(jmp *%ra0)
+	__(ret)
 local_label(misc_set_invalid):
 	__(push $XSETBADVEC)
 	__(set_nargs(4))
@@ -1099,8 +1103,8 @@ _endfn(C(misc_set_common))
 _spentry(Fret1valn)
 	.globl C(ret1valn)
 __(tra(C(ret1valn)))
-	__(pop %ra0)
-	__(push %arg_z)
+        __(movq (%rsp),%ra0)
+        __(movq %arg_z,(%rsp))
 	__(set_nargs(1))
 	__(jmpq *%ra0)
 _endsubp(Fret1valn)
@@ -1117,8 +1121,8 @@ C(nvalret):
 	__(movl $nil_value,%arg_z_l)
 	__(cmovneq -node_size(%rsp,%nargs_q),%arg_z)
 	__(leaveq)
-	__(popq %ra0)
-	__(jmp *%ra0)
+        __(ret)
+
 	
 /* actually need to return values ; always need to copy   */
 1:	__(leaq 2*node_size(%rbp),%imm1)
@@ -1154,8 +1158,8 @@ _spentry(funcall)
 _endsubp(funcall)
 
 _spentry(mkcatch1v)
-	__(Make_Catch(0))
-	__(jmp *%ra0)
+	__(nMake_Catch(0))
+	__(ret)
 _endsubp(mkcatch1v)
 
 _spentry(mkunwind)
@@ -1163,12 +1167,28 @@ _spentry(mkunwind)
 	__(Make_Catch(fixnumone))
 	__(jmp *%ra0)
 _endsubp(mkunwind)
+        
+/* this takes a return address in %ra0; it's "new" in that it does the
+   double binding of *interrupt-level* out-of-line */
+_spentry(nmkunwind)
+	__(movq %rcontext:tcr.tlb_pointer,%arg_x)
+        __(movq INTERRUPT_LEVEL_BINDING_INDEX(%arg_x),%arg_y)
+	__(push %arg_y)
+	__(push $INTERRUPT_LEVEL_BINDING_INDEX)
+	__(push %rcontext:tcr.db_link)
+	__(movq %rsp,%rcontext:tcr.db_link)
+	__(movq $-1<<fixnumshift,INTERRUPT_LEVEL_BINDING_INDEX(%arg_x))
+	__(movq $undefined,%arg_z)
+	__(Make_Catch(fixnumone))
+        __(movq %arg_y,%arg_z)
+        __(jmp _SPbind_interrupt_level)
+_endsubp(nmkunwind)
 
 _spentry(mkcatchmv)
-	__(Make_Catch(fixnumone))
-	__(jmp *%ra0)
+	__(nMake_Catch(fixnumone))
+	__(ret)
 _endsubp(mkcatchmv)
-
+        
 _spentry(throw)
 	__(movq %rcontext:tcr.catch_top,%imm1)
 	__(xorl %imm0_l,%imm0_l)
@@ -1203,6 +1223,7 @@ __(tra(local_label(_threw_one_value)))
 	__(cmpq %imm0,%imm1)
 	__(jz local_label(_threw_one_value_dont_unbind))
 	__(lea local_label(_threw_one_value_dont_unbind)(%rip),%ra0)
+        __(push %ra0)
 	__(jmp _SPunbind_to)
 __(tra(local_label(_threw_one_value_dont_unbind)))
 	__(movq catch_frame.rbp(%temp0),%rbp)
@@ -1232,7 +1253,8 @@ __(tra(local_label(_threw_multiple)))
 	__(movq %rcontext:tcr.db_link,%imm1)
 	__(cmpq %imm0,%imm1)
 	__(je local_label(_threw_multiple_dont_unbind))
-	__(leaq local_label(_threw_multiple_dont_unbind)(%rip),%r10)
+	__(leaq local_label(_threw_multiple_dont_unbind)(%rip),%ra0)
+        __(push %ra0)
 	__(jmp _SPunbind_to)
 __(tra(local_label(_threw_multiple_dont_unbind)))
 	/* Copy multiple values from the current %rsp to the target %rsp   */
@@ -1284,6 +1306,7 @@ local_label(_nthrowv_nextframe):
 	__(jz local_label(_nthrowv_dont_unbind))
 	__(push %ra0)
 	__(leaq local_label(_nthrowv_back_from_unbind)(%rip),%ra0)
+        __(push %ra0)
 	__(jmp _SPunbind_to)
 __(tra(local_label(_nthrowv_back_from_unbind)))
 
@@ -1370,6 +1393,7 @@ local_label(_nthrowv_tpushtest):
 	__(movq %arg_x,%rsp)
 /* Ready to call cleanup code. set up tra, jmp to %xfn   */
 	__(leaq local_label(_nthrowv_called_cleanup)(%rip),%ra0)
+        __(push %ra0)
 	__(movb $0,%rcontext:tcr.unwinding)
 	__(jmp *%xfn)
 __(tra(local_label(_nthrowv_called_cleanup)))
@@ -1420,6 +1444,7 @@ local_label(_nthrow1v_nextframe):
 	__(jz local_label(_nthrow1v_dont_unbind))
 	__(push %ra0)
 	__(leaq local_label(_nthrow1v_back_from_unbind)(%rip),%ra0)
+        __(push %ra0)
 	__(jmp _SPunbind_to)
 __(tra(local_label(_nthrow1v_back_from_unbind)))
 
@@ -1478,6 +1503,7 @@ local_label(_nthrow1v_do_unwind):
 /* Ready to call cleanup code. set up tra, jmp to %xfn   */
 	__(leaq local_label(_nthrow1v_called_cleanup)(%rip),%ra0)
 	__(movb $0,%rcontext:tcr.unwinding)
+        __(push %ra0)
 	__(jmp *%xfn)
 __(tra(local_label(_nthrow1v_called_cleanup)))
 
@@ -1521,6 +1547,7 @@ _spentry(bind)
 	__(movq %arg_y,%arg_z)
 	__(movq $XSYMNOBIND,%arg_y)
 	__(set_nargs(2))
+        __(push %ra0)
 	__(jmp _SPksignalerr)	
 _endsubp(bind)
 
@@ -1551,6 +1578,7 @@ _spentry(bind_self)
 	__(jmp *%ra0)
 9:	__(movq $XSYMNOBIND,%arg_y)
 	__(set_nargs(2))
+        __(push %ra0)
 	__(jmp _SPksignalerr)
 _endsubp(bind_self)
 
@@ -1571,6 +1599,7 @@ _spentry(bind_nil)
 	__(jmp *%ra0)
 9:	__(movq $XSYMNOBIND,%arg_y)
 	__(set_nargs(2))
+        __(push %ra0)
 	__(jmp _SPksignalerr)
 _endsubp(bind_nil)
 
@@ -1605,6 +1634,7 @@ _spentry(bind_self_boundp_check)
 	
 9:	__(movq $XSYMNOBIND,%arg_y)
 	__(set_nargs(2))
+        __(push %ra0)
 	__(jmp _SPksignalerr)
 _endsubp(bind_self_boundp_check)
 
@@ -1719,7 +1749,7 @@ C(egc_write_barrier_start):
 /* calculate whether or not we need to set the bit out-of-line.  (Actually  */
 /* setting the bit needs to be done atomically, unless we're sure that other  */
 /* threads are suspended.)  */
-/* We can unconditionally set the suspended thread's RIP to its RA0.  */
+/* We can unconditionally set the suspended thread's RIP to the return address.  */
 
 	
 _spentry(rplaca)
@@ -1728,7 +1758,7 @@ C(egc_rplaca):
         __(rcmpq(%arg_z,%arg_y))
 	__(_rplaca(%arg_y,%arg_z))
         __(ja 1f)
-0:      __(jmp *%ra0)
+0:      __(repret)
 1:      __(movq %arg_y,%imm0)
         __(subq lisp_global(heap_start),%imm0)
         __(shrq $dnode_shift,%imm0)
@@ -1741,7 +1771,7 @@ C(egc_rplaca):
         __(xorb $63,%imm0_b)
         __(lock)
         __(btsq %imm0,(%temp0,%imm1,8))
-        __(jmp *%ra0)
+        __(ret)
 _endsubp(rplaca)
 
 _spentry(rplacd)
@@ -1750,7 +1780,7 @@ C(egc_rplacd):
         __(rcmpq(%arg_z,%arg_y))
 	__(_rplacd(%arg_y,%arg_z))
         __(ja 1f)
-0:      __(jmp *%ra0)
+0:      __(repret)
 1:      __(movq %arg_y,%imm0)
         __(subq lisp_global(heap_start),%imm0)
         __(shrq $dnode_shift,%imm0)
@@ -1763,7 +1793,7 @@ C(egc_rplacd):
         __(xorb $63,%imm0_b)
         __(lock)
         __(btsq %imm0,(%temp0,%imm1,8))
-        __(jmp *%ra0)
+        __(ret)
 _endsubp(rplacd)
 
 /* Storing into a gvector can be handled the same way as storing into a CONS.  */
@@ -1775,7 +1805,7 @@ C(egc_gvset):
         __(rcmpq(%arg_z,%arg_x))
 	__(movq %arg_z,misc_data_offset(%arg_x,%arg_y))
         __(ja 1f)
-0:      __(jmp *%ra0)
+0:      __(repret)
 1:      __(lea misc_data_offset(%arg_x,%arg_y),%imm0)
         __(subq lisp_global(heap_start),%imm0)
         __(shrq $dnode_shift,%imm0)
@@ -1788,7 +1818,7 @@ C(egc_gvset):
         __(xorb $63,%imm0_b)
         __(lock) 
         __(btsq %imm0,(%temp0,%imm1,8))
-        __(jmp *%ra0)                
+        __(ret)                
 _endsubp(gvset)
 
 /* This is a special case of storing into a gvector: if we need to  */
@@ -1802,7 +1832,7 @@ C(egc_set_hash_key):
         __(rcmpq(%arg_z,%arg_x))
 	__(movq %arg_z,misc_data_offset(%arg_x,%arg_y))
         __(ja 1f)
-0:      __(jmp *%ra0)
+0:      __(repret)
 1:      __(lea misc_data_offset(%arg_x,%arg_y),%imm0)
         __(subq lisp_global(heap_start),%imm0)
         __(shrq $dnode_shift,%imm0)
@@ -1825,7 +1855,7 @@ C(egc_set_hash_key):
         __(xorb $63,%imm0_b)
         __(lock)
         __(btsq %imm0,(%temp0,%imm1,8))
-        __(jmp *%ra0)                
+        __(ret)                
 _endsubp(set_hash_key)
 
 /* This is a little trickier: if this is interrupted, we need to know  */
@@ -1862,9 +1892,9 @@ C(egc_store_node_conditional_success_test):
         .globl C(egc_write_barrier_end)
 C(egc_write_barrier_end):
 2:      __(movl $t_value,%arg_z_l)
-	__(jmp *%ra0)
+	__(ret)
 3:	__(movl $nil_value,%arg_z_l)
-	__(jmp *%ra0)
+	__(ret)
 _endsubp(store_node_conditional)
 				
 _spentry(setqsym)
@@ -1903,6 +1933,7 @@ _spentry(progvsave)
 
 8:	__(movq $XIMPROPERLIST,%arg_y)
 	__(set_nargs(2))
+        __(push %ra0)
 	__(jmp _SPksignalerr)
 9:	/* Whew 	  */
 
@@ -1921,7 +1952,7 @@ _spentry(progvsave)
 	__(testq %imm0,%imm0)
 	__(jne 2f)
 	__(TSP_Alloc_Fixed(2*node_size,%imm0))
-	__(jmp *%ra0)
+	__(ret)
 2:	__(movq %imm0,%imm1)
 	__(add %imm1,%imm1)
 	__(add %imm0,%imm1)
@@ -1951,7 +1982,7 @@ _spentry(progvsave)
 	__(movq %imm1,%temp1)
 	__(jne 3b)
 	__(movq %temp1,%rcontext:tcr.db_link)
-	__(jmp *%ra0)
+	__(ret)
 _endsubp(progvsave)
 
 /* Allocate node objects on the temp stack, immediate objects on the foreign  */
@@ -2015,7 +2046,7 @@ local_label(stack_misc_alloc_alloc_ivector):
 	__(movq %stack_temp,(%temp0))
 	__(movq %imm0,tsp_frame.fixed_overhead(%temp0))
 	__(leaq tsp_frame.fixed_overhead+fulltag_misc(%temp0),%arg_z)
-	__(jmp *%ra0)
+	__(ret)
 local_label(stack_misc_alloc_heap_alloc_ivector):
         __(movq %rcontext:tcr.foreign_sp,%imm1)
         __(subq $dnode_size,%rcontext:tcr.foreign_sp)
@@ -2030,7 +2061,7 @@ local_label(stack_misc_alloc_node):
 	__(TSP_Alloc_Var(%imm1,%temp0))
 	__(movq %imm0,(%temp0))
 	__(leaq fulltag_misc(%temp0),%arg_z)
-	__(jmp *%ra0)
+	__(ret)
 local_label(stack_misc_alloc_heap_alloc_gvector):	
 	__(TSP_Alloc_Fixed(0,%imm0))
 	__(jmp _SPmisc_alloc)	
@@ -2073,6 +2104,7 @@ _spentry(nthvalue)
 _endsubp(nthvalue)
 
 _spentry(values)
+        __(movq (%temp0),%ra0)
 	__(ref_global(ret1val_addr,%imm1))
 	__(cmpq %imm1,%ra0)
 	__(movzwl %nargs,%nargs_l)
@@ -2081,14 +2113,14 @@ _spentry(values)
 	__(testw %nargs,%nargs)
 	__(cmovneq -node_size(%rsp,%nargs_q),%arg_z)
 	__(movq %temp0,%rsp)
-	__(jmp *%ra0)
-0:	__(movq (%temp0),%ra0)
-	__(lea node_size(%temp0),%temp0)
+	__(ret)
+0:	__(movq 8(%temp0),%ra0)
+        __(addq $2*node_size,%temp0)
 	__(lea (%rsp,%nargs_q),%imm0)
 	__(jmp 2f)
-1:	__(lea -node_size(%imm0),%imm0)
+1:	__(subq $node_size,%imm0)
 	__(movq (%imm0),%temp1)
-	__(lea -node_size(%temp0),%temp0)
+	__(subq $node_size,%temp0)
 	__(movq %temp1,(%temp0))
 2:	__(cmpq %imm0,%rsp)
 	__(jne 1b)
@@ -2311,6 +2343,7 @@ local_label(next_keyvect_entry):
 5:	__(jnz 4b)
 	__(movl $XBADKEYS,%arg_y_l)
 	__(set_nargs(2))
+        __(push %ra0)
 	__(jmp _SPksignalerr)
 9:	__(jmp *%ra0)
 	
@@ -2386,119 +2419,6 @@ _spentry(stack_cons_rest_arg)
 _endsubp(stack_cons_rest_arg)
 
 
-/* Prepend all but the first four (3 words of code, inner fn) and last   */
-/* (lfbits) elements of %fn to the "arglist".   */
-	
-_spentry(call_closure)
-        __(subq $fulltag_function-fulltag_misc,%fn)
-        __(vector_length(%fn,%imm0))
-       	__(movzwl %nargs,%nargs_l)
-	
-        __(subq $5<<fixnumshift,%imm0)  /* imm0 = inherited arg count   */
-        __(cmpw $nargregs<<fixnumshift,%nargs)
-        __(jna,pt local_label(no_insert))
-	
-/* Some arguments have already been pushed.  Push imm0's worth   */
-/* of NILs, copy those arguments that have already been vpushed from   */
-/* the old TOS to the new, then insert all of the inerited args   */
-/* and go to the function.  */
-	
-        __(movq %imm0,%imm1)
-local_label(push_nil_loop):     
-        __(push $nil_value)
-        __(sub $fixnumone,%imm1)
-        __(jne local_label(push_nil_loop))
-	
-/* Need to use arg regs as temporaries here.    */
-        __(movq %rsp,%temp1)
-        __(push %arg_z)
-        __(push %arg_y)
-        __(push %arg_x)
-        __(lea 3*node_size(%rsp,%imm0),%arg_x)
-        __(lea -nargregs<<fixnumshift(%nargs_q),%arg_y)
-local_label(copy_already_loop): 
-        __(movq (%arg_x),%arg_z)
-        __(addq $fixnumone,%arg_x)
-        __(movq %arg_z,(%temp1))
-        __(addq $fixnumone,%temp1)
-        __(subq $fixnumone,%arg_y)
-        __(jne local_label(copy_already_loop))
-	
-        __(movl $4<<fixnumshift,%imm1_l) /* skip code, new fn   */
-local_label(insert_loop):               
-        __(movq misc_data_offset(%fn,%imm1),%arg_z)
-        __(addq $node_size,%imm1)
-        __(addw $fixnum_one,%nargs)
-        __(subq $node_size,%arg_x)
-        __(movq %arg_z,(%arg_x))
-        __(subq $fixnum_one,%imm0)
-        __(jne local_label(insert_loop))
-
-        /* Recover the argument registers, pushed earlier   */
-        __(pop %arg_x)
-        __(pop %arg_y)
-        __(pop %arg_z)
-        __(jmp local_label(go))
-
-/* Here if nothing was pushed by the caller.  If we're  */
-/* going to push anything, we have to reserve a stack  */
-/* frame first. (We'll need to push something if the  */
-/* sum of %nargs and %imm0 is greater than nargregs)   */
-	
-local_label(no_insert):
-        __(lea (%nargs_q,%imm0),%imm1)
-        __(cmpq $nargregs<<fixnumshift,%imm1)
-        __(jna local_label(no_insert_no_frame))
-        /* Reserve space for a stack frame   */
-        __(push $reserved_frame_marker)
-        __(push $reserved_frame_marker)
-local_label(no_insert_no_frame):        
-	/* nargregs or fewer args were already vpushed.   */
-	/* if exactly nargregs, vpush remaining inherited vars.   */
-        __(cmpw $nargregs<<fixnumshift,%nargs)
-        __(movl $4<<fixnumshift,%imm1_l) /* skip code, new fn   */
-        __(leaq 4<<fixnumshift(%imm0),%temp1)
-        __(jnz local_label(set_regs))
-local_label(vpush_remaining):  
-        __(push misc_data_offset(%fn,%imm1))
-        __(addq $node_size,%imm1)
-        __(addw $fixnumone,%nargs)
-        __(subq $node_size,%imm0)
-        __(jnz local_label(vpush_remaining))
-        __(jmp local_label(go))
-local_label(set_regs):
-	/* if nargs was > 1 (and we know that it was < 3), it must have   */
-	/* been 2.  Set arg_x, then vpush the remaining args.   */
-        __(cmpw $fixnumone,%nargs)
-        __(jle local_label(set_y_z))
-local_label(set_arg_x): 
-        __(subq $node_size,%temp1)
-        __(movq misc_data_offset(%fn,%temp1),%arg_x)
-        __(addw $fixnumone,%nargs)
-        __(subq $fixnumone,%imm0)
-        __(jne local_label(vpush_remaining))
-        __(jmp local_label(go))
-	/* Maybe set arg_y or arg_z, preceding args   */
-local_label(set_y_z):
-        __(jne local_label(set_arg_z))
-	/* Set arg_y, maybe arg_x, preceding args   */
-local_label(set_arg_y): 
-        __(subq $node_size,%temp1)
-        __(movq misc_data_offset(%fn,%temp1),%arg_y)
-        __(addw $fixnumone,%nargs)
-        __(subq $fixnum_one,%imm0)
-        __(jnz local_label(set_arg_x))
-        __(jmp local_label(go))
-local_label(set_arg_z): 
-        __(subq $node_size,%temp1)
-        __(movq misc_data_offset(%fn,%temp1),%arg_z)
-        __(addw $fixnumone,%nargs)
-        __(subq $fixnum_one,%imm0)
-        __(jne local_label(set_arg_y))
-local_label(go):        
-        __(movq misc_data_offset+(3*node_size)(%fn),%fn)
-        __(jmp *%fn)                
-_endsubp(call_closure)
 
 _spentry(getxlong)
 _endsubp(getxlong)
@@ -2547,6 +2467,7 @@ _spentry(spreadargz)
 	__(movq %arg_y,%arg_z)	/* recover original   */
 	__(movq $XNOSPREAD,%arg_y)
 	__(set_nargs(2))
+        __(push %ra0)
 	__(jmp _SPksignalerr)
 _endsubp(spreadargz)
 
@@ -2569,12 +2490,12 @@ _spentry(tfuncallgen)
 	__(jne 0b)
 	__(lea (%rbp,%imm1),%rsp)
 	__(movq 8(%rbp),%ra0)
-	__(movq 0(%rbp),%rbp)
+	__(movq (%rbp),%rbp)
+        __(pushq %ra0)
 	__(do_funcall())
         /* All args in regs; exactly the same as the tfuncallvsp case   */
 9:		
 	__(leave)
-	__(pop %ra0)
 	__(do_funcall())
 _endsubp(tfuncallgen)
 
@@ -2593,14 +2514,14 @@ _spentry(tfuncallslide)
 	__(jne 0b)
 	__(lea (%rbp,%imm1),%rsp)
 	__(movq 8(%rbp),%ra0)
-	__(movq 0(%rbp),%rbp)
+	__(movq (%rbp),%rbp)
+        __(push %ra0)
 	__(do_funcall())	
 _endsubp(tfuncallslide)
 
 /* No args were pushed; recover saved context & do funcall 	  */
 _spentry(tfuncallvsp)
 	__(leave)
-	__(pop %ra0)
 	__(do_funcall())
 _endsubp(tfuncallvsp)
 
@@ -2620,12 +2541,12 @@ _spentry(tcallsymgen)
 	__(jne 0b)
 	__(lea (%rbp,%imm1),%rsp)
 	__(movq 8(%rbp),%ra0)
-	__(movq 0(%rbp),%rbp)
+	__(movq (%rbp),%rbp)
+        __(pushq %ra0)
 	__(jump_fname())
 /* All args in regs; exactly the same as the tcallsymvsp case   */
 9:		
 	__(leave)
-	__(pop %ra0)
 	__(jump_fname())
 _endsubp(tcallsymgen)
 
@@ -2644,12 +2565,12 @@ _spentry(tcallsymslide)
 	__(lea (%rbp,%imm1),%rsp)
 	__(movq 8(%rbp),%ra0)
 	__(movq 0(%rbp),%rbp)
+        __(pushq %ra0)
 	__(jump_fname())
 _endsubp(tcallsymslide)
 
 _spentry(tcallsymvsp)
 	__(leave)
-	__(pop %ra0)
 	__(jump_fname())
 _endsubp(tcallsymvsp)
 
@@ -2671,12 +2592,12 @@ _spentry(tcallnfngen)
 	__(lea (%rbp,%imm1),%rsp)
 	__(movq lisp_frame.savera0(%rbp),%ra0)
 	__(movq lisp_frame.backlink(%rbp),%rbp)
+        __(pushq %ra0)
 	__(jmp *%fn)
 /* All args in regs; exactly the same as the tcallnfnvsp case   */
 9:		
 	__(movq %temp0,%fn)
 	__(leave)
-	__(pop %ra0)
 	__(jmp *%fn)
 _endsubp(tcallnfngen)
 
@@ -2696,13 +2617,13 @@ _spentry(tcallnfnslide)
 	__(lea (%rbp,%imm1),%rsp)
 	__(movq lisp_frame.savera0(%rbp),%ra0)
 	__(movq lisp_frame.backlink(%rbp),%rbp)
+        __(pushq %ra0)
 	__(jmp *%fn)
 _endsubp(tcallnfnslide)
 
 _spentry(tcallnfnvsp)
 	__(movq %temp0,%fn)
 	__(leave)
-	__(pop %ra0)
 	__(jmp *%fn)
 _endsubp(tcallnfnvsp)
 
@@ -2725,7 +2646,7 @@ _spentry(makestackblock)
 	__(movq %imm0,macptr.address(%arg_z))
 	__(movsd %fpzero,macptr.domain(%arg_z))
 	__(movsd %fpzero,macptr.type(%arg_z))
-	__(jmp *%ra0)
+	__(ret)
 1:	__(movq %rcontext:tcr.foreign_sp,%imm1)
         __(subq $dnode_size,%rcontext:tcr.foreign_sp)
         __(movq %rcontext:tcr.foreign_sp,%imm0)
@@ -2755,7 +2676,7 @@ _spentry(makestackblock0)
 	__(addq $dnode_size,%imm0)
 2:	__(cmpq %imm0,%imm1)
 	__(jne 1b)		
-	__(jmp *%ra0)
+	__(repret)
 9:	__(movq %rcontext:tcr.foreign_sp,%imm1)
         __(subq $dnode_size,%rcontext:tcr.foreign_sp)
         __(movq %rcontext:tcr.foreign_sp,%imm0)
@@ -2782,14 +2703,14 @@ _spentry(makestacklist)
 1:	__(subq $fixnumone,%arg_y)
 	__(jge 0b)
 	__(movq %temp1,%arg_z)
-	__(jmp *%ra0)
+	__(ret)
 2:	__(TSP_Alloc_Fixed(0,%imm0))
 	__(jmp 4f)
 3:	__(Cons(%arg_z,%temp1,%temp1))
 4:	__(subq $fixnumone,%arg_y)				
 	__(jge 3b)
 	__(movq %temp1,%arg_z)
-	__(jmp *%ra0)
+	__(ret)
 _endsubp(makestacklist)
 
 /* subtype (boxed) vpushed before initial values. (Had better be a   */
@@ -2858,7 +2779,7 @@ local_label(misc_alloc_64):
 local_label(misc_alloc_alloc_vector):	
 	__(dnode_align(%imm1,node_size,%imm1))
 	__(Misc_Alloc(%arg_z))
-	__(jmp *%ra0)
+	__(ret)
 local_label(misc_alloc_not_u56):
 	__(uuo_error_reg_not_type(Rarg_y,error_object_not_unsigned_byte_56))
 _endsubp(misc_alloc)
@@ -3052,6 +2973,7 @@ local_label(destructure_error):
 	__(movd %mm0,%rsp)		/* undo everything done to the stack   */
 	__(movq %whole_reg,%arg_z)
 	__(set_nargs(2))
+        __(push %ra0)
 	__(jmp _SPksignalerr)
 _endfn(C(destbind1))	
 
@@ -3065,6 +2987,7 @@ _spentry(macro_bind)
 1:	__(movq $XCALLNOMATCH,%arg_y)
 	__(movq %whole_reg,%arg_z)
 	__(set_nargs(2))
+        __(push %ra0)        
 	__(jmp _SPksignalerr)
 _endsubp(macro_bind)
 
@@ -3096,7 +3019,7 @@ _spentry(integer_sign)
 	__(getvheader(%arg_z,%imm0))
 	__(shr $num_subtag_bits,%imm0)
 	__(movslq misc_data_offset-4(%arg_z,%imm0,4),%imm0)
-8:	__(jmp *%ra0)
+8:	__(repret)
 9:	__(uuo_error_reg_not_type(Rarg_z,error_object_not_integer))
 _endsubp(integer_sign)
 
@@ -3257,36 +3180,34 @@ _endsubp(reset)
 
 
 _spentry(misc_alloc_init)
-	__(push %ra0)
 	__(push %rbp)
 	__(movq %rsp,%rbp)
 	__(push %arg_z)
 	__(movq %arg_y,%arg_z)
 	__(movq %arg_x,%arg_y)
 	__(lea local_label(misc_alloc_init_back)(%rip),%ra0)
+        __(push %ra0)
 	__(jmp _SPmisc_alloc)
 __(tra(local_label(misc_alloc_init_back)))
 	__(pop %arg_y)
 	__(leave)
-	__(pop %ra0)
 	__(movq $nrs.init_misc,%fname)
 	__(set_nargs(2))
 	__(jump_fname())	
 _endsubp(misc_alloc_init)
 
 _spentry(stack_misc_alloc_init)
-	__(push %ra0)
 	__(push %rbp)
 	__(movq %rsp,%rbp)
 	__(push %arg_z)
 	__(movq %arg_y,%arg_z)
 	__(movq %arg_x,%arg_y)
 	__(lea local_label(stack_misc_alloc_init_back)(%rip),%ra0)
+        __(push %ra0)
 	__(jmp _SPstack_misc_alloc)
 __(tra(local_label(stack_misc_alloc_init_back)))
 	__(pop %arg_y)
 	__(leave)
-	__(pop %ra0)
 	__(movq $nrs.init_misc,%fname)
 	__(set_nargs(2))
 	__(jump_fname())	
@@ -3298,8 +3219,7 @@ _endsubp(stack_misc_alloc_init)
 _spentry(popj)
 C(popj):
 	__(leave)
-	__(pop %ra0)
-	__(jmp *%ra0)
+        __(ret)
 _endsubp(popj)
 
 
@@ -3310,7 +3230,7 @@ _spentry(getu64)
 	__(movq %arg_z,%imm0)
 	__(jne 1f)
 	__(sarq $fixnumshift,%imm0)
-	__(jmp *%ra0)
+	__(ret)
 1:	__(andb $tagmask,%imm0_b)
 	__(cmpb $tag_misc,%imm0_b)
 	__(jne 9f)
@@ -3325,11 +3245,11 @@ _spentry(getu64)
 	__(movq misc_data_offset(%arg_z),%imm0)
 	__(testq %imm0,%imm0)
 	__(js 9f)
-	__(jmp *%ra0)
+	__(repret)
 3:	__(movq misc_data_offset(%arg_z),%imm0)
 	__(cmpl $0,misc_data_offset+8(%arg_z))
 	__(jne 9f)
-	__(jmp *%ra0)
+	__(repret)
 9:	__(uuo_error_reg_not_type(Rarg_z,error_object_not_u64))
 _endsubp(getu64)
 
@@ -3349,7 +3269,7 @@ _spentry(gets64)
 	__(cmpq $two_digit_bignum_header,%imm0)
 	__(movq misc_data_offset(%arg_z),%imm0)
 	__(jne 9f)
-8:	__(jmp *%ra0)
+8:	__(repret)
 9:	__(uuo_error_reg_not_type(Rarg_z,error_object_not_u64))
 _endsubp(gets64)
 
@@ -3369,12 +3289,12 @@ _spentry(makeu64)
 	__(movl $aligned_bignum_size(2),%imm1_l)
 	__(Misc_Alloc(%arg_z))
 	__(movq %mm0,misc_data_offset(%arg_z))
-	__(jmp *%ra0)
+	__(ret)
 3:	__(movl $three_digit_bignum_header,%imm0_l)
 	__(movl $aligned_bignum_size(3),%imm1_l)
 	__(Misc_Alloc(%arg_z))
 	__(movq %mm0,misc_data_offset(%arg_z))
-9:	__(jmp *%ra0)
+9:	__(repret)
 _endsubp(makeu64)
 
 /* on entry: arg_z = symbol.  On exit, arg_z = value (possibly  */
@@ -3389,7 +3309,7 @@ _spentry(specref)
 	__(cmpb $no_thread_local_binding_marker,%arg_z_b)
 	__(jne 8f)
 7:	__(movq symbol.vcell(%arg_y),%arg_z)
-8:	__(jmp *%ra0)		
+8:	__(repret)		
 _endsubp(specref)
 
 /* arg_y = special symbol, arg_z = new value.           */
@@ -3402,7 +3322,7 @@ _spentry(specset)
 	__(cmpb $no_thread_local_binding_marker,%arg_x_b)
 	__(je 1f)
 	__(movq %arg_z,(%imm1,%imm0))
-	__(jmp *%ra0)
+	__(ret)
 1:	__(lea fulltag_misc-fulltag_symbol(%arg_y),%arg_x)
 	__(movq $1<<fixnumshift,%arg_y)
 	__(jmp _SPgvset)
@@ -3421,7 +3341,7 @@ _spentry(specrefcheck)
 8:	__(cmpb $unbound_marker,%arg_z_b)
 	__(jne,pt 9f)
 	__(uuo_error_reg_unbound(Rarg_y))
-9:	__(jmp *%ra0)		
+9:	__(repret)		
 _endsubp(specrefcheck)
 
 _spentry(restoreintlevel)
@@ -3456,7 +3376,7 @@ _spentry(unbind)
 	__(movq binding.link(%imm1),%imm1)
 	__(movq %arg_y,(%arg_x,%temp1))
 	__(movq %imm1,%rcontext:tcr.db_link)
-	__(jmp *%ra0)	
+	__(ret)	
 _endsubp(unbind)
 
 _spentry(unbind_n)
@@ -3470,7 +3390,7 @@ _spentry(unbind_n)
 	__(subq $1,%imm0)
 	__(jne 1b)
 	__(movq %imm1,%rcontext:tcr.db_link)
-	__(jmp *%ra0)	
+	__(ret)	
 _endsubp(unbind_n)
 
 _spentry(unbind_to)
@@ -3484,7 +3404,7 @@ _spentry(unbind_to)
 	__(cmpq %imm1,%imm0)
 	__(jne 1b)
 	__(movq %imm1,%rcontext:tcr.db_link)
-	__(jmp *%ra0)	
+	__(ret)	
 _endsubp(unbind_to)
 
 
@@ -3547,11 +3467,11 @@ _spentry(unbind_interrupt_level)
 	__(movq %temp0,INTERRUPT_LEVEL_BINDING_INDEX(%arg_x))
  	__(movq %imm1,%rcontext:tcr.db_link)
 	__(js,pn 1f)
-0:	__(jmp *%ra0)
+0:	__(repret)
 1:	__(testq %temp0,%temp0)
 	__(js 0b)
 	__(check_pending_enabled_interrupt(2f))
-2:	__(jmp *%ra0)	
+2:	__(repret)	
 _endsubp(unbind_interrupt_level)
 
 	
@@ -3561,7 +3481,7 @@ _spentry(progvrestore)
 	__(movq tsp_frame.data_offset(%imm0),%imm0)
 	__(shrq $fixnumshift,%imm0)
 	__(jne _SPunbind_n)
-	__(jmp *%ra0)
+	__(repret)
 _endsubp(progvrestore)
 	
 
@@ -3574,7 +3494,7 @@ _spentry(builtin_plus)
 	__(jne 1f)
 	__(addq %arg_y,%arg_z)
 	__(jo,pn C(fix_one_bit_overflow))
-	__(jmp *%ra0)
+	__(repret)
 1:	__(jump_builtin(_builtin_plus,2))
 _endsubp(builtin_plus)
 	
@@ -3589,7 +3509,7 @@ _spentry(builtin_minus)
 	__(xchgq %arg_y,%arg_z)
 	__(subq %arg_y,%arg_z)
 	__(jo,pn C(fix_one_bit_overflow))
-	__(jmp *%ra0)
+	__(repret)
 1:	__(jump_builtin(_builtin_minus,2))
 _endsubp(builtin_minus)
 
@@ -3606,7 +3526,7 @@ _spentry(builtin_times)
 	__(imul %arg_y)
 	__(jo 1f)
 	__(mov %imm0,%arg_z)
-	__(jmp *%ra0)
+	__(ret)
 1:	__(unbox_fixnum(%arg_z,%imm0))
 	__(unbox_fixnum(%arg_y,%imm1))
 	__(imul %imm1)
@@ -3625,7 +3545,7 @@ _spentry(builtin_eq)
 	__(jne 1f)
 	__(rcmpq(%arg_z,%arg_y))
 	__(condition_to_boolean(e,%imm0,%arg_z))
-	__(jmp *%ra0)
+	__(ret)
 1:	__(jump_builtin(_builtin_eq,2))
 _endsubp(builtin_eq)
 	
@@ -3637,7 +3557,7 @@ _spentry(builtin_ne)
 	__(jne 1f)
 	__(rcmpq(%arg_z,%arg_y))
 	__(condition_to_boolean(ne,%imm0,%arg_z))
-	__(jmp *%ra0)
+	__(ret)
 1:	__(jump_builtin(_builtin_ne,2))
 _endsubp(builtin_ne)
 	
@@ -3649,7 +3569,7 @@ _spentry(builtin_gt)
 	__(jne 1f)
 	__(rcmpq(%arg_y,%arg_z))
 	__(condition_to_boolean(g,%imm0,%arg_z))
-	__(jmp *%ra0)
+	__(ret)
 1:	__(jump_builtin(_builtin_gt,2))
 _endsubp(builtin_gt)
 
@@ -3661,7 +3581,7 @@ _spentry(builtin_ge)
 	__(jne 1f)
 	__(rcmpq(%arg_y,%arg_z))
 	__(condition_to_boolean(ge,%imm0,%arg_z))
-	__(jmp *%ra0)
+	__(ret)
 1:	__(jump_builtin(_builtin_ge,2))
 _endsubp(builtin_ge)
 	
@@ -3673,7 +3593,7 @@ _spentry(builtin_lt)
 	__(jne 1f)
 	__(rcmpq(%arg_y,%arg_z))
 	__(condition_to_boolean(l,%imm0,%arg_z))
-	__(jmp *%ra0)
+	__(ret)
 1:	__(jump_builtin(_builtin_lt,2))
 _endsubp(builtin_lt)
 
@@ -3685,7 +3605,7 @@ _spentry(builtin_le)
 	__(jne 1f)
 	__(rcmpq(%arg_y,%arg_z))
 	__(condition_to_boolean(le,%imm0,%arg_z))
-	__(jmp *%ra0)
+	__(ret)
 1:	__(jump_builtin(_builtin_le,2))
 _endsubp(builtin_le)
 
@@ -3706,9 +3626,9 @@ _spentry(builtin_eql)
 	__(jne 2f)
 	__(jump_builtin(_builtin_eql,2))
 1:	__(movl $t_value,%arg_z_l)
-	__(jmp *%ra0)
+	__(ret)
 2:	__(movl $nil_value,%arg_z_l)
-	__(jmp *%ra0)	
+	__(ret)	
 _endsubp(builtin_eql)
 
 _spentry(builtin_length)
@@ -3724,22 +3644,22 @@ _spentry(builtin_length)
 	/* (simple-array * (*))   */
 	__(movq %arg_z,%arg_y)
 	__(vector_length(%arg_y,%arg_z))
-	__(jmp *%ra0)
+	__(ret)
 1:	/* vector header   */
 	__(movq vectorH.logsize(%arg_z),%arg_z)
-	__(jmp *%ra0)
+	__(ret)
 2:	/* list.  Maybe null, maybe dotted or circular.   */
-	__(movq $-fixnumone,%temp2)
+	__(movq $-fixnumone,%imm2)
 	__(movq %arg_z,%temp0)	/* fast pointer   */
 	__(movq %arg_z,%temp1)  /* slow pointer   */
 3:	__(extract_lisptag(%temp0,%imm0))	
 	__(compare_reg_to_nil(%temp0))
-	__(leaq fixnumone(%temp2),%temp2)
+	__(leaq fixnumone(%imm2),%imm2)
 	__(je 9f)
 	__(cmpb $tag_list,%imm0_b)
 	__(jne 8f)
 	__(extract_lisptag(%temp1,%imm1))
-	__(testb $fixnumone,%temp2_b)
+	__(testb $fixnumone,%imm2_b)
 	__(_cdr(%temp0,%temp0))
 	__(je 3b)
 	__(cmpb $tag_list,%imm1_b)
@@ -3750,8 +3670,8 @@ _spentry(builtin_length)
 8:	
 	__(jump_builtin(_builtin_length,1))
 9:	
-	__(movq %temp2,%arg_z)
-	__(jmp *%ra0)		
+	__(movq %imm2,%arg_z)
+	__(ret)		
 _endsubp(builtin_length)
 
 	
@@ -3765,9 +3685,9 @@ _spentry(builtin_seqtype)
 	__(rcmpb(%imm0_b,$min_vector_subtag))
 	__(jb 2f)
 	__(movl $nil_value,%arg_z_l)
-	__(jmp *%ra0)
+	__(ret)
 1:	__(movl $t_value,%arg_z_l)
-	__(jmp *%ra0)
+	__(ret)
 2:	
 	__(jump_builtin(_builtin_seqtype,1))
 _endsubp(builtin_seqtype)
@@ -3793,10 +3713,10 @@ _spentry(builtin_assq)
 	__(cmpq %temp0,%arg_y)
 	__(jnz 4f)
 	__(movq %arg_x,%arg_z)
-	__(jmp *%ra0)
+	__(ret)
 4:	__(cmpb $fulltag_nil,%arg_z_b)
 5:	__(jnz 1b)
-	__(jmp *%ra0)			
+	__(repret)			
 _endsubp(builtin_assq)	
 
 _spentry(builtin_memq)
@@ -3814,7 +3734,7 @@ _spentry(builtin_memq)
 	__(cmpb $fulltag_nil,%temp0_b)
 	__(movq %temp0,%arg_z)
 3:	__(jnz 1b)
-4:	__(jmp *%ra0)				
+4:	__(repret)				
 _endsubp(builtin_memq)
 
         __ifdef([X8664])
@@ -3836,7 +3756,7 @@ _spentry(builtin_logbitp)
 	__(cmovael %imm1_l,%imm0_l)
 	__(bt %imm0,%arg_z)
 	__(condition_to_boolean(b,%imm0,%arg_z))
-	__(jmp *%ra0)
+	__(ret)
 1:	__(jump_builtin(_builtin_logbitp,2))
 _endsubp(builtin_logbitp)
 
@@ -3846,7 +3766,7 @@ _spentry(builtin_logior)
 	__(testb $fixnummask,%imm0_b)
 	__(jne 1f)
 	__(orq %arg_y,%arg_z)
-	__(jmp *%ra0)
+	__(ret)
 1:	
 	__(jump_builtin(_builtin_logior,2))
 		
@@ -3858,7 +3778,7 @@ _spentry(builtin_logand)
 	__(testb $fixnummask,%imm0_b)
 	__(jne 1f)
 	__(andq %arg_y,%arg_z)
-	__(jmp *%ra0)
+	__(ret)
 1:		
 	__(jump_builtin(_builtin_logand,2))
 _endsubp(builtin_logand)
@@ -3868,7 +3788,7 @@ _spentry(builtin_negate)
 	__(jne 1f)
 	__(negq %arg_z)
 	__(jo,pn C(fix_one_bit_overflow))
-	__(jmp *%ra0)
+	__(repret)
 1:		
 	__(jump_builtin(_builtin_negate,1))	
 _endsubp(builtin_negate)
@@ -3879,7 +3799,7 @@ _spentry(builtin_logxor)
 	__(testb $fixnummask,%imm0_b)
 	__(jne 1f)
 	__(xorq %arg_y,%arg_z)
-	__(jmp *%ra0)
+	__(ret)
 1:		
 	__(jump_builtin(_builtin_logxor,2))
 _endsubp(builtin_logxor)
@@ -3893,10 +3813,6 @@ _spentry(builtin_aset1)
 	__(jump_builtin(_builtin_aset1,3))
 _endsubp(builtin_aset1)
 
-/* We have to be a little careful here	%cl has to be used for  */
-/*   the (unboxed) shift count in all variable-length shifts, and  */
-/*   %temp2 = %rcx.  Zero all but the low 8 (or 6) bits of %rcx,  */
-/*   so that the shift count doesn't confuse the GC.  */
 
 _spentry(builtin_ash)
 	__(movb %arg_y_b,%imm0_b)
@@ -3908,20 +3824,19 @@ _spentry(builtin_ash)
 	/* Z flag set if zero ASH shift count   */
 	__(jnz 1f)
 	__(movq %arg_y,%arg_z)	/* shift by 0   */
-	__(jmp *%ra0)
+	__(ret)
 1:	__(jns 3f)
 	__(rcmpq(%imm0,$-63))
 	__(jg 2f)
 	__(sar $63,%imm1)
 	__(box_fixnum(%imm1,%arg_z))
-	__(jmp *%ra0)
+	__(ret)
 2:	/* Right-shift by small fixnum   */
 	__(negb %imm0_b)
 	__(movzbl %imm0_b,%ecx)
 	__(sar %cl,%imm1)
-	__(xorl %ecx,%ecx)
 	__(box_fixnum(%imm1,%arg_z))
-	__(jmp *%ra0)
+	__(ret)
 3:      /* Left shift by fixnum. We cant shift by more than 63 bits, though  */
 	/* shifting by 64 is actually easy.   */
 	__(rcmpq(%imm0,$64))
@@ -3937,11 +3852,9 @@ _spentry(builtin_ash)
 	__(js 5f)
 	__(shld %cl,%imm0,%imm1)
 	__(shl %cl,%imm0)
-	__(xorb %cl,%cl)
 	__(jmp C(makes128))
 5:	__(shld %cl,%imm0,%imm1)
 	__(shl %cl,%imm0)
-	__(xorb %cl,%cl)
 	__(jmp C(makes128))
 9:	
 	__(jump_builtin(_builtin_ash,2))
@@ -3986,6 +3899,8 @@ _spentry(ffcall)
         __(movq macptr.address(%arg_z),%imm1)
 0:              
 	/* Save lisp registers   */
+        __(push %rbp)
+	__(movq %rsp,%rbp)
 	__(push %temp0)
 	__(push %temp1)
 	__(push %temp2)
@@ -3995,11 +3910,8 @@ _spentry(ffcall)
 	__(push %save0)
 	__(push %save1)
 	__(push %save2)
-	__(push %save3)
+	__(push %save3)         /* 10 registers pushed after %rbp */
 	__(push %fn)
-	__(push %ra0)
-	__(push %rbp)
-	__(movq %rsp,%rbp)
 	__(movq %rsp,%rcontext:tcr.save_vsp)
         __(movq %rbp,%rcontext:tcr.save_rbp)
         __(movq %rcontext:tcr.foreign_sp,%rsp)
@@ -4058,7 +3970,6 @@ _spentry(ffcall)
 	__(clr %temp1)
 	__(clr %temp0)
 	__(clr %fn)
-	__(clr %ra0)
 	__(pxor %fpzero,%fpzero)
         /* Darwin's math library seems to be pretty casual
            about causing spurious FP exceptions */
@@ -4069,8 +3980,7 @@ _spentry(ffcall)
         __endif
 	__(movq $TCR_STATE_LISP,%rcontext:tcr.valence)
 	__(movq %rcontext:tcr.save_vsp,%rsp)
-	__(pop %rbp)
-	__(pop %ra0)
+        __(movq %rcontext:tcr.save_rbp,%rbp)
 	__(pop %fn)
 	__(pop %save3)
 	__(pop %save2)
@@ -4084,7 +3994,8 @@ _spentry(ffcall)
 	__(ldmxcsr %rcontext:tcr.lisp_mxcsr)
 	__(check_pending_interrupt(%temp0))
 	__(pop %temp0)
-	__(jmp *%ra0)
+        __(leave)
+	__(ret)
 _endsubp(ffcall)
 
 _spentry(ffcall_return_registers)
@@ -4096,6 +4007,8 @@ _spentry(ffcall_return_registers)
         __(movq macptr.address(%arg_z),%imm1)
 0:              
 	/* Save lisp registers   */
+        __(push %rbp)
+        __(movq %rsp,%rbp)
 	__(push %temp0)
 	__(push %temp1)
 	__(push %temp2)
@@ -4108,9 +4021,6 @@ _spentry(ffcall_return_registers)
 	__(push %save3)
         __(movq macptr.address(%arg_y),%rbx)  /* %rbx non-volatile */
 	__(push %fn)
-	__(push %ra0)
-	__(push %rbp)
-	__(movq %rsp,%rbp)
 	__(movq %rsp,%rcontext:tcr.save_vsp)
         __(movq %rbp,%rcontext:tcr.save_rbp)
         __(movq %rcontext:tcr.foreign_sp,%rsp)
@@ -4173,7 +4083,6 @@ _spentry(ffcall_return_registers)
 	__(clr %temp1)
 	__(clr %temp0)
 	__(clr %fn)
-	__(clr %ra0)
 	__(pxor %fpzero,%fpzero)
         /* Darwin's math library seems to be pretty casual
            about causing spurious FP exceptions */
@@ -4184,8 +4093,7 @@ _spentry(ffcall_return_registers)
         __endif
 	__(movq $TCR_STATE_LISP,%rcontext:tcr.valence)
 	__(movq %rcontext:tcr.save_vsp,%rsp)
-	__(pop %rbp)
-	__(pop %ra0)
+        __(movq %rcontext:tcr.save_rbp,%rbp)
 	__(pop %fn)
 	__(pop %save3)
 	__(pop %save2)
@@ -4199,11 +4107,14 @@ _spentry(ffcall_return_registers)
 	__(ldmxcsr %rcontext:tcr.lisp_mxcsr)
 	__(check_pending_interrupt(%temp0))
 	__(pop %temp0)
-	__(jmp *%ra0)
+        __(leave)
+        __(ret)
 _endsubp(ffcall_returning_registers)
         
 _spentry(syscall)
 	/* Save lisp registers   */
+	__(push %rbp)
+	__(movq %rsp,%rbp)
 	__(push %temp0)
 	__(push %temp1)
 	__(push %temp2)
@@ -4215,10 +4126,8 @@ _spentry(syscall)
 	__(push %save2)
 	__(push %save3)
 	__(push %fn)
-	__(push %ra0)
-	__(push %rbp)
-	__(movq %rsp,%rbp)
 	__(movq %rsp,%rcontext:tcr.save_vsp)
+        __(movq %rbp,%rcontext:tcr.save_rbp)
         __(movq %rcontext:tcr.foreign_sp,%rsp)
 	__(movq $TCR_STATE_FOREIGN,%rcontext:tcr.valence)
 	__(emms)
@@ -4250,12 +4159,10 @@ _spentry(syscall)
 	__(clr %temp1)
 	__(clr %temp0)
 	__(clr %fn)
-	__(clr %ra0)
 	__(pxor %fpzero,%fpzero)
 	__(movq $TCR_STATE_LISP,%rcontext:tcr.valence)
 	__(movq %rcontext:tcr.save_vsp,%rsp)
-	__(pop %rbp)
-	__(pop %ra0)
+        __(movq %rcontext:tcr.save_rbp,%rbp)
 	__(pop %fn)
 	__(pop %save3)
 	__(pop %save2)
@@ -4268,7 +4175,8 @@ _spentry(syscall)
 	__(pop %temp1)
 	__(check_pending_interrupt(%temp0))
 	__(pop %temp0)
-	__(jmp *%ra0)
+        __(leave)
+	__(ret)
 _endsubp(syscall)		
 
 /* We need to reserve a frame here if (a) nothing else was already pushed and (b) */
@@ -4404,7 +4312,6 @@ _spentry(callback)
 	__(clr %temp1)
 	__(clr %temp0)
 	__(clr %fn)
-	__(clr %ra0)
 	__(pxor %fpzero,%fpzero)
 	__(movq $TCR_STATE_LISP,%rcontext:tcr.valence)
 	__(movq %rcontext:tcr.save_vsp,%rsp)
@@ -4415,8 +4322,9 @@ _spentry(callback)
 	__(movq %rbp,%arg_z)
         __(movq %rcontext:tcr.save_rbp,%rbp)
 	__(movq $nrs.callbacks,%fname)
-	__(set_nargs(2))
 	__(lea local_label(back_from_callback)(%rip),%ra0)
+	__(set_nargs(2))
+        __(push %ra0)
 	__(jump_fname())
 __(tra(local_label(back_from_callback)))
 	__(movq %rsp,%rcontext:tcr.save_vsp)
@@ -4603,7 +4511,156 @@ _spentry(aset3)
         __(ja C(misc_set_common))
         __(jmp 8b)
 _endsubp(aset3)
+
         
+
+
+/* Prepend all but the first five (4 words of code, inner fn) and last   */
+/* (lfbits) elements of %fn to the "arglist".   */
+	
+_spentry(call_closure)
+        new_local_labels()
+        __(subq $fulltag_function-fulltag_misc,%fn)
+        __(vector_length(%fn,%imm0))
+       	__(movzwl %nargs,%nargs_l)
+	
+        __(subq $6<<fixnumshift,%imm0)  /* imm0 = inherited arg count   */
+        __(lea (%nargs_q,%imm0),%imm1)
+        __(cmpw $nargregs<<fixnumshift,%imm1_w)
+        __(jna,pt local_label(regs_only))
+        __(pop %ra0)
+        __(cmpw $nargregs<<fixnumshift,%nargs)
+        __(jna,pt local_label(no_insert))
+	
+/* Some arguments have already been pushed.  Push imm0's worth   */
+/* of NILs, copy those arguments that have already been vpushed from   */
+/* the old TOS to the new, then insert all of the inerited args   */
+/* and go to the function.  */
+	
+        __(movq %imm0,%imm1)
+local_label(push_nil_loop):     
+        __(push $nil_value)
+        __(sub $fixnumone,%imm1)
+        __(jne local_label(push_nil_loop))
+	
+/* Need to use arg regs as temporaries here.    */
+        __(movq %rsp,%temp1)
+        __(push %arg_z)
+        __(push %arg_y)
+        __(push %arg_x)
+        __(lea 3*node_size(%rsp,%imm0),%arg_x)
+        __(lea -nargregs<<fixnumshift(%nargs_q),%arg_y)
+local_label(copy_already_loop): 
+        __(movq (%arg_x),%arg_z)
+        __(addq $fixnumone,%arg_x)
+        __(movq %arg_z,(%temp1))
+        __(addq $fixnumone,%temp1)
+        __(subq $fixnumone,%arg_y)
+        __(jne local_label(copy_already_loop))
+	
+        __(movl $5<<fixnumshift,%imm1_l) /* skip code, new fn   */
+local_label(insert_loop):               
+        __(movq misc_data_offset(%fn,%imm1),%arg_z)
+        __(addq $node_size,%imm1)
+        __(addw $fixnum_one,%nargs)
+        __(subq $node_size,%arg_x)
+        __(movq %arg_z,(%arg_x))
+        __(subq $fixnum_one,%imm0)
+        __(jne local_label(insert_loop))
+
+        /* Recover the argument registers, pushed earlier   */
+        __(pop %arg_x)
+        __(pop %arg_y)
+        __(pop %arg_z)
+        __(jmp local_label(go))
+
+/* Here if nothing was pushed by the caller.  If we're  */
+/* going to push anything, we have to reserve a stack  */
+/* frame first. (We'll need to push something if the  */
+/* sum of %nargs and %imm0 is greater than nargregs)   */
+	
+local_label(no_insert):
+        __(lea (%nargs_q,%imm0),%imm1)
+        __(cmpq $nargregs<<fixnumshift,%imm1)
+        __(jna local_label(no_insert_no_frame))
+        /* Reserve space for a stack frame   */
+        __(push $reserved_frame_marker)
+        __(push $reserved_frame_marker)
+local_label(no_insert_no_frame):        
+	/* nargregs or fewer args were already vpushed.   */
+	/* if exactly nargregs, vpush remaining inherited vars.   */
+        __(cmpw $nargregs<<fixnumshift,%nargs)
+        __(movl $5<<fixnumshift,%imm1_l) /* skip code, new fn   */
+        __(leaq 5<<fixnumshift(%imm0),%temp1)
+        __(jnz local_label(set_regs))
+local_label(vpush_remaining):  
+        __(push misc_data_offset(%fn,%imm1))
+        __(addq $node_size,%imm1)
+        __(addw $fixnumone,%nargs)
+        __(subq $node_size,%imm0)
+        __(jnz local_label(vpush_remaining))
+        __(jmp local_label(go))
+local_label(set_regs):
+	/* if nargs was > 1 (and we know that it was < 3), it must have   */
+	/* been 2.  Set arg_x, then vpush the remaining args.   */
+        __(cmpw $fixnumone,%nargs)
+        __(jle local_label(set_y_z))
+local_label(set_arg_x): 
+        __(subq $node_size,%temp1)
+        __(movq misc_data_offset(%fn,%temp1),%arg_x)
+        __(addw $fixnumone,%nargs)
+        __(subq $fixnumone,%imm0)
+        __(jne local_label(vpush_remaining))
+        __(jmp local_label(go))
+	/* Maybe set arg_y or arg_z, preceding args   */
+local_label(set_y_z):
+        __(jne local_label(set_arg_z))
+	/* Set arg_y, maybe arg_x, preceding args   */
+local_label(set_arg_y): 
+        __(subq $node_size,%temp1)
+        __(movq misc_data_offset(%fn,%temp1),%arg_y)
+        __(addw $fixnumone,%nargs)
+        __(subq $fixnum_one,%imm0)
+        __(jnz local_label(set_arg_x))
+        __(jmp local_label(go))
+local_label(set_arg_z): 
+        __(subq $node_size,%temp1)
+        __(movq misc_data_offset(%fn,%temp1),%arg_z)
+        __(addw $fixnumone,%nargs)
+        __(subq $fixnum_one,%imm0)
+        __(jne local_label(set_arg_y))
+local_label(go):        
+        __(movq misc_data_offset+(4*node_size)(%fn),%fn)
+        __(push %ra0)
+        __(jmp *%fn)
+local_label(regs_only):
+        __(leaq 5<<fixnumshift(%imm0),%temp1)
+        __(testw %nargs,%nargs)
+        __(jne local_label(some_args))
+        __(cmpw $node_size,%imm0)
+        __(movq misc_data_offset-node_size(%fn,%temp1),%arg_z)
+        __(je local_label(rgo))
+        __(cmpw $2*node_size,%imm0)
+        __(movq misc_data_offset-(node_size*2)(%fn,%temp1),%arg_y)
+        __(je local_label(rgo))
+        __(movq misc_data_offset-(node_size*3)(%fn,%temp1),%arg_x)
+local_label(rgo):
+        __(addw %imm0_w,%nargs)
+        __(jmp *misc_data_offset+(4*node_size)(%fn))
+local_label(some_args):         
+        __(cmpw $2*node_size,%nargs)
+        __(jz local_label(rtwo))
+        /* One arg was passed, could be one or two inherited args */
+        __(cmpw $node_size,%imm0)
+        __(movq misc_data_offset-node_size(%fn,%temp1),%arg_y)
+        __(je local_label(rgo))
+        __(movq misc_data_offset-(node_size*2)(%fn,%temp1),%arg_x)
+        __(jmp local_label(rgo))
+local_label(rtwo):     
+        __(movq misc_data_offset-node_size(%fn,%temp1),%arg_x)
+        __(jmp local_label(rgo))
+_endsubp(call_closure)
+                                        
         
 _spentry(poweropen_callbackX)
 _endsubp(poweropen_callbackX)
