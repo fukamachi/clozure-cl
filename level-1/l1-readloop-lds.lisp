@@ -367,9 +367,11 @@ whose name or ID matches <p>, or to any process if <p> is null"
 
 (defun %break-in-frame (fp &optional string &rest args)
   (flet ((do-break-loop ()
-           (let ((c (make-condition 'simple-condition
+           (let ((c (if (typep string 'condition)
+                      string
+                      (make-condition 'simple-condition
                                     :format-control (or string "")
-                                    :format-arguments args)))
+                                    :format-arguments args))))
              (cbreak-loop "Break" "Return from BREAK." c fp))))
     (cond ((%i> *interrupt-level* -1)
            (do-break-loop))
