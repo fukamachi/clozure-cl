@@ -773,7 +773,7 @@ Will differ from *compiling-file* during an INCLUDE")
       ;;reentering itself for inner lambdas tends to be more expensive than
       ;;top-level compiles.
       ;;This assumes the form has been macroexpanded, or at least none of the
-      ;lnon-evaluated macro arguments could look like functions.
+      ;;non-evaluated macro arguments could look like functions.
       (let (lfun (args (%cdr form)))
         (while args
           (multiple-value-bind (arg win) (fcomp-transform (%car args) env)
@@ -782,7 +782,7 @@ Will differ from *compiling-file* during an INCLUDE")
               (when lfun (setq arg `',lfun))
               (labels ((subst-l (new ptr list)
                          (if (eq ptr list) (cons new (cdr list))
-		             (cons (car list) (subst-l new ptr (%cdr list))))))
+                           (cons (car list) (subst-l new ptr (%cdr list))))))
                 (setq form (subst-l arg args form))))
             (setq args (%cdr args))))))
     (push form *fcomp-toplevel-forms*)))
@@ -892,7 +892,7 @@ Will differ from *compiling-file* during an INCLUDE")
 ;;;;
 ;These should be constants, but it's too much trouble when need to change 'em.
 (defparameter FASL-FILE-ID #xFF00)  ;Overall file format, shouldn't change much
-(defparameter FASL-VERSION #xFF4d)  ;Fasl block format.
+(defparameter FASL-VERSION #xFF4e)  ;Fasl block format.
 
 (defvar *fasdump-hash*)
 (defvar *fasdump-read-package*)
