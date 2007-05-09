@@ -775,18 +775,21 @@ satisfy the optional predicate PREDICATE."
       (setf (interface-dir-functions-interface-db-file dir)
 	    (cdb-open (interface-db-pathname "functions.cdb" dir)))))
 
-(defun load-os-constant (sym &optional reader-stream)
-  (declare (ignore reader-stream))
-  (let* ((val (or (do-interface-dirs (d)
+(defun load-os-constant (sym &optional query)
+  (let* ((val (do-interface-dirs (d)
 		    (let* ((v (db-lookup-constant (db-constants d) sym)))
-		      (when v (return v))))
-                  (error "Constant not found: ~s" sym))))
-    (let* ((*record-source-file* nil))
-      (%defconstant sym val)
-      val)))
+		      (when v (return v))))))
+    (if query
+      (not (null val))
+      (if val
+        (let* ((*record-source-file* nil))
+          (%defconstant sym val)
+          val)
+        (error "Constant not found: ~s" sym)))))
 
-(defun %load-var (name &optional (ftd *target-ftd*))
-  (let* ((string (if (getf (ftd-attributes ftd)
+(defun %load-var (name &optional query-only)
+  (let* ((ftd *target-ftd*)
+         (string (if (getf (ftd-attributes ftd)
                            :prepend-underscores)
                    (concatenate 'string "_" (string name))
                    (string name)))
@@ -794,39 +797,44 @@ satisfy the optional predicate PREDICATE."
     (unless fv
       (with-cstrs ((cstring string))
         (let* ((type
-              (do-interface-dirs (d)
-                (let* ((vars (db-vars d)))
-                  (when vars
-                    (rletZ ((value :cdb-datum)
-                            (key :cdb-datum))
-                      (setf (pref key :cdb-datum.data) cstring
-                            (pref key :cdb-datum.size) (length string)
-                            (pref value :cdb-datum.data) (%null-ptr)
-                            (pref value :cdb-datum.size) 0)
-                      (cdb-get vars key value)
-                      (let* ((vartype (extract-db-type value ftd)))
-                        (when vartype (return vartype)))))))))
-        (unless type (error "Foreign variable ~s not found" string))
-        (setq fv (%cons-foreign-variable string type))
-        (resolve-foreign-variable fv nil)
-        (setf (gethash string (fvs)) fv))))
-    fv))
+                (do-interface-dirs (d)
+                  (let* ((vars (db-vars d)))
+                    (when vars
+                      (rletZ ((value :cdb-datum)
+                              (key :cdb-datum))
+                        (setf (pref key :cdb-datum.data) cstring
+                              (pref key :cdb-datum.size) (length string)
+                              (pref value :cdb-datum.data) (%null-ptr)
+                              (pref value :cdb-datum.size) 0)
+                        (cdb-get vars key value)
+                        (let* ((vartype (extract-db-type value ftd)))
+                          (when vartype (return vartype)))))))))
+          (when type
+            (setq fv (%cons-foreign-variable string type))
+            (resolve-foreign-variable fv nil)
+            (setf (gethash string (fvs)) fv)))))
+    (if query-only
+      (not (null fv))
+      (or fv (error "Foreign variable ~s not found" string)))))
+
 
 (set-dispatch-macro-character 
  #\# #\&
  (qlfun |#&-reader| (stream char arg)
    (declare (ignore char arg))
-   (let* ((package (find-package (ftd-interface-package-name *target-ftd*)))
-          (sym
-	   (%read-symbol-preserving-case
-	    stream
-            package)))
-     (unless *read-suppress*
-       (let* ((fv (%load-var sym)))
-         (%foreign-access-form `(%reference-external-entry-point (load-time-value ,fv))
-                                       (fv.type fv)
-                                       0
-                                       nil))))))
+   (let* ((package (find-package (ftd-interface-package-name *target-ftd*))))
+     (multiple-value-bind (sym query)
+         (%read-symbol-preserving-case
+          stream
+          package)
+       (unless *read-suppress*
+         (let* ((fv (%load-var sym query)))
+           (if query
+             fv
+             (%foreign-access-form `(%reference-external-entry-point (load-time-value ,fv))
+                                   (fv.type fv)
+                                   0
+                                   nil))))))))
 
 
               
@@ -941,77 +949,90 @@ satisfy the optional predicate PREDICATE."
     (let* ((info (db-lookup-objc-class (db-objc-classes d) name)))
       (when info (return info)))))
 
-(defun load-external-function (sym reader-stream)
-  (declare (ignore reader-stream))
+(defun load-external-function (sym query)
   (let* ((def (or (do-interface-dirs (d)
 		    (let* ((f (db-lookup-function (db-functions d) sym)))
 		      (when f (return f))))
-                  (error "Foreign function not found: ~s" sym))))
-    (setf (gethash sym (ftd-external-function-definitions
-			*target-ftd*)) def)
-    (setf (macro-function sym) #'%external-call-expander)
-    sym))
+                  (unless query
+                    (error "Foreign function not found: ~s" sym)))))
+    (if query
+      (not (null def))
+      (progn
+        (setf (gethash sym (ftd-external-function-definitions
+                            *target-ftd*)) def)
+        (setf (macro-function sym) #'%external-call-expander)
+        sym))))
 
 (defun %read-symbol-preserving-case (stream package)
   (let* ((case (readtable-case *readtable*))
+         (query nil)
 	 (error nil)
 	 (sym nil))
     (let* ((*package* package))
       (unwind-protect
 	   (progn
 	     (setf (readtable-case *readtable*) :preserve)
+             (when (eq #\? (peek-char t stream nil nil))
+               (setq query t)
+               (read-char stream))
 	     (multiple-value-setq (sym error)
 	       (handler-case (read stream nil nil)
 		 (error (condition) (values nil condition)))))
 	(setf (readtable-case *readtable*) case)))
-    (if error
-      (error error)
-      sym)))
+    (when error
+      (error error))
+    (values sym query)))
 
 (set-dispatch-macro-character 
  #\# #\$
  (qlfun |#$-reader| (stream char arg)
    (declare (ignore char))
-   (let* ((package (find-package (ftd-interface-package-name *target-ftd*)))
-          (sym
-	   (%read-symbol-preserving-case
+   (let* ((package (find-package (ftd-interface-package-name *target-ftd*))))
+     (multiple-value-bind (sym query)
+         (%read-symbol-preserving-case
 	    stream
-            package)))
-     (unless *read-suppress*
-       (etypecase sym
-         (symbol
-          (when (eq (symbol-package sym) package)
-            (unless arg (setq arg 0))
-            (ecase arg
-              (0
-               (unless (and (constant-symbol-p sym)
-                            (not (eq (%sym-global-value sym)
-                                     (%unbound-marker-8))))
-                 (load-os-constant sym stream)))
-              (1 (makunbound sym) (load-os-constant sym stream))))
-          sym)
-         (string
-          (let* ((val 0)
-                 (len (length sym)))
-            (dotimes (i 4 val)
-              (let* ((ch (if (< i len) (char sym i) #\space)))
-                (setq val (logior (ash val 8) (char-code ch))))))))))))
+            package)
+       (unless *read-suppress*
+         (etypecase sym
+           (symbol
+            (if query
+              (load-os-constant sym query)
+              (progn
+                (when (eq (symbol-package sym) package)
+                  (unless arg (setq arg 0))
+                  (ecase arg
+                    (0
+                     (unless (and (constant-symbol-p sym)
+                                  (not (eq (%sym-global-value sym)
+                                           (%unbound-marker-8))))
+                       (load-os-constant sym)))
+                    (1 (makunbound sym) (load-os-constant sym))))
+                sym)))
+           (string
+            (let* ((val 0)
+                   (len (length sym)))
+              (dotimes (i 4 val)
+                (let* ((ch (if (< i len) (char sym i) #\space)))
+                  (setq val (logior (ash val 8) (char-code ch)))))))))))))
 
 (set-dispatch-macro-character #\# #\_
   (qlfun |#_-reader| (stream char arg)
     (declare (ignore char))
     (unless arg (setq arg 0))
-    (let* ((sym (%read-symbol-preserving-case
+    (multiple-value-bind (sym query)
+        (%read-symbol-preserving-case
 		 stream
-		 (find-package (ftd-interface-package-name *target-ftd*)))))
+		 (find-package (ftd-interface-package-name *target-ftd*)))
       (unless *read-suppress*
         (unless (and sym (symbolp sym)) (report-bad-arg sym 'symbol))
-        (let* ((def (if (eql arg 0)
-                      (gethash sym (ftd-external-function-definitions
-                                    *target-ftd*)))))
-          (if (and def (eq (macro-function sym) #'%external-call-expander))
-            sym
-            (load-external-function sym stream)))))))
+        (if query
+          (load-external-function sym t)
+          (let* ((def (if (eql arg 0)
+                        (gethash sym (ftd-external-function-definitions
+                                      *target-ftd*)))))
+            (if (and def (eq (macro-function sym) #'%external-call-expander))
+              sym
+              (load-external-function sym nil))))))))
 
 
 
