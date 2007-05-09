@@ -3777,6 +3777,10 @@
 
 (define-ppc32-subprim-call-vinsn (pop-argument-registers)  .SPvpopargregs)
 
+(define-ppc32-subprim-call-vinsn (getu32) .SPgetu32)
+
+(define-ppc32-subprim-call-vinsn (gets32) .SPgets32)
+
 (define-ppc32-subprim-call-vinsn (getxlong)  .SPgetXlong)
 
 (define-ppc32-subprim-call-vinsn (stack-cons-list)  .SPstkconslist)
@@ -3878,6 +3882,8 @@
 (define-ppc32-subprim-call-vinsn (subtag-misc-set) .SPsubtag-misc-set)
 
 (define-ppc32-subprim-call-vinsn (mkunwind) .SPmkunwind)
+(define-ppc32-subprim-call-vinsn (nmkunwind) .SPnmkunwind)
+
 
 (define-ppc32-subprim-call-vinsn (progvsave) .SPprogvsave)
 
