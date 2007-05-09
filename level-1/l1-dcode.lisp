@@ -129,10 +129,14 @@ congruent with lambda lists of existing methods." lambda-list gf)))
           (setf (%gf-%lambda-list gf) lambda-list
                 (%gf-dispatch-table-keyvect dt) keyvect))
         (when (and apo-p lambda-list-p)
-          (setf (%gf-dispatch-table-precedence-list dt)
-                (canonicalize-argument-precedence-order
-                 argument-precedence-order
-                 (required-lambda-list-args lambda-list))))
+          (let* ((old-precedence-list (%gf-dispatch-table-precedence-list dt)))
+            (setf (%gf-dispatch-table-precedence-list dt)
+                  (canonicalize-argument-precedence-order
+                   argument-precedence-order
+                   (required-lambda-list-args lambda-list)))
+            (unless (equal old-precedence-list
+                           (%gf-dispatch-table-precedence-list dt))
+              (clear-gf-dispatch-table dt))))
         (lfun-bits gf (logior (ash 1 $lfbits-gfn-bit)
                               (logand $lfbits-args-mask newbits)))))
     (when new-method
