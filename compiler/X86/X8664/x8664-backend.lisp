@@ -151,7 +151,10 @@
              (ftd
               (case name
                 (:linuxx8664
-                 (make-ftd :interface-db-directory "ccl:x86-headers64;"
+                 (make-ftd :interface-db-directory
+                           (if (eq backend *host-backend*)
+                             "ccl:x86-headers64;"
+                             "ccl:cross-x86-headers64;")
                            :interface-package-name "X86-LINUX64"
                            :attributes '(:bits-per-word  64
                                          :struct-by-value t)
@@ -165,7 +168,10 @@
                            :callback-return-value-function
                            (intern "GENERATE-CALLBACK-RETURN-VALUE" "X86-LINUX64")))
                 (:darwinx8664
-                 (make-ftd :interface-db-directory "ccl:darwin-x86-headers64;"
+                 (make-ftd :interface-db-directory
+                           (if (eq backend *host-backend*)
+                             "ccl:darwin-x86-headers64;"
+                             "ccl:cross-darwin-x86-headers64;")
                            :interface-package-name "X86-DARWIN64"
                            :attributes '(:bits-per-word  64
                                          :signed-char t
@@ -181,7 +187,10 @@
                            :callback-return-value-function
                            (intern "GENERATE-CALLBACK-RETURN-VALUE" "X86-DARWIN64")))
                 (:freebsdx8664
-                 (make-ftd :interface-db-directory "ccl:freebsd-headers64;"
+                 (make-ftd :interface-db-directory
+                           (if (eq backend *host-backend*)
+                             "ccl:freebsd-headers64;"
+                             "ccl:cross-freebsd-headers64;")
                            :interface-package-name "X86-FREEBSD64"
                            :attributes '(:bits-per-word  64
                                          :struct-by-value t)
@@ -191,7 +200,7 @@
                            (intern "RECORD-TYPE-RETURNS-STRUCTURE-AS-FIRST-ARG"
                                    "X86-FREEBSD64")
                            :callback-bindings-function
-                           (intern "GENERATE-CALLBACK-BINDINGS" "X86-FREEBS64")
+                           (intern "GENERATE-CALLBACK-BINDINGS" "X86-FREEBSD64")
                            :callback-return-value-function
                            (intern "GENERATE-CALLBACK-RETURN-VALUE" "X86-FREEBSD64"))))))
         (install-standard-foreign-types ftd)
