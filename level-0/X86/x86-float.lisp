@@ -33,11 +33,11 @@
 
 
 
-(defx86lapfunction %make-float-from-fixnums ((float 8)(hi 0) (lo arg_x) (exp arg_y) (sign arg_z))
+(defx86lapfunction %make-float-from-fixnums ((float 16 )(hi 8) #|(ra 0)|#(lo arg_x) (exp arg_y) (sign arg_z))
   (mov (% sign) (% imm1))
   (sar ($ 63) (% imm1))
   (shl ($ 63) (% imm1))
-  (pop (% imm0))                        ;hi
+  (movq (@ hi (% rsp)) (% imm0))                        ;hi
   (andl ($ (ash (1- (ash 1 24)) x8664::fixnumshift)) (%l imm0))
   (shl ($ (- 28 x8664::fixnumshift)) (% imm0))
   (or (% imm0) (% imm1))
@@ -47,10 +47,9 @@
   (mov (% exp) (% imm0))
   (shl ($ (- ieee-double-float-exponent-offset x8664::fixnumshift)) (% imm0))
   (or (% imm0) (% imm1))
-  (pop (% arg_z))
+  (movq (@ float (% rsp)) (% arg_z))
   (mov (% imm1) (@ x8664::double-float.value (% arg_z)))
-  (discard-reserved-frame)                  ; discard empty frame
-  (single-value-return))
+  (single-value-return 4))
 
 
 ;;; Maybe we should trap - or something - on NaNs.
