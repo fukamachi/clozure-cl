@@ -655,6 +655,7 @@
            (setf (ldb modrm-rm-byte rm-byte) +no-base-register+)
            (setq memtype
                  (logior (encode-operand-type :disp32s)
+                         (encode-operand-type :label)
                          (logandc2 memtype (encode-operand-type :disp)))))
           (t
            ;; have a real base register (not just %rip).  Maybe an
@@ -1071,9 +1072,16 @@
      #x0fab #o000 #x00 #x66)
 
    ;; call
-   (def-x8664-opcode callq ((:label :insert-label))
+   ;; Probably need to align CALL instructions within the containing function,
+   ;; so that return addresses are tagged appropriately.
+   (def-x8664-opcode call ((:label :insert-label))
      #xe8 nil nil)
 
+   (def-x8664-opcode call ((:reg64 :insert-modrm-rm))
+     #xff #o320 #x0)
+
+   (def-x8664-opcode call ((:anymem :insert-memory))
+     #xff #o020 #x0)
 
    ;; cbtw
    (def-x8664-opcode cbtw ()
@@ -4554,6 +4562,7 @@
      (register-entry "es")
      (register-entry "fs")
      (register-entry "gs")
+     (register-entry "rip")
      )))
 
 (dotimes (i (length *x8664-register-entries*))
