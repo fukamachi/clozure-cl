@@ -40,7 +40,7 @@
 ;;; Multiply the (32-bit) digits X and Y, producing a 64-bit result.
 ;;; Add the 32-bit "prev" digit and the 32-bit carry-in digit to that 64-bit
 ;;; result; return the halves as (VALUES high low).
-(defx86lapfunction %multiply-and-add4 ((x 0) (y arg_x) (prev arg_y) (carry-in arg_z))
+(defx86lapfunction %multiply-and-add4 ((x 8) #|(ra 0)|# (y arg_x) (prev arg_y) (carry-in arg_z))
   (let ((unboxed-x imm0)
         (unboxed-y imm1)
         (unboxed-prev imm0)
@@ -48,8 +48,10 @@
         (unboxed-low imm0)
         (high arg_y)
         (low arg_z))
+    (pop (% ra0))
     (popq (% temp0))
     (discard-reserved-frame)
+    (push (% ra0))
     (unbox-fixnum temp0 unboxed-x)
     (unbox-fixnum y unboxed-y)
     (mull (%l unboxed-y))
@@ -63,10 +65,10 @@
     (box-fixnum unboxed-low low)
     (shr ($ 32) (% unboxed-y))
     (box-fixnum unboxed-y high)
+    (movq (% rsp) (% temp0))
     (pushq (% high))
     (pushq (% low))
     (set-nargs 2)
-    (leaq (@ '2 (% rsp)) (% temp0))
     (jmp-subprim .SPvalues)))
 
 (defx86lapfunction %multiply-and-add3 ((x arg_x) (y arg_y) (carry-in arg_z))
@@ -87,10 +89,10 @@
     (box-fixnum unboxed-low low)
     (shr ($ 32) (% unboxed-y))
     (box-fixnum unboxed-y high)
+    (movq (% rsp) (% temp0))
     (pushq (% high))
     (pushq (% low))
     (set-nargs 2)
-    (leaq (@ '2 (% rsp)) (% temp0))
     (jmp-subprim .SPvalues)))
 
 ;;; Return the (possibly truncated) 32-bit quotient and remainder
@@ -204,11 +206,8 @@
 ;;; %rcx == temp2
 (defx86lapfunction %digit-logical-shift-right ((digit arg_y) (count arg_z))
   (unbox-fixnum digit imm0)
-  (unbox-fixnum count imm1)
-  (xorq (% temp2) (% temp2))
-  (movb (% imm1.b) (% temp2.b))
-  (shrq (% temp2.b) (% imm0))
-  (movb ($ 0) (% temp2.b))
+  (unbox-fixnum count imm2)
+  (shrq (% imm2.b) (% imm0))
   (box-fixnum imm0 arg_z)
   (single-value-return))
 
@@ -216,22 +215,16 @@
 
 (defx86lapfunction %ashr ((digit arg_y) (count arg_z))
   (unbox-fixnum digit imm0)
-  (unbox-fixnum count imm1)
+  (unbox-fixnum count imm2)
   (movslq (%l imm0) (% imm0))
-  (xorq (% temp2) (% temp2))
-  (movb (% imm1.b) (% temp2.b))
-  (sarq (% temp2.b) (% imm0))
-  (movb ($ 0) (% temp2.b))
+  (sarq (% imm2.b) (% imm0))
   (box-fixnum imm0 arg_z)
   (single-value-return))
 
 (defx86lapfunction %ashl ((digit arg_y) (count arg_z))
   (unbox-fixnum digit imm0)
-  (unbox-fixnum count imm1)
-  (xorq (% temp2) (% temp2))
-  (movb (% imm1.b) (% temp2.b))
-  (shlq (% temp2.b) (% imm0))
-  (movb ($ 0) (% temp2.b))  
+  (unbox-fixnum count imm2)
+  (shlq (% imm2.b) (% imm0))
   (movl (%l imm0) (%l imm0))            ;zero-extend
   (box-fixnum imm0 arg_z)
   (single-value-return))
