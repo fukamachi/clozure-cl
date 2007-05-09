@@ -2038,7 +2038,7 @@
     (%ioblock-write-u32-code-unit ioblock byte-order-mark-char-code))
   (do* ((i 0 (1+ i))
         (col (ioblock-charpos ioblock))
-        (limit (ioblock-encode-iteral-char-code-limit ioblock))
+        (limit (ioblock-encode-literal-char-code-limit ioblock))
         (encode-function (ioblock-encode-output-function ioblock))
         (start-char start-char (1+ start-char)))
        ((= i num-chars) (setf (ioblock-charpos ioblock) col) num-chars)
