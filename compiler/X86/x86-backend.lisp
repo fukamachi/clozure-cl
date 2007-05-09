@@ -137,6 +137,7 @@
 		      (or (assoc (cadr x) *vreg-specifier-constant-constraints* :test #'eq)
 			  (assoc (cadr x) *spec-class-storage-class-alist* :test #'eq)
 			  (eq (cadr x) :label)
+                          (and (consp (cadr x)) (eq (caadr x) :label) (consp (cdadr x)) (null (cddadr x)))
 			  (and (consp (cadr x))
 			       (or 
 				(assoc (caadr x) *vreg-specifier-constant-constraints* :test #'eq)
@@ -209,7 +210,7 @@
                            (if (eq (car op) :apply)
                              `(,(cadr op) ,@(mapcar #'simplify-operand (cddr op)))
                              (if (member (car op)
-                                         '(:tra :align :byte :word :long :quad))
+                                         '(:tra :align :byte :word :long :quad :talign))
                                `(,(car op) ,(simplify-operand (cadr op)))
                                (simplify-operand (eval op))))))) ; Handler-case this?
                      (simplify-memory-operand (op)
