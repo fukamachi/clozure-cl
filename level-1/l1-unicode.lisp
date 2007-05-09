@@ -85,7 +85,7 @@
   ;; than NOCTETS.)
   length-of-memory-encoding-function    ;(POINTER NOCTETS START)
 
-  ;; Code units and character codes less than this value map to themselves
+  ;; Code units less than this value map to themselves on input.
   (literal-char-code-limit 0)
 
   ;; Does a byte-order-mark determine the endianness of input ?
@@ -106,6 +106,8 @@
   ;; How is #\NUL encoded, as a sequence of octets ?  (Typically, as a minimal-
   ;; length sequenve of 0s, but there are exceptions.)
   (nul-encoding #(0))
+  ;; Char-codes less than  this value map to themselves on output.
+  (encode-literal-char-code-limit 0)
   )
 
 (defconstant byte-order-mark #\u+feff)
@@ -261,6 +263,7 @@ characters used in most Western European languages."
   :length-of-memory-encoding-function 
   #'8-bit-fixed-width-length-of-memory-encoding
   :literal-char-code-limit 256
+  :encode-literal-char-code-limit 256
   )
 
 (define-character-encoding :us-ascii
@@ -346,6 +349,7 @@ codes map to their Unicode equivalents. "
   :length-of-memory-encoding-function 
   #'8-bit-fixed-width-length-of-memory-encoding
   :literal-char-code-limit 128
+  :encode-literal-char-code-limit 128
   )
 
 
@@ -519,6 +523,7 @@ languages used in Central/Eastern Europe."
   :length-of-memory-encoding-function 
   #'8-bit-fixed-width-length-of-memory-encoding
   :literal-char-code-limit #xa0
+  :encode-literal-char-code-limit #xa0
   )
 
 (defparameter *iso-8859-3-to-unicode*
@@ -697,6 +702,7 @@ languages used in Southern Europe."
   :length-of-memory-encoding-function 
   #'8-bit-fixed-width-length-of-memory-encoding
   :literal-char-code-limit #xa0
+  :encode-literal-char-code-limit #xa0  
   )
 
 
@@ -868,6 +874,7 @@ languages used in Northern Europe."
   :length-of-memory-encoding-function 
   #'8-bit-fixed-width-length-of-memory-encoding
   :literal-char-code-limit #xa0
+  :encode-literal-char-code-limit #xa0  
   )
 
 (defparameter *iso-8859-5-to-unicode*
@@ -1019,6 +1026,7 @@ Cyrillic alphabet."
   :length-of-memory-encoding-function 
   #'8-bit-fixed-width-length-of-memory-encoding
   :literal-char-code-limit #xa0
+  :encode-literal-char-code-limit #xa0
   )
 
 (defparameter *iso-8859-6-to-unicode*
@@ -1167,6 +1175,7 @@ Arabic alphabet."
   :length-of-memory-encoding-function 
   #'8-bit-fixed-width-length-of-memory-encoding
   :literal-char-code-limit #xa0
+  :encode-literal-char-code-limit #xa0  
   )
 
 (defparameter *iso-8859-7-to-unicode*
@@ -1346,6 +1355,7 @@ Greek alphabet."
   :length-of-memory-encoding-function 
   #'8-bit-fixed-width-length-of-memory-encoding
   :literal-char-code-limit #xa0
+  :encode-literal-char-code-limit #xa0  
   )
 
 (defparameter *iso-8859-8-to-unicode*
@@ -1511,6 +1521,7 @@ Hebrew alphabet."
   :length-of-memory-encoding-function 
   #'8-bit-fixed-width-length-of-memory-encoding
   :literal-char-code-limit #xa0
+  :encode-literal-char-code-limit #xa0  
   )
 
 (defparameter *iso-8859-9-to-unicode*
@@ -1653,6 +1664,7 @@ Turkish alphabet."
   :length-of-memory-encoding-function 
   #'8-bit-fixed-width-length-of-memory-encoding
   :literal-char-code-limit #xd0
+  :encode-literal-char-code-limit #xa0
   )
 
 (defparameter *iso-8859-10-to-unicode*
@@ -1802,6 +1814,7 @@ alphabets."
   :length-of-memory-encoding-function 
   #'8-bit-fixed-width-length-of-memory-encoding
   :literal-char-code-limit #xa0
+  :encode-literal-char-code-limit #xa0  
   )
 
 (define-character-encoding :iso-8859-11
@@ -1911,6 +1924,7 @@ alphabet."
   :length-of-memory-encoding-function 
   #'8-bit-fixed-width-length-of-memory-encoding
   :literal-char-code-limit #xa0
+  :encode-literal-char-code-limit #xa0  
   )
 
 ;;; There is no iso-8859-12 encoding.
@@ -2080,6 +2094,7 @@ alphabets."
   :length-of-memory-encoding-function 
   #'8-bit-fixed-width-length-of-memory-encoding
   :literal-char-code-limit #xa0
+  :encode-literal-char-code-limit #xa0  
   )
 
 (defparameter *iso-8859-14-to-unicode*
@@ -2288,6 +2303,7 @@ languages."
   :length-of-memory-encoding-function 
   #'8-bit-fixed-width-length-of-memory-encoding
   :literal-char-code-limit #xa0
+  :encode-literal-char-code-limit #xa0  
   )
 
 (defparameter *iso-8859-15-to-unicode*
@@ -2447,6 +2463,7 @@ missing from ISO-8859-1."
   :length-of-memory-encoding-function 
   #'8-bit-fixed-width-length-of-memory-encoding
   :literal-char-code-limit #xa0
+  :encode-literal-char-code-limit #xa0  
   )
 
 (defparameter *iso-8859-16-to-unicode*
@@ -2627,6 +2644,7 @@ European languages."
   :length-of-memory-encoding-function 
   #'8-bit-fixed-width-length-of-memory-encoding
   :literal-char-code-limit #xa0
+  :encode-literal-char-code-limit #xa0  
   )
 
 
@@ -2997,6 +3015,7 @@ bytes."
              (return (values nchars i))
              (setq nchars (1+ nchars) i nexti))))))
     :literal-char-code-limit #x80
+  :encode-literal-char-code-limit #x80    
     :bom-encoding #(#xef #xbb #xbf)
     )
 
@@ -3275,7 +3294,8 @@ interpreted on input or prepended to output."
            (if (> nexti end)
              (return (values nchars i))
              (setq i nexti nchars (1+ nchars)))))))
-    :literal-char-code-limit #xd800    ; use separate encode/decode limits
+    :literal-char-code-limit #xd800  
+    :encode-literal-char-code-limit #x10000
     :nul-encoding #(0 0)
     )
 
@@ -3439,6 +3459,7 @@ interpreted on input or prepended to output."
            (return (values nchars i))
            (setq i nexti nchars (1+ nchars)))))))
   :literal-char-code-limit #xd800
+  :encode-literal-char-code-limit #x10000
   :nul-encoding #(0 0)
   )
 
@@ -3650,6 +3671,7 @@ in native byte-order with a leading byte-order mark."
                    2
                    4)))))))
   :literal-char-code-limit #xd800
+  :encode-literal-char-code-limit #x10000  
   :use-byte-order-mark
   #+big-endian-target :utf-16le
   #+little-endian-target :utf-16be
@@ -3775,6 +3797,7 @@ to output."
      (declare (ignore pointer))
      (values (floor noctets 2) (+ start noctets))))
   :literal-char-code-limit #x10000
+  :encode-literal-char-code-limit #x10000  
   :nul-encoding #(0 0)
   )
 
@@ -3873,6 +3896,7 @@ to output."
      (declare (ignore pointer))
      (values (floor noctets 2) (+ start noctets))))
   :literal-char-code-limit #x10000
+  :encode-literal-char-code-limit #x10000
   :nul-encoding #(0 0)
   )
 
@@ -3993,6 +4017,7 @@ big-endian order."
           (decf noctets 2))))
      (values (floor noctets 2) (+ start noctets))))
   :literal-char-code-limit #x10000
+  :encode-literal-char-code-limit #x10000  
   :use-byte-order-mark
   #+big-endian-target :ucs-2le
   #+little-endian-target :ucs-2be
@@ -4178,6 +4203,7 @@ or prepended to output."
      (declare (ignore pointer))
      (values (floor noctets 4) (+ start noctets))))
   :literal-char-code-limit #x110000
+  :encode-literal-char-code-limit #x110000
   :nul-encoding #(0 0 0 0)
   )
 
@@ -4275,6 +4301,7 @@ or prepended to output."
      (declare (ignore pointer))
      (values (floor noctets 4) (+ start noctets))))
   :literal-char-code-limit #x110000
+  :encode-literal-char-code-limit #x110000
   :nul-encoding #(0 0 0 0)  
   )
 
@@ -4395,6 +4422,7 @@ or prepended to output."
           (decf noctets 4))))
      (values (floor noctets 4) (+ start noctets))))
   :literal-char-code-limit #x110000
+  :encode-literal-char-code-limit #x110000  
   :use-byte-order-mark
   #+big-endian-target :utf-32le
   #+little-endian-target :utf-32be
