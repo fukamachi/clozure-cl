@@ -392,7 +392,7 @@
   (write-char-function 'ioblock-no-char-output)
   (encoding nil)
   (pending-byte-order-mark nil)
-  (literal-char-code-limit 256)
+  (decode-literal-code-unit-limit 256)
   (encode-output-function nil)
   (decode-input-function nil)
   (read-char-when-locked-function 'ioblock-no-char-input)
@@ -409,7 +409,7 @@
   (sharing nil)
   (line-termination nil)
   (unread-char-function 'ioblock-no-char-input)
-  (reserved2 nil)
+  (encode-literal-char-code-limit 256)
   (reserved3 nil))
 
 
@@ -1149,7 +1149,7 @@
           (locally
               (declare (type (unsigned-byte 8) 1st-unit))
             (if (< 1st-unit
-                   (the (mod #x110000) (ioblock-literal-char-code-limit ioblock)))
+                   (the (mod #x110000) (ioblock-decode-literal-code-unit-limit ioblock)))
               (%code-char 1st-unit)
               (funcall (ioblock-decode-input-function ioblock)
                        1st-unit
@@ -1179,7 +1179,7 @@
           (locally
               (declare (type (unsigned-byte 16) 1st-unit))
             (if (< 1st-unit
-                   (the (mod #x110000) (ioblock-literal-char-code-limit ioblock)))
+                   (the (mod #x110000) (ioblock-decode-literal-code-unit-limit ioblock)))
               (code-char 1st-unit)
               (funcall (ioblock-decode-input-function ioblock)
                        1st-unit
@@ -1209,7 +1209,7 @@
           (locally
               (declare (type (unsigned-byte 16) 1st-unit))
             (if (< 1st-unit
-                   (the (mod #x110000) (ioblock-literal-char-code-limit ioblock)))
+                   (the (mod #x110000) (ioblock-decode-literal-code-unit-limit ioblock)))
               (code-char 1st-unit)
               (funcall (ioblock-decode-input-function ioblock)
                        1st-unit
@@ -1239,7 +1239,7 @@
           (locally
               (declare (type (unsigned-byte 16) 1st-unit))
             (if (< 1st-unit
-                   (the (mod #x110000) (ioblock-literal-char-code-limit ioblock)))
+                   (the (mod #x110000) (ioblock-decode-literal-code-unit-limit ioblock)))
               (code-char 1st-unit)
               (funcall (ioblock-decode-input-function ioblock)
                        1st-unit
@@ -1269,7 +1269,7 @@
           (locally
               (declare (type (unsigned-byte 16) 1st-unit))
             (if (< 1st-unit
-                   (the (mod #x110000) (ioblock-literal-char-code-limit ioblock)))
+                   (the (mod #x110000) (ioblock-decode-literal-code-unit-limit ioblock)))
               (code-char 1st-unit)
               (funcall (ioblock-decode-input-function ioblock)
                        1st-unit
@@ -1858,7 +1858,7 @@
     (incf (ioblock-charpos ioblock)))
   (let* ((code (char-code char)))
     (declare (type (mod #x110000) code))
-    (if (< code (the fixnum (ioblock-literal-char-code-limit ioblock)))
+    (if (< code (the fixnum (ioblock-encode-literal-char-code-limit ioblock)))
       (%ioblock-write-u8-element ioblock code)
       (funcall (ioblock-encode-output-function ioblock)
                char
@@ -1882,7 +1882,7 @@
            (optimize (speed 3) (safety 0)))
   (do* ((i 0 (1+ i))
         (col (ioblock-charpos ioblock))
-        (limit (ioblock-literal-char-code-limit ioblock))
+        (limit (ioblock-encode-literal-char-code-limit ioblock))
         (encode-function (ioblock-encode-output-function ioblock))
         (start-char start-char (1+ start-char)))
        ((= i num-chars) (setf (ioblock-charpos ioblock) col) num-chars)
@@ -1909,7 +1909,7 @@
     (incf (ioblock-charpos ioblock)))
   (let* ((code (char-code char)))
     (declare (type (mod #x110000) code))
-    (if (< code (the fixnum (ioblock-literal-char-code-limit ioblock)))
+    (if (< code (the fixnum (ioblock-encode-literal-char-code-limit ioblock)))
       (%ioblock-write-u16-code-unit ioblock code)
       (funcall (ioblock-encode-output-function ioblock)
                char
@@ -1936,7 +1936,7 @@
     (%ioblock-write-u16-code-unit ioblock byte-order-mark-char-code))
   (do* ((i 0 (1+ i))
         (col (ioblock-charpos ioblock))
-        (limit (ioblock-literal-char-code-limit ioblock))
+        (limit (ioblock-encode-literal-char-code-limit ioblock))
         (encode-function (ioblock-encode-output-function ioblock))
         (start-char start-char (1+ start-char)))
        ((= i num-chars) (setf (ioblock-charpos ioblock) col) num-chars)
@@ -1959,7 +1959,7 @@
     (incf (ioblock-charpos ioblock)))
   (let* ((code (char-code char)))
     (declare (type (mod #x110000) code))
-    (if (< code (the fixnum (ioblock-literal-char-code-limit ioblock)))
+    (if (< code (the fixnum (ioblock-encode-literal-char-code-limit ioblock)))
       (%ioblock-write-swapped-u16-code-unit ioblock code)
       (funcall (ioblock-encode-output-function ioblock)
                char
@@ -1982,7 +1982,7 @@
            (optimize (speed 3) (safety 0)))
   (do* ((i 0 (1+ i))
         (col (ioblock-charpos ioblock))
-        (limit (ioblock-literal-char-code-limit ioblock))
+        (limit (ioblock-encode-literal-char-code-limit ioblock))
         (encode-function (ioblock-encode-output-function ioblock))
         (wcf (ioblock-write-char-when-locked-function ioblock))
         (start-char start-char (1+ start-char)))
@@ -2012,7 +2012,7 @@
     (incf (ioblock-charpos ioblock)))
   (let* ((code (char-code char)))
     (declare (type (mod #x110000 code)))
-    (if (< code (the fixnum (ioblock-literal-char-code-limit ioblock)))
+    (if (< code (the fixnum (ioblock-encode-literal-char-code-limit ioblock)))
       (%ioblock-write-u32-code-unit ioblock code)
       (funcall (ioblock-encode-output-function ioblock)
                code
@@ -2038,7 +2038,7 @@
     (%ioblock-write-u32-code-unit ioblock byte-order-mark-char-code))
   (do* ((i 0 (1+ i))
         (col (ioblock-charpos ioblock))
-        (limit (ioblock-literal-char-code-limit ioblock))
+        (limit (ioblock-encode-iteral-char-code-limit ioblock))
         (encode-function (ioblock-encode-output-function ioblock))
         (start-char start-char (1+ start-char)))
        ((= i num-chars) (setf (ioblock-charpos ioblock) col) num-chars)
@@ -2062,7 +2062,7 @@
     (incf (ioblock-charpos ioblock)))
   (let* ((code (char-code char)))
     (declare (type (mod #x110000 code)))
-    (if (< code (the fixnum (ioblock-literal-char-code-limit ioblock)))
+    (if (< code (the fixnum (ioblock-encode-literal-char-code-limit ioblock)))
       (%ioblock-write-swapped-u32-code-unit ioblock code)
       (funcall (ioblock-encode-output-function ioblock)
                code
@@ -2085,7 +2085,7 @@
            (optimize (speed 3) (safety 0)))
   (do* ((i 0 (1+ i))
         (col (ioblock-charpos ioblock))
-        (limit (ioblock-literal-char-code-limit ioblock))
+        (limit (ioblock-encode-literal-char-code-limit ioblock))
         (encode-function (ioblock-encode-output-function ioblock))
         (start-char start-char (1+ start-char)))
        ((= i num-chars) (setf (ioblock-charpos ioblock) col) num-chars)
@@ -3028,9 +3028,13 @@
     (when (eq sharing :private)
       (setf (ioblock-owner ioblock) *current-process*))
     (setf (ioblock-encoding ioblock) encoding)
-    (setf (ioblock-literal-char-code-limit ioblock)
+    (setf (ioblock-decode-literal-code-unit-limit ioblock)
           (if encoding
-            (character-encoding-literal-char-code-limit encoding)
+            (character-encoding-decode-literal-code-unit-limit encoding)
+            256))
+    (setf (ioblock-encode-literal-char-code-limit ioblock)
+          (if encoding
+            (character-encoding-encode-literal-char-code-limit encoding)
             256))
     (when insize
       (unless (ioblock-inbuf ioblock)
