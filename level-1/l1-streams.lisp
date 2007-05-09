@@ -5433,7 +5433,9 @@
 
 (defun open (filename &key (direction :input)
                       (element-type 'base-char)
-                      (if-exists :error)
+                      (if-exists (if (eq (pathname-version filename) :newest)
+                                   :new-version
+                                   :error))
                       (if-does-not-exist (cond ((eq direction :probe)
                                                 nil)
                                                ((or (eq direction :input)
