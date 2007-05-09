@@ -605,6 +605,11 @@
      *terminal-character-encoding-name*
      *default-file-character-encoding*
      *default-socket-character-encoding*
+     ;; Mapped files.
+     map-file-to-ivector
+     map-file-to-octet-vector
+     unmap-ivector
+     unmap-octet-vector
                                       
      ) "CCL"
    )
