@@ -164,27 +164,50 @@ define([Allocate_Catch_Frame],[
 /* %arg_z = tag,  %xfn = pc, $1 = mvflag 	  */
 	
 define([Make_Catch],[
-	Allocate_Catch_Frame(%temp2)
+	Allocate_Catch_Frame(%imm2)
 	movq %rcontext:tcr.catch_top,%imm0
 	movq %rcontext:tcr.db_link,%imm1
-	movq %arg_z,catch_frame.catch_tag(%temp2)
-	movq %imm0,catch_frame.link(%temp2)
-	movq [$]$1,catch_frame.mvflag(%temp2)
+	movq %arg_z,catch_frame.catch_tag(%imm2)
+	movq %imm0,catch_frame.link(%imm2)
+	movq [$]$1,catch_frame.mvflag(%imm2)
 	movq %rcontext:tcr.xframe,%imm0
-	movq %rsp,catch_frame.rsp(%temp2)
-	movq %rbp,catch_frame.rbp(%temp2)
+	movq %rsp,catch_frame.rsp(%imm2)
+	movq %rbp,catch_frame.rbp(%imm2)
         movq %rcontext:tcr.foreign_sp,%stack_temp
-	movq %imm1,catch_frame.db_link(%temp2)
-	movq %save3,catch_frame._save3(%temp2)
-	movq %save2,catch_frame._save2(%temp2)
-	movq %save1,catch_frame._save1(%temp2)
-	movq %save0,catch_frame._save0(%temp2)
-	movq %imm0,catch_frame.xframe(%temp2)
-	movq %stack_temp,catch_frame.foreign_sp(%temp2)
-	movq %xfn,catch_frame.pc(%temp2)
-	movq %temp2,%rcontext:tcr.catch_top
+	movq %imm1,catch_frame.db_link(%imm2)
+	movq %save3,catch_frame._save3(%imm2)
+	movq %save2,catch_frame._save2(%imm2)
+	movq %save1,catch_frame._save1(%imm2)
+	movq %save0,catch_frame._save0(%imm2)
+	movq %imm0,catch_frame.xframe(%imm2)
+	movq %stack_temp,catch_frame.foreign_sp(%imm2)
+	movq %xfn,catch_frame.pc(%imm2)
+	movq %imm2,%rcontext:tcr.catch_top
 ])	
-	
+
+define([nMake_Catch],[
+	Allocate_Catch_Frame(%imm2)
+	movq %rcontext:tcr.catch_top,%imm0
+	movq %rcontext:tcr.db_link,%imm1
+	movq %arg_z,catch_frame.catch_tag(%imm2)
+	movq %imm0,catch_frame.link(%imm2)
+        lea node_size(%rsp),%imm0
+	movq [$]$1,catch_frame.mvflag(%imm2)
+	movq %imm0,catch_frame.rsp(%imm2)
+	movq %rcontext:tcr.xframe,%imm0
+	movq %rbp,catch_frame.rbp(%imm2)
+        movq %rcontext:tcr.foreign_sp,%stack_temp
+	movq %imm1,catch_frame.db_link(%imm2)
+	movq %save3,catch_frame._save3(%imm2)
+	movq %save2,catch_frame._save2(%imm2)
+	movq %save1,catch_frame._save1(%imm2)
+	movq %save0,catch_frame._save0(%imm2)
+	movq %imm0,catch_frame.xframe(%imm2)
+	movq %stack_temp,catch_frame.foreign_sp(%imm2)
+	movq %xfn,catch_frame.pc(%imm2)
+	movq %imm2,%rcontext:tcr.catch_top
+])	
+        	
 	
 /* Consing can get interrupted (either by PROCESS-INTERRUPT or by GC  */
 /* activity in some other thread; if it's interrupted, the interrupting  */
@@ -482,4 +505,12 @@ define([save_tcr_linear],[
 	
 ])
 
+/*  On AMD hardware (at least), a one-byte RET instruction should be */
+/*  prefixed with a REP prefix if it (a) is the target of a  */
+/*  branch or (b) immediately follows a conditional branch not taken. */
+define([repret],[
+        .byte 0xf3
+         ret
+])
+                                
         
