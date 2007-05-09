@@ -3866,6 +3866,7 @@
 (define-ppc64-subprim-call-vinsn (subtag-misc-set) .SPsubtag-misc-set)
 
 (define-ppc64-subprim-call-vinsn (mkunwind) .SPmkunwind)
+(define-ppc64-subprim-call-vinsn (nmkunwind) .SPnmkunwind)
 
 (define-ppc64-subprim-call-vinsn (progvsave) .SPprogvsave)
 
