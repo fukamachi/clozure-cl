@@ -1793,11 +1793,16 @@
         ((and (typep other 'double-float)
               (nx-form-typep number 'single-float env))
          `(the double-float (%single-to-double ,number)))
-        ((or (typep other 'single-float)
-             (null other-p))
+        ((and other-p (typep other 'single-float))
          `(the single-float (%short-float ,number)))
         ((typep other 'double-float)
          `(the double-float (%double-float ,number)))
+        ((null other-p)
+         (let* ((temp (gensym)))
+           `(let* ((,temp ,number))
+             (if (typep ,temp 'double-float)
+               ,temp
+               (the single-float (%short-float ,temp))))))
         (t call)))
 
 (define-compiler-macro coerce (&whole call thing type)
