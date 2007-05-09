@@ -26,16 +26,17 @@
 ;;; a byte at a time.
 ;;; Does no arg checking of any kind.  Really.
 
-(defx86lapfunction %copy-ptr-to-ivector ((src (* 1 x8664::node-size) )
-                                         (src-byte-offset 0) 
+(defx86lapfunction %copy-ptr-to-ivector ((src (* 2 x8664::node-size) )
+                                         (src-byte-offset (* 1 x8664::node-size))
+                                         #|(ra 0)|#
                                          (dest arg_x)
                                          (dest-byte-offset arg_y)
                                          (nbytes arg_z))
   (let ((rsrc temp0)
         (rsrc-byte-offset temp1))
     (testq (% nbytes) (% nbytes))
-    (popq (% rsrc-byte-offset))         ; boxed src-byte-offset
-    (popq (% rsrc))                     ; src macptr
+    (movq (@ src-byte-offset (% rsp)) (% rsrc-byte-offset))         ; boxed src-byte-offset
+    (movq (@ src (% rsp)) (% rsrc))     ; src macptr
     (jmp @test)
     @loop
     (unbox-fixnum rsrc-byte-offset imm0)
@@ -49,19 +50,19 @@
     @test
     (jne @loop)
     (movq (% dest) (% arg_z))
-    (discard-reserved-frame)
-    (single-value-return)))
+    (single-value-return 4)))
 
-(defx86lapfunction %copy-ivector-to-ptr ((src (* 1 x8664::node-size))
-                                         (src-byte-offset 0) 
+(defx86lapfunction %copy-ivector-to-ptr ((src (* 2 x8664::node-size))
+                                         (src-byte-offset (* 1 x8664::node-size))
+                                         #|(ra 0)|#
                                          (dest arg_x)
                                          (dest-byte-offset arg_y)
                                          (nbytes arg_z))
   (let ((rsrc temp0)
         (rsrc-byte-offset temp1))
     (testq (% nbytes) (% nbytes))
-    (popq (% rsrc-byte-offset))
-    (popq (% rsrc))
+    (movq (@ src-byte-offset (% rsp)) (% rsrc-byte-offset))
+    (movq (@ src (% rsp)) (% rsrc))
     (jmp @test)
     @loop
     (unbox-fixnum rsrc-byte-offset imm0)
@@ -75,20 +76,20 @@
     @test
     (jne @loop)
     (movq (% dest) (% arg_z))
-    (discard-reserved-frame)
-    (single-value-return)))
+    (single-value-return 4)))
 
 
 
-(defx86lapfunction %copy-ivector-to-ivector ((src-offset 8) 
-                                             (src-byte-offset 0) 
+(defx86lapfunction %copy-ivector-to-ivector ((src-offset 16) 
+                                             (src-byte-offset 8)
+                                             #|(ra 0)|#
                                              (dest arg_x)
                                              (dest-byte-offset arg_y)
                                              (nbytes arg_z))
   (let ((rsrc temp0)
         (rsrc-byte-offset temp1))
-    (pop (% rsrc-byte-offset))
-    (pop (% rsrc))
+    (movq (@ src-byte-offset (% rsp)) (% rsrc-byte-offset))
+    (movq (@ src-offset (% rsp)) (% rsrc))
     (cmpq (% dest) (% rsrc))
     (jne @front)
     (cmpq (% src-byte-offset) (% dest-byte-offset))
@@ -107,8 +108,7 @@
     @front-test
     (jne @front-loop)
     (movq (% dest) (% arg_z))
-    (discard-reserved-frame)
-    (single-value-return)
+    (single-value-return 4)
     @back
     (addq (% nbytes) (% rsrc-byte-offset))
     (addq (% nbytes) (% dest-byte-offset))
@@ -125,20 +125,20 @@
     @back-test
     (jne @back-loop)
     (movq (% dest) (% arg_z))
-    (discard-reserved-frame)
-    (single-value-return)))
+    (single-value-return 4)))
   
 
-(defx86lapfunction %copy-gvector-to-gvector ((src (* 1 x8664::node-size))
-					     (src-element 0)
+(defx86lapfunction %copy-gvector-to-gvector ((src (* 2 x8664::node-size))
+					     (src-element (* 1 x8664::node-size))
+                                             #|(ra 0)|#
 					     (dest arg_x)
 					     (dest-element arg_y)
 					     (nelements arg_z))
   (let ((rsrc temp0)
         (rsrc-element imm1)
         (val temp1))
-    (popq (% rsrc-element))
-    (popq (% rsrc))
+    (movq (@ src-element (% rsp)) (% rsrc-element))
+    (movq (@ src (% rsp)) (% rsrc))
     (cmpq (% rsrc) (% dest))
     (jne @front)
     (rcmp (% rsrc-element) (% dest-element))
@@ -155,8 +155,7 @@
     @front-test
     (jne @front-loop)
     (movq (% dest) (% arg_z))
-    (discard-reserved-frame)
-    (single-value-return)
+    (single-value-return 4)
     @back
     (addq (% nelements) (% rsrc-element))
     (addq (% nelements) (% dest-element))
@@ -171,8 +170,7 @@
     @back-test
     (jne @back-loop)
     (movq (% dest) (% arg_z))
-    (discard-reserved-frame)
-    (single-value-return)))
+    (single-value-return 4)))
 
 (defx86lapfunction %heap-bytes-allocated ()
   (movq (@ (% :rcontext) x8664::tcr.save-allocptr) (% temp1))
@@ -191,13 +189,9 @@
 
 (defx86lapfunction values ()
   (:arglist (&rest values))
+  (save-frame-variable-arg-count)
   (push-argregs)
-  (movzwl (%w nargs) (%l nargs))
-  (rcmpw (% nargs) ($ '3))
-  (lea (@ (% rsp) (%q nargs)) (% temp0))
-  (lea (@ '2 (% temp0)) (% temp1))
-  (cmovaq (% temp1) (% temp0))
-  (jmp-subprim .SPvalues))
+  (jmp-subprim .SPnvalret))
 
 (defx86lapfunction rdtsc ()
   (:byte #x0f)                          ;two-byte rdtsc opcode
@@ -326,14 +320,15 @@
   (single-value-return))
 
 ;;; This needs to be done out-of-line, to handle EGC memoization.
-(defx86lapfunction %store-node-conditional ((offset 0) (object arg_x) (old arg_y) (new arg_z))
-  (pop (% temp0))
-  (discard-reserved-frame)
-  (jmp-subprim .SPstore-node-conditional))
+(defx86lapfunction %store-node-conditional ((offset 8) #|(ra 0)|# (object arg_x) (old arg_y) (new arg_z))
+  (movq (@ offset (% rsp)) (% temp0))
+  (save-simple-frame)
+  (call-subprim .SPstore-node-conditional)
+  (restore-simple-frame)
+  (single-value-return 3))
 
-(defx86lapfunction %store-immediate-conditional ((offset 0) (object arg_x) (old arg_y) (new arg_z))
-  (pop (% temp0))
-  (discard-reserved-frame)
+(defx86lapfunction %store-immediate-conditional ((offset 8) #|(ra 0)|# (object arg_x) (old arg_y) (new arg_z))
+  (movq (@ offset (% rsp)) (% temp0))
   (unbox-fixnum temp0 imm1)
   @again
   (movq (@ (% object) (% imm1)) (% rax))
@@ -343,10 +338,10 @@
   (cmpxchgq (% new) (@ (% object) (% imm1)))
   (jne @again)
   (movl ($ x8664::t-value) (%l arg_z))
-  (single-value-return)
+  (single-value-return 3)
   @lose
   (movl ($ x8664::nil-value) (%l arg_z))
-  (single-value-return))
+  (single-value-return 3))
 
 (defx86lapfunction set-%gcable-macptrs% ((ptr x8664::arg_z))
   @again
@@ -743,11 +738,15 @@
   (movq (@ (% imm0)) (% imm0))
   (jmp done)
   (:tra done)
+  (recover-fn-from-rip)
   (movq ($ 0) (@ (% :rcontext) x8664::tcr.safe-ref-address))
   (movq (% imm0) (@ x8664::macptr.address (% dest)))
   (restore-simple-frame)
   (single-value-return))
 
+;;; This was intentded to work around a bug in #_nanosleep in early
+;;; Leopard test releases.  It's probably not necessary any more; is
+;;; it still called ?
 (defx86lapfunction %valid-remaining-timespec-time-p ((seconds arg_y) (ptr arg_z))
   (macptr-ptr arg_z imm0)
   (unbox-fixnum seconds imm1)
