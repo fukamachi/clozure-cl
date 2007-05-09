@@ -343,10 +343,40 @@
     (setf (frag-type frag) (list :align p2align))
     (new-frag frag-list)))
 
+;;; Make the current frag be of type :talign; set that frag-type's
+;;; argument to NIL initially.  Start a new frag of type :pending-talign;
+;;; that frag will contain at most one instruction.  When an
+;;; instuction is ouput in the pending-talign frag, adjust the preceding
+;;; :talign frag's argument and set the type of the :pending-talign
+;;; frag to NIL.  (The :talign frag will have 0-7 NOPs of some form
+;;; appended to it, so the first instruction in the successor will end
+;;; on an address that matches the argument below.)
+;;; That instruction can not be a relaxable branch.
+(defun finish-frag-for-talign (frag-list arg)
+  (let* ((current (frag-list-current frag-list))
+         (new (new-frag frag-list)))
+    (setf (frag-type current) (list :talign nil))
+    (setf (frag-type new) (list :pending-talign arg))))
+
+;;; Having generated an instruction in a :pending-talign frag, set the
+;;; frag-type argument of the preceding :talign frag to the :pendint-talign
+;;; frag's argument - the length of the pending-talign's first instruction
+;;; mod 8, and clear the type of the "pending" frag.
+;;; cadr of the frag-type 
+(defun finish-pending-talign-frag (frag-list)
+  (let* ((frag (frag-list-current frag-list))
+         (pred (frag-pred frag))
+         (arg (cadr (frag-type frag)))
+         (pred-arg (frag-type pred)))
+    (setf (cadr pred-arg) (logand 7 (- arg (frag-length frag)))
+          (frag-type frag) nil)
+    (new-frag frag-list)))
+
 (defun finish-frag-for-org (frag-list org)
   (let* ((frag (frag-list-current frag-list)))
     (setf (frag-type frag) (list :org org))
     (new-frag frag-list)))
+
 
 (defun lookup-x86-register (regname designator)
   (let* ((r (typecase regname
@@ -912,17 +942,31 @@
            (let* ((sib (x86::x86-instruction-sib-byte insn)))
              (when sib
                (frag-list-push-byte frag-list sib)))))
-       (let* ((disp (x86::x86-instruction-disp insn)))
-         (when disp
-           (let* ((optype (x86::x86-instruction-extra insn))
-                  (val (early-x86-lap-expression-value disp)))
+       (let* ((operands (x86::x86-opcode-template-operand-types template)))
+         (if (and (= (length operands) 1)
+                  (= (x86::encode-operand-type :label) (aref operands 0)))
+           (let* ((label (x86::x86-instruction-extra insn))
+                  (frag (frag-list-current frag-list))
+                  (pos (frag-list-position frag-list)))
+             (push (make-reloc :type :branch32
+                               :arg label
+                               :frag frag
+                               :pos pos)
+                   (frag-relocs frag))
+             (frag-list-push-32 frag-list 0))
+           (let* ((disp (x86::x86-instruction-disp insn)))
+             (when disp
+               (let* ((optype (x86::x86-instruction-extra insn))
+                      (pcrel (and (logtest (x86::encode-operand-type :label) optype)
+                              (typep disp 'label-x86-lap-expression)))
+                  (val (unless pcrel (early-x86-lap-expression-value disp))))
              (if (null val)
                ;; We can do better job here, but (for now)
                ;; generate a 32-bit relocation
                (let* ((frag (frag-list-current frag-list))
                       (pos (frag-list-position frag-list)))
-                 (push (make-reloc :type :expr32
-                                   :arg disp
+                 (push (make-reloc :type (if pcrel :branch32 :expr32)
+                                   :arg (if pcrel (label-x86-lap-expression-label disp) disp)
                                    :frag frag
                                    :pos pos)
                        (frag-relocs frag))
@@ -931,7 +975,7 @@
                  (frag-list-push-byte frag-list (logand val #xff))
                  (if (logtest optype (x86::encode-operand-type :disp32 :disp32s))
                    (frag-list-push-32 frag-list val)
-                   (frag-list-push-64 frag-list val)))))))
+                   (frag-list-push-64 frag-list val)))))))))
        ;; Emit immediate operand(s).
        (let* ((op (x86::x86-instruction-imm insn)))
          (when op
@@ -965,7 +1009,10 @@
                    (frag-list-push-16 frag-list (logand val #xffff))
                    (if (logtest optype (x86::encode-operand-type :imm64))
                      (frag-list-push-64 frag-list val)
-                     (frag-list-push-32 frag-list val))))))))))))
+                     (frag-list-push-32 frag-list val))))))))))
+    (let* ((frag (frag-list-current frag-list)))
+      (if (eq (car (frag-type frag)) :pending-talign)
+        (finish-pending-talign-frag frag-list)))))
 
 (defun x86-lap-directive (frag-list directive arg)
   (if (eq directive :tra)
@@ -994,6 +1041,7 @@
                 (:long (frag-list-push-32 frag-list val))
                 (:quad (frag-list-push-64 frag-list val))
                 (:align (finish-frag-for-align frag-list val))
+                (:talign (finish-frag-for-talign frag-list val))
                 (:org (finish-frag-for-org frag-list val))))
             (let* ((pos (frag-list-position frag-list))
                    (frag (frag-list-current frag-list))
@@ -1007,7 +1055,8 @@
                        (setq reloctype :expr32))
                 (:quad (frag-list-push-64 frag-list 0)
                        (setq reloctype :expr64))
-                (:align (error ":align expression ~s not constant" arg)))
+                (:align (error ":align expression ~s not constant" arg))
+                (:talign (error ":talign expression ~s not constant" arg)))
               (when reloctype
                 (push
                  (make-reloc :type reloctype
@@ -1059,6 +1108,12 @@
   (let* ((mask (1- (ash 1 bits))))
     (- (logandc2 (+ address mask) mask) address)))
 
+(defun relax-talign (address mask)
+  (do* ((i 0 (1+ i)))
+       ((= (logand address 7) mask) i)
+    (incf address)))
+
+
 (defun relax-frag-list (frag-list)
   ;; First, assign tentative addresses to all frags, assuming that
   ;; span-dependent instructions have short displacements.
@@ -1079,6 +1134,12 @@
                  )
                 (:align
                  (incf address (relax-align address (cadr (frag-type frag)))))
+                (:talign
+                 (let* ((arg (cadr (frag-type frag))))
+                   (if (null arg)
+                     ;;; Never generated code in :pending-talign frag
+                     (setf (frag-type frag) nil)
+                     (incf address (relax-talign address arg)))))
                 ((:assumed-short-branch :assumed-short-conditional-branch)
                  (destructuring-bind (label pos reloc) (cdr (frag-type frag))
                    (let* ((next (frag-succ frag)))
@@ -1129,6 +1190,12 @@
                     (len (frag-length frag))
                     (oldoff (relax-align (+ was-address len) bits))
                     (newoff (relax-align (+ address len) bits)))
+               (setq growth (- newoff oldoff))))
+            (:talign
+             (let* ((arg (cadr fragtype))
+                    (len (frag-length frag))
+                    (oldoff (relax-talign (+ was-address len) arg))
+                    (newoff (relax-talign (+ address len) arg)))
                (setq growth (- newoff oldoff))))
             ;; If we discover - on any iteration - that a short
             ;; branch doesn't fit, we change the type (and the reloc)
@@ -1204,6 +1271,18 @@
                     (:expr64 (emit-quad frag pos (x86-lap-expression-value arg)))))))))))))
                              
 
+(defun frag-emit-nops (frag count)
+  (let* ((nnops (ash (+ count 3) -2))
+         (len (floor count nnops))
+         (remains (- count (* nnops len))))
+    (dotimes (i remains)
+      (dotimes (k len) (frag-push-byte frag #x66))
+      (frag-push-byte frag #x90))
+    (do* ((i remains (1+ i)))
+         ((= i nnops))
+      (dotimes (k (1- len)) (frag-push-byte frag #x66))
+      (frag-push-byte frag #x90))))
+  
 (defun fill-for-alignment (frag-list)
   (ccl::do-dll-nodes (frag frag-list)
     (let* ((next (ccl::dll-node-succ frag)))
@@ -1212,7 +1291,9 @@
                (nextaddr (frag-address next))
                (pad (- nextaddr (+ addr (frag-length frag)))))
           (unless (eql 0 pad)
-            (dotimes (i pad) (frag-push-byte frag #xcc))))))))
+            (if (eq (car (frag-type frag)) :talign)
+              (frag-emit-nops frag pad)
+              (dotimes (i pad) (frag-push-byte frag #xcc)))))))))
 
 (defun show-frag-bytes (frag-list)
   (ccl::do-dll-nodes (frag frag-list)
@@ -1303,14 +1384,18 @@
          (*x86-lap-fixed-code-words* nil)
          (*x86-lap-lfun-bits* bits)
          (end-code-tag (gensym))
+         (entry-code-tag (gensym))
          (instruction (x86::make-x86-instruction))
          (frag-list (make-frag-list)))
     (make-x86-lap-label end-code-tag)
+    (make-x86-lap-label entry-code-tag)
     (x86-lap-directive frag-list :long `(ash (+ (- (:^ ,end-code-tag ) 8)
                                               *x86-lap-entry-offset*) -3))
     (x86-lap-directive frag-list :byte 0) ;regsave pc
     (x86-lap-directive frag-list :byte 0) ;regsave ea
     (x86-lap-directive frag-list :byte 0) ;regsave mask
+    (emit-x86-lap-label frag-list entry-code-tag)
+    (x86-lap-form `(lea (@ (:^ ,entry-code-tag) (% rip)) (% fn)) frag-list instruction)
     (dolist (f forms)
       (x86-lap-form f frag-list instruction))
     (x86-lap-directive frag-list :align 3)
