@@ -209,6 +209,9 @@
 (defx86lapmacro ref-global (global reg)
   `(movq (@ (+ x8664::nil-value ,(x8664::%kernel-global global))) (% ,reg)))
 
+(defx86lapmacro ref-global.l (global reg)
+  `(movl (@ (+ x8664::nil-value ,(x8664::%kernel-global global))) (%l ,reg)))
+
 (defx86lapmacro set-global (reg global)
   `(movq (% ,reg) (@ (+ x8664::nil-value ,(x8664::%kernel-global global)))))
 
@@ -239,7 +242,6 @@
 ;;; Simple frame, since the caller didn't reserve space for it.
 (defx86lapmacro save-simple-frame ()
   `(progn
-    (pushq (% ra0))
     (pushq (% rbp))
     (movq (% rsp) (% rbp))))
 
@@ -250,9 +252,9 @@
     (movzwl (% nargs) (%l imm0))
     (subq ($ (* $numx8664argregs x8664::node-size)) (% imm0))
     (jle ,push)
-    (movq (% rbp) (@ (% rsp) (% imm0)))
-    (leaq (@ (% rsp) (% imm0)) (% rbp))
-    (movq (% ra0) (@ 8 (% rbp)))
+    (movq (% rbp) (@ 8 (% rsp) (% imm0)))
+    (leaq (@ 8 (% rsp) (% imm0)) (% rbp))
+    (popq (@ 8 (% rbp)))
     (jmp ,done)
     ,push
     (save-simple-frame)
@@ -261,22 +263,18 @@
 
 (defx86lapmacro restore-simple-frame ()
   `(progn
-    (leave)
-    (popq (% ra0))))
+    (leave)))
 
 
-;;; Caller pushed zeros to reserve space for stack frame before
-;;; pushing args.  We have to discard it before returning.
+
 (defx86lapmacro discard-reserved-frame ()
   `(add ($ '2) (% rsp)))
 
-;;; Return to caller.  (% RA0) should contain a tagged return
-;;; address inside the caller's (% FN).
-(defx86lapmacro single-value-return ()
-  `(jmp (% ra0)))
-
-(defx86lapmacro recover-fn-from-ra0 (here)
-  `(leaq (@ (- (:^ ,here)) (% ra0)) (% fn)))
+;;; Return to caller.
+(defx86lapmacro single-value-return (&optional (words-to-discard 0))
+  (if (zerop words-to-discard)
+    `(ret)
+    `(ret ($ ,(* x8664::node-size words-to-discard)))))
 
 ;;; Using *x8664-backend* here is wrong but expedient.
 (defun x86-subprim-offset (name)
@@ -289,14 +287,12 @@
 (defx86lapmacro jmp-subprim (name)
   `(jmp (@ ,(x86-subprim-offset name))))
 
-(defx86lapmacro call-subprim (name &optional (recover-fn t))
-  (let* ((label (gensym)))
-    `(progn
-      (leaq (@ (:^ ,label) (% fn)) (% ra0))
-      (jmp-subprim ,name)
-      (:tra ,label)
-      ,@(if recover-fn
-            `((recover-fn-from-ra0 ,label))))))
+(defx86lapmacro call-subprim (name)
+  `(progn
+    (:talign 4)
+    (call (@ ,(x86-subprim-offset name)))
+    (recover-fn-from-rip)))
+
      
 (defx86lapmacro %car (src dest)
   `(movq (@ x8664::cons.car (% ,src)) (% ,dest)))
@@ -315,19 +311,23 @@
 (defx86lapmacro load-constant (constant dest &optional (fn 'fn))
   `(movq (@ ',constant (% ,fn)) (% ,dest)))
 
+(defx86lapmacro recover-fn-from-rip ()
+  (let* ((next (gensym)))
+    `(progn
+      (lea (@ (- (:^ ,next)) (% rip)) (% fn))
+      ,next)))
+
 ;;; call symbol named NAME, setting nargs to NARGS.  Do the TRA
 ;;; hair.   Args should already be in arg regs, and we expect
 ;;; to return a single value.
 (defx86lapmacro call-symbol (name nargs)
-  (let* ((return (gensym)))
-    `(progn
-      (load-constant ,name fname)
-      (set-nargs ,nargs)
-      (lea (@ (:^ ,return) (% fn)) (% ra0))
-      (movq (@ x8664::symbol.fcell (% fname)) (% fn))
-      (jmp (% fn))
-      (:tra ,return)
-      (recover-fn-from-ra0 ,return))))
+  `(progn
+    (load-constant ,name fname)
+    (set-nargs ,nargs)
+    (:talign 4)
+    (call (@ x8664::symbol.fcell (% fname)))
+    (recover-fn-from-rip)))
+
 
 ;;;  tail call the function named by NAME with nargs NARGS.  %FN is
 ;;;  the caller, which will be in %FN on entry to the callee.  For the
@@ -338,10 +338,8 @@
 (defx86lapmacro jump-symbol (name nargs)
   `(progn
     (load-constant ,name fname)
-    (movq (% fn) (% xfn))
-    (movq (@ x8664::symbol.fcell (% fname)) (% fn))
     (set-nargs ,nargs)
-    (jmp (% fn))))
+    (jmp (@ x8664::symbol.fcell (% fname)))))
 
 (defx86lapmacro push-argregs ()
   (let* ((done (gensym))
