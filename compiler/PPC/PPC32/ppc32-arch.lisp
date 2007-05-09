@@ -865,11 +865,11 @@
 (defppc32archmacro ccl::%get-kernel-global-ptr (name dest)
   `(ccl::%setf-macptr
     ,dest
-    (ccl::%fixnum-ref-natural 0 (+ ppc32::nil-value
-                                 ,(%kernel-global
-                                   (if (ccl::quoted-form-p name)
-                                     (cadr name)
-                                     name))))))
+    (ccl::%fixnum-ref-macptr 0 (+ ppc32::nil-value
+                                                ,(%kernel-global
+                                                  (if (ccl::quoted-form-p name)
+                                                    (cadr name)
+                                                    name))))))
 
 (defppc32archmacro ccl::%target-kernel-global (name)
   `(ppc32::%kernel-global ,name))
