@@ -98,6 +98,7 @@ typedef struct mcontext *MCONTEXT_T;
 #define __r3 r3
 #define __r4 r4
 #define __r5 r5
+#define __r6 r6
 #define __r13 r13
 #define __srr0 srr0
 #define __srr1 srr1
