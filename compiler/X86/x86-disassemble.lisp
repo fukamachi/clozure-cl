@@ -1122,7 +1122,7 @@
    (make-x86-dis "outB" 'op-i +b-mode+ 'op-imreg +al-reg+)
    (make-x86-dis "outS" 'op-i +b-mode+ 'op-imreg +eax-reg+)
    ;; #xe8
-   (make-x86-dis "callT" 'op-j +v-mode+)
+   (make-x86-dis '("callT" . :call) 'op-j +v-mode+)
    (make-x86-dis '("jmpT" . :jump) 'op-j +v-mode+)
    (make-x86-dis '(("JjmpT" . "(bad)") . :jump) 'op-dir 0)
    (make-x86-dis '("jmp" . :jump)  'op-j +b-mode+)
@@ -1647,8 +1647,8 @@
    (vector
     (make-x86-dis "incQ" 'op-e +v-mode+)
     (make-x86-dis "decQ" 'op-e +v-mode+)
-    (make-x86-dis "callT" 'op-indire +v-mode+)
-    (make-x86-dis "JcallT" 'op-indire +f-mode+)
+    (make-x86-dis '("callT" . :call) 'op-indire +v-mode+)
+    (make-x86-dis '("JcallT" . :call) 'op-indire +f-mode+)
     (make-x86-dis '("jmpT" . :jump) 'op-indire +v-mode+)
     (make-x86-dis '("JjmpT" . :jump) 'op-indire +f-mode+)
     (make-x86-dis "pushU" 'op-e +v-mode+)
@@ -2349,6 +2349,8 @@
   ;; and modify the operand(s).
   ;; If the instruction is a MOV or PUSH whose source operand
   ;; is relative to the FN register, generate a constant reference.
+  ;; If the instruction is adding a displacement to RIP, note
+  ;; the effective address as a label reference.
   (let* ((op0 (x86-di-op0 instruction))
          (op1 (x86-di-op1 instruction))
          (entry-ea (x86-ds-entry-point ds)))
@@ -2358,6 +2360,11 @@
                  (eq entry (if (x86-ds-mode-64 ds)
                              (x86::x86-reg64 13)
                              (x86::x86-reg32 6))))))
+           (is-rip (thing)
+             (if (and (typep thing 'x86::x86-register-operand)
+                      (x86-ds-mode-64 ds))
+               (let* ((entry (x86::x86-register-operand-entry thing)))
+                 (eq entry (svref x86::*x8664-register-entries* 102)))))
            (is-ra0 (thing)
              (if (typep thing 'x86::x86-register-operand)
                (let* ((entry (x86::x86-register-operand-entry thing)))
@@ -2384,13 +2391,21 @@
                     (let* ((scale (x86::x86-memory-operand-scale thing)))
                       (or (null scale) (eql 0 scale)))
                     (let* ((disp (x86::x86-memory-operand-disp thing)))
+                      (and disp (early-x86-lap-expression-value disp)))))
+             (is-rip-ea (thing)
+               (and (typep thing 'x86::x86-memory-operand)
+                    (is-rip (x86::x86-memory-operand-base thing))
+                    (null (x86::x86-memory-operand-index thing))
+                    (let* ((scale (x86::x86-memory-operand-scale thing)))
+                      (or (null scale) (eql 0 scale)))
+                    (let* ((disp (x86::x86-memory-operand-disp thing)))
                       (and disp (early-x86-lap-expression-value disp))))))
         (case flag
           ;; Should also check alignment here, and check
           
           (:lea
            (let* ((disp ))
-             (when (or (and (setq disp (is-fn-ea op0)) (> disp 0))
+             (if (or (and (setq disp (is-fn-ea op0)) (> disp 0))
                        (and (setq disp (is-ra0-ea op0)) (< disp 0) (is-fn op1)))
                (let* ((label-ea (+ entry-ea (abs disp))))
                  (when (< label-ea (x86-ds-code-limit ds))
@@ -2399,8 +2414,13 @@
                           (if (< disp 0)
                             `(- (:^ ,label-ea))
                             `(:^ ,label-ea))))
-                   (push label-ea (x86-ds-pending-labels ds)))))))
-          (:jump
+                   (push label-ea (x86-ds-pending-labels ds))))
+               (if (and (setq disp (is-rip-ea op0)) (< disp 0) (is-fn op1))
+                 (progn
+                   (setf (x86::x86-memory-operand-disp op0)
+                         (parse-x86-lap-expression `(:^ ,entry-ea)))
+                   (push entry-ea (x86-ds-pending-labels ds)))))))
+          ((:jump :call)
            (let* ((disp (is-disp-only op0)))
              (when disp
                (let* ((info (find (early-x86-lap-expression-value disp)
