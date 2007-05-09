@@ -1065,9 +1065,6 @@ suspend_tcr(TCR *tcr)
 Boolean
 tcr_suspend_ack(TCR *tcr)
 {
-  /* On Linux, it's safe to wait forever */
-  /*#ifndef DARWIN */
-#if 1
   if (tcr->flags & (1<<TCR_FLAG_BIT_SUSPEND_ACK_PENDING)) {
     SEM_WAIT_FOREVER(tcr->suspend);
     tcr->flags &= ~(1<<TCR_FLAG_BIT_SUSPEND_ACK_PENDING);
@@ -1077,47 +1074,6 @@ tcr_suspend_ack(TCR *tcr)
 
   }
   return true;
-#else
-  /* if the ACK_PENDING flag is already clear, return true immediately
-     (in case the caller neglects to check for this */
-  if (!(tcr->flags & (1<<TCR_FLAG_BIT_SUSPEND_ACK_PENDING))) {
-    return true;
-  } else {
-    /* Safe to wait forever if Mach exception handling is disabled */
-    if (!use_mach_exception_handling) {
-      SEM_WAIT_FOREVER(tcr->suspend);
-      CLR_TCR_FLAG(tcr,TCR_FLAG_BIT_SUSPEND_ACK_PENDING);
-      return true;
-    }
-    /* If there's an exception pending on this thread, release the
-       exception lock so that the thread can enter a runnable state.
-       It should be safe to wait forever for the semaphore once it's
-       runnable. */
-    if (tcr->flags & (1<<TCR_FLAG_BIT_PENDING_EXCEPTION)) {
-      pthread_mutex_unlock(mach_exception_lock);
-      SEM_WAIT_FOREVER(tcr->suspend);
-      pthread_mutex_lock(mach_exception_lock);
-      CLR_TCR_FLAG(tcr,TCR_FLAG_BIT_SUSPEND_ACK_PENDING);
-      return true;
-    } else {
-      /* We don't know for sure whether or not there's an exception
-         pending on the thread.  Wait for as short a time as possible,
-         but try to give some CPU time to the target thread and/or the
-         exception thread.
-      */
-
-      mach_timespec_t q = {0,1};
-      kern_return_t kret;
-      
-      kret = semaphore_timedwait((SEMAPHORE)(natural)(tcr->suspend),q);
-      if (kret == KERN_SUCCESS) {
-        tcr->flags &= ~(1<<TCR_FLAG_BIT_SUSPEND_ACK_PENDING);
-        return true;
-      }
-      return false;
-    }
-  }
-#endif
 }
 
       
@@ -1131,18 +1087,22 @@ lisp_suspend_tcr(TCR *tcr)
   
   LOCK(lisp_global(TCR_AREA_LOCK),current);
 #ifdef DARWIN
+#if USE_MACH_EXCEPTION_LOCK
   if (use_mach_exception_handling) {
     pthread_mutex_lock(mach_exception_lock);
   }
+#endif
 #endif
   suspended = suspend_tcr(tcr);
   if (suspended) {
     while (!tcr_suspend_ack(tcr));
   }
 #ifdef DARWIN
+#if USE_MACH_EXCEPTION_LOCK
   if (use_mach_exception_handling) {
     pthread_mutex_unlock(mach_exception_lock);
   }
+#endif
 #endif
   UNLOCK(lisp_global(TCR_AREA_LOCK),current);
   return suspended;
@@ -1274,12 +1234,14 @@ suspend_other_threads(Boolean for_gc)
 
   LOCK(lisp_global(TCR_AREA_LOCK), current);
 #ifdef DARWIN
+#if USE_MACH_EXCEPTION_LOCK
   if (for_gc && use_mach_exception_handling) {
 #if SUSPEND_RESUME_VERBOSE
     fprintf(stderr, "obtaining Mach exception lock in GC thread 0x%x\n", current);
 #endif
     pthread_mutex_lock(mach_exception_lock);
   }
+#endif
 #endif
   for (other = current->next; other != current; other = other->next) {
     if ((other->osid != 0)) {
@@ -1340,12 +1302,14 @@ resume_other_threads(Boolean for_gc)
   }
   free_freed_tcrs();
 #ifdef DARWIN
+#if USE_MACH_EXCEPTION_LOCK
   if (for_gc && use_mach_exception_handling) {
 #if SUSPEND_RESUME_VERBOSE
     fprintf(stderr, "releasing Mach exception lock in GC thread 0x%x\n", current);
 #endif
     pthread_mutex_unlock(mach_exception_lock);
   }
+#endif
 #endif
 
   UNLOCK(lisp_global(TCR_AREA_LOCK), current);
