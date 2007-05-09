@@ -2801,7 +2801,8 @@ to binary 0."
            (ordinal-form (if (< ordinal max-canonical-foreign-type-ordinal)
                            ordinal
                            `(foreign-type-ordinal (load-time-value (%foreign-type-or-record ',record-name))))))
-      (setq result (nconc result `((%set-macptr-type ,name ,ordinal-form))))
+      (when (eq *host-backend* *target-backend*)
+        (setq result (nconc result `((%set-macptr-type ,name ,ordinal-form)))))
       (if (typep ftype 'foreign-record-type)
         (setq result
               (nconc result (%foreign-record-field-forms name ftype record-name inits)))
@@ -2854,7 +2855,8 @@ to binary 0."
 	 (p (gensym))
 	 (bzero (read-from-string "#_bzero")))    
     `(let* ((,p (,allocator ,bytes)))
-      (%set-macptr-type ,p ,ordinal-form)
+      ,@(when (eq *host-backend* *target-backend*)
+              `((%set-macptr-type ,p ,ordinal-form)))
       (,bzero ,p ,bytes)
       ,@(%foreign-record-field-forms p ftype record-name initforms)
       ,p)))
