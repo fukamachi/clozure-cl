@@ -181,6 +181,7 @@ C(spjump_start):
         _spjump(bind_interrupt_level)
         _spjump(bind_interrupt_level_0)
         _spjump(progvrestore)
+        _spjump(nmkunwind)
          .globl C(spjump_end)
 C(spjump_end):
 	.org 0x1000
