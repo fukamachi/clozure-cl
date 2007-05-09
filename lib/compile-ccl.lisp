@@ -345,9 +345,17 @@
 
 ;Compile but don't load
 
-#+ppc-target
 (defun xcompile-ccl (&optional force)
-  (ppc-xcompile-ccl force))
+  (compile-modules 'nxenv force)
+  (compile-modules *compiler-modules* force)
+  (compile-modules (target-compiler-modules) force)
+  (compile-modules (target-xdev-modules) force)
+  (compile-modules (target-xload-modules)  force)
+  (compile-modules (target-env-modules) force)
+  (compile-modules (target-level-1-modules) force)
+  (compile-modules (target-other-lib-modules) force)
+  (compile-modules *code-modules* force)
+  (compile-modules *aux-modules* force))
 
 (defun require-update-modules (modules &optional force-compile)
   (if (not (listp modules)) (setq modules (list modules)))
@@ -360,26 +368,8 @@
   (compile-modules (target-level-1-modules (backend-name *host-backend*))
 		   force-compile))
 
-(defun compile-compiler (&optional force-compile)
-  (update-modules 'ppcenv force-compile)
-  (compile-modules 'nxenv force-compile)
-  (compile-modules 'nx-base-app force-compile) ; for appgen
-  (compile-modules *compiler-modules* force-compile)
-  (compile-modules *ppc-compiler-modules* force-compile))
 
-(defun ppc-xcompile-ccl (&optional force)
-  (compile-modules 'nxenv force)
-  (compile-modules *compiler-modules* force)
-  (compile-modules (target-compiler-modules) force)
-  (compile-modules (target-xdev-modules) force)
-  (compile-modules (target-xload-modules) force)
-  (let* ((env-modules (target-env-modules))
-	 (other-lib (target-other-lib-modules)))
-    (compile-modules env-modules force)
-    (compile-modules (target-level-1-modules) force)
-    (compile-modules other-lib force)
-    (compile-modules *code-modules* force))
-  (compile-modules *aux-modules* force))
+
   
 
 (defun target-xcompile-ccl (target &optional force)
@@ -401,7 +391,7 @@
       (target-xcompile-ccl target force))))
 
 
-(defun ppc-require-module (module force-load)
+(defun require-module (module force-load)
   (multiple-value-bind (fasl source) (find-module module)
       (setq source (car source))
       (if (if fasl (probe-file fasl))
@@ -425,7 +415,7 @@
   (if (not (listp modules)) (setq modules (list modules)))
   (let ((*package* (find-package :ccl)))
     (dolist (m modules t)
-      (ppc-require-module m force-load))))
+      (require-module m force-load))))
 
 
 (defun target-xcompile-level-1 (target &optional force)
