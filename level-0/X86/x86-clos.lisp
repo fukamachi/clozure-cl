@@ -71,15 +71,11 @@
   (je @missing)
   (movq (@ x8664::misc-data-offset (% temp0) (% imm1) 8) (% arg_z))
   (movq (@ 'class (% fn)) (% arg_x))
-  (movq (@ '%maybe-std-std-value-using-class (% fn)) (% xfn))
-  (xchgq (% xfn) (% fn))
   (set-nargs 3)
-  (jmp (% fn))
+  (jmp (@ '%maybe-std-std-value-using-class (% fn)))
   @missing                              ; (%slot-id-ref-missing instance id)
-  (movq (@'%slot-id-ref-missing (% fn)) (% xfn))
-  (xchgq (% xfn) (% fn))
   (set-nargs 2)
-  (jmp (% fn)))
+  (jmp (@'%slot-id-ref-missing (% fn))))
 
 (defx86lapfunction %large-slot-id-value ((instance arg_y) (slot-id arg_z))  
   (movq (@ 'map (% fn)) (% temp1))
@@ -96,15 +92,11 @@
   (je @missing)
   (movq (@ x8664::misc-data-offset (% temp0) (% imm1) 8) (% arg_z))
   (movq (@ 'class (% fn)) (% arg_x))
-  (movq (@ '%maybe-std-std-value-using-class (% fn)) (% xfn))
-  (xchgq (% xfn) (% fn))
   (set-nargs 3)
-  (jmp (% fn))
+  (jmp (@ '%maybe-std-std-value-using-class (% fn)))
   @missing                              ; (%slot-id-ref-missing instance id)
-  (movq (@'%slot-id-ref-missing (% fn)) (% xfn))
-  (xchgq (% xfn) (% fn))
   (set-nargs 2)
-  (jmp (% fn)))
+  (jmp (@'%slot-id-ref-missing (% fn))))
 
   
 (defx86lapfunction %small-set-slot-id-value ((instance arg_x)
@@ -120,19 +112,17 @@
   (movzbl (@ x8664::misc-data-offset (% temp1) (% imm1)) (%l imm1))
   (testl (%l imm1) (%l imm1))
   (je @missing)
+  (popq (% ra0))
   (pushq ($ 0))                         ; reserve frame
   (pushq ($ 0))
   (pushq (@ 'class (% fn)))
   (movq (@ x8664::misc-data-offset (% temp0) (% imm1) 8) (% arg_y))
-  (movq (@ '%maybe-std-setf-slot-value-using-class (% fn)) (% xfn))
-  (xchgq (% xfn) (% fn))
   (set-nargs 4)
-  (jmp (% fn))
+  (pushq (% ra0))
+  (jmp (@ '%maybe-std-setf-slot-value-using-class (% fn)))
   @missing                              ; (%slot-id-set-missing instance id new-value)
-  (movq (@ '%slot-id-set-missing (% fn)) (% xfn))
-  (xchgq (% xfn) (% fn))
   (set-nargs 3)
-  (jmp (% fn)))
+  (jmp (@ '%slot-id-set-missing (% fn))))
 
 
 (defx86lapfunction %large-set-slot-id-value ((instance arg_x)
@@ -148,19 +138,17 @@
   (movl (@ x8664::misc-data-offset (% temp1) (% imm1)) (%l imm1))
   (testl (%l imm1) (%l imm1))
   (je @missing)
+  (popq (% ra0))
   (pushq ($ 0))                         ; reserve frame
   (pushq ($ 0))
   (pushq (@ 'class (% fn)))
+  (pushq (% ra0))
   (movq (@ x8664::misc-data-offset (% temp0) (% imm1) 8) (% arg_y))
-  (movq (@ '%maybe-std-setf-slot-value-using-class (% fn)) (% xfn))
-  (xchgq (% xfn) (% fn))
   (set-nargs 4)
-  (jmp (% fn))
+  (jmp (@ '%maybe-std-setf-slot-value-using-class (% fn)))
   @missing                              ; (%slot-id-set-missing instance id new-value)
-  (movq (@'%slot-id-ref-missing (% fn)) (% xfn))
-  (xchgq (% xfn) (% fn))
   (set-nargs 3)
-  (jmp (% fn)))
+  (jmp (@'%slot-id-ref-missing (% fn))))
 
 
 ;;; All of the generic function trampoline functions have to be
@@ -177,25 +165,26 @@
       ()
       (:fixed-constants (class-wrapper slots dispatch-table dcode hash))
       (:code-size x8664::gf-code-size)
+      (movq (@ (% rsp)) (% ra0))
       (save-frame-variable-arg-count)
       (push-argregs)
       (movzwl (% nargs) (%l nargs))
       (pushq (%q nargs))
       (movq (% rsp) (% arg_z))
-      (ref-global ret1valaddr imm0)
+      (ref-global.l ret1valaddr imm0)
       (cmpq (% ra0) (% imm0))
       (je @multiple)
-      (ref-global lexpr-return1v ra0)
+      (ref-global.l lexpr-return1v ra0)
       (jmp @call)
       @multiple
       (pushq (@ (+ x8664::nil-value (x8664::%kernel-global 'lexpr-return))))
       (movq (% imm0) (% ra0))
       @call
+      (push (% ra0))
       (movq (@ 'dispatch-table (% fn)) (% arg_y))
       (set-nargs 2)
-      (movq (@ 'dcode (% fn)) (% xfn))  ; dcode function
-      (xchgq (% xfn) (% fn))
-      (jmp (% fn))))))
+      (jmp (@ 'dcode (% fn)))  ; dcode function
+      ))))
 
 ;;; is a winner - saves ~15%
 (defx86lapfunction gag-one-arg ((arg arg_z))
@@ -204,9 +193,7 @@
   (check-nargs 1)
   (movq (@ 'dispatch-table (% fn)) (% arg_y))
   (set-nargs 2)
-  (movq (% fn) (% xfn))               ; don't let %fn get GCed
-  (movq (@ 'dcode (% fn)) (% fn))
-  (jmp (% fn)))
+  (jmp (@ 'dcode (% fn))))
 
 (defx86lapfunction gag-two-arg ((arg0 arg_y) (arg1 arg_z))
   (:fixed-constants (class-wrapper slots dispatch-table dcode hash))
@@ -214,18 +201,13 @@
   (check-nargs 2)
   (movq (@ 'dispatch-table (% fn)) (% arg_x))
   (set-nargs 3)
-  (movq (% fn) (% xfn))               ; don't let %fn get GCed
-  (movq (@ 'dcode (% fn)) (% fn))
-  (jmp (% fn)))
-
+  (jmp (@ 'dcode (% fn))))
 
 
 (defx86lapfunction funcallable-trampoline ()
   (:fixed-constants (class-wrapper slots dispatch-table dcode hash))
   (:code-size x8664::gf-code-size)
-  (movq (@ 'dcode (% fn)) (% xfn))
-  (xchgq (% fn) (% xfn))
-  (jmp (% fn)))
+  (jmp (@ 'dcode (% fn))))
 
 
 ;;; This is in LAP so that it can reference itself in the error message.
@@ -234,13 +216,13 @@
 (defx86lapfunction unset-fin-trampoline ()
   (:code-size x8664::gf-code-size)
   (save-frame-variable-arg-count)
-  (call-subprim .SPheap-rest-arg nil)
+  (call-subprim .SPheap-rest-arg)
   (pop (% arg_z))
   (movq ($ '#.$XNOFINFUNCTION) (% arg_x))
   (movq (% fn) (% arg_y))
   (set-nargs 3)
   (call-subprim .SPksignalerr)
-  (movq ($ x8664::nil-value) (% arg_z))
+  ;(movq ($ x8664::nil-value) (% arg_z))
   (leave)
   (single-value-return))
 
@@ -254,6 +236,7 @@
       gag 
       ()
       (:fixed-constants (thing dcode gf bits))
+      (movq (@ (% rsp)) (% ra0))
       (save-frame-variable-arg-count)
       (push-argregs)
       (movzwl (% nargs) (%l nargs))
@@ -268,11 +251,10 @@
       (pushq (@ (+ x8664::nil-value (x8664::%kernel-global 'lexpr-return))))
       (movq (% imm0) (% ra0))
       @call
+      (push (% ra0))
       (movq (@ 'thing (% fn)) (% arg_y))
-      (movq (@ 'dcode (% fn)) (% xfn))
       (set-nargs 2)
-      (xchgq (% xfn) (% fn))
-      (jmp (% fn))))))
+      (jmp (@ 'dcode (% fn)))))))
 
 
 
