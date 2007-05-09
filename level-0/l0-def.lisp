@@ -250,4 +250,11 @@
       ; Not found in env, look in function cell.
   (%global-macro-function form))
 
+(defun %fixnum-ref-macptr (fixnum &optional (offset 0))
+  (%int-to-ptr (%fixnum-ref-natural fixnum offset)))
+
+(defun %fixnum-set-macptr (fixnum offset &optional (newval offset newval-p))
+  (%fixnum-set-natural fixnum (if newval-p offset 0) (%ptr-to-int newval))
+  newval)
+
 ;;; end of l0-def.lisp
