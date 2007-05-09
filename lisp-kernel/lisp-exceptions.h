@@ -44,7 +44,7 @@ OSStatus
 lisp_Debugger(ExceptionInformation *, siginfo_t *, int, char *, ...);
 
 OSStatus
-handle_protection_violation(ExceptionInformation *, siginfo_t *, TCR *);
+handle_protection_violation(ExceptionInformation *, siginfo_t *, TCR *, int);
 
 protected_area_ptr 
 new_protected_area(BytePtr, BytePtr, lisp_protection_kind, natural, Boolean);
@@ -63,7 +63,7 @@ Boolean
 resize_dynamic_heap(BytePtr, natural);
 
 OSStatus
-PMCL_exception_handler(int, ExceptionInformation *, TCR *, siginfo_t *);
+PMCL_exception_handler(int, ExceptionInformation *, TCR *, siginfo_t *, int);
 
 TCR*
 get_tcr(Boolean);
@@ -127,6 +127,11 @@ symbol_name( unsigned, char *, size_t );
 size_t
 exception_fn_name( ExceptionInformation *, int, char *, size_t );
 
+/* Need to define this here */
+#ifdef DARWIN
+#define USE_MACH_EXCEPTION_LOCK 0
+#endif
+
 
 #ifdef PPC
 #include "ppc-exceptions.h"
@@ -138,6 +143,7 @@ exception_fn_name( ExceptionInformation *, int, char *, size_t );
 
 void suspend_other_threads(Boolean);
 void resume_other_threads(Boolean);
+
 
 #endif /* __lisp_exceptions_h__ */
 
