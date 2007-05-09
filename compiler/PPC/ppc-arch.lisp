@@ -481,7 +481,7 @@
          (defppcsubprim .SParef3)
          (defppcsubprim .SPaset3)
          (defppcsubprim .SPpoweropen-ffcall-return-registers)
-         (defppcsubprim .SPunused-5)
+         (defppcsubprim .SPnmkunwind)
          (defppcsubprim .SPunused-6)
          (defppcsubprim .SPunbind-interrupt-level)
          (defppcsubprim .SPunbind)
