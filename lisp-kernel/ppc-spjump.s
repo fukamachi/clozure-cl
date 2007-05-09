@@ -173,7 +173,7 @@ C(spjump_start):
         _spjump(aref3)
         _spjump(aset3)
         _spjump(poweropen_ffcall_return_registers)
-        _spjump(unused_5)
+        _spjump(nmkunwind)
         _spjump(unused_6)
         _spjump(unbind_interrupt_level)
         _spjump(unbind)
