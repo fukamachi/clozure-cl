@@ -160,7 +160,7 @@
 (defx86lapfunction set-hons-space-size ((npairs arg_z))
   (check-nargs 1)
   (save-simple-frame)
-  (call-subprim .SPgetu64 nil)
+  (call-subprim .SPgetu64)
   (movq (% imm0) (% imm1))
   (movq ($ arch::gc-trap-function-set-hons-area-size) (% imm0))
   (uuo-gc-trap)
