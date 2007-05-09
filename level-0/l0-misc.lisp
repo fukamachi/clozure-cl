@@ -497,12 +497,29 @@
        (when (eql 1 (incf (%get-natural lock target::lockptr.avail)))
          (setf (%get-ptr lock target::lockptr.owner) p
                (%get-natural lock target::lockptr.count) 1)
-         (setf (%get-ptr spin) (%null-ptr))
+         (setf (%get-natural spin 0) 0)
          (if flag
            (setf (lock-acquisition.status flag) t))
          (return t))
-       (setf (%get-ptr spin) (%null-ptr)))
+       (setf (%get-natural spin 0) 0))
       (%process-wait-on-semaphore-ptr signal 1 0 "waiting for lock"))))
+
+
+;;; Locking the exception lock to inhibit GC (from other threads)
+;;; is probably a bad idea, though it does simplify some issues.
+;;; (One bad consequence is that it means that only one hash table
+;;; can be accessed at a time.)
+#+bad-idea
+(defun %lock-gc-lock ()
+  (with-macptrs ((lock))
+    (%get-kernel-global-ptr exception-lock lock)
+    (%lock-recursive-lock lock)))
+
+#+bad-idea
+(defun %unlock-gc-lock ()
+  (with-macptrs ((lock))
+    (%get-kernel-global-ptr exception-lock lock)
+    (%unlock-recursive-lock lock)))
 
 (defun %try-recursive-lock (lock &optional flag)
   (with-macptrs ((p)
