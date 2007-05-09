@@ -96,17 +96,23 @@
                    this (cdr this))))
          (setq *periodic-task-mask* (logior-list *periodic-task-masks*)))))))
 
-
+(defparameter *invoke-debugger-hook-on-interrupt* nil)
 
 (defun force-break-in-listener (p)
   (process-interrupt p
 		     #'(lambda ()
-			 (ignoring-without-interrupts 
-			  (%break-in-frame
-                           #+ppc-target *fake-stack-frames*
-                           #+x86-target (or (%current-xcf) (%get-frame-ptr))
-                           "interrupt signal")
-			  (clear-input *terminal-io*)))))
+                         (let* ((condition (condition-arg "interrupt signal" nil 'simple-condition)))
+                           (ignoring-without-interrupts
+                            (when *invoke-debugger-hook-on-interrupt*
+                              (let* ((hook *debugger-hook*)
+                                     (*debugger-hook* nil))
+                                (when hook
+                                  (funcall hook condition hook))))
+                            (%break-in-frame
+                             #+ppc-target *fake-stack-frames*
+                             #+x86-target (or (%current-xcf) (%get-frame-ptr))
+                             condition)
+                            (clear-input *terminal-io*))))))
 
 
 
