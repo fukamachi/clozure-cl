@@ -35,8 +35,8 @@ typedef u8_t opcode, *pc;
 #define xpGPR(x,gprno) (xpGPRvector(x)[gprno])
 #define set_xpGPR(x,gpr,new) xpGPR((x),(gpr)) = (natural)(new)
 #define xpPC(x) (xpGPR(x,Iip))
-#define xpFPRvector(x) ((natural *)(&(UC_MCONTEXT(x)->__fs.__fpu_stmm0)))
-#define xpMMXreg(x,n)  (xpFPRvector(x)[gprno])
+#define xpFPRvector(x) ((natural *)(&(UC_MCONTEXT(x)->__fs.__fpu_xmm0)))
+#define xpMMXreg(x,n)  (xpFPRvector(x)[n])
 #endif
 #include <mach/mach.h>
 #include <mach/mach_error.h>
@@ -55,6 +55,7 @@ pthread_mutex_t *mach_exception_lock;
 #define set_xpGPR(x,gpr,new) xpGPR((x),(gpr)) = (natural)(new)
 #define xpPC(x) xpGPR(x,Iip)
 #define xpMMXreg(x,n) *((natural *)(&(((struct savefpu *)(&(x)->uc_mcontext.mc_fpstate))->sv_fp[n])))
+#define xpXMMregs(x)(&(((struct savefpu *)(&(x)->uc_mcontext.mc_fpstate))->sv_xmm[0]))
 #endif
 #endif
 
@@ -150,3 +151,12 @@ extern void set_gs_address(void *);
 #ifdef USE_SIGALTSTACK
 void setup_sigaltstack(area *);
 #endif
+
+/* recognizing the function associated with a tagged return address */
+/* now involves recognizinig an "(lea (@ disp (% rip)) (% rn))" */
+/* instruction at the tra */
+
+#define RECOVER_FN_FROM_RIP_LENGTH 7 /* the instruction is 7 bytes long */
+#define RECOVER_FN_FROM_RIP_DISP_OFFSET 3 /* displacement word is 3 bytes in */
+#define RECOVER_FN_FROM_RIP_WORD0 0x8d4c /* 0x4c 0x8d, little-endian */
+#define RECOVER_FN_FROM_RIP_BYTE2 0x2d  /* third byte of opcode */
