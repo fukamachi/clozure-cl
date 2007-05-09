@@ -614,7 +614,8 @@ a host-structure or string."
                   (and defaults (pathname-type defaults))))
          (version (or (pathname-version path)
 		      (cond ((not path-name)
-			     (and defaults (pathname-version defaults)))
+			     (or (and defaults (pathname-version defaults))
+                                 default-version))
 			    (t default-version)))))
     (if (and (pathnamep path)
              (eq dir (%pathname-directory path))
@@ -670,8 +671,8 @@ a host-structure or string."
 (defun pathname-device (thing &key case)
   "Return PATHNAME's device."
   (declare (ignore case))
-  (and (pathname thing)			;type-checking
-       :unspecific))
+  (cond ((typep (pathname thing) 'logical-pathname) :unspecific)))
+
 
 
 ;A directory is either NIL or a (possibly wildcarded) string ending in "/" or ";"
