@@ -127,6 +127,7 @@ typedef ucontext64_t ExceptionInformation;
 #define UC_MCONTEXT(UC) UC->uc_mcontext64
 #define __rax rax
 #define __fpu_mxcsr fpu_mxcsr
+#define __fpu_xmm0 fpu_xmm0
 #define __rsp rsp
 #define __faultvaddr faultvaddr
 #define __err err
