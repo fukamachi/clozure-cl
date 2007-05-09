@@ -141,6 +141,7 @@
   es
   fs
   gs
+  rip
   )
 
 (defmacro defx86reg (alias known)
@@ -164,13 +165,13 @@
 (defx86reg temp0.w bx)
 (defx86reg temp0.b bl)
 
-(defx86reg temp2 rcx)
-(defx86reg temp2.l ecx)
+(defx86reg imm2 rcx)
+(defx86reg imm2.l ecx)
 (defx86reg nargs cx)
 (defx86reg nargs.l ecx)
 (defx86reg nargs.q rcx)
-(defx86reg temp2.w cx)
-(defx86reg temp2.b cl)
+(defx86reg imm2.w cx)
+(defx86reg imm2.b cl)
 (defx86reg shift cl)
 
 (defx86reg imm1 rdx)
@@ -202,6 +203,12 @@
 (defx86reg ra0.l r10d)
 (defx86reg ra0.w r10w)
 (defx86reg ra0.b r10b)
+
+(defx86reg temp2 r10)
+(defx86reg temp2.l r10d)
+(defx86reg temp2.w r10w)
+(defx86reg temp2.b r10b)
+
 
 (defx86reg save3 r11)
 (defx86reg save3.l r11d)
@@ -740,7 +747,7 @@
   #+freebsd-target 321
   #+darwin-target #x100003d)
 
-(defconstant gf-code-size 16)
+(defconstant gf-code-size 18)
 
 (defun %kernel-global (sym)
   (let* ((pos (position sym x86::*x86-kernel-globals* :test #'string=)))
@@ -1090,6 +1097,8 @@
          (defx8664subprim .SPbind-interrupt-level)
          (defx8664subprim .SPbind-interrupt-level-0)
          (defx8664subprim .SPprogvrestore)
+         (defx8664subprim .SPnmkunwind)
+         
          )))))
 
 (defparameter *x8664-target-arch*
@@ -1237,11 +1246,11 @@
 (defx8664archmacro ccl::%get-kernel-global-ptr (name dest)
   `(ccl::%setf-macptr
     ,dest
-    (ccl::%fixnum-ref-natural 0 (+ x8664::nil-value
+    (ccl::%int-to-ptr (ccl::%fixnum-ref-natural 0 (+ x8664::nil-value
                                  ,(%kernel-global
                                    (if (ccl::quoted-form-p name)
                                      (cadr name)
-                                     name))))))
+                                     name)))))))
 
 (defx8664archmacro ccl::%target-kernel-global (name)
   `(x8664::%kernel-global ,name))
@@ -1281,7 +1290,17 @@
   (let* ((size (+ (* 2 8) (* 2 8))))
     `(ccl::%stack-block ((,buf ,size :clear t))
       ,@body)))
-  
+
+;;; an (lea (@ disp (% rip)) (% fn)) instruction following a tagged
+;;; return address helps the runtime map from the return address to
+;;; the containing function.  That instuction is 7 bytes long: 3
+;;; bytes of code followed by 4 bytes of displacement.  The constant
+;;; part of that - assuming that FN is R13 - looks like #x4c #x8d #x2d.
+
+(defconstant recover-fn-from-rip-length 7)
+(defconstant recover-fn-from-rip-disp-offset 3)
+(defconstant recover-fn-from-rip-word0 #x8d4c)
+(defconstant recover-fn-from-rip-byte2 #x2d)
 
 
 (provide "X8664-ARCH")
