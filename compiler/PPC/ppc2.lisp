@@ -30,6 +30,9 @@
 (defparameter *ppc2-target-fixnum-shift* 0)
 (defparameter *ppc2-target-node-shift* 0)
 (defparameter *ppc2-target-bits-in-word* 0)
+(defparameter *ppc2-ppc32-half-fixnum-type* '(signed-byte 29))
+(defparameter *ppc2-ppc64-half-fixnum-type* `(signed-byte 60))
+(defparameter *ppc2-target-half-fixnum-type* nil)
 
 
 
@@ -387,6 +390,9 @@
            (*ppc2-target-node-shift* (arch::target-word-shift  (backend-target-arch *target-backend*)))
            (*ppc2-target-bits-in-word* (arch::target-nbits-in-word (backend-target-arch *target-backend*)))
 	   (*ppc2-target-node-size* *ppc2-target-lcell-size*)
+           (*ppc2-target-half-fixnum-type* (target-word-size-case
+                                            (32 *ppc2-ppc32-half-fixnum-type*)
+                                            (64 *ppc2-ppc64-half-fixnum-type*)))
            (*ppc2-all-lcells* ())
            (*ppc2-top-vstack-lcell* nil)
            (*ppc2-bottom-vstack-lcell* (ppc2-new-vstack-lcell :bottom 0 0 nil))
@@ -6605,6 +6611,11 @@
       (ppc2-ternary-builtin seg vreg xfer '%aset1 v i n))))
 
 (defppc2 ppc2-%i+ %i+ (seg vreg xfer form1 form2 &optional overflow)
+  (when overflow
+    (let* ((type *ppc2-target-half-fixnum-type*))
+      (when (and (ppc2-form-typep form1 type)
+                 (ppc2-form-typep form2 type))
+        (setq overflow nil))))
   (cond ((null vreg) 
          (ppc2-form seg nil nil form1) 
          (ppc2-form seg nil xfer form2))
@@ -6654,6 +6665,11 @@
            (^)))))
 
 (defppc2 ppc2-%i- %i- (seg vreg xfer num1 num2 &optional overflow)
+  (when overflow
+    (let* ((type *ppc2-target-half-fixnum-type*))
+      (when (and (ppc2-form-typep form1 type)
+                 (ppc2-form-typep form2 type))
+        (setq overflow nil))))
   (let* ((v1 (acode-fixnum-form-p num1))
          (v2 (acode-fixnum-form-p num2)))
     (if (and v1 v2)
