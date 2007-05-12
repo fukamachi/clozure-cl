@@ -6822,7 +6822,7 @@
   (when overflow
     (let* ((type *x862-target-half-fixnum-type*))
       (when (and (x862-form-typep form1 type)
-               (x862-form-typep form2 type))
+                 (x862-form-typep form2 type))
         (setq overflow nil))))
   (cond ((null vreg) 
          (x862-form seg nil nil form1) 
