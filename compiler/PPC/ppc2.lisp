@@ -6667,8 +6667,8 @@
 (defppc2 ppc2-%i- %i- (seg vreg xfer num1 num2 &optional overflow)
   (when overflow
     (let* ((type *ppc2-target-half-fixnum-type*))
-      (when (and (ppc2-form-typep form1 type)
-                 (ppc2-form-typep form2 type))
+      (when (and (ppc2-form-typep num1 type)
+                 (ppc2-form-typep num2 type))
         (setq overflow nil))))
   (let* ((v1 (acode-fixnum-form-p num1))
          (v2 (acode-fixnum-form-p num2)))
