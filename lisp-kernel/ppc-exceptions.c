@@ -576,7 +576,7 @@ new_heap_segment(ExceptionInformation *xp, natural need, Boolean extend, TCR *tc
 	      align_to_power_of_2(need, log2_allocation_quantum));
   if (newlimit > (natural) (a->high)) {
     if (extend) {
-      inhibit = (signed_natural)(lisp_global(GC_INHIBIT_COUNT));
+      signed_natural inhibit = (signed_natural)(lisp_global(GC_INHIBIT_COUNT));
       natural extend_by = inhibit ? 0 : lisp_heap_gc_threshold;
       do {
         if (resize_dynamic_heap(a->active, (newlimit-oldlimit)+extend_by)) {
