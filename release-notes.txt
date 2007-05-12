@@ -1,3 +1,128 @@
+OpenMCL 1.1-pre-070512
+- The FASL version changed (old FASL files won't work with this
+  lisp version), as did the version information which tries to
+  keep the kernel in sync with heap images.  Note that it's generally
+  a lot easier to recompile recent sources with recent images, e.g.,
+  trying to compile 070512 sources with an 070407 image is unlikely
+  to work without tricky bootstrapping.
+- Most of the changes in this release involve the calling sequence
+  used on x86-64.  In very general terms, some kinds of function-call
+  intensive code may see a significant performance boost, most code
+  should see a slight improvement, some code might see a (hopefully
+  very slight) degradation, and anything significantly slower than
+  previous releases should be reported as a bug.
+  It is -possible- that some of these changes may cause errors to
+  be reported differently (the function reported as the function
+  executing when the error ocurred might be different/wrong).  I
+  have not seen as many cases of this as I expected to when making
+  the change, but am also not sure that I fixed all possible cases.
+- The FFI-related reader macros #_, #$, and #& all read a case-sensitive
+  foreign function, constant, or variable name from the input stream
+  and try to find the corresponding definition in the interface files.
+  If the name is prefixed with a #\? - as in #_?foo - the macros
+  return true if the definition could be found and false otherwise.
+  (The general idea is that this might be useful for conditionalizing
+  code in some cases, and there should be -some- way of quietly testing 
+  that something's defined.)
+- There is now support for making the contents of (possibly very large)
+  files accessible as lisp vectors.  (This may be many times faster
+  than something like 
+
+  (let* ((stream (open pathname :direction :input :element-type 'whatever))
+         (vector (make-array (file-size-to-vector-size stream)
+                             :element-type 'whatever)))
+    (read-sequence vector stream))
+
+  but has the similar effect of making the contents of VECTOR match the
+  contents of the file.)
+
+  CCL:MAP-FILE-TO-IVECTOR pathname element-type [Function]
+
+  "element-type" should be a type specifier such that
+  (UPGRADED-ARRAY-ELEMENT-TYPE element-type) is a subtype
+  of either SIGNED-BYTE or UNSIGNED-BYTE.
+
+  Tries to open the file named by "pathname" for reading and to
+  map its contents into the process's address space via #_mmap;
+  if successful, returns a lisp vector of element-type
+  (UPGRADED-ARRAY-ELEMENT-TYPE element-type) which is displaced
+  to an underlying (SIMPLE-ARRAY element-type (*)) whose contents
+  match the mapped file's.
+
+  Because of alignment issues, the mapped file's contents will
+  start a few bytes (4 bytes on 32-bit platforms, 8 bytes on 64-bit
+  platforms) "into" the vector; the displaced array returned by
+  CCL:MAP-FILE-TO-IVECTOR hides this overhead, but its usually
+  more efficient to operate on the underlying simple 1-dimensional
+  array.  Given a displaced array (like the value returned by
+  CCL:MAP-FILE-TO-IVECTOR), the CL function ARRAY-DISPLACEMENT
+  returns the underlying array and the displacement index in elements.
+
+  Currently, only read-only file mapping is supported; the underlying
+  vector will be allocated in read-only memory, and attempts to use
+  (e.g.) (SETF (AREF ...) ...) to modify the mapped vector's contents
+  will result in memory faults.
+  
+  CCL:MAP-FILE-TO-OCTET-VECTOR pathname [Function]
+
+  Equivalent to (CCL:MAP-FILE-TO-IVECTOR pathname '(UNSIGNED-BYTE 8)).
+
+  CCL:UNMAP-IVECTOR displaced-vector
+
+  If the argument is a mapped vector (as returned by
+  MAP-FILE-TO-IVECTOR) that has not yet been "unmapped" by this
+  function, undoes the memory mapping, closes the mapped file, and
+  adjusts its argument so that it's displaced to a 0-length vector.
+
+  CCL:UNMAP-OCTET-VECTOR is an alias for CCL:UNMAP-IVECTOR
+
+  Note that whether a vector's created by MAKE-ARRAY or by mapping
+  a file's contents, it can't have ARRAY-TOTAL-SIZE-LIMIT or more
+  elements.  (ARRAY-TOTAL-SIZE-LIMIT is (EXPT 2 24) in 32-bit OpenMCL
+  and (EXPT 2 56) in 64-bit versions.
+
+- The lisp kernel now tries to signal memory faults that occur when
+  running lisp code as lisp errors.  As a silly example:
+
+  ? (defun foo (x)
+     "Crash and burn if X is not a list"
+     (declare (optimize (speed 3) (safety 0)) (list x))
+     (car x))
+  FOO
+  ? (foo 0)
+  > Error: Fault during read of memory address #x4
+  > While executing: FOO, in process listener(1).
+
+  The fact that things are handled this way (rather than going
+  into the kernel debugger with no easy way of recovering) makes
+  it possible to continue a session without losing work in many
+  cases.  In a trivial example like the one above, it's relatively
+  easy to see that no harm has been done and the error should
+  not be hard to recover from.  In some other cases, it may be
+  true that a buggy function has been scribbling ofer memory for
+  a while before that scribbling resulted in a machine exception.
+
+  Moral: if you get an unexpected "memory fault" error (the
+  condition type is actually CCL::INVALID-MEMORY-ACCESS) and
+  don't understand why the fault occurred and the consequences
+  of continuing in the lisp session where the fault occurred,
+  you should view the state of that session with some suspicion.
+
+  Faults in foreign code (should) still trap into the kernel
+  debugger.  (It'd be nice to be able to treat these as lisp
+  errors with the same caveats as described above, but that
+  is more complicated in some cases and isn't yet implemented.)
+
+- An obscure kernel debugger command - (A), which tries to advance
+  the program counter by one instruction - is now disabled on x86-64.
+  (On the PPC, "one instruction" always meant "4 bytes"; implementing
+  this correctly on x86-64 would require the ability to at least
+  partially disassemble arbitrary x86-64 instructions.)
+
+  On the other hand, the kernel debugger should be able to show
+  FPU registers on x86-64.
+
+
 OpenMCL 1.1-pre-070408
 - The FASL version changed (old FASL files won't work with this
   lisp version), as did the version information which tries to
