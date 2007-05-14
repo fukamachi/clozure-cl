@@ -253,7 +253,7 @@
   (movslq (@ x8664::recover-fn-from-rip-disp-offset (% r)) (% imm0))
   (jne @fail)
   (negq (% imm0))
-  (leaq (@ (ash x8664::recover-fn-from-rip-length x8664::fixnumshift) (% imm0) 8) (% arg_z))
+  (leaq (@ (- (ash x8664::recover-fn-from-rip-length x8664::fixnumshift)) (% imm0) 8) (% arg_z))
   (single-value-return)
   @fail
   (movl ($ x8664::nil-value) (% arg_z.l))
