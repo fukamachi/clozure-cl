@@ -1592,23 +1592,28 @@ to open."
 (defmacro with-cstrs (speclist &body body)
    (with-specs-aux 'with-cstr speclist body))
 
-(defmacro with-encoded-cstr (encoding-name (sym string &optional start end)
-                                 &rest body &environment env)
+(defmacro with-encoded-cstr ((encoding-name (sym string &optional start end))
+                             &rest body &environment env)
   (let* ((encoding (get-character-encoding encoding-name))
-         (nul-vector (character-encoding-nul-encoding encoding))
          (str (gensym))
          (len (gensym))
-         (i (gensym)))
-    (multiple-value-bind (body decls) (parse-body body env nil)
-      `(let* ((,str ,string))
-        (%stack-block ((,sym (cstring-encoded-length-in-bytes ,encoding ,str ,start ,end) :clear t))
-          ,@decls
-          (let* ((,len (encode-string-to-memory ,encoding ,sym 0 ,str ,start ,end)))
-            (declare (fixnum ,len))
-            (dotimes (,i (length ,nul-vector))
-              (setf (%get-unsigned-byte ,sym ,len) (aref ,nul-vector ,i))
-              (incf ,len)))
-          ,@body)))))
+         (nzeros (floor (character-encoding-code-unit-size encoding) 8)))
+    (collect ((trailing-zeros))
+      (case nzeros
+        (1 (trailing-zeros `(setf (%get-unsigned-byte ,sym ,len) 0)))
+        (2 (trailing-zeros `(setf (%get-unsigned-word ,sym ,len) 0)))
+        (4 (trailing-zeros `(setf (%get-unsigned-long ,sym ,len) 0)))
+        (t 
+         (dotimes (i nzeros)
+           (trailing-zeros `(setf (%get-unsigned-byte ,sym (the fixnum (+ ,len ,i))) 0)))))
+      (multiple-value-bind (body decls) (parse-body body env nil)
+        `(let* ((,str ,string))
+          (%stack-block ((,sym (cstring-encoded-length-in-bytes ,encoding ,str ,start ,end)))
+            ,@decls
+            (let* ((,len (encode-string-to-memory ,encoding ,sym 0 ,str ,start ,end)))
+              (declare (fixnum ,len))
+              ,@(trailing-zeros)
+              ,@body)))))))
 
 (defmacro with-encoded-cstrs (encoding-name bindings &body body)
   (with-specs-aux 'with-encoded-cstr (mapcar #'(lambda (b)
@@ -1616,11 +1621,13 @@ to open."
                                              bindings) body))
 
 
-(defun with-specs-aux (name spec-list body)
-  (setq body (cons 'progn body))
-  (dolist (spec (reverse spec-list))
-     (setq body (list name spec body)))
-  body)
+(defun with-specs-aux (name spec-list original-body)
+  (multiple-value-bind (body decls) (parse-body original-body nil)
+    (when decls (error "declarations not allowed in ~s" original-body))
+    (setq body (cons 'progn body))
+    (dolist (spec (reverse spec-list))
+      (setq body (list name spec body)))
+    body))
 
 
 (defmacro type-predicate (type)
