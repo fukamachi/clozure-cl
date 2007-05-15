@@ -80,7 +80,7 @@
   ;; of the first octet not used to encode them. (The second value may be less than END).
   length-of-vector-encoding-function    ;(VECTOR START END) 
 
-  ;; Returns the number of (full) characters encoded in memort at (+ POINTER START)
+  ;; Returns the number of (full) characters encoded in memory at (+ POINTER START)
   ;; and the number of octets used to encode them.  (The second value may be less
   ;; than NOCTETS.)
   length-of-memory-encoding-function    ;(POINTER NOCTETS START)
@@ -4361,10 +4361,7 @@ or prepended to output."
    utf-32-memory-encode
    (lambda (string pointer idx start end)
      (declare (fixnum idx))
-     (when (> end start)
-       (setf (%get-unsigned-long pointer idx)
-             byte-order-mark-char-code)
-       (incf idx 4))
+
      (do* ((i start (1+ i)))
           ((>= i end) idx)
        (let* ((code (char-code (schar string i))))
