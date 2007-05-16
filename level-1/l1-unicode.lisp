@@ -4614,16 +4614,33 @@ or prepended to output."
       (values string last-octet))))
       
                               
-                                     
+(defun string-encoded-length-in-bytes (encoding string start end)
+  (if (typep string 'simple-base-string)
+    (funcall (character-encoding-octets-in-string-function encoding)
+             string
+             (or start 0)
+             (or end (length string)))
+    (let* ((s (string string)))
+      (multiple-value-bind (data offset) (array-data-and-offset s)
+        (funcall (character-encoding-octets-in-string-function encoding)
+                 data
+                 (+ offset (or start 0))
+                 (+ offset (or end (length s))))))))
+
+;;; Same as above, but add the length of a trailing 0 code-unit.
 (defun cstring-encoded-length-in-bytes (encoding string start end)
-  (+ (length (character-encoding-nul-encoding encoding))                             ; NUL terminator
-     (funcall (character-encoding-octets-in-string-function encoding)
-              string
-              (or start 0)
-              (or end (length string)))))
+  (+ (ash (character-encoding-code-unit-size encoding) -3) ; NUL terminator
+     (string-encoded-length-in-bytes string start end)))
 
-
+                   
 
 (defun encode-string-to-memory (encoding pointer offset string start end)
-  (funcall (character-encoding-memory-encode-function encoding)
-           string pointer offset (or start 0) (or end (length string))))
+  (if (typep string 'simple-base-string)
+    (funcall (character-encoding-memory-encode-function encoding)
+             string pointer offset (or start 0) (or end (length string)))
+    (let* ((s (string string)))
+      (multiple-value-bind (data data-offset)
+          (array-data-and-offset s)
+        (funcall (character-encoding-memory-encode-function encoding)
+                 data pointer offset (+ data-offset (or start 0)) (+ data-offset (or end (length s))))))))
+      
