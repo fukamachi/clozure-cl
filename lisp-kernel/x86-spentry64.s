@@ -1203,7 +1203,9 @@ local_label(_throw_loop):
 local_label(_throw_test):
 	__(testq %imm1,%imm1)
 	__(jne local_label(_throw_loop))
+        __(push %ra0)
 	__(uuo_error_reg_not_tag(Rtemp0,subtag_catch_frame))
+        __(pop %ra0)
 	__(jmp _SPthrow)
 local_label(_throw_found):	
 	__(testb $fulltagmask,catch_frame.mvflag(%imm1))
@@ -1630,7 +1632,8 @@ _spentry(bind_self_boundp_check)
 	__(movq %rsp,%rcontext:tcr.db_link)
 	__(movq %arg_y,(%temp1,%temp0))
 	__(jmp *%ra0)
-8:	__(uuo_error_reg_unbound(Rarg_z))
+8:	__(push %ra0)
+        __(uuo_error_reg_unbound(Rarg_z))
 	
 9:	__(movq $XSYMNOBIND,%arg_y)
 	__(set_nargs(2))
@@ -4467,7 +4470,7 @@ _spentry(aset2)
         __(jmp 6b)
 _endsubp(aset2)
 
-/* temp1 = array, %temp0 = i, %arg_x = j, %arg_y = k, %arg_y = newval. */
+/* %temp1 = array, %temp0 = i, %arg_x = j, %arg_y = k, %arg_y = newval. */
 
 _spentry(aset3)
         __(testb $fixnummask,%temp0_b)
