@@ -21,6 +21,8 @@
   (ldb (byte (- 16 x8664::fixnumshift) 0)
                     (encoded-gpr-lisp xp x8664::nargs.q)))
 
+
+
 (defun xp-argument-list (xp)
   (let ((nargs (xp-argument-count xp))
         (arg-x (encoded-gpr-lisp xp x8664::arg_x))
@@ -29,14 +31,24 @@
     (cond ((eql nargs 0) nil)
           ((eql nargs 1) (list arg-z))
           ((eql nargs 2) (list arg-y arg-z))
-          (t (let ((args (list arg-x arg-y arg-z)))
-               (if (eql nargs 3)
-                 args
-                 (let ((sp (encoded-gpr-macptr xp x8664::rsp)))
-                   (dotimes (i (- nargs 3))
-                     (push (%get-object sp (* i target::node-size)) args))
-                   args)))))))
-
+          (t
+           (let ((args (list arg-x arg-y arg-z)))
+             (if (eql nargs 3)
+               args
+               (let ((sp (%inc-ptr (encoded-gpr-macptr xp x8664::rsp)
+                                   (+ x8664::node-size x8664::xcf.size))))
+                 (dotimes (i (- nargs 3))
+                   (push (%get-object sp (* i x8664::node-size)) args))
+                 args)))))))
+                          
+;;; Making this be continuable is hard, because of the xcf on the
+;;; stack and the way that the kernel saves/restores rsp and rbp
+;;; before calling out.  If we get around those problems, then
+;;; we have to also deal with the fact that the return address
+;;; is on the stack.  Easiest to make the kernel deal with that,
+;;; and just set %fn to the function that returns the values
+;;; returned by the (newly defined) function and %arg_z to
+;;; that list of values.
 (defun handle-udf-call (xp frame-ptr)
   (let* ((args (xp-argument-list xp))
          (values (multiple-value-list
@@ -44,17 +56,9 @@
                    $xudfcall
                    (list (encoded-gpr-lisp xp x8664::fname) args)
                    frame-ptr)))
-         (stack-argcnt (max 0 (- (length args) 3)))
-         (rsp (%i+ (encoded-gpr-lisp xp x8664::rsp)
-                   (if (zerop stack-argcnt)
-                     0
-                     (+ stack-argcnt 2))))
          (f #'(lambda (values) (apply #'values values))))
-    (setf (encoded-gpr-lisp xp x8664::rsp) rsp
-          (encoded-gpr-lisp xp x8664::nargs.q) 1
-          (encoded-gpr-lisp xp x8664::arg_z) values
-          (encoded-gpr-lisp xp x8664::fn) f)
-    (setf (indexed-gpr-lisp xp rip-register-offset) f)))
+    (setf (encoded-gpr-lisp xp x8664::arg_z) values
+          (encoded-gpr-lisp xp x8664::fn) f)))
   
 (defcallback %xerr-disp (:address xp :address xcf :int)
   (with-error-reentry-detection
