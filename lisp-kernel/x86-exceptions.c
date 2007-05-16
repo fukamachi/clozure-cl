@@ -273,18 +273,19 @@ finish_function_entry(ExceptionInformation *xp)
 {
   natural nargs = (xpGPR(xp,Inargs)&0xffff)>> fixnumshift;
   signed_natural disp = nargs-3;
-  LispObj *vsp =  (LispObj *) xpGPR(xp,Isp);
+  LispObj *vsp =  (LispObj *) xpGPR(xp,Isp), ra = *vsp++;
    
   
   if (disp > 0) {               /* implies that nargs > 3 */
     vsp[disp] = xpGPR(xp,Irbp);
-    vsp[disp+1] = xpGPR(xp,Ira0);
+    vsp[disp+1] = ra;
     xpGPR(xp,Irbp) = (LispObj)(vsp+disp);
+    xpGPR(xp,Isp) = (LispObj)vsp;
     push_on_lisp_stack(xp,xpGPR(xp,Iarg_x));
     push_on_lisp_stack(xp,xpGPR(xp,Iarg_y));
     push_on_lisp_stack(xp,xpGPR(xp,Iarg_z));
   } else {
-    push_on_lisp_stack(xp,xpGPR(xp,Ira0));
+    push_on_lisp_stack(xp,ra);
     push_on_lisp_stack(xp,xpGPR(xp,Irbp));
     xpGPR(xp,Irbp) = xpGPR(xp,Isp);
     if (nargs == 3) {
@@ -321,7 +322,7 @@ create_exception_callback_frame(ExceptionInformation *xp)
     f, tra, tra_f = 0, abs_pc;
 
   f = xpGPR(xp,Ifn);
-  tra = xpGPR(xp,Ira0);
+  tra = *(LispObj*)(xpGPR(xp,Isp));
   if (tag_of(tra) == tag_tra) {
     if ((*((unsigned short *)tra) == RECOVER_FN_FROM_RIP_WORD0) &&
         (*((unsigned char *)(tra+2)) == RECOVER_FN_FROM_RIP_BYTE2)) {
@@ -331,6 +332,8 @@ create_exception_callback_frame(ExceptionInformation *xp)
     if (fulltag_of(tra_f) != fulltag_function) {
       tra_f = 0;
     }
+  } else {
+    tra = 0;
   }
 
   abs_pc = (LispObj)xpPC(xp);
@@ -483,7 +486,29 @@ handle_error(TCR *tcr, ExceptionInformation *xp)
     skip = callback_to_lisp(tcr, errdisp, xp, xcf, 0, 0, 0, 0);
     xpGPR(xp,Irbp) = save_rbp;
     xpGPR(xp,Isp) = save_vsp;
-    xpPC(xp) += skip;
+    if ((op0 == 0xcd) && (op1 == 0xc7)) {
+      /* Continue after an undefined function call. The function
+         that had been undefined has already been called (in the
+         break loop), and a list of the values that it returned
+         in in the xp's %arg_z.  A function that returns those
+         values in in the xp's %fn; we just have to adjust the
+         stack (keeping the return address in the right place
+         and discarding any stack args/reserved stack frame),
+         then set nargs and the PC so that that function's
+         called when we resume.
+      */
+      LispObj *vsp =(LispObj *)save_vsp, ra = *vsp;
+      int nargs = (xpGPR(xp, Inargs) & 0xffff)>>fixnumshift;
+      
+      if (nargs > 3) {
+        xpGPR(xp,Isp)=(LispObj) (vsp + (1 + 2 + (nargs - 3)));
+        push_on_lisp_stack(xp,ra);
+      }
+      xpPC(xp) = xpGPR(xp,Ifn);
+      xpGPR(xp,Inargs) = 1<<fixnumshift;
+    } else {
+      xpPC(xp) += skip;
+    }
     return true;
   } else {
     return false;
