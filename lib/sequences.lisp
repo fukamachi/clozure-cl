@@ -1890,10 +1890,18 @@
     (error "Sequence arg out of range"))
   (unless vectorp1
     (setq seq1 (nthcdr start1 seq1))
-    (when from-end (setq seq1 (reverse seq1))))
+    (if from-end
+      (do* ((s1 ())
+            (i start1 (1+ i)))
+           ((= i end1) (setq seq1 s1))
+        (push (pop seq1) s1))))
   (unless vectorp2
     (setq seq2 (nthcdr start2 seq2))
-    (when from-end (setq seq2 (reverse seq2))))
+    (if from-end
+      (do* ((s2 ())
+            (i start2 (1+ i)))
+           ((= i end2) (setq seq2 s2))
+        (push (pop seq2) s2))))
   (when test-not (setq test test-not))
   (if from-end
       ;from-end
