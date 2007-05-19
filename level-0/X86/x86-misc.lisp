@@ -231,7 +231,7 @@
 (defx86lapfunction %%get-unsigned-longlong ((ptr arg_y) (offset arg_z))
   (trap-unless-typecode= ptr x8664::subtag-macptr)
   (macptr-ptr ptr imm1)
-  (unbox-fixnum imm0 offset)
+  (unbox-fixnum offset imm0)
   (movq (@ (% imm1) (% imm0)) (% imm0))
   (jmp-subprim .SPmakeu64))
 
@@ -239,7 +239,7 @@
 (defx86lapfunction %%get-signed-longlong ((ptr arg_y) (offset arg_z))
   (trap-unless-typecode= ptr x8664::subtag-macptr)
   (macptr-ptr ptr imm1)
-  (unbox-fixnum imm0 offset)
+  (unbox-fixnum offset imm0)
   (movq (@ (% imm1) (% imm0)) (% imm0))
   (jmp-subprim .SPmakes64))
 
