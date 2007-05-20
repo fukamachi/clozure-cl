@@ -4630,7 +4630,7 @@ or prepended to output."
 ;;; Same as above, but add the length of a trailing 0 code-unit.
 (defun cstring-encoded-length-in-bytes (encoding string start end)
   (+ (ash (character-encoding-code-unit-size encoding) -3) ; NUL terminator
-     (string-encoded-length-in-bytes string start end)))
+     (string-encoded-length-in-bytes encoding string start end)))
 
                    
 
