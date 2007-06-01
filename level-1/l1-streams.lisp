@@ -58,6 +58,12 @@
     :io
     :output))
 
+;;; Try to return a string containing characters that're near the
+;;; stream's current position, if that makes sense.  Return NIL
+;;; if it doesn't make sense.
+(defmethod stream-surrounding-characters ((s stream))
+  nil)
+
 
 ;;; The "direction" argument only helps us dispatch on two-way streams:
 ;;; it's legal to ask for the :output device of a stream that's only open
@@ -470,8 +476,29 @@
            read-p))
 
 
-
-
+(defun %ioblock-surrounding-characters (ioblock)
+  (let* ((inbuf (ioblock-inbuf ioblock)))
+    (when inbuf
+      (let* ((encoding (or (ioblock-encoding ioblock)
+                           (get-character-encoding nil)))
+             (size (ash (character-encoding-code-unit-size encoding) -3))
+             (buffer (io-buffer-buffer inbuf))
+             (idx (io-buffer-idx inbuf))
+             (count (io-buffer-count inbuf)))
+        (unless (= count 0)
+          (let* ((start (max (- idx (* 5 size)) 0))
+                 (end (min (+ idx (* 5 size)) count))
+                 (string (make-string (funcall (character-encoding-length-of-vector-encoding-function encoding) buffer start end))))
+            (funcall (character-encoding-vector-decode-function encoding)
+                     buffer
+                     start
+                     (- end start)
+                     string)
+            (if (position #\Replacement_Character string)
+              (string-trim (string #\Replacement_Character) string)
+              string)))))))
+             
+        
 
 
 (defun %bivalent-ioblock-read-u8-byte (ioblock)
@@ -3731,7 +3758,8 @@
            (synonym-method output-stream-p)
            (synonym-method interactive-stream-p)
            (synonym-method stream-direction)
-	   (synonym-method stream-device direction))
+	   (synonym-method stream-device direction)
+           (synonym-method stream-surrounding-characters))
 
 
 (defmethod stream-write-string ((s synonym-stream) string &optional (start 0) end)
@@ -3789,6 +3817,7 @@
   (two-way-input-method stream-read-line)
   (two-way-input-method stream-read-list l c)
   (two-way-input-method stream-read-vector v start end)
+  (two-way-input-method stream-surrounding-characters)
   (two-way-output-method stream-write-char c)
   (two-way-output-method stream-write-byte b)
   (two-way-output-method stream-clear-output)
@@ -4413,6 +4442,15 @@
     (report-bad-arg s 'string-input-stream)))
 
 
+(defmethod stream-surrounding-characters ((s string-input-stream))
+  (let* ((ioblock (basic-stream-ioblock s))
+         (start (string-input-stream-ioblock-start ioblock))
+         (idx (string-input-stream-ioblock-index ioblock))
+         (end (string-input-stream-ioblock-end ioblock))
+         (string (string-stream-ioblock-string ioblock)))
+    (subseq string (max (- idx 5) start) (min (+ idx 5) end))))
+    
+
 (defmethod stream-position ((s string-input-stream) &optional newpos)
   (let* ((ioblock (basic-stream-ioblock s))
          (start (string-input-stream-ioblock-start ioblock))
@@ -4695,6 +4733,15 @@
   (unless abort
     (when (open-stream-p stream)
       (stream-force-output stream))))
+
+(defmethod stream-surrounding-characters ((stream buffered-character-input-stream-mixin))
+    (let* ((ioblock (stream-ioblock stream nil)))
+      (and ioblock (%ioblock-surrounding-characters ioblock))))
+
+(defmethod stream-surrounding-characters ((stream basic-character-input-stream))
+    (let* ((ioblock (stream-ioblock stream nil)))
+      (and ioblock (%ioblock-surrounding-characters ioblock))))
+
 
 #|
 (defgeneric ioblock-advance (stream ioblock readp)
