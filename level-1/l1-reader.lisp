@@ -2310,13 +2310,13 @@
 ;;; first colon was read, even if that thing caused no characters to
 ;;; be added to the token.
 
-(defun %token-package (token colonpos seenbeforecolon)
+(defun %token-package (token colonpos seenbeforecolon stream)
   (if colonpos
     (if (and (eql colonpos 0) (not seenbeforecolon))
       *keyword-package*
       (let* ((string (token.string token)))
         (or (%find-pkg string colonpos)
-            (%kernel-restart $XNOPKG (subseq string 0 colonpos)))))
+            (signal-reader-error stream "Reference to unknown package ~s." (subseq string 0 colonpos)))))
     *package*))
 
 ;;; Returns 4 values: reversed list of escaped character positions,
@@ -2371,7 +2371,7 @@
 			    (unread-char nextch stream)
                             (setq double-colon nil)))
                         (%casify-token token escapes)
-                        (setq explicit-package (%token-package token opos nondots)
+                        (setq explicit-package (%token-package token opos nondots stream)
                               nondots t
                               escapes nil)
                         (setf (token.opos token) 0))
@@ -2404,9 +2404,9 @@
           (if (not nondots)
             (if (= len 1)
               (or dot-ok
-                  (signal-reader-error stream "Dot context error."))
-              (signal-reader-error stream "Illegal symbol syntax."))
-            ; Something other than a buffer full of dots.  Thank god.
+                  (signal-reader-error stream "Dot context error in ~s." (%string-from-token tb)))
+              (signal-reader-error stream "Illegal symbol syntax in ~s. (%string-from-token tb)"))
+            ;; Something other than a buffer full of dots.  Thank god.
             (let* ((num (if (null escapes)
                             (handler-case
                                 (%token-to-number tb (%validate-radix *read-base*))
