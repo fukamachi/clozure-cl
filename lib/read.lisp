@@ -16,10 +16,12 @@
 
 (in-package "CCL")
 
+
+                         
 (define-condition simple-reader-error (reader-error simple-error) ()
   (:report (lambda (c output-stream)
-             (format output-stream "Reader error on stream ~S:~%~?"
-                     (stream-error-stream c)
+             (format output-stream "Reader error on ~a:~%~?"
+                     (stream-error-context c)
                      (simple-condition-format-control c)
                      (simple-condition-format-arguments c)))))
 
@@ -45,7 +47,7 @@
 |#
 
 (defun read-internal (input-stream)
-   (read input-stream t nil t))
+  (read input-stream t nil t))
 
 
 (set-dispatch-macro-character #\# #\*
