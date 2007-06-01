@@ -1,3 +1,105 @@
+2007-06-01 08:34  gb
+
+	* level-1/l1-files.lisp: Do ~-expansion in more places.  Hopefully
+	caught most places.
+
+2007-06-01 08:33  gb
+
+	* level-1/l1-reader.lisp: %TOKEN-PACKAGE generates a READER-ERROR
+	if it can't find the package, accepts a stream argument in order to
+	signal that type of error.  (Note that this has never been
+	recoverable in general, especially in the case where the input
+	stream is *terminal-io* or shares its input stream.)
+
+2007-06-01 08:32  gb
+
+	* lib/read.lisp: READER-ERORS use STREAM-ERROR-CONTEXT when
+	reporting themselves.
+
+2007-06-01 08:31  gb
+
+	* level-1/l1-error-system.lisp: Define and use
+	STREAM-ERROR-CONTEXT.
+
+2007-06-01 08:30  gb
+
+	* level-1/linux-files.lisp: Define UID-FROM-NAME, TILDE-EXPAND. 
+	Use TILDE-EXPAND in %REALPATH, but any leading tildes should
+	probably have been caught earlier.
+
+2007-06-01 08:29  gb
+
+	* level-1/l1-streams.lisp: Try to provide some context -
+	"surrounding characters" - for reader/stream errors on character
+	input streams.
+
+2007-06-01 08:28  gb
+
+	* level-1/l1-unicode.lisp: Get number of args right in call to
+	STRING-ENCODED-LENGTH-IN-BYTES from
+	CSTRING-ENCODED-LENGTH-IN-BYTES.  Sorry.
+
+2007-06-01 08:28  gb
+
+	* level-0/X86/x86-misc.lisp: %%get-unsigned-longlong,
+	%%get-signed-longlong: args in UNBOX-FIXNUM macro were in the wrong
+	order.	Both functions are usually open-coded (and the inlined
+	versions seem to be OK), but the ObjC bridge funcalls these
+	functions when getting/setting foreign slots of the appropriate
+	type.
+
+2007-06-01 08:27  gb
+
+	* level-1/l1-unicode.lisp: Add STRING-ENCODED-LENGTH-IN-BYTES. 
+	Make it, CSTRING-ENCODED-LENGTH-IN-BYTES, and
+	ENCODE-STRING-FROM-MEMORY deal with non-simple strings.
+
+2007-06-01 08:26  gb
+
+	* level-0/l0-aprims.lisp: Try to deal with the "SIMPLE-BASE-STRING,
+	all of it" case in %CSTR-POINTER; deal with all other cases in
+	%CSTR-SEGMENT-POINTER.
+
+2007-06-01 08:25  gb
+
+	* level-1/x86-error-signal.lisp: xp-argument-list: stack args are
+	under return address, exception callback frame (xcf) on stack.
+	
+	handle-udf-call: don't try to fix up the stack if we try to
+	continue; let kernel deal with this after the callback.
+
+2007-06-01 08:24  gb
+
+	* lisp-kernel/x86-exceptions.c: finish_function_entry: there's a
+	return address on the top of the stack when this is entered
+	(#-of-arguments traps).  Put it in the right place when building
+	the frame.
+	
+	create_exception_callback_frame: look for tra on top of lisp stack,
+	not in register (usually.)
+	
+	handle_error(): if we return after calling out for int #xc7 (call
+	to undefined function), fix up the stack and other registers so
+	that we can return the value(s) returned by the lisp-side handler. 
+	(It's hard for the lisp-side handler to do the stack manipulation,
+	because of the xcf on the stack and because of the need to deal
+	with the return address on the stack.)
+
+2007-06-01 08:23  gb
+
+	* lisp-kernel/x86-spentry64.s: uuos in subrprims called via
+	lea/jmp: push ra0 on stack before trap, for the benefit of
+	create_exception_callback_frame().
+
+2007-06-01 08:22  gb
+
+	* lib/sequences.lisp: Eric Marsden's fixes to MISMATCH
+
+2007-06-01 08:22  gb
+
+	* level-1/l1-unicode.lisp: :utf-32 memory-encode function: don't
+	write a BOM here.
+
 2007-06-01 08:21  gb
 
 	* level-0/X86/x86-def.lisp: %RETURN-ADDRESS-OFFSET has been wrong
