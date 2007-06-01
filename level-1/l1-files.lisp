@@ -431,6 +431,11 @@
                                             (defaults *default-pathname-defaults*))
   (require-type reference-host '(or null string))
   (multiple-value-bind (sstr start end) (get-sstring string start end)
+    (if (and (> end start)
+             (eql (schar sstr start) #\~))
+      (setq sstr (tilde-expand (subseq sstr start end))
+            start 0
+            end (length sstr)))
     (let (directory name type host version (start-pos start) (end-pos end) has-slashes)
       (multiple-value-setq (host start-pos has-slashes) (pathname-host-sstr sstr start-pos end-pos))
       (cond ((and host (neq host :unspecific))
@@ -688,6 +693,11 @@ a host-structure or string."
 		  (pathname (%pathname-directory path))
 		  (string
 		   (multiple-value-bind (sstr start end) (get-sstring path)
+                     (if (and (> end start)
+                              (eql (schar sstr start) #\~))
+                       (setq sstr (tilde-expand (subseq sstr start end))
+                             start 0
+                             end (length sstr)))
 		     (multiple-value-bind (host pos2) (pathname-host-sstr sstr start end)
 		       (unless (eq host :unspecific) (setq logical-p t))
                       (pathname-directory-sstr sstr pos2 end host))))
@@ -700,6 +710,12 @@ a host-structure or string."
 
 ;; Must match pathname-directory-end below
 (defun pathname-directory-sstr (sstr start end host)
+  (if (and (eq host :unspecific)
+           (> end start)
+           (eql (schar sstr start) #\~))
+    (setq sstr (tilde-expand (subseq sstr start end))
+          start 0
+          end (length sstr)))
   (let ((pos (%path-mem-last (if (eq host :unspecific) "/" ";") sstr start end)))
     (if pos
       (values 
