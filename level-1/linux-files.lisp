@@ -343,6 +343,24 @@ given is that of a group to which the current user belongs."
       old
       (fd-set-flags fd (logandc2 old mask)))))
 
+
+;;; Assume that any quoting's been removed already.
+(defun tilde-expand (namestring)
+  (let* ((len (length namestring)))
+    (if (or (zerop len)
+            (not (eql (schar namestring 0) #\~)))
+      namestring
+      (if (or (= len 1)
+              (eql (schar namestring 1) #\/))
+        (concatenate 'string (get-user-home-dir (getuid)) (if (= len 1) "/" (subseq namestring 1)))
+        (let* ((slash-pos (position #\/ namestring))
+               (user-name (subseq namestring 1 slash-pos))
+               (uid (or (get-uid-from-name user-name)
+                        (error "Unknown user ~s in namestring ~s" user-name namestring))))
+          (concatenate 'string (get-user-home-dir uid) (if slash-pos (subseq namestring slash-pos) "/")))))))
+
+                     
+    
 ;;; This doesn't seem to exist on VxWorks.  It's a POSIX
 ;;; function AFAIK, so the source should be somewhere ...
 
@@ -350,7 +368,7 @@ given is that of a group to which the current user belongs."
   (when (zerop (length namestring))
     (setq namestring (current-directory-name)))
   (%stack-block ((resultbuf #$PATH_MAX))
-    (with-cstrs ((name namestring))
+    (with-cstrs ((name (tilde-expand namestring)))
       (let* ((result (#_realpath name resultbuf)))
         (declare (dynamic-extent result))
         (unless (%null-ptr-p result)
@@ -416,6 +434,13 @@ given is that of a group to which the current user belongs."
           (%errno-disp err namestring)))))
          
 
+(defun get-uid-from-name (name)
+  (with-cstrs ((name name))
+    (let* ((pwent (#_getpwnam name)))
+      (unless (%null-ptr-p pwent)
+        (pref pwent :passwd.pw_uid)))))
+
+    
 (defun isatty (fd)
   (= 1 (#_isatty fd)))
 
