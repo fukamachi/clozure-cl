@@ -336,6 +336,18 @@
 
 (define-condition stream-error (error)
   ((stream :initarg :stream :reader stream-error-stream)))
+
+(defun stream-error-context (condition)
+  (let* ((stream (stream-error-stream condition)))
+    (with-output-to-string (s)
+       (format s "on steam ~s" stream)
+       (let* ((pos (ignore-errors (stream-position stream))))
+                             (when pos
+                               (format s ", near position ~d" pos)))
+                           (let* ((surrounding (stream-surrounding-characters stream)))
+                             (when surrounding
+                               (format s ", within ~s" surrounding))))))
+
 (define-condition parse-error (error) ())
 (define-condition parse-integer-not-integer-string (parse-error)
   ((string :initarg :string))
@@ -345,31 +357,28 @@
 (define-condition reader-error (parse-error stream-error) ())
 (define-condition end-of-file (stream-error) ()
   (:report (lambda (c s)
-             (format s "Unexpected end of file on ~s" (stream-error-stream c)))))
+             (format s "Unexpected end of file ~s" (stream-error-context c)))))
 (define-condition impossible-number (reader-error)
   ((token :initarg :token :reader impossible-number-token)
    (condition :initarg :condition :reader impossible-number-condition))
   (:report (lambda (c s)
-             (format s "Condition of type ~s raised ~&while trying to parse numeric token ~s ~&on ~s"
+             (format s "Condition of type ~s raised ~&while trying to parse numeric token ~s ~&~s"
                      (type-of (impossible-number-condition c))
                      (impossible-number-token c)
-                     (stream-error-stream c)))))
+                     (stream-error-context c)))))
 
 
     
 (define-condition simple-stream-error (stream-error simple-condition) () 
   (:report (lambda (c s) 
-             (format s "Error on ~s : ~&~a" (stream-error-stream c) 
+             (format s "Error ~s : ~&~a" (stream-error-context c) 
                      (apply #'format
                             nil
                             (simple-condition-format-control c)
                             (simple-condition-format-arguments c))))))
 
 
-(define-condition modify-read-only-buffer (error) ()
-  (:report (lambda (c s)
-             (declare (ignore c))
-             (format s "Cannot modify a read-only buffer"))))
+
 
 (define-condition file-error (error)
   ((pathname :initarg :pathname :initform "<unspecified>" :reader file-error-pathname)
