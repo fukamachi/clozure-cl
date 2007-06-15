@@ -1,3 +1,9 @@
+2007-06-15 14:10  gb
+
+	* compiler/X86/x862.lisp: x862-numcmp: if both args fixnums ... 
+	x862-inline-numcmp: don't reverse cr-bit if both args fixnums
+	(shouldn't get here if we're catching that upstream, but ...)
+
 2007-06-01 08:34  gb
 
 	* level-1/l1-files.lisp: Do ~-expansion in more places.  Hopefully
