@@ -202,11 +202,16 @@
       (if *read-suppress* 
         nil
         (if arg
-          (let ((pair (assoc arg %read-objects%))) ;Not assq, could be bignum!
+          (let ((pair
+                 (if (listp %read-objects%)
+                   (assoc arg %read-objects%) ;Not assq, could be bignum!
+                   (gethash arg %read-objects%))))
             (if pair
               (cdr pair)
               (%err-disp $xnordlbl arg)))
           (%err-disp $xrdndarg char)))))
+
+(defparameter *alist-hash-table-cutoff* 32)
 
 (set-dispatch-macro-character 
  #\# 
@@ -214,17 +219,30 @@
  #'(lambda (stream char arg &aux lab form)
      (cond (*read-suppress* (values))
            ((null arg) (%err-disp $xrdndarg char))
-           ((assoc arg %read-objects%)    ;Not assq, could be bignum!
+           ((if (listp %read-objects%)
+                 (assoc arg %read-objects%)    ;Not assq, could be bignum!
+                 (gethash arg %read-objects%))
             (%err-disp $xduprdlbl arg))
            (t (setq lab (cons arg nil))
-              (push (%rplacd lab lab) %read-objects%)
+              (%rplacd lab lab)
+              (if (listp %read-objects%)
+                (if (< (length %read-objects%) *alist-hash-table-cutoff*)
+                  (push lab  %read-objects%)
+                   (let* ((new (make-hash-table :shared nil)))
+                     (dolist (pair %read-objects%)
+                       (setf (gethash (car pair) new) pair))
+                     (setf (gethash arg new) lab)
+                     (setq %read-objects% new)))
+                (setf (gethash arg  %read-objects%) lab))
               (setq form (read stream t nil t))
               (when (eq form lab)   ;#n= #n#.  No can do.
                 (%err-disp $xnordlbl (%car lab)))
               (%rplacd lab form)
               (let ((scanned nil))
                   (labels ((circle-subst (tree)
-                             (if (memq tree %read-objects%)
+                             (if (if (listp %read-objects%)
+                                   (assoc tree %read-objects%)
+                                   (gethash tree %read-objects%))
                                (progn
                                  (unless (memq tree scanned)
                                    (setq scanned (%temp-cons tree scanned))
