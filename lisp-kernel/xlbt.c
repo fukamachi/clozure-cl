@@ -65,6 +65,7 @@ lisp_frame_p(lisp_frame *f)
     }
 
     if (tag_of(ra) == tag_tra) {
+#if 0
       if ((*((unsigned short *)ra) == RECOVER_FN_FROM_RIP_WORD0) &&
           (*((unsigned char *)(ra+2)) == RECOVER_FN_FROM_RIP_BYTE2)) {
         sdisp = (*(int *) (ra+3));
@@ -73,6 +74,8 @@ lisp_frame_p(lisp_frame *f)
       if (fulltag_of(fun) == fulltag_function) {
         return true;
       }
+#endif
+      return true;
     } else if ((ra == lisp_global(LEXPR_RETURN)) ||
 	       (ra == lisp_global(LEXPR_RETURN1V))) {
       return true;
