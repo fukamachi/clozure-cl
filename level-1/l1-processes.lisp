@@ -497,6 +497,10 @@ some point in the near future, and then return to what it was doing."
        #'apply
        function args))))
 
+(defmethod process-debug-condition ((p process) condition frame-pointer)
+  (declare (ignore condition frame-pointer)))
+
+
 
 
 ;;; This one is in the Symbolics documentation
