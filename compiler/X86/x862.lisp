@@ -651,12 +651,14 @@
       (dolist (info symlist (progn (%rplaca symlist syms)
                                    (%rplacd symlist ptrs)))
         (flet ((label-address (note start-p sym)
-                 (let* ((label (vinsn-note-label note))
-                        (lap-label (if label (vinsn-label-info label))))
-                   (if lap-label
-                     (x86-lap-label-address lap-label)
-                     (error "Missing or bad ~s label: ~s" 
-                       (if start-p 'start 'end) sym)))))
+                 (-
+                  (let* ((label (vinsn-note-label note))
+                         (lap-label (if label (vinsn-label-info label))))
+                    (if lap-label
+                      (x86-lap-label-address lap-label)
+                      (error "Missing or bad ~s label: ~s" 
+                             (if start-p 'start 'end) sym)))
+                  x8664::fulltag-function)))
           (destructuring-bind (var sym startlab endlab) info
             (let* ((ea (var-ea var))
                    (ea-val (ldb (byte 16 0) ea)))
@@ -1008,7 +1010,9 @@
         (! check-max-nargs max))
       (if (> min $numx8664argregs)
         (! save-lisp-context-in-frame)
-        (! save-lisp-context-variable-arg-count))
+        (if (<= max $numx8664argregs)
+          (! save-lisp-context-no-stack-args)
+          (! save-lisp-context-variable-arg-count)))
       (if (= nopt 1)
         (! default-1-arg min)
         (if (= nopt 2)
@@ -3872,7 +3876,9 @@
         (when (and (%ilogbitp $vbitdynamicextent bits) (acode-p val))
           (setq val (x862-dynamic-extent-form seg curstack val))))
       (if (%ilogbitp $vbitspecial bits)
-        (x862-dbind seg val sym)
+        (progn
+          (x862-dbind seg val sym)
+          (x862-set-var-ea seg var (x862-vloc-ea (- *x862-vstack* *x862-target-node-size*))))
         (let ((puntval nil))
           (flet ((x862-puntable-binding-p (var initform)
                    ;; The value returned is acode.
@@ -3939,6 +3945,7 @@
     (if (%ilogbitp $vbitspecial bits)
       (progn
         (x862-dbind seg addr (var-name var))
+        (x862-set-var-ea seg var (x862-vloc-ea (- *x862-vstack* *x862-target-node-size*)))
         t)
       (progn
         (when (%ilogbitp $vbitpunted bits)
@@ -3974,11 +3981,11 @@
 
 (defun x862-close-var (seg var)
   (let ((bits (nx-var-bits var)))
-    (when (and *x862-record-symbols* 
-         (%izerop (%ilogand (%ilogior (ash -1 $vbitspecial)
-                                      (%ilsl $vbitpunted 1)) bits)))
+    (when (and *x862-record-symbols*
+               (or (logbitp $vbitspecial bits)
+                   (not (logbitp $vbitpunted bits))))
       (let ((endnote (%car (%cdddr (assq var *x862-recorded-symbols*)))))
-        (unless endnote (error "x862-close-var ?"))
+        (unless endnote (error "x862-close-var for ~s" (var-name var)))
         (setf (vinsn-note-class endnote) :end-variable-scope)
         (append-dll-node (vinsn-note-label endnote) seg)))))
 
@@ -6110,13 +6117,7 @@
     (if (or (x862-explicit-non-fixnum-type-p form1)
             (x862-explicit-non-fixnum-type-p form2))
       (x862-binary-builtin seg vreg xfer name form1 form2)
-      (let* ((fix1 (acode-fixnum-form-p form1))
-             (fix2 (acode-fixnum-form-p form2)))
-        (if (and fix1 fix2)
-          (if (funcall name fix1 fix2)
-            (x862-t seg vreg xfer)
-            (x862-nil seg vreg xfer))
-          (x862-inline-numcmp seg vreg xfer cc name form1 form2))))))
+      (x862-inline-numcmp seg vreg xfer cc name form1 form2))))
 
 (defun x862-inline-numcmp (seg vreg xfer cc name form1 form2)
   (with-x86-local-vinsn-macros (seg vreg xfer)
@@ -6146,7 +6147,7 @@
         (! compare ($ x8664::arg_y) ($ x8664::arg_z)))
       (multiple-value-bind (cr-bit true-p) (acode-condition-to-x86-cr-bit cc)
         (when otherform
-          (unless (or (and fix2 (not fix1)) (eq cr-bit x86::x86-e-bits))
+          (unless (or fix2 (eq cr-bit x86::x86-e-bits))
             (setq cr-bit (x862-reverse-cr-bit cr-bit))))
         (if (not true-p)
           (setq cr-bit (logxor 1 cr-bit)))
@@ -7561,7 +7562,10 @@
         (declare (list val))
         (when (setq val (pop vals))
           (if (%ilogbitp $vbitspecial (nx-var-bits var))
-            (x862-dbind seg (car val) (var-name var))
+            (progn
+              (x862-dbind seg (car val) (var-name var))
+              (x862-set-var-ea seg var (x862-vloc-ea (- *x862-vstack* *x862-target-node-size*)))
+              )
             (x862-seq-bind-var seg var (car val)))))
       (x862-undo-body seg vreg xfer body old-stack)
       (dolist (var vars)
