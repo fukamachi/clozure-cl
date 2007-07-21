@@ -56,6 +56,9 @@ _truncate_to_power_of_2(unsigned long n, unsigned power)
 
 LispObj start_lisp(TCR*, LispObj);
 
+size_t
+ensure_stack_limit(size_t);
+
 #include "kernel-globals.h"
 #endif
 
