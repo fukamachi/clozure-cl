@@ -128,7 +128,7 @@
 
 ;default (bad) definitions for the non-portable functions
 
-(eval-when (eval load compile)
+(eval-when (:execute :load-toplevel :compile-toplevel)
 (defun structure-type-p (x) (structurep x))
 (defun output-width     (&optional (s *standard-output*))
   (when (streamp s)(line-length s)))
@@ -346,7 +346,7 @@
 
 ;               ---- XP STRUCTURES, AND THE INTERNAL ALGORITHM ----
 
-(eval-when (eval compile) ;not used at run time.
+(eval-when (:execute :compile-toplevel) ;not used at run time.
   (defvar block-stack-entry-size 1)
   (defvar prefix-stack-entry-size 5)
   (defvar queue-entry-size 7)
@@ -354,7 +354,7 @@
   (defvar prefix-entry-size 1)
   (defvar suffix-entry-size 1))
 
-(eval-when (eval load compile) ;used at run time
+(eval-when (:execute :load-toplevel :compile-toplevel) ;used at run time
   (defvar block-stack-min-size #.(* 35. block-stack-entry-size))
   (defvar prefix-stack-min-size #.(* 30. prefix-stack-entry-size))
   (defvar queue-min-size #.(* 75. queue-entry-size))
@@ -489,7 +489,7 @@
   )
 
  
-(eval-when (compile eval)
+(eval-when (:compile-toplevel :execute)
 (defmacro LP<-BP (xp &optional (ptr nil))
   (if (null ptr) (setq ptr `(xp-buffer-ptr ,xp)))
   `(the fixnum (%i+ ,ptr (xp-charpos ,xp))))
@@ -584,7 +584,7 @@
     (xp-check-size (xp-block-stack xp) ptr
                    #.block-stack-min-size #.block-stack-entry-size)))
 
-(eval-when (compile eval)
+(eval-when (:compile-toplevel :execute)
 (defmacro prefix-ptr (xp)
   `(svref (xp-prefix-stack ,xp) (xp-prefix-stack-ptr ,xp)))
 (defmacro suffix-ptr (xp)
@@ -628,7 +628,7 @@
 
 
 
-(eval-when (compile eval)
+(eval-when (:compile-toplevel :execute)
 (defmacro Qtype   (xp index) `(svref (xp-queue ,xp) ,index))
 (defmacro Qkind   (xp index) `(svref (xp-queue ,xp) (1+ ,index)))
 (defmacro Qpos    (xp index) `(svref (xp-queue ,xp) (+ ,index 2)))
@@ -932,7 +932,7 @@
 ;it keeps outputting things until the queue is empty, or it finds
 ;a place where it cannot make a decision yet.
 
-(eval-when (compile eval)
+(eval-when (:compile-toplevel :execute)
 (defmacro maybe-too-large (xp Qentry queue linel)
   `(let ((.limit. ,linel)
          (.qend. (xpq-end ,queue ,qentry)))
@@ -1120,16 +1120,15 @@
 ;additionally assume the thing being output does not contain a newline.
 
 (defun maybe-initiate-xp-printing (fn stream &rest args)
-  ;(print (list 'mip (type-of stream)))
   (if (xp-structure-p stream) (apply fn stream args)
-      (if (typep stream 'xp-stream)
-          (apply fn (slot-value stream 'xp-structure) args)
-          (let ((*locating-circularities* (if *print-circle* 0 nil))
-	        (*circularity-hash-table*
-	         (if *print-circle* (get-circularity-hash-table) nil)))
-	    (prog1 (xp-print fn (decode-stream-arg stream) args)
-              (if *circularity-hash-table*
-                  (free-circularity-hash-table *circularity-hash-table*)))))))
+    (if (typep stream 'xp-stream)
+      (apply fn (slot-value stream 'xp-structure) args)
+      (let ((*locating-circularities* (if *print-circle* 0 nil))
+            (*circularity-hash-table*
+             (if *print-circle* (get-circularity-hash-table) nil)))
+        (prog1 (xp-print fn (decode-stream-arg stream) args)
+          (if *circularity-hash-table*
+            (free-circularity-hash-table *circularity-hash-table*)))))))
 
 (defun xp-print (fn stream args)
   (flet ((do-it (fn stream args)
@@ -1452,7 +1451,7 @@
 ;stream not an ordinary one.
 
 
-(eval-when (compile load eval)
+(eval-when (:compile-toplevel :load-toplevel :execute)
 ; called by formatter frobs
 (defun do-sub-format-0 (s control-string args)
     (setq s (if (xp-structure-p s)(xp-stream s)
