@@ -208,6 +208,7 @@ $1 = $2<<fixnumshift])
 	deferr(XSGNARGS,176)
 	deferr(XTOOMANYVALUES,177)
         deferr(XSYMNOBIND,178)
+	deferr(XFOREIGNEXCEPTION,200)
 
 error_FPU_exception_double = 1024
 error_FPU_exception_short = 1025
