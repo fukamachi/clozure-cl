@@ -1182,6 +1182,9 @@ interrupt_handler (int signum, siginfo_t *info, ExceptionInformation *context)
           *save_tsp = tcr->save_tsp,
           *p,
           q;
+        natural old_foreign_exception = tcr->flags & (1 << TCR_FLAG_BIT_FOREIGN_EXCEPTION);
+
+        tcr->flags &= ~(1 << TCR_FLAG_BIT_FOREIGN_EXCEPTION);
             
         if (next_tsp != save_tsp) {
           tcr->next_tsp = save_tsp;
@@ -1205,6 +1208,7 @@ interrupt_handler (int signum, siginfo_t *info, ExceptionInformation *context)
           q = (LispObj)save_tsp;
           *next_tsp = q;
         }
+        tcr->flags |= old_foreign_exception;
         unlock_exception_lock_in_handler(tcr);
         exit_signal_handler(tcr, old_valence);
       }
