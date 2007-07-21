@@ -1,6 +1,0 @@
-(load "loadup")
-(compile-file "read-table")
-(compile-file "internals")
-(compile-file "codewalker")
-(compile-file "base")
-(compile-file "hemlock-shims")
