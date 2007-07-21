@@ -2426,20 +2426,20 @@ defcallback returns the callback pointer, e.g., the value of name."
                      (with-macptrs ((,stack-ptr))
                        (%setf-macptr-to-object ,stack-ptr ,stack-word)
                        (with-macptrs (,@(when fp-args-form
-                                             `((,fp-args-ptr ,fp-args-form))))
-                         ,(defcallback-body  stack-ptr
-                                             fp-args-ptr
-                                             lets
-                                             rlets
-                                             inits
-                                             `(declare (dynamic-extent ,@dynamic-extent-names))
-                                             decls
-                                             body
-                                             foreign-return-type
-                                             struct-return-arg-name
-                                             error-return
-                                             error-return-offset
-                                             ))))))
+                                              `((,fp-args-ptr ,fp-args-form))))
+                         ,(defcallback-body stack-ptr
+                                            fp-args-ptr
+                                            lets
+                                            rlets
+                                            inits
+                                            `(declare (dynamic-extent ,@dynamic-extent-names))
+                                            decls
+                                            body
+                                            foreign-return-type
+                                            struct-return-arg-name
+                                            error-return
+                                            error-return-offset
+                                            ))))))
                 ,doc
               ,woi
               ,monitor)))))))
@@ -2448,33 +2448,44 @@ defcallback returns the callback pointer, e.g., the value of name."
 (defun defcallback-body (&rest args)
   (declare (dynamic-extent args))
   (destructuring-bind (stack-ptr fp-args-ptr lets rlets inits dynamic-extent-decls other-decls body return-type struct-return-arg error-return error-delta) args
-      (let* ((result (gensym))
-         (condition-name (if (atom error-return) 'error (car error-return)))
-         (error-return-function (if (atom error-return) error-return (cadr error-return)))
-         (body
-   	  `(rlet ,rlets
-            (let ,lets
-              ,dynamic-extent-decls
-              ,@other-decls
-              ,@inits
-              (let ((,result (progn ,@body)))
-                (declare (ignorable ,result))
-                ,@(progn
-                   ;; Coerce SINGLE-FLOAT result to DOUBLE-FLOAT
-                   (when (typep return-type 'foreign-single-float-type)
-                     (setq result `(float ,result 0.0d0)))
-                   nil)
-                ,(funcall (ftd-callback-return-value-function *target-ftd*)
-                          stack-ptr
-                          fp-args-ptr
-                          result
-                          return-type
-                          struct-return-arg))))))
-    (if error-return
-      (let* ((cond (gensym)))
-        `(handler-case ,body
-          (,condition-name (,cond) (,error-return-function ,cond ,stack-ptr (%inc-ptr ,stack-ptr ,error-delta)))))
-      body))))
+    (declare (ignorable dynamic-extent-decls))
+    (let* ((result (gensym))
+           (condition-name (if (atom error-return) 'error (car error-return)))
+           (error-return-function (if (atom error-return) error-return (cadr error-return)))
+           (body
+            `(rlet ,rlets
+              (let ,lets
+                ,dynamic-extent-decls
+                ,@other-decls
+                ,@inits
+                (let ((,result (progn ,@body)))
+                  (declare (ignorable ,result)
+                           (dynamic-extent ,result))
+                  ,@(progn
+                     ;; Coerce SINGLE-FLOAT result to DOUBLE-FLOAT
+                     (when (typep return-type 'foreign-single-float-type)
+                       (setq result `(float ,result 0.0d0)))
+                     nil)
+                  ,(funcall (ftd-callback-return-value-function *target-ftd*)
+                            stack-ptr
+                            fp-args-ptr
+                            result
+                            return-type
+                            struct-return-arg)
+                  nil)))))
+      (if error-return
+        (let* ((cond (gensym))
+               (block (gensym))
+               (handler (gensym)))
+          `(block ,block
+            (let* ((,handler (lambda (,cond)
+                                           (,error-return-function ,cond ,stack-ptr (%inc-ptr ,stack-ptr ,error-delta))
+                                           (return-from ,block
+                                             nil))))
+              (declare (dynamic-extent ,handler))
+            (handler-bind ((,condition-name ,handler))
+              (values ,body)))))
+        body))))
 
 
 (defmacro errchk (form)
