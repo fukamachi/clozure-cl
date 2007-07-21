@@ -862,7 +862,7 @@ any EXTERNAL-ENTRY-POINTs known to be defined by it to become unresolved."
   (declare (ignore pty))
   (unless (every #'(lambda (a) (typep a 'simple-string)) args)
     (error "Program args must all be simple strings : ~s" args))
-  (push (native-translated-namestring program) args)
+  (push (native-untranslated-namestring program) args)
   (let* ((token (list 0))
 	 (in-fd nil)
 	 (in-stream nil)
