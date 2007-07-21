@@ -732,8 +732,7 @@ TCR_BIAS = 0
 	 _node(pending_exception_context)
 	 _node(suspend)		/* semaphore for suspension notify   */
 	 _node(resume)		/* sempahore for resumption notify   */
-         _word(flags_pad)
-	 _word(flags)      
+	 _node(flags)      
 	 _node(gc_context)
          _node(termination_semaphore)
          _node(unwinding)
@@ -748,7 +747,12 @@ TCR_BIAS = 0
 	
 TCR_FLAG_BIT_FOREIGN = fixnum_shift
 TCR_FLAG_BIT_AWAITING_PRESET = (fixnum_shift+1)	
-
+TCR_FLAG_BIT_ALT_SUSPEND = (fixnumshift+2)
+TCR_FLAG_BIT_PROPAGATE_EXCEPTION = (fixnumshift+3)
+TCR_FLAG_BIT_SUSPEND_ACK_PENDING = (fixnumshift+4)
+TCR_FLAG_BIT_PENDING_EXCEPTION = (fixnumshift+5)
+TCR_FLAG_BIT_FOREIGN_EXCEPTION = (fixnumshift+6)
+	
 target_most_positive_fixnum = 1152921504606846975
 target_most_negative_fixnum = -1152921504606846976
 
