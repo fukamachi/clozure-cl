@@ -381,7 +381,7 @@ done
                  (%i+ where count))))
          (args (nthcdr-no-overflow to orig)))
     ; avoid bogus circularity indication
-    (when (and (consp args) (<= to where) *circularity-hash-table*)
+    (when (and nil (consp args) (<= to where) *circularity-hash-table*)
       ; copy only from to thru where in case  some real shared structure
       (let ((l args) new)
         (dotimes (i (1+  (- where to)))
@@ -389,7 +389,6 @@ done
           (push (car l) new)
           (setq l (cdr l)))
         (setq args (nreconc new (nthcdr (1+ where) orig))))) ;(copy-list args)))
-    ;(when (eq args :error) (format-error "Can't go to non-existent argument"))
     (setq *format-arguments* args)))
 
 ; Redefined later.
