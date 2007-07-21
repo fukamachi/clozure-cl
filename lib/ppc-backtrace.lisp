@@ -228,31 +228,49 @@
 (defun %find-register-argument-value (context cfp regval bad)
   (let* ((last-catch (last-catch-since cfp context))
          (index (register-number->saved-register-index regval)))
-    (or
-     (do* ((frame cfp
-                  (child-frame frame context))
-           (first t))
-          ((null frame))
-       (if (fake-stack-frame-p frame)
-         (return (xp-gpr-lisp (%fake-stack-frame.xp frame) regval))
-         (if first
-           (setq first nil)
-           (multiple-value-bind (lfun pc)
-                 (cfp-lfun frame)
-               (when lfun
-                 (multiple-value-bind (mask where)
-                     (registers-used-by lfun pc)
-                   (when (if mask (logbitp index mask))
-                     (incf where (logcount (logandc2 mask (1- (ash 1 (1+ index))))))
-                 (return (raw-frame-ref frame context where bad)))))))))
-     (get-register-value nil last-catch index))))
+    (do* ((frame cfp
+                 (child-frame frame context))
+          (first t))
+         ((null frame))
+      (if (fake-stack-frame-p frame)
+        (return-from %find-register-argument-value
+          (xp-gpr-lisp (%fake-stack-frame.xp frame) regval))
+        (if first
+          (setq first nil)
+          (multiple-value-bind (lfun pc)
+              (cfp-lfun frame)
+            (when lfun
+              (multiple-value-bind (mask where)
+                  (registers-used-by lfun pc)
+                (when (if mask (logbitp index mask))
+                  (incf where (logcount (logandc2 mask (1- (ash 1 (1+ index))))))
+                  (return-from
+                   %find-register-argument-value
+                    (raw-frame-ref frame context where bad)))))))))
+    (get-register-value nil last-catch index)))
 
-(defun %raw-frame-ref (cfp context index bad)
-  (multiple-value-bind (vfp parent-vfp)
+(defun %raw-frame-ref (cfp context idx bad)
+  (declare (fixnum idx))
+  (multiple-value-bind (frame base)
       (vsp-limits cfp context)
-      (if (< index (- parent-vfp vfp))
-        (%fixnum-ref (- parent-vfp 1 index))
-        bad)))
+    (let* ((raw-size (- base frame)))
+      (declare (fixnum frame base raw-size))
+      (if (and (>= idx 0)
+               (< idx raw-size))
+        (let* ((addr (- (the fixnum (1- base))
+                        idx)))
+          (multiple-value-bind (db-count first-db last-db)
+              (count-db-links-in-frame frame base context)
+            (let* ((is-db-link
+                    (unless (zerop db-count)
+                      (do* ((last last-db (previous-db-link last first-db)))
+                           ((null last))
+                        (when (= addr last)
+                          (return t))))))
+              (if is-db-link
+                (oldest-binding-frame-value context addr)
+                (%fixnum-ref addr)))))
+        bad))))
 
 ;;; Used for printing only.
 (defun index->address (p)
