@@ -141,6 +141,12 @@ whose name or ID matches <p>, or to any process if <p> is null"
                        :count 1
                        :detailed-p t))
 
+(define-toplevel-command :break raw (n) "Show raw contents of backtrace frame <n>"
+   (print-call-history :origin *break-frame*
+                       :start-frame-number n
+                       :count 1
+                       :detailed-p :raw))
+
 (define-toplevel-command :break v (n frame-number) "Return value <n> in frame <frame-number>"
   (let* ((frame-sp (nth-raw-frame frame-number *break-frame* nil)))
     (if frame-sp
@@ -456,7 +462,9 @@ whose name or ID matches <p>, or to any process if <p> is null"
 (declaim (notinline select-backtrace))
 
 (defmacro new-backtrace-info (dialog youngest oldest tcr condition current fake db-link level)
-  `(vector ,dialog ,youngest ,oldest ,tcr nil (%catch-top ,tcr) ,condition ,current ,fake ,db-link ,level))
+  (let* ((cond (gensym)))
+  `(let* ((,cond ,condition))
+    (vector ,dialog ,youngest ,oldest ,tcr (cons nil (compute-restarts ,cond)) (%catch-top ,tcr) ,cond ,current ,fake ,db-link ,level))))
 
 (defun select-backtrace ()
   (declare (notinline select-backtrace))
