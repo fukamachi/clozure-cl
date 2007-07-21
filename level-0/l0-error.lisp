@@ -134,6 +134,7 @@
     (175 . "Stack group ~S is exhausted.")
     (176 . "Stack group ~S called with arguments ~:S; exactly 1 argument accepted.")
     (177 . "Attempt to return too many values.")
-    (178 . "Can't dynamically bind ~S. ")))
+    (178 . "Can't dynamically bind ~S. ")
+    (200 . "Foreign exception: ~S. ")))
   
 
