@@ -3018,11 +3018,11 @@ to replace that class with ~s" name old-class new-class)
 ;;; This is part of the MOP
 ;;; Maybe it was, at one point in the distant past ...
 (defmethod class-slot-initargs ((class slots-class))
-  (apply #'append (mapcar #'(lambda (s)
-                              (%slot-definition-initargs s))
-                          (%class-slots class))))
+  (collect ((initargs))
+    (dolist (slot (%class-slots class) (initargs))
+      (dolist (i (%slot-definition-initargs slot))
+        (initargs i)))))
 
-    
   
 (defun maybe-update-obsolete-instance (instance)
   (let ((wrapper (standard-object-p instance)))
