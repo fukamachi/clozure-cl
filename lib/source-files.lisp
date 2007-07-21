@@ -32,7 +32,8 @@
 (%fhave '%set-source-files (qlfun %set-source-files (name value)
                              (puthash name %source-files% value)))
 
-; modified version of %method-applicable-p - args are class names not instances
+;;; modified version of %method-applicable-p - args are class names
+;;; not instances
 (defun %my-method-applicable-p (method args cpls)
   (do ((specs (%method-specializers method) (cdr specs))
        (args args (cdr args))
@@ -46,9 +47,9 @@
         (unless (memq spec (car cpls))
           (return nil))))))
 
-; modified version of %compute-applicable-methods*
-; omit errors and args are class names not instances
-; returns a new list.
+;;; modified version of %compute-applicable-methods*
+;;; omit errors and args are class names not instances
+;;; returns a new list.
 (defun find-applicable-methods (name args qualifiers)
   (let ((gf (fboundp name)))
     (when (and gf (typep gf 'standard-generic-function))
@@ -122,14 +123,14 @@
                              methods)
                   methods))))))))))
 
-; Do this just in case record source file doesn't remember the right definition
+;;; Do this just in case record source file doesn't remember the right
+;;; definition
 (defun methods-match-p (x y)  
   (or (eq x y)
       (and (typep x 'method)
            (typep y 'method)
            (equal (method-name x)
                   (method-name y))
-           ; this is not  right for eql methods with non-constant frobs
            (equal (method-specializers x)
                   (method-specializers y))
            (equal (method-qualifiers x)
@@ -212,7 +213,7 @@
 
 
 
-;; sym can be (setf blah)
+;;; sym can be (setf blah)
 (defun get-source-files-with-types&classes (sym &optional (type t) classes qualifiers the-method)
   (labels 
     ((merge-types (l)
