@@ -958,6 +958,7 @@ xThreadCurrentStackSpace(TCR *tcr, unsigned *resultP)
 }
 
 
+
 LispObj
 create_system_thread(size_t stack_size,
 		     void* stackaddr,
@@ -974,6 +975,7 @@ create_system_thread(size_t stack_size,
     stack_size = PTHREAD_STACK_MIN;
   }
 
+  stack_size = ensure_stack_limit(stack_size);
   if (stackaddr != NULL) {
     /* Size must have been specified.  Sort of makes sense ... */
 #ifdef DARWIN
@@ -1017,6 +1019,16 @@ get_tcr(Boolean create)
 #endif
     current->vs_area->active -= node_size;
     *(--current->save_vsp) = lisp_nil;
+#ifdef PPC
+#define NSAVEREGS 8
+#endif
+#ifdef X8664
+#define NSAVEREGS 4
+#endif
+    for (i = 0; i < NSAVEREGS; i++) {
+      *(--current->save_vsp) = 0;
+      current->vs_area->active -= node_size;
+    }
     nbindwords = ((int (*)())ptr_from_lispobj(callback_ptr))(-1);
     for (i = 0; i < nbindwords; i++) {
       *(--current->save_vsp) = 0;
