@@ -65,7 +65,7 @@ num_lisp_globals = 48		 /* MUST UPDATE THIS !!!   */
 	 _node(initial_tcr)	        /* initial thread tcr   */
 	 _node(image_name)	        /* --image-name argument   */
 	 _node(BADfpscr_save_high)      /* high word of FP reg used to save FPSCR   */
-	 _node(BADfpscr_save)           /* saved FPSCR   */
+	 _node(unwind_resume)           /* _Unwind_Resume */
 	 _node(batch_flag)	        /* -b   */
 	 _node(host_platform)	        /* for runtime platform-specific stuff   */
 	 _node(argv)			/* address of argv[0]   */
@@ -76,14 +76,14 @@ num_lisp_globals = 48		 /* MUST UPDATE THIS !!!   */
 	 _node(lisp_return_hook)	/* install lisp exception_handling   */
 	 _node(double_float_one) 	/* high half of 1.0d0   */
 	 _node(short_float_zero) 	/* low half of 1.0d0   */
-	 _node(doh_head) 		/* creole objects header   */
+	 _node(objc2_end_catch) 	/* objc_end_catch()  */
 	 _node(metering_info) 		/* address of lisp_metering global   */
 	 _node(in_gc) 			/* non-zero when GC active   */
 	 _node(lexpr_return1v) 		/* simpler when &lexpr called for single value.   */
 	 _node(lexpr_return) 		/* magic &lexpr return code.   */
 	 _node(all_areas) 		/* doubly-linked list of all memory areas   */
 	 _node(bad_funcall)	 	/* pseudo-funcall target for cmove   */
-	 _node(BAD_current_ts) 		/* current temp-stack area   */
+	 _node(objc2_begin_catch)	/* objc_begin_catch   */
 	 _node(BAD_current_vs) 		/* current value-stack area   */
 	 _node(statically_linked)	/* non-zero if -static   */
 	 _node(heap_end)                /* end of lisp heap   */
@@ -105,7 +105,7 @@ num_lisp_globals = 48		 /* MUST UPDATE THIS !!!   */
 	 _node(subprims_base) 		/* address of dynamic subprims jump table   */
 	 _node(saveR13)			/* probably don]t really need this   */
 	 _node(saveTOC)                 /* where the 68K emulator stores the  emulated regs   */
-	 _node(tcr_lock)		/* this thread]s exception frame chain   */
+	 _node(objc_2_personality)		/* exception "personality routine" address for ObjC 2.0 */
 	 _node(kernel_imports) 		/* some things we need imported for us   */
 	 _node(interrupt_signal)	/* signal used by PROCESS-INTERRUPT   */
 	 _node(tcr_count) 		/* tcr_id for next tcr   */
