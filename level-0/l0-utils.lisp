@@ -134,7 +134,15 @@
            ((null l))
         (when (funcall test-fn item (car l)) (return l))))))
 
+(defun s32->u32 (s32)
+  (%stack-block ((buf 4))
+    (setf (%get-signed-long buf) s32)
+    (%get-unsigned-long buf)))
 
+(defun u32->s32 (u32)
+  (%stack-block ((buf 4))
+    (setf (%get-unsigned-long buf) u32)
+    (%get-signed-long buf)))
 
 
 ; end
