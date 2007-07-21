@@ -136,3 +136,8 @@
   (let* ((old (nth-value 3 (%get-tty-attributes tty))))
     (when old
       (%set-tty-attributes tty :local-modes (logand old (lognot mask))))))
+
+(defun set-tty-raw (tty)
+  (rlet ((attr :termios))
+    (#_cfmakeraw attr)
+    (eql 0 (#_tcsetattr tty #$TCSAFLUSH attr))))
