@@ -244,11 +244,20 @@
     (when (logbitp $nhash_track_keys_bit flags)
       (setf (nhash.vector.flags vector) (logior (ash 1 $nhash_key_moved_bit) flags)))))
 
+#+32-bit-target
 (defun mixup-hash-code (fixnum)
   (declare (fixnum fixnum))
   (the fixnum
     (+ fixnum
        (the fixnum (%ilsl (- 32 8)
+                          (logand (1- (ash 1 (- 8 3))) fixnum))))))
+
+#+64-bit-target
+(defun mixup-hash-code (fixnum)
+  (declare (fixnum fixnum))
+  (the fixnum
+    (+ fixnum
+       (the fixnum (%ilsl 50
                           (logand (1- (ash 1 (- 8 3))) fixnum))))))
 
 
@@ -289,9 +298,15 @@
               (values hash :key ))))))))
 
 
+#+32-bit-target
 (defun swap (num)
   (declare (fixnum num))
   (the fixnum (+ (the fixnum (%ilsl 16 num))(the fixnum (%ilsr 13 num)))))
+
+#+64-bit-target
+(defun swap (num)
+  (declare (fixnum num))
+  (the fixnum (+ (the fixnum (%ilsl 32 num))(the fixnum (%ilsr 29 num)))))
 
 ;;; teeny bit faster when nothing to do
 (defun %%eqlhash-internal (key)
@@ -657,29 +672,39 @@ before doing so.")
   (unless (hash-table-p hash)
     (report-bad-arg hash 'hash-table))
   (let* ((value nil)
+         (vector-key nil)
+         (gc-locked nil)
          (foundp nil))
     (without-interrupts
-      (block protected
-        (lock-hash-table hash)
-        (%lock-gc-lock)
-        (when (%needs-rehashing-p hash)
-          (%rehash hash))
-        (let* ((vector (nhash.vector hash)))
-          (if (eq key (nhash.vector.cache-key vector))
-            (setq foundp t
-                  value (nhash.vector.cache-value vector))
-            (let* ((vector-index (funcall (nhash.find hash) hash key))
-                   (vector-key (%svref vector vector-index)))
-              (declare (fixnum vector-index))
-              (if (setq foundp (and (not (eq vector-key free-hash-key-marker))
-                                    (not (eq vector-key deleted-hash-key-marker))))
-                (setf value (%svref vector (the fixnum (1+ vector-index)))
-                      (nhash.vector.cache-key vector) vector-key
-                      (nhash.vector.cache-value vector) value
-                      (nhash.vector.cache-idx vector) (vector-index->index
-                                                       vector-index)))))))
-      (%unlock-gc-lock)
-      (unlock-hash-table hash))
+     (lock-hash-table hash)
+     (let* ((vector (nhash.vector hash)))
+       (if (and (eq key (nhash.vector.cache-key vector))
+                ;; Check twice: the GC might nuke the cached key/value pair
+                (progn (setq value (nhash.vector.cache-value vector))
+                       (eq key (nhash.vector.cache-key vector))))
+         (setq foundp t)
+         (loop
+           (let* ((vector-index (funcall (nhash.find hash) hash key)))
+             (declare (fixnum vector-index))
+             ;; Referencing both key and value here - and referencing
+             ;; value first - is an attempt to compensate for the
+             ;; possibility that the GC deletes a weak-on-key pair.
+             (setq value (%svref vector (the fixnum (1+ vector-index)))
+                   vector-key (%svref vector vector-index))
+             (cond ((setq foundp (and (not (eq vector-key free-hash-key-marker))
+                                      (not (eq vector-key deleted-hash-key-marker))))
+                    (setf (nhash.vector.cache-key vector) vector-key
+                          (nhash.vector.cache-value vector) value
+                          (nhash.vector.cache-idx vector) (vector-index->index
+                                                           vector-index))
+                    (return))
+               ((%needs-rehashing-p hash)
+                (setq gc-locked t)
+                (%lock-gc-lock)
+                (%rehash hash))
+               (t (return)))))))
+     (when gc-locked (%unlock-gc-lock))
+     (unlock-hash-table hash))
     (if foundp
       (values value t)
       (values default nil))))
@@ -845,7 +870,6 @@ before doing so.")
 
      
 
-;;; Grow the hash table, then add the given (key value) pair.
 (defun grow-hash-table (hash)
   (unless (hash-table-p hash)
     (setq hash (require-type hash 'hash-table)))
