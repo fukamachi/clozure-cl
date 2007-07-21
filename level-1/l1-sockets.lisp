@@ -707,7 +707,7 @@ the socket is not connected."))
                       :direction :io
                       :element-type element-type
                       :sharing sharing
-                      :character-p t
+                      :character-p (not (eq format :binary))
                       :encoding (external-format-character-encoding external-format)
                       :line-termination (external-format-line-termination external-format)
                       :basic basic))))
@@ -727,7 +727,7 @@ the socket is not connected."))
                       :encoding (external-format-character-encoding external-format)
                       :line-termination (external-format-line-termination external-format)
                       :sharing sharing
-                      :character-p t
+                      :character-p (not (eq format :binary))
                       :basic basic))))
 
 (defun make-tcp-listener-socket (fd &rest keys &key backlog &allow-other-keys)
