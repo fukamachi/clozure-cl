@@ -167,7 +167,7 @@ ensure_stack_limit(size_t stack_size)
       Fatal(": Stack resource limit too small", "");
     }
   }
-  return stack_size - (CSTACK_HARDPROT+CSTACK_SOFTPROT);
+  return stack_size;
 }
 
 
@@ -992,7 +992,7 @@ usage_exit(char *herald, int exit_status, char* other_args)
   fprintf(stderr, "\t and <image-name> defaults to %s\n", 
 	  default_image_name(program_name));
   fprintf(stderr, "\n");
-  exit(exit_status);
+  _exit(exit_status);
 }
 
 int no_sigtrap = 0;
