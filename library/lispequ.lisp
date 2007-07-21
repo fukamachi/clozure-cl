@@ -784,6 +784,7 @@
 (defconstant $XSGEXHAUSTED 175)
 (defconstant $XSGNARGS 176)
 (defconstant $XTOOMANYVALUES 177)
+(defconstant $XFOREIGNEXCEPTION 200)
 
 (defconstant $cons-area.gspace-start 0)
 (defconstant $cons-area.gspace-end 4)
