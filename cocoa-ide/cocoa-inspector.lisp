@@ -466,4 +466,4 @@ appropriate windows.  -hel
 	window)))
 
 ;;; Make INSPECT call CINSPECT.
-(setq *default-inspector-ui-creation-function* 'cinspect)
+(setq inspector::*default-inspector-ui-creation-function* 'cinspect)
