@@ -2699,6 +2699,7 @@
       `(* ,usual)
       usual)))
 
+
     
     
 (defun x86-print-disassembled-instruction (ds instruction seq)
@@ -2726,8 +2727,8 @@
     (1+ seq)))
 
 
-(defun x8664-disassemble-xfunction (xfunction &optional (symbolic-names
-                                                         x8664::*x8664-symbolic-register-names*))
+(defun x8664-disassemble-xfunction (xfunction &key (symbolic-names
+                                                         x8664::*x8664-symbolic-register-names*) (collect-function #'x86-print-disassembled-instruction))
   (check-type xfunction xfunction)
   (check-type (uvref xfunction 0) (simple-array (unsigned-byte 8) (*)))
   (let* ((ds (make-x86-disassembly-state
@@ -2748,10 +2749,10 @@
     (let* ((seq 0))
       (do-dll-nodes (block blocks)
         (do-dll-nodes (instruction (x86-dis-block-instructions block))
-          (setq seq (x86-print-disassembled-instruction ds instruction seq)))))))
+          (setq seq (funcall collect-function ds instruction seq)))))))
 
 #+x8664-target
-(defun x8664-xdisassemble (function)
+(defun x8664-xdisassemble (function &optional (collect-function #'x86-print-disassembled-instruction ))
   (let* ((fv (%function-to-function-vector function))
          (function-size-in-words (uvsize fv))
          (code-words (%function-code-words function))
@@ -2766,9 +2767,43 @@
     (do* ((k code-words (1+ k))
           (j 1 (1+ j)))
          ((= k function-size-in-words)
-          (x8664-disassemble-xfunction xfunction))
+          (x8664-disassemble-xfunction xfunction :collect-function collect-function))
       (declare (fixnum j k))
-      (setf (uvref xfunction j) (uvref fv k))))) 
+      (setf (uvref xfunction j) (uvref fv k)))))
+
+(defun disassemble-list (function)
+  (collect ((instructions))
+    (x8664-xdisassemble
+     function
+     #'(lambda (ds instruction seq)
+         (collect ((insn))
+           (let* ((addr (x86-di-address instruction))
+                  (entry (x86-ds-entry-point ds))
+                  (rpc (- addr entry)))
+             (if (x86-di-labeled instruction)
+               (progn
+                 (insn `(label ,rpc))
+                 (setq seq 0))
+               (insn rpc))
+             (dolist (p (x86-di-prefixes instruction))
+               (insn p))
+             (insn (x86-di-mnemonic instruction))
+             (let* ((op0 (x86-di-op0 instruction))
+                    (op1 (x86-di-op1 instruction))
+                    (op2 (x86-di-op2 instruction)))
+               (when op0
+                 (insn (unparse-x86-lap-operand op0 ds))
+                 (when op1
+                   (insn (unparse-x86-lap-operand op1 ds))
+                   (when op2
+                     (insn (unparse-x86-lap-operand op2 ds))  ))))
+             (instructions (insn))
+             (1+ seq)))))
+    (instructions)))
+                         
+             
+
+           
          
 
                                      
