@@ -90,6 +90,16 @@
       (signal-file-error $xillwild name))
     (namestring-unquote name)))
 
+(defun native-untranslated-namestring (path)
+  (let ((name (namestring (translate-logical-pathname path))))
+    ;; Check that no quoted /'s
+    (when (%path-mem-last-quoted "/" name)
+      (signal-file-error $xbadfilenamechar name #\/))
+    ;; Check that no unquoted wildcards.
+    (when (%path-mem-last "*" name)
+      (signal-file-error $xillwild name))
+    (namestring-unquote name)))
+
 ;; Reverse of above, take native namestring and make a Lisp pathname.
 (defun native-to-pathname (name)
   (pathname (%path-std-quotes name nil "*;:")))
@@ -129,6 +139,7 @@
 
 (defun translated-namestring (path)
   (namestring (translate-logical-pathname (merge-pathnames path))))
+
 
 (defun truename (path)
   "Return the pathname for the actual file described by PATHNAME.
@@ -298,6 +309,13 @@
   "Return a string representation of the directories used in the pathname."
   (%directory-list-namestring (pathname-directory path)
 			      (neq (pathname-host path) :unspecific)))
+
+(defun ensure-directory-namestring (string)
+  (let* ((len (length string)))
+    (if (and (> len 1)
+             (not (eql (char string (1- len)) #\/)))
+      (concatenate 'string string "/")
+      string)))
 
 (defun %directory-list-namestring (list &optional logical-p)
   (if (null list)
@@ -693,6 +711,7 @@ a host-structure or string."
 		  (pathname (%pathname-directory path))
 		  (string
 		   (multiple-value-bind (sstr start end) (get-sstring path)
+                     #+no
                      (if (and (> end start)
                               (eql (schar sstr start) #\~))
                        (setq sstr (tilde-expand (subseq sstr start end))
