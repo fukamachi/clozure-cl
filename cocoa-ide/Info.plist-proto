@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist SYSTEM "file://localhost/System/Library/DTDs/PropertyList.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>English</string>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>lisp</string>
+				<string>*</string>
+			</array>
+			<key>CFBundleTypeName</key>
+			<string>NSStringPboardType</string>
+			<key>CFBundleTypeOSTypes</key>
+			<array>
+				<string>TEXT</string>
+			</array>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleTypeName</key>
+			<string>Lisp source file</string>
+			<key>NSDocumentClass</key>
+			<string>HemlockEditorDocument</string>
+			<key>CFBundleTypeIconFile</key>
+			<string>openmcl-icon.icns</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Listener</string>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>NSDocumentClass</key>
+			<string>HemlockListenerDocument</string>
+			<key>CFBundleTypeIconFile</key>
+			<string>openmcl-icon.icns</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>html</string>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>NSDocumentClass</key>
+			<string>DisplayDocument</string>
+		</dict>	</array>
+	<key>CFBundleHelpBookFolder</key>
+	<string>Help</string>
+	<key>CFBundleHelpBookName</key>
+	<string>OpenMCL Help</string>
+	<key>CFBundleExecutable</key>
+	<string>OPENMCL-KERNEL</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleSignature</key>
+	<string>OMCL</string>
+	<key>CFBundleVersion</key>
+	<string>0.2</string>
+	<key>NSMainNibFile</key>
+	<string>MainMenu</string>
+	<key>NSPrincipalClass</key>
+	<string>LispApplication</string>
+	<key>CFBundleName</key>
+	<string>OpenMCL</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.clozure.OpenMCL</string>
+	<key>CFBundleIconFile</key>
+	<string>openmcl-icon.icns</string>
+</dict>
+</plist>

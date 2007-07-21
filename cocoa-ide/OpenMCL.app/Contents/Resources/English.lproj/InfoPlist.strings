@@ -1,0 +1,6 @@
+/* Localized versions of Info.plist keys */
+
+CFBundleName = "OpenMCL";
+CFBundleShortVersionString = "OpenMCL Cocoa UI version 0.2";
+CFBundleGetInfoString = "OpenMCL Cocoa UI version 0.2, Copyright 2002-2003 Clozure Associates and contributors.";
+NSHumanReadableCopyright = "Copyright 2002-2003 Clozure Associates and contributors.";
