@@ -53,6 +53,9 @@
          (format-string (%rsc-string err-num)))
     (%err-disp-common err-num err-typ format-string errargs frame-ptr)))
 
+(defparameter *foreign-error-condition-recognizers* ())
+
+
 (defun %err-disp-common (err-num err-typ format-string errargs frame-ptr)
   (let* ((condition-name (or (uvref *simple-error-types* err-typ)
                              (%cdr (assq err-num *kernel-simple-error-classes*)))))
@@ -93,7 +96,13 @@
                                     :format-arguments errargs)))
                nil
                frame-ptr)
-      (funcall '%error format-string errargs frame-ptr))))
+      (let* ((cond nil))
+        (if (and (eql err-num $XFOREIGNEXCEPTION)
+                 (dolist (recog *foreign-error-condition-recognizers*)
+                   (let* ((c (funcall recog (car errargs))))
+                     (when c (return (setq cond c))))))
+          (funcall '%error cond nil frame-ptr)
+          (funcall '%error format-string errargs frame-ptr))))))
 
 (defun error (condition &rest args)
   "Invoke the signal facility on a condition formed from DATUM and ARGUMENTS.
