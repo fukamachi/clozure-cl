@@ -166,7 +166,11 @@
 	       
 
 ;;; an example method to base a specialization on
-(defmethod toplevel-function ((a application) init-file)
+(defmethod toplevel-function  ((a application) init-file)
+  (declare (ignore init-file))
+  nil )
+
+(defmethod toplevel-function :before ((a application) init-file)
   (declare (ignore init-file))
   (multiple-value-bind (error-flag options args rest-arg)
       (parse-application-arguments a)
@@ -190,16 +194,8 @@ Default version returns OpenMCL version info."
       (apply #'ui-object-do-operation ui-object operation args))))
 
 
-;;;; specialize this for your application
-(defmethod open-application ((self application) startup)
-  (declare (ignore startup))
-  nil)
-  
-;;; specialize this for your application
-(defmethod open-application-document ((a application) path &optional startup)
-  (declare (ignore path startup)))
 
-(defmethod application-name          ((app application)) nil)
+
 (defmethod application-init-file     ((app application)) nil)
 
 
@@ -260,10 +256,6 @@ Default version returns OpenMCL version info."
 		 #$EX_USAGE
 		 (summarize-option-syntax a))
     (progn
-      (let* ((encoding (assoc :terminal-encoding options)))
-        (when encoding
-          ))
-        
       (setq *load-lisp-init-file* (not (assoc :noinit options))
             *quiet-flag* (if *batch-flag*
                            (not (null (assoc :quiet options))))
@@ -273,12 +265,7 @@ Default version returns OpenMCL version info."
                     options)))))
 	
 
-
-
-
-
 (defmethod toplevel-function ((a lisp-development-system) init-file)
-  (call-next-method)
   (let* ((sr (input-stream-shared-resource *terminal-input*)))
     (with-slots (initial-listener-process) a
       (setq initial-listener-process
@@ -312,7 +299,6 @@ Default version returns OpenMCL version info."
   "home:openmcl-init")
 
 
-; redefined by hide-listener-support
 (defmethod application-error ((a application) condition error-pointer)
   (declare (ignore condition error-pointer))
   (quit))
