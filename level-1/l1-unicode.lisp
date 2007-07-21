@@ -3013,9 +3013,9 @@ bytes."
            (declare (type (unsigned-byte 8) code))
            (if (> nexti end)
              (return (values nchars i))
-             (setq nchars (1+ nchars) i nexti))))))
+             (setq i nexti))))))
     :decode-literal-code-unit-limit #x80
-  :encode-literal-char-code-limit #x80    
+    :encode-literal-char-code-limit #x80    
     :bom-encoding #(#xef #xbb #xbf)
     )
 
