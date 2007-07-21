@@ -16,31 +16,6 @@
 
 (in-package "CCL")
 
-(defstatic *callback-alloc-lock* (make-lock))
-
-;;; 
-(defun %make-executable-page ()
-  (#_mmap (%null-ptr)
-          (#_getpagesize)
-          (logior #$PROT_READ #$PROT_WRITE #$PROT_EXEC)
-          (logior #$MAP_PRIVATE #$MAP_ANON)
-          -1
-          0))
-
-(defstatic *available-bytes-for-callbacks* 0)
-(defstatic *current-callback-page* nil)
-
-(defun reset-callback-storage ()
-  (setq *available-bytes-for-callbacks* (#_getpagesize)
-        *current-callback-page* (%make-executable-page)))
-
-(defun %allocate-callback-pointer (n)
-  (with-lock-grabbed (*callback-alloc-lock*)
-    (when (< *available-bytes-for-callbacks* n)
-      (reset-callback-storage))
-    (decf *available-bytes-for-callbacks* n)
-    (values (%inc-ptr *current-callback-page* *available-bytes-for-callbacks*))))
-
 
   
 (defun make-callback-trampoline (index &optional monitor-exception-ports)

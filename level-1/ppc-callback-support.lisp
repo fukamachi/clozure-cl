@@ -20,9 +20,6 @@
 
 (in-package "CCL")
 
-;;; Do nothing; it seems that we can safely be pretty casual about assuming
-;;; that malloc()ed memory is executable on PPC.
-(defun reset-callback-storage ())
 
 
 ;;; This is machine-dependent (it conses up a piece of "trampoline" code
@@ -39,7 +36,7 @@
 	     (if monitor-exception-ports
 	       #.(subprim-name->offset '.SPpoweropen-callbackX)
 	       #.(subprim-name->offset '.SPpoweropen-callback)))
-           (p (malloc 12)))
+           (p (%allocate-callback-pointer 12)))
       (setf (%get-long p 0) (logior (ldb (byte 8 16) index)
                                     (ppc-lap-word (lis 11 ??)))   ; unboxed index
             (%get-long p 4) (logior (ldb (byte 16 0) index)
@@ -61,7 +58,7 @@
 #+(and linuxppc-target poweropen-target)
 (defun make-callback-trampoline (index &optional monitor-exception-ports)
   (declare (ignorable monitor-exception-ports))
-  (let* ((p (malloc 16)))
+  (let* ((p (%allocate-callback-pointer 16)))
     (setf (%%get-unsigned-longlong p 0) #.(subprim-name->offset '.SPpoweropen-callback)
           (%%get-unsigned-longlong p 8) index)
     p))
