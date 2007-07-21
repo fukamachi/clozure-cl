@@ -24,7 +24,7 @@ extern LispObj lisp_nil;
 #define TCR_COUNT (-2)		/* next tcr's tcr_id */
 #define INTERRUPT_SIGNAL  (-3)  /* signal to use for PROCESS-INTERRUPT */
 #define KERNEL_IMPORTS (-4)	/* some things we need to have imported for us. */
-#define badTCR_LOCK (-5)        /* (obsolete) lock on the TCR queue */
+#define OBJC_2_PERSONALITY (-5) /* A good listener.  Doesn't say much */
 #define SAVETOC (-6)	        /* Saved TOC register, for some platforms */
 #define SAVER13 (-7)		/* Saved (global) r13, on some platforms */
 #define SUBPRIMS_BASE (-8)	/* where the dynamic subprims wound up */
@@ -46,14 +46,14 @@ extern LispObj lisp_nil;
 #define HEAP_END (-24)          /* end of lisp heap */
 #define STATICALLY_LINKED (-25)        /* non-zero if -static */
 #define STACK_SIZE (-26)        /* from the command line */
-#define BAD_CURRENT_TS (-27)        /* area describing temp-stack */
+#define OBJC_2_BEGIN_CATCH (-27)  /* address of ObjC 2.0 objc_begin_catch() */
 #define BAD_FUNCALL (-28)       /* funcall pseudo-target on x86 */
 #define ALL_AREAS (-29)         /* doubly-linked list of stack & heap areas */
 #define LEXPR_RETURN (-30)      /* magic &lexpr cleanup code */
 #define LEXPR_RETURN1V (-31)    /* single-value &lexpr cleanup code */
 #define IN_GC (-32)             /* non-zero when lisp addresses may be invalid */
 #define METERING_INFO (-33)     /* address of lisp_metering global */
-#define DOH_HEAD (-34)          /* Homer ? */
+#define OBJC_2_END_CACTCH (-34)          /* address of ObjC 2.0 objc_end_catch() */
 #define SHORT_FLOAT_ZERO (-35)  /* low half of 1.0d0 */
 #define DOUBLE_FLOAT_ONE (-36)  /* high half of 1.0d0 */
 #define LISP_RETURN_HOOK (-37)	/* install lisp exception handling */
@@ -64,7 +64,7 @@ extern LispObj lisp_nil;
 #define ARGV (-42)              /* pointer to &argv[0] */
 #define HOST_PLATFORM (-43)	/* for platform-specific initialization */
 #define BATCH_FLAG (-44)	/* -b arg */
-#define BAD_FPSCR_SAVE (-45)	/* saved FPSCR for FFI */
+#define UNWIND_RESUME (-45)	/* address of _Unwind_Resume from libobjc */
 #define BAD_FPSCR_SAVE_HIGH (-46)	/* high word of FP reg used to save FPSCR */
 #define IMAGE_NAME (-47)	/* --image-name arg */
 #define INITIAL_TCR (-48)	/* initial thread tcr */
