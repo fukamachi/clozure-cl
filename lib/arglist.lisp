@@ -16,6 +16,35 @@
 
 (in-package "CCL")
 
+;;; Record pseudo-arglist info for special operators.
+(record-arglist 'catch "tag &body body")
+(record-arglist 'progn "&BODY BODY")
+(record-arglist 'function "NAME-OR-LAMBDA-EXPRESSION")
+(record-arglist 'go "TAG")
+(record-arglist 'symbol-macrolet "(&REST BINDINGS) &BODY BODY")
+(record-arglist 'locally "DECLARATION* &BODY BODY")
+(record-arglist 'setq "[SYMBOL VALUE]*")
+(record-arglist 'tagbody "&REST TAGS-OR-FORMS")
+(record-arglist 'return-from "BLOCK VALUES")
+(record-arglist 'quote '(form))
+(record-arglist 'macrolet "(&REST BINDINGS) &BODY BODY")
+(record-arglist 'the '(type-specifier form))
+(record-arglist 'eval-when "(&REST SITUATIONS) &BODY BODY")
+(record-arglist 'let* "(&REST BINDINGS) &BODY BODY")
+(record-arglist 'let "(&REST BINDINGS) &BODY BODY")
+(record-arglist 'load-time-value '(form))
+(record-arglist 'throw '(tag value))
+(record-arglist 'unwind-protect "PROTECTED-FORM &BODY CLEANUP-FORMS")
+(record-arglist 'flet "(&REST BINDINGS) &BODY BODY")
+(record-arglist 'multiple-value-call '(function &rest values-producing-forms))
+(record-arglist 'block "NAME &BODY BODY")
+(record-arglist 'labels "(&REST BINDINGS) &BODY BODY")
+(record-arglist 'multiple-value-prog1 "VALUES-PRODUCING-FORM &BODY FORMS-FOR-EFFECT")
+(record-arglist 'if '(test true &optional false))
+(record-arglist 'progv "(&REST VARS) (&REST VALUES) &BODY BODY")
+(record-arglist 'nfunction '(function-name lambda-expression))
+
+
 ; Returns two values: the arglist & it's functions binding.
 ; If the second arg is NIL, there was no function binding.
 (defun arglist (sym &optional include-bindings)
@@ -55,10 +84,6 @@
             (multiple-value-setq (val errorp)
               (ignore-errors (values (read stream nil eof))))
             (when errorp
-	      #+help-file ; %HEL temporarily avoiding reference to help file
-              (if use-help-file
-                (return-from %arglist 
-                  (%arglist sym include-bindings temp-cons-p nil)))
               (push '&rest res)
               (push ':unparseable res)
               (return))
@@ -170,6 +195,38 @@
                   (push '&allow-other-keys res))))
             (values (nreverse res) t))
           (values nil (zerop ncells)))))))
+
+(defun arg-names-from-map (lfun pc)
+  (multiple-value-bind (nreq nopt restp nkeys allow-other-keys
+                             optinit lexprp
+                             ncells nclosed)
+      (function-args lfun)
+    (declare (ignore optinit ncells allow-other-keys))
+    (collect ((req)
+              (opt)
+              (keys))
+      (let* ((rest nil)
+             (map (car (function-symbol-map lfun))))
+        (if (and map pc)
+          (let ((total (+ nreq nopt (if (or restp lexprp) 1 0) (or nkeys 0)))
+                (idx (- (length map) nclosed)))
+            (unless (zerop total)
+              (progn
+                (dotimes (x nreq)
+                  (declare (fixnum x))
+                  (req (if (> idx 0) (elt map (decf idx)) (make-arg "ARG" x))))
+                (when (neq nopt 0)
+                  (dotimes (x (the fixnum nopt))
+                    (opt (if (> idx 0) (elt map (decf idx)) (make-arg "OPT" x)))))
+                (when nkeys
+                  (dotimes (i (the fixnum nkeys))
+                    (keys (if (> idx 0) (elt map (decf idx)) (make-arg "KEY" i)))))
+                (when (or restp lexprp)
+                  (setq rest (if (> idx 0) (elt map (decf idx)) 'the-rest)))))))
+        (values (not (null map)) (req) (opt) rest (keys))))))
+              
+              
+
 
 (defvar *req-arg-names*
   #(arg-0 arg-1 arg-2 arg-3 arg-4 arg-5 arg-6 arg-7 arg-8 arg-9))
