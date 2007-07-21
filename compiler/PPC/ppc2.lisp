@@ -3727,7 +3727,9 @@
         (when (and (%ilogbitp $vbitdynamicextent bits) (acode-p val))
           (setq val (ppc2-dynamic-extent-form seg curstack val))))
       (if (%ilogbitp $vbitspecial bits)
-        (ppc2-dbind seg val sym)
+        (progn
+          (ppc2-dbind seg val sym)
+          (ppc2-set-var-ea seg var (ppc2-vloc-ea (- *ppc2-vstack* *ppc2-target-node-size*))))
         (let ((puntval nil))
           (flet ((ppc2-puntable-binding-p (var initform)
                    ; The value returned is acode.
@@ -3784,6 +3786,7 @@
     (if (%ilogbitp $vbitspecial bits)
       (progn
         (ppc2-dbind seg addr (var-name var))
+        (ppc2-set-var-ea seg var (ppc2-vloc-ea (- *ppc2-vstack* *ppc2-target-node-size*)))
         t)
       (progn
         (when (%ilogbitp $vbitpunted bits)
@@ -3815,11 +3818,11 @@
 
 (defun ppc2-close-var (seg var)
   (let ((bits (nx-var-bits var)))
-    (when (and *ppc2-record-symbols* 
-         (%izerop (%ilogand (%ilogior (ash -1 $vbitspecial)
-                                      (%ilsl $vbitpunted 1)) bits)))
+    (when (and *ppc2-record-symbols*
+               (or (logbitp $vbitspecial bits)
+                   (not (logbitp $vbitpunted bits))))
       (let ((endnote (%car (%cdddr (assq var *ppc2-recorded-symbols*)))))
-        (unless endnote (error "ppc2-close-var ?"))
+        (unless endnote (error "ppc2-close-var for ~s ?" (var-name var)))
         (setf (vinsn-note-class endnote) :end-variable-scope)
         (append-dll-node (vinsn-note-label endnote) seg)))))
 
@@ -7346,7 +7349,9 @@
         (declare (list val))
         (when (setq val (pop vals))
           (if (%ilogbitp $vbitspecial (nx-var-bits var))
-            (ppc2-dbind seg (car val) (var-name var))
+            (progn
+              (ppc2-dbind seg (car val) (var-name var))
+              (ppc2-set-var-ea seg var (ppc2-vloc-ea (- *ppc2-vstack* *ppc2-target-node-size*))))
             (ppc2-seq-bind-var seg var (car val)))))
       (ppc2-undo-body seg vreg xfer body old-stack)
       (dolist (var vars)
