@@ -1143,9 +1143,7 @@ vector
 
 (defsetf *%saved-method-var%* set-*%saved-method-var%*)
 
-(defun beep (&optional (times 1) idlecount)
-  (dotimes (i times) (declare (fixnum i)) (princ #.(string #\bell)))
-  (when idlecount (dotimes (i idlecount) (declare (fixnum i)))))
+
 
 
 
