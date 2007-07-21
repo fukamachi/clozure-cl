@@ -1709,13 +1709,13 @@ _spentry(poweropen_callbackX)
 	__(ldr(allocptr,tcr.save_allocptr(rcontext)))
 	__(ldr(allocbase,tcr.save_allocbase(rcontext)))
 	
+        __(restore_saveregs(vsp))
 	/* load nargs and callback to the lisp  */
 	__(set_nargs(2))
 	__(ldr(imm2,tcr.cs_area(rcontext)))
 	__(ldr(imm4,area.active(imm2)))
 	__(stru(imm4,-lisp_frame.size(sp)))
 	__(str(imm3,lisp_frame.savelr(sp)))
-	__(str(vsp,lisp_frame.savevsp(sp)))	/* for stack overflow code  */
 	__(li fname,nrs.callbacks)	/* %pascal-functions%  */
 	__(call_fname)
 	__(ldr(imm2,lisp_frame.backlink(sp)))
@@ -4819,6 +4819,8 @@ _spentry(poweropen_callback)
 	__(str(imm0,tcr.valence(rcontext)))
 	__(ldr(allocptr,tcr.save_allocptr(rcontext)))
 	__(ldr(allocbase,tcr.save_allocbase(rcontext)))
+	
+        __(restore_saveregs(vsp))
 
 	/* load nargs and callback to the lisp  */
 	__(set_nargs(2))
@@ -4826,7 +4828,6 @@ _spentry(poweropen_callback)
 	__(ldr(imm4,area.active(imm2)))
 	__(stru(imm4,-lisp_frame.size(sp)))
 	__(str(imm3,lisp_frame.savelr(sp)))
-	__(str(vsp,lisp_frame.savevsp(sp)))	/* for stack overflow code  */
 	__(li fname,nrs.callbacks)	/* %pascal-functions%  */
 	__(call_fname)
 	__(ldr(imm2,lisp_frame.backlink(sp)))
@@ -5930,6 +5931,7 @@ _spentry(eabi_callback)
 	__(lfd f0,tcr.lisp_fpscr(rcontext))
 	__(mtfsf 0xff,f0)
 
+        __(restore_saveregs(vsp))        
 	/* load nargs and callback to the lisp  */
 	__(set_nargs(2))
 	__(ldr(imm2,tcr.cs_area(rcontext)))
