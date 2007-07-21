@@ -703,7 +703,9 @@
                                     (cons-pathname '(:absolute "lib") nil nil "ccl")
 				    (cons-pathname '(:absolute "library") nil nil "ccl")
 				    (cons-pathname '(:absolute "examples") nil nil "ccl")
-				    (cons-pathname '(:absolute "tools") nil nil "ccl"))
+				    (cons-pathname '(:absolute "tools") nil nil "ccl")
+                                    (cons-pathname '(:absolute "objc-bridge") nil nil "ccl")
+                                    (cons-pathname '(:absolute "cocoa-ide") nil nil "ccl"))
   "Holds a list of pathnames to search for the file that has same name
    as a module somebody is looking for.")
 
