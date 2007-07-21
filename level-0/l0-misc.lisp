@@ -667,6 +667,7 @@
 (defun safe-get-ptr (p &optional dest)
   (if (null dest)
     (setq dest (%null-ptr))
-    (check-type dest macptr))
+    (unless (typep dest 'macptr)
+      (check-type dest macptr)))
   (without-interrupts                   ;reentrancy
    (%safe-get-ptr p dest)))
