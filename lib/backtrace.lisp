@@ -61,6 +61,26 @@
   (terpri)
   (terpri))
 
+(defun %show-args-and-locals (p context lfun pc)
+  (multiple-value-bind (args locals) (arguments-and-locals context p lfun pc)
+    (format t "~&  ~s" (arglist-from-map lfun))
+    (let* ((*print-length* *backtrace-print-length*)
+           (*print-level* *backtrace-print-level*))
+      (flet ((show-pair (pair prefix)
+               (destructuring-bind (name . val) pair
+                 (format t "~&~a~s: " prefix name)
+                 (if (eq val (%unbound-marker))
+                   (format t "#<Unavailable>")
+                   (format t "~s" val)))))
+        (dolist (arg args)
+          (show-pair arg "   "))
+        (terpri)
+        (terpri)
+        (dolist (loc locals)
+          (show-pair loc "  "))
+        (terpri)
+        (terpri)))))
+
 
 (defun backtrace-call-arguments (context cfp lfun pc)
   (collect ((call))
@@ -90,6 +110,17 @@
     (call)))
 
 
+;;; Return a list of "interesting" frame addresses in context, most
+;;; recent first.
+(defun %stack-frames-in-context (context &optional (include-internal *backtrace-show-internal-frames*))
+  (collect ((frames))
+    (do* ((p (bt.youngest context) (parent-frame p context))
+          (q (bt.oldest context)))
+         ((eql p q) (frames))
+      (when (or (not (catch-csp-p p context)) include-internal)
+        (when (or (cfp-lfun p) include-internal)
+          (frames p))))))
+    
 (defun %print-call-history-internal (context origin detailed-p
                                              &optional (count most-positive-fixnum) (skip-initial 0))
   (let ((*standard-output* *debug-io*)
@@ -118,7 +149,9 @@
                       (if lfun (backtrace-call-arguments context p lfun pc))
                       pc)
               (when detailed-p
-                (%show-stack-frame p context lfun pc)))))))))
+                (if (eq detailed-p :raw)
+                  (%show-stack-frame p context lfun pc)
+                  (%show-args-and-locals p context lfun pc))))))))))
 
 
 (defun %access-lisp-data (vstack-index)
@@ -178,7 +211,7 @@
                                "opt-supplied-p")))))))))
              (match-local-name cellno (function-symbol-map lfun) pc))))))))
 
-(defun argument-value (context cfp lfun pc name)
+(defun argument-value (context cfp lfun pc name &optional (quote t))
   (declare (fixnum pc))
   (let* ((info (function-symbol-map lfun))
          (unavailable (%unbound-marker)))
@@ -205,7 +238,7 @@
                           (find-register-argument-value context cfp addr unavailable))))))
               (if (typep value 'value-cell)
                 (setq value (uvref value 0)))
-              (if (self-evaluating-p value)
+              (if (or (not quote) (self-evaluating-p value))
                 (return value)
                 (return (list 'quote value))))))))))
 
@@ -308,7 +341,53 @@
   (eql target::subtag-value-cell (typecode value)))
 
 
+(defun variables-in-scope (lfun pc)
+  ;; Return a list of all symbol names "in scope" in the function lfun
+  ;; at relative program counter PC, using the function's symbol map.
+  ;; The list will be ordered so that least-recent bindings appear first.
+  (when pc
+    (locally (declare (fixnum pc))
+      (let* ((map (function-symbol-map lfun))
+             (names (car map))
+             (info (cdr map)))
+        (when map
+          (let* ((vars ()))
+            (dotimes (i (length names) vars)
+              (let* ((start-pc (aref info (1+ (* 3 i))))
+                     (end-pc (aref info (+ 2 (* 3 i)))))
+                (declare (fixnum start-pc end-pc))
+                (when (and (>= pc start-pc)
+                           (< pc end-pc))
+                  (push (svref names i) vars))))))))))
 
+(defun arguments-and-locals (context cfp lfun pc)
+  (let* ((vars (variables-in-scope lfun pc)))
+    (collect ((args)
+              (locals))
+    (multiple-value-bind (valid req opt rest keys)
+        (arg-names-from-map lfun pc)
+      (when valid
+        (flet ((get-arg-value (name)
+                 (let* ((avail (member name vars :test #'eq)))
+                   (if avail
+                     (setf (car (member name vars :test #'eq)) nil))
+                   (args (cons name (argument-value context cfp lfun pc name nil)))))
+               (get-local-value (name)
+                 (when name
+                   (locals (cons name (argument-value context cfp lfun pc name nil))))))
+          (dolist (name req)
+            (get-arg-value name))
+          (dolist (name opt)
+            (get-arg-value name))
+          (when rest
+            (get-arg-value rest))
+          (dolist (name keys)
+            (get-arg-value name))
+          (dolist (name vars)
+            (get-local-value name))))
+      (values (args) (locals))))))
+                   
+            
 
 (defun safe-cell-value (val)
   val)
@@ -331,7 +410,23 @@
                                   imm))))))))))
 
       
-
+;;; Find the oldest binding frame that binds the same symbol as
+;;; FRAME in context.  If found, return the saved value of that
+;;; binding, else the value of the symbol in the context's thread.
+(defun oldest-binding-frame-value (context frame)
+  (let* ((oldest nil)
+         (binding-index (%fixnum-ref frame (ash 1 target::fixnum-shift))))
+    (do* ((db (db-link context) (%fixnum-ref db 0)))
+         ((eq frame db)
+          (if oldest
+            (%fixnum-ref oldest (ash 2 target::fixnum-shift))
+            (let* ((symbol (binding-index-symbol binding-index)))
+              (if context
+                (symbol-value-in-tcr symbol (bt.tcr context))
+                (%sym-value symbol)))))
+      (if (eq (%fixnum-ref db (ash 1 target::fixnum-shift)) binding-index)
+        (setq oldest db)))))
+    
 
 
 ;;; End of backtrace.lisp
