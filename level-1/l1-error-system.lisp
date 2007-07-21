@@ -340,13 +340,13 @@
 (defun stream-error-context (condition)
   (let* ((stream (stream-error-stream condition)))
     (with-output-to-string (s)
-       (format s "on steam ~s" stream)
+       (format s "on ~s" stream)
        (let* ((pos (ignore-errors (stream-position stream))))
-                             (when pos
-                               (format s ", near position ~d" pos)))
-                           (let* ((surrounding (stream-surrounding-characters stream)))
-                             (when surrounding
-                               (format s ", within ~s" surrounding))))))
+         (when pos
+           (format s ", near position ~d" pos)))
+       (let* ((surrounding (stream-surrounding-characters stream)))
+         (when surrounding
+           (format s ", within ~s" surrounding))))))
 
 (define-condition parse-error (error) ())
 (define-condition parse-integer-not-integer-string (parse-error)
