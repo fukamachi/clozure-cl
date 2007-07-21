@@ -31,7 +31,7 @@
     tcr-count
     interrupt-signal			; used by PROCESS-INTERRUPT
     kernel-imports                      ; some things we need to have imported for us.
-    tcr-lock
+    objc-2-personality
     emulator-registers                  ; Where the 68K registers are kept.
     appmain                             ; application's (c-runtime) main() function
     subprims-base                       ; start of dynamic subprims jump table
@@ -54,14 +54,14 @@
     heap-end                            ; end of lisp heap
     statically-linked                   ; true if the lisp kernel is statically linked
     stack-size                          ; value of --stack-size arg
-    bad-current-ts                      ; current temp-stack area
+    objc-2-begin-catch                  ; objc_begin_catch
     bad-funcall                         ; pseudo-target for funcall
     all-areas                           ; doubly-linked area list
     lexpr-return                        ; multiple-value lexpr return address
     lexpr-return1v                      ; single-value lexpr return address
     in-gc                               ; non-zero when GC-ish thing active
     metering-info                       ; kernel metering structure
-    doh-head                            ; creole
+    objc-2-end-catch                    ; _objc_end_catch
     short-float-zero                    ; low half of 1.0d0
     double-float-one                    ; high half of 1.0d0
     ffi-exception                       ; ffi fpscr[fex] bit
@@ -72,7 +72,7 @@
     argv                                ; address of C lib argv
     host-platform                       ; 0 on MacOS, 1 on PPC Linux, 2 on VxWorks ...
     batch-flag				; non-zero if --batch specified
-    BAD-fpscr-save			; lisp's fpscr when in FFI-land
+    unwind-resume			; _Unwind_Resume
     BAD-fpscr-save-high  		; high word of FP reg used to save FPSCR
     image-name				; current image name
     initial-tcr                         ; initial thread's context record
