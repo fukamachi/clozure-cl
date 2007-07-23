@@ -1,3 +1,11 @@
+2007-07-22 21:11  gb
+
+	* lib/ccl-export-syms.lisp: Export WITH-ENCODED-CSTRS.
+
+2007-07-22 21:10  gb
+
+	* cocoa-ide/README: New file.
+
 2007-07-22 18:51  gb
 
 	* cocoa-ide/cocoa-inspector.lisp: Hook name is in inspector
