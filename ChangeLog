@@ -1,3 +1,629 @@
+2007-07-22 18:51  gb
+
+	* cocoa-ide/cocoa-inspector.lisp: Hook name is in inspector
+	package.
+
+2007-07-22 18:50  gb
+
+	* compiler/PPC/ppc2.lisp: Put special args/locals in symbol map.
+
+2007-07-22 18:49  gb
+
+	* level-1/version.lisp: Bump.
+
+2007-07-22 18:48  gb
+
+	* level-1/: ppc-callback-support.lisp, x86-callback-support.lisp:
+	Allocate callback trampolines via mmap on ppc, too.
+
+2007-07-22 18:47  gb
+
+	* level-1/linux-files.lisp: Don't expose the PROGRAM arg to
+	RUN-PROGRAM to merge-pathnames.
+
+2007-07-22 18:46  gb
+
+	* level-1/l1-utils.lisp: Don't define BEEP.
+
+2007-07-22 18:46  gb
+
+	* level-1/l1-unicode.lisp: utf-8 length-of-memory-encoding function
+	was counting chars (nchars) twice.
+
+2007-07-22 18:45  gb
+
+	* level-1/l1-streams.lisp: selection-stream changes.
+
+2007-07-22 18:44  gb
+
+	* level-1/l1-readloop-lds.lisp: :raw breakloop command.  Put info
+	about restarts in backtrace context.
+
+2007-07-22 18:43  gb
+
+	* level-1/l1-processes.lisp: PROCESS-DEBUG-CONDITION, so that it
+	can be overridden.
+
+2007-07-22 18:42  gb
+
+	* level-1/l1-pathnames.lisp: Add objc-bridge, cocoa-ide to
+	*MODULE-SEARCH-PATH*.
+
+2007-07-22 18:41  gb
+
+	* level-1/l1-format.lisp: Handling of * format directive when
+	dealing with circularity screws up other things that expect
+	*FORMAT-ARGUMENTS* to share structure with
+	*FORMAT-ORIGINAL-ARGUMENTS*.
+
+2007-07-22 18:40  gb
+
+	* level-1/l1-files.lisp: NATIVE-UNTRANSLATED-NAMESTRING,
+	ENSURE-DIRECTORY-NAMESTRING.
+
+2007-07-22 18:40  gb
+
+	* level-1/l1-events.lisp: Handle xcf's on x86 when processing an
+	interactive break.
+
+2007-07-22 18:39  gb
+
+	* level-1/l1-error-system.lisp: Stream error context stuff.
+
+2007-07-22 18:38  gb
+
+	* level-1/l1-error-signal.lisp: Try to recognize foreign exceptions
+	(e.g., as NSExceptions.)
+
+2007-07-22 18:37  gb
+
+	* level-1/l1-clos-boot.lisp: Use COLLECT macro in
+	CLASS-SLOT-INITARGS.
+
+2007-07-22 18:36  gb
+
+	* level-1/l1-callbacks.lisp: Move the x86-64 callback trampoline
+	allocation stuff (which uses mmap to ensure that the callback is in
+	executable memory) here, since it'll be needed on ppc64 leopard, at
+	least.
+
+2007-07-22 18:35  gb
+
+	* level-1/l1-application.lisp: Argument handling and interactive
+	stream initialization happens in a :before method on
+	(toplevel-function application).
+
+2007-07-22 18:34  gb
+
+	* compiler/X86/x862.lisp: Symbol-address recording stuff: record
+	special args/locals, too.
+
+2007-07-22 18:33  gb
+
+	* compiler/X86/x86-disassemble.lisp: Support for disassemble-list,
+	for backtrace/inspect someday.
+
+2007-07-22 18:33  gb
+
+	* compiler/X86/x86-arch.lisp: Globals for ObjC2 exception stuff.
+
+2007-07-22 18:32  gb
+
+	* lib/macros.lisp: Callbacks that try to do magic foreign error
+	stuff use HANDLER-BIND, not HANDLER-CASE.
+	
+	Other callback-changes to reduce incidental consing sometimes.
+
+2007-07-22 18:31  gb
+
+	* lib/backtrace.lisp: %show-args-and-locals,
+	%stack-frames-in-context: changes for new backtrace presentation.
+
+2007-07-22 18:30  gb
+
+	* lib/compile-ccl.lisp: Remove some duplicate definitions.
+
+2007-07-22 18:29  gb
+
+	* lib/describe.lisp: Some (signigicant) stack-frame changes.
+
+2007-07-22 18:28  gb
+
+	* lib/ppc-backtrace.lisp: Tighten some things up a bit.
+
+2007-07-22 18:27  gb
+
+	* lib/arglist.lisp: Provide -some- arglist info for special
+	operators.  ARG-NAMES-FROM-MAP.
+
+2007-07-22 18:27  gb
+
+	* lib/pprint.lisp: Enter the 1990s (eval-when ..).
+
+2007-07-22 18:26  gb
+
+	* lib/source-files.lisp: Comment formatting.
+
+2007-07-22 18:25  gb
+
+	* lib/read.lisp: Use hash tables in #=, etc.  Expect reader errors
+	to provide context.
+
+2007-07-22 18:24  gb
+
+	* lib/x86-backtrace.lisp: Tighten up some frame accessors; don't
+	get confused by null register values, etc.
+
+2007-07-22 18:23  gb
+
+	* lib/time.lisp: GET-TIMEZONE: conditionalize on target word size,
+	not ppc32/ppc64.
+
+2007-07-22 18:22  gb
+
+	* level-0/l0-hash.lisp: Try to defer GC locking in GETHASH.  Some
+	64-bit key-scrambling stuff.
+
+2007-07-22 18:21  gb
+
+	* level-0/l0-misc.lisp: Less zeal in SAFE-GET-PTR.
+
+2007-07-22 18:21  gb
+
+	* level-0/l0-utils.lisp: s32->u32, u32->s32.
+
+2007-07-22 18:20  gb
+
+	* level-0/l0-error.lisp: foreign exception error stuff.
+
+2007-07-22 18:19  gb
+
+	* level-1/l1-sockets.lisp: Sockets created with :format :binary
+	don't have element-type of character, though this crap is all
+	pretty nebulous.
+
+2007-07-22 18:18  gb
+
+	* library/lispequ.lisp: $XFOREIGNEXCEPTION.
+
+2007-07-22 18:17  gb
+
+	* library/pty.lisp: set-pty-raw.
+
+2007-07-22 18:16  gb
+
+	* library/hemlock.lisp: Moved elsewhere.
+
+2007-07-22 18:15  gb
+
+	* lisp-kernel/xlbt.c: Basically, all frames on the vstack are lisp
+	frames.
+
+2007-07-22 18:14  gb
+
+	* lisp-kernel/x86-spentry64.s: Add ObjC2 exception metainfomation.
+
+2007-07-22 18:14  gb
+
+	* lisp-kernel/x86-exceptions.c: Clear and restore the tcr foreign
+	exception bit on interrupt.
+
+2007-07-22 18:13  gb
+
+	* lisp-kernel/x86-constants64.s: tcr.flags is a full word.  define
+	tcr flag bits, including new one for foreign exceptions.
+
+2007-07-22 18:12  gb
+
+	* lisp-kernel/x86-constants.s: Globals for ObjC2 exceptions.
+
+2007-07-22 18:11  gb
+
+	* lisp-kernel/x86-constants.h: New tcr flag bit for foreign
+	exceptions.
+
+2007-07-22 18:10  gb
+
+	* lisp-kernel/thread_manager.c: ensure_stack_limit() when creatings
+	stack for pthread.  Foreign exception callbacks: put some 0s on the
+	stack for callback.
+
+2007-07-22 18:09  gb
+
+	* lisp-kernel/ppc-spentry.s: Restore save regs on callbacks.
+
+2007-07-22 18:08  gb
+
+	* lisp-kernel/pmcl-kernel.c: usage_exit() via _exit(). 
+	ensure_stack_limit(): if stack size is constrained by limits, don't
+	exceed those limits.
+
+2007-07-22 18:08  gb
+
+	* lisp-kernel/lisp_globals.h: globals for ObjC2 exceptions.
+
+2007-07-22 18:07  gb
+
+	* lisp-kernel/lisp.h: prototype for ensure_stack_limit().
+
+2007-07-22 18:06  gb
+
+	* lisp-kernel/errors.s: XFOREIGNEXCEPTION error constant.
+
+2007-07-22 18:03  gb
+
+	* OpenMCL.app/Contents/Info.plist, OpenMCL.app/Contents/PkgInfo,
+	OpenMCL.app/Contents/MacOS/dppccl,
+	OpenMCL.app/Contents/Resources/OpenMCLKeyBindings.dict,
+	OpenMCL.app/Contents/Resources/openmcl-icon.icns,
+	OpenMCL.app/Contents/Resources/English.lproj/.cvsignore,
+	OpenMCL.app/Contents/Resources/English.lproj/Credits.rtf,
+	OpenMCL.app/Contents/Resources/English.lproj/InfoPlist.strings,
+	OpenMCL.app/Contents/Resources/English.lproj/MainMenu.nib/classes.n
+	ib,
+	OpenMCL.app/Contents/Resources/English.lproj/MainMenu.nib/info.nib,
+	OpenMCL.app/Contents/Resources/English.lproj/MainMenu.nib/keyedobje
+	cts.nib,
+	OpenMCL.app/Contents/Resources/English.lproj/OpenmclInspector.nib/c
+	lasses.nib,
+	OpenMCL.app/Contents/Resources/English.lproj/OpenmclInspector.nib/i
+	nfo.nib,
+	OpenMCL.app/Contents/Resources/English.lproj/OpenmclInspector.nib/k
+	eyedobjects.nib,
+	OpenMCL.app/Contents/Resources/English.lproj/backtrace.nib/classes.
+	nib,
+	OpenMCL.app/Contents/Resources/English.lproj/backtrace.nib/info.nib
+	,
+	OpenMCL.app/Contents/Resources/English.lproj/backtrace.nib/keyedobj
+	ects.nib,
+	OpenMCL.app/Contents/Resources/English.lproj/lispeditor.nib/classes
+	.nib,
+	OpenMCL.app/Contents/Resources/English.lproj/lispeditor.nib/info.ni
+	b,
+	OpenMCL.app/Contents/Resources/English.lproj/lispeditor.nib/keyedob
+	jects.nib, OpenMCL.app/Contents/Resources/Help/cocoa-notes.html,
+	OpenMCL.app/Contents/Resources/Help/index.html,
+	cocoa-ide/Info.plist-proto, cocoa-ide/cocoa-application.lisp,
+	cocoa-ide/cocoa-backtrace.lisp, cocoa-ide/cocoa-defaults.lisp,
+	cocoa-ide/cocoa-doc.lisp, cocoa-ide/cocoa-editor.lisp,
+	cocoa-ide/cocoa-inspector.lisp, cocoa-ide/cocoa-listener.lisp,
+	cocoa-ide/cocoa-prefs.lisp, cocoa-ide/cocoa-typeout.lisp,
+	cocoa-ide/cocoa-utils.lisp, cocoa-ide/cocoa-window.lisp,
+	cocoa-ide/cocoa.lisp, cocoa-ide/compile-hemlock.lisp,
+	cocoa-ide/hemlock.lisp, cocoa-ide/OpenMCL.app/Contents/PkgInfo,
+	cocoa-ide/OpenMCL.app/Contents/Resources/openmcl-icon.icns,
+	cocoa-ide/OpenMCL.app/Contents/Resources/English.lproj/.cvsignore,
+	cocoa-ide/OpenMCL.app/Contents/Resources/English.lproj/Credits.rtf,
+	cocoa-ide/OpenMCL.app/Contents/Resources/English.lproj/InfoPlist.st
+	rings,
+	cocoa-ide/OpenMCL.app/Contents/Resources/English.lproj/MainMenu.nib
+	/classes.nib,
+	cocoa-ide/OpenMCL.app/Contents/Resources/English.lproj/MainMenu.nib
+	/info.nib,
+	cocoa-ide/OpenMCL.app/Contents/Resources/English.lproj/MainMenu.nib
+	/keyedobjects.nib,
+	cocoa-ide/OpenMCL.app/Contents/Resources/English.lproj/OpenmclInspe
+	ctor.nib/classes.nib,
+	cocoa-ide/OpenMCL.app/Contents/Resources/English.lproj/OpenmclInspe
+	ctor.nib/info.nib,
+	cocoa-ide/OpenMCL.app/Contents/Resources/English.lproj/OpenmclInspe
+	ctor.nib/keyedobjects.nib,
+	cocoa-ide/OpenMCL.app/Contents/Resources/English.lproj/backtrace.ni
+	b/classes.nib,
+	cocoa-ide/OpenMCL.app/Contents/Resources/English.lproj/backtrace.ni
+	b/info.nib,
+	cocoa-ide/OpenMCL.app/Contents/Resources/English.lproj/backtrace.ni
+	b/keyedobjects.nib,
+	cocoa-ide/OpenMCL.app/Contents/Resources/English.lproj/displaydoc.n
+	ib/classes.nib,
+	cocoa-ide/OpenMCL.app/Contents/Resources/English.lproj/displaydoc.n
+	ib/info.nib,
+	cocoa-ide/OpenMCL.app/Contents/Resources/English.lproj/displaydoc.n
+	ib/keyedobjects.nib,
+	cocoa-ide/OpenMCL.app/Contents/Resources/English.lproj/lispeditor.n
+	ib/classes.nib,
+	cocoa-ide/OpenMCL.app/Contents/Resources/English.lproj/lispeditor.n
+	ib/info.nib,
+	cocoa-ide/OpenMCL.app/Contents/Resources/English.lproj/lispeditor.n
+	ib/keyedobjects.nib,
+	cocoa-ide/OpenMCL.app/Contents/Resources/English.lproj/preferences.
+	nib/classes.nib,
+	cocoa-ide/OpenMCL.app/Contents/Resources/English.lproj/preferences.
+	nib/info.nib,
+	cocoa-ide/OpenMCL.app/Contents/Resources/English.lproj/preferences.
+	nib/keyedobjects.nib,
+	cocoa-ide/OpenMCL.app/Contents/Resources/Help/cocoa-notes.html,
+	cocoa-ide/OpenMCL.app/Contents/Resources/Help/index.html,
+	cocoa-ide/hemlock/.cvsignore, cocoa-ide/hemlock/INSTALL,
+	cocoa-ide/hemlock/TODO, cocoa-ide/hemlock/hemlock.system,
+	cocoa-ide/hemlock/hemlock11.cursor,
+	cocoa-ide/hemlock/hemlock11.mask, cocoa-ide/hemlock/bin/.cvsignore,
+	cocoa-ide/hemlock/bin/openmcl/.cvsignore,
+	cocoa-ide/hemlock/doc/.cvsignore,
+	cocoa-ide/hemlock/doc/cim/.cvsignore,
+	cocoa-ide/hemlock/doc/cim/aux-sys.mss,
+	cocoa-ide/hemlock/doc/cim/cim.mss,
+	cocoa-ide/hemlock/doc/misc/.cvsignore,
+	cocoa-ide/hemlock/doc/misc/compilation.order,
+	cocoa-ide/hemlock/doc/misc/hemlock.log,
+	cocoa-ide/hemlock/doc/misc/hemlock.upd,
+	cocoa-ide/hemlock/doc/misc/notes.txt,
+	cocoa-ide/hemlock/doc/misc/perq-hemlock.log,
+	cocoa-ide/hemlock/doc/misc/things-to-do.txt,
+	cocoa-ide/hemlock/doc/scribe-converter/.cvsignore,
+	cocoa-ide/hemlock/doc/scribe-converter/NOTES,
+	cocoa-ide/hemlock/doc/user/.cvsignore,
+	cocoa-ide/hemlock/doc/user/commands.mss,
+	cocoa-ide/hemlock/doc/user/intro.mss,
+	cocoa-ide/hemlock/doc/user/lisp.mss,
+	cocoa-ide/hemlock/doc/user/mail.mss,
+	cocoa-ide/hemlock/doc/user/netnews.mss,
+	cocoa-ide/hemlock/doc/user/special-modes.mss,
+	cocoa-ide/hemlock/doc/user/user.mss,
+	cocoa-ide/hemlock/maint/.cvsignore,
+	cocoa-ide/hemlock/maint/publish,
+	cocoa-ide/hemlock/resources/.cvsignore,
+	cocoa-ide/hemlock/resources/XKeysymDB,
+	cocoa-ide/hemlock/resources/mh-scan,
+	cocoa-ide/hemlock/resources/spell-dictionary.text,
+	cocoa-ide/hemlock/src/.cvsignore,
+	cocoa-ide/hemlock/src/bindings-gb.lisp,
+	cocoa-ide/hemlock/src/bindings.lisp,
+	cocoa-ide/hemlock/src/buffer.lisp,
+	cocoa-ide/hemlock/src/charmacs.lisp,
+	cocoa-ide/hemlock/src/cocoa-hemlock.lisp,
+	cocoa-ide/hemlock/src/command.lisp,
+	cocoa-ide/hemlock/src/comments.lisp,
+	cocoa-ide/hemlock/src/completion.lisp,
+	cocoa-ide/hemlock/src/cursor.lisp,
+	cocoa-ide/hemlock/src/decls.lisp,
+	cocoa-ide/hemlock/src/defsyn.lisp,
+	cocoa-ide/hemlock/src/doccoms.lisp,
+	cocoa-ide/hemlock/src/echo.lisp,
+	cocoa-ide/hemlock/src/echocoms.lisp,
+	cocoa-ide/hemlock/src/edit-defs.lisp,
+	cocoa-ide/hemlock/src/filecoms.lisp,
+	cocoa-ide/hemlock/src/files.lisp, cocoa-ide/hemlock/src/fill.lisp,
+	cocoa-ide/hemlock/src/font.lisp,
+	cocoa-ide/hemlock/src/hemlock-ext.lisp,
+	cocoa-ide/hemlock/src/htext1.lisp,
+	cocoa-ide/hemlock/src/htext2.lisp,
+	cocoa-ide/hemlock/src/htext3.lisp,
+	cocoa-ide/hemlock/src/htext4.lisp, cocoa-ide/hemlock/src/icom.lisp,
+	cocoa-ide/hemlock/src/indent.lisp,
+	cocoa-ide/hemlock/src/interp.lisp,
+	cocoa-ide/hemlock/src/kbdmac.lisp,
+	cocoa-ide/hemlock/src/key-event.lisp,
+	cocoa-ide/hemlock/src/keysym-defs.lisp,
+	cocoa-ide/hemlock/src/killcoms.lisp,
+	cocoa-ide/hemlock/src/line.lisp,
+	cocoa-ide/hemlock/src/linimage.lisp,
+	cocoa-ide/hemlock/src/lispdep.lisp,
+	cocoa-ide/hemlock/src/lispmode.lisp,
+	cocoa-ide/hemlock/src/listener.lisp,
+	cocoa-ide/hemlock/src/macros.lisp, cocoa-ide/hemlock/src/main.lisp,
+	cocoa-ide/hemlock/src/modeline.lisp,
+	cocoa-ide/hemlock/src/morecoms.lisp,
+	cocoa-ide/hemlock/src/package.lisp,
+	cocoa-ide/hemlock/src/pop-up-stream.lisp,
+	cocoa-ide/hemlock/src/register.lisp,
+	cocoa-ide/hemlock/src/ring.lisp,
+	cocoa-ide/hemlock/src/rompsite.lisp,
+	cocoa-ide/hemlock/src/search1.lisp,
+	cocoa-ide/hemlock/src/search2.lisp,
+	cocoa-ide/hemlock/src/searchcoms.lisp,
+	cocoa-ide/hemlock/src/srccom.lisp,
+	cocoa-ide/hemlock/src/streams.lisp,
+	cocoa-ide/hemlock/src/struct.lisp,
+	cocoa-ide/hemlock/src/syntax.lisp,
+	cocoa-ide/hemlock/src/table.lisp, cocoa-ide/hemlock/src/text.lisp,
+	cocoa-ide/hemlock/src/undo.lisp, cocoa-ide/hemlock/src/vars.lisp,
+	cocoa-ide/hemlock/src/archive/abbrev.lisp,
+	cocoa-ide/hemlock/src/archive/auto-save.lisp,
+	cocoa-ide/hemlock/src/archive/bit-display.lisp,
+	cocoa-ide/hemlock/src/archive/bit-screen.lisp,
+	cocoa-ide/hemlock/src/archive/bufed.lisp,
+	cocoa-ide/hemlock/src/archive/debug.lisp,
+	cocoa-ide/hemlock/src/archive/dired.lisp,
+	cocoa-ide/hemlock/src/archive/diredcoms.lisp,
+	cocoa-ide/hemlock/src/archive/display.lisp,
+	cocoa-ide/hemlock/src/archive/dylan.lisp,
+	cocoa-ide/hemlock/src/archive/eval-server.lisp,
+	cocoa-ide/hemlock/src/archive/group.lisp,
+	cocoa-ide/hemlock/src/archive/highlight.lisp,
+	cocoa-ide/hemlock/src/archive/hunk-draw.lisp,
+	cocoa-ide/hemlock/src/archive/input.lisp,
+	cocoa-ide/hemlock/src/archive/lisp-lib.lisp,
+	cocoa-ide/hemlock/src/archive/lispbuf.lisp,
+	cocoa-ide/hemlock/src/archive/lispeval.lisp,
+	cocoa-ide/hemlock/src/archive/mh.lisp,
+	cocoa-ide/hemlock/src/archive/netnews.lisp,
+	cocoa-ide/hemlock/src/archive/overwrite.lisp,
+	cocoa-ide/hemlock/src/archive/pascal.lisp,
+	cocoa-ide/hemlock/src/archive/rcs.lisp,
+	cocoa-ide/hemlock/src/archive/screen.lisp,
+	cocoa-ide/hemlock/src/archive/scribe.lisp,
+	cocoa-ide/hemlock/src/archive/shell.lisp,
+	cocoa-ide/hemlock/src/archive/spell-aug.lisp,
+	cocoa-ide/hemlock/src/archive/spell-corr.lisp,
+	cocoa-ide/hemlock/src/archive/spell-rt.lisp,
+	cocoa-ide/hemlock/src/archive/spellcoms.lisp,
+	cocoa-ide/hemlock/src/archive/srccom.lisp,
+	cocoa-ide/hemlock/src/archive/ts-buf.lisp,
+	cocoa-ide/hemlock/src/archive/ts-stream.lisp,
+	cocoa-ide/hemlock/src/archive/unixcoms.lisp,
+	cocoa-ide/hemlock/src/archive/window.lisp,
+	cocoa-ide/hemlock/src/archive/winimage.lisp,
+	cocoa-ide/hemlock/src/archive/xcoms.lisp,
+	cocoa-ide/hemlock/src/elisp/.cvsignore,
+	cocoa-ide/hemlock/src/elisp/base.lisp,
+	cocoa-ide/hemlock/src/elisp/cmucl-hemlock-glue.lisp,
+	cocoa-ide/hemlock/src/elisp/codewalker.lisp,
+	cocoa-ide/hemlock/src/elisp/compile.lisp,
+	cocoa-ide/hemlock/src/elisp/hemlock-shims.lisp,
+	cocoa-ide/hemlock/src/elisp/implementation-needed,
+	cocoa-ide/hemlock/src/elisp/internals.lisp,
+	cocoa-ide/hemlock/src/elisp/loadup.lisp,
+	cocoa-ide/hemlock/src/elisp/packages.lisp,
+	cocoa-ide/hemlock/src/elisp/read-table.lisp,
+	cocoa-ide/hemlock/src/spell/.cvsignore,
+	cocoa-ide/hemlock/src/spell/build.lisp,
+	cocoa-ide/hemlock/src/spell/classes.lisp,
+	cocoa-ide/hemlock/src/spell/constants.lisp,
+	cocoa-ide/hemlock/src/spell/correlate.lisp,
+	cocoa-ide/hemlock/src/spell/flags.lisp,
+	cocoa-ide/hemlock/src/spell/hashing.lisp,
+	cocoa-ide/hemlock/src/spell/io.lisp,
+	cocoa-ide/hemlock/src/spell/package.lisp,
+	cocoa-ide/hemlock/src/spell/spell-aug.lisp,
+	cocoa-ide/hemlock/src/spell/spell-dictionary.text,
+	cocoa-ide/hemlock/src/spell/spell.asd,
+	cocoa-ide/hemlock/src/spell/spellcoms.lisp,
+	cocoa-ide/hemlock/src/tty/.cvsignore,
+	cocoa-ide/hemlock/src/tty/termcap.lisp,
+	cocoa-ide/hemlock/src/tty/tty-disp-rt.lisp,
+	cocoa-ide/hemlock/src/tty/tty-display.lisp,
+	cocoa-ide/hemlock/src/tty/tty-screen.lisp,
+	cocoa-ide/hemlock/src/wire/.cvsignore,
+	cocoa-ide/hemlock/src/wire/Notes,
+	cocoa-ide/hemlock/src/wire/package.lisp,
+	cocoa-ide/hemlock/src/wire/port.lisp,
+	cocoa-ide/hemlock/src/wire/remote.lisp,
+	cocoa-ide/hemlock/src/wire/wire.lisp,
+	cocoa-ide/hemlock/unused/.cvsignore,
+	cocoa-ide/hemlock/unused/bit-stream.lisp,
+	cocoa-ide/hemlock/unused/clx-ext.lisp,
+	cocoa-ide/hemlock/unused/ed-integrity.lisp,
+	cocoa-ide/hemlock/unused/gosmacs.lisp,
+	cocoa-ide/hemlock/unused/hacks.lisp,
+	cocoa-ide/hemlock/unused/hemcom.lisp,
+	cocoa-ide/hemlock/unused/hi-integrity.lisp,
+	cocoa-ide/hemlock/unused/keytran.lisp,
+	cocoa-ide/hemlock/unused/keytrandefs.lisp,
+	cocoa-ide/hemlock/unused/spell-build.lisp,
+	cocoa-ide/hemlock/unused/struct-ed.lisp,
+	cocoa-ide/hemlock/unused/tty-stream.lisp,
+	cocoa-ide/hemlock/website/.cvsignore,
+	cocoa-ide/hemlock/website/index.html.in, compiler/nx0.lisp,
+	examples/CocoaBridgeDoc.txt, examples/bridge.lisp,
+	examples/cocoa-application.lisp, examples/cocoa-backtrace.lisp,
+	examples/cocoa-defaults.lisp, examples/cocoa-editor.lisp,
+	examples/cocoa-inspector.lisp, examples/cocoa-listener.lisp,
+	examples/cocoa-prefs.lisp, examples/cocoa-textfind.lisp,
+	examples/cocoa-typeout.lisp, examples/cocoa-window.lisp,
+	examples/cocoa.lisp, examples/compile-hemlock.lisp,
+	examples/fake-cfbundle-path.lisp, examples/name-translation.lisp,
+	examples/objc-clos.lisp, examples/objc-package.lisp,
+	examples/objc-readtable.lisp, examples/objc-runtime.lisp,
+	examples/objc-support.lisp, examples/process-objc-modules.lisp,
+	hemlock/.cvsignore, hemlock/INSTALL, hemlock/README, hemlock/TODO,
+	hemlock/hemlock.system, hemlock/hemlock11.cursor,
+	hemlock/hemlock11.mask, hemlock/bin/.cvsignore,
+	hemlock/bin/openmcl/.cvsignore, hemlock/doc/.cvsignore,
+	hemlock/doc/cim/.cvsignore, hemlock/doc/cim/aux-sys.mss,
+	hemlock/doc/cim/cim.mss, hemlock/doc/misc/.cvsignore,
+	hemlock/doc/misc/compilation.order, hemlock/doc/misc/hemlock.log,
+	hemlock/doc/misc/hemlock.upd, hemlock/doc/misc/notes.txt,
+	hemlock/doc/misc/perq-hemlock.log,
+	hemlock/doc/misc/things-to-do.txt,
+	hemlock/doc/scribe-converter/.cvsignore,
+	hemlock/doc/scribe-converter/NOTES,
+	hemlock/doc/scribe-converter/README, hemlock/doc/user/.cvsignore,
+	hemlock/doc/user/commands.mss, hemlock/doc/user/intro.mss,
+	hemlock/doc/user/lisp.mss, hemlock/doc/user/mail.mss,
+	hemlock/doc/user/netnews.mss, hemlock/doc/user/special-modes.mss,
+	hemlock/doc/user/user.mss, hemlock/maint/.cvsignore,
+	hemlock/maint/publish, hemlock/resources/.cvsignore,
+	hemlock/resources/XKeysymDB, hemlock/resources/mh-scan,
+	hemlock/resources/spell-dictionary.text, hemlock/src/.cvsignore,
+	hemlock/src/abbrev.lisp, hemlock/src/auto-save.lisp,
+	hemlock/src/bindings-gb.lisp, hemlock/src/bindings.lisp,
+	hemlock/src/bit-display.lisp, hemlock/src/bit-screen.lisp,
+	hemlock/src/bufed.lisp, hemlock/src/buffer.lisp,
+	hemlock/src/charmacs.lisp, hemlock/src/cocoa-hemlock.lisp,
+	hemlock/src/command.lisp, hemlock/src/comments.lisp,
+	hemlock/src/completion.lisp, hemlock/src/cursor.lisp,
+	hemlock/src/debug.lisp, hemlock/src/decls.lisp,
+	hemlock/src/defsyn.lisp, hemlock/src/dired.lisp,
+	hemlock/src/diredcoms.lisp, hemlock/src/display.lisp,
+	hemlock/src/doccoms.lisp, hemlock/src/dylan.lisp,
+	hemlock/src/echo.lisp, hemlock/src/echocoms.lisp,
+	hemlock/src/edit-defs.lisp, hemlock/src/eval-server.lisp,
+	hemlock/src/filecoms.lisp, hemlock/src/files.lisp,
+	hemlock/src/fill.lisp, hemlock/src/font.lisp,
+	hemlock/src/group.lisp, hemlock/src/hemlock-ext.lisp,
+	hemlock/src/highlight.lisp, hemlock/src/htext1.lisp,
+	hemlock/src/htext2.lisp, hemlock/src/htext3.lisp,
+	hemlock/src/htext4.lisp, hemlock/src/hunk-draw.lisp,
+	hemlock/src/icom.lisp, hemlock/src/indent.lisp,
+	hemlock/src/input.lisp, hemlock/src/interp.lisp,
+	hemlock/src/kbdmac.lisp, hemlock/src/key-event.lisp,
+	hemlock/src/keysym-defs.lisp, hemlock/src/killcoms.lisp,
+	hemlock/src/line.lisp, hemlock/src/linimage.lisp,
+	hemlock/src/lisp-lib.lisp, hemlock/src/lispbuf.lisp,
+	hemlock/src/lispdep.lisp, hemlock/src/lispeval.lisp,
+	hemlock/src/lispmode.lisp, hemlock/src/listener.lisp,
+	hemlock/src/macros.lisp, hemlock/src/main.lisp,
+	hemlock/src/mh.lisp, hemlock/src/modeline.lisp,
+	hemlock/src/morecoms.lisp, hemlock/src/netnews.lisp,
+	hemlock/src/overwrite.lisp, hemlock/src/package.lisp,
+	hemlock/src/pascal.lisp, hemlock/src/pop-up-stream.lisp,
+	hemlock/src/rcs.lisp, hemlock/src/register.lisp,
+	hemlock/src/ring.lisp, hemlock/src/rompsite.lisp,
+	hemlock/src/screen.lisp, hemlock/src/scribe.lisp,
+	hemlock/src/search1.lisp, hemlock/src/search2.lisp,
+	hemlock/src/searchcoms.lisp, hemlock/src/shell.lisp,
+	hemlock/src/spell-aug.lisp, hemlock/src/spell-corr.lisp,
+	hemlock/src/spell-rt.lisp, hemlock/src/spellcoms.lisp,
+	hemlock/src/srccom.lisp, hemlock/src/streams.lisp,
+	hemlock/src/struct.lisp, hemlock/src/syntax.lisp,
+	hemlock/src/table.lisp, hemlock/src/text.lisp,
+	hemlock/src/ts-buf.lisp, hemlock/src/ts-stream.lisp,
+	hemlock/src/undo.lisp, hemlock/src/unixcoms.lisp,
+	hemlock/src/vars.lisp, hemlock/src/window.lisp,
+	hemlock/src/winimage.lisp, hemlock/src/xcoms.lisp,
+	hemlock/src/elisp/.cvsignore, hemlock/src/elisp/README,
+	hemlock/src/elisp/base.lisp,
+	hemlock/src/elisp/cmucl-hemlock-glue.lisp,
+	hemlock/src/elisp/codewalker.lisp, hemlock/src/elisp/compile.lisp,
+	hemlock/src/elisp/hemlock-shims.lisp,
+	hemlock/src/elisp/implementation-needed,
+	hemlock/src/elisp/internals.lisp, hemlock/src/elisp/loadup.lisp,
+	hemlock/src/elisp/packages.lisp, hemlock/src/elisp/read-table.lisp,
+	hemlock/src/spell/.cvsignore, hemlock/src/spell/README,
+	hemlock/src/spell/build.lisp, hemlock/src/spell/classes.lisp,
+	hemlock/src/spell/constants.lisp, hemlock/src/spell/correlate.lisp,
+	hemlock/src/spell/flags.lisp, hemlock/src/spell/hashing.lisp,
+	hemlock/src/spell/io.lisp, hemlock/src/spell/package.lisp,
+	hemlock/src/spell/spell-aug.lisp,
+	hemlock/src/spell/spell-dictionary.text,
+	hemlock/src/spell/spell.asd, hemlock/src/spell/spellcoms.lisp,
+	hemlock/src/tty/.cvsignore, hemlock/src/tty/termcap.lisp,
+	hemlock/src/tty/tty-disp-rt.lisp, hemlock/src/tty/tty-display.lisp,
+	hemlock/src/tty/tty-screen.lisp, hemlock/src/wire/.cvsignore,
+	hemlock/src/wire/Notes, hemlock/src/wire/package.lisp,
+	hemlock/src/wire/port.lisp, hemlock/src/wire/remote.lisp,
+	hemlock/src/wire/wire.lisp, hemlock/unused/.cvsignore,
+	hemlock/unused/bit-stream.lisp, hemlock/unused/clx-ext.lisp,
+	hemlock/unused/ed-integrity.lisp, hemlock/unused/gosmacs.lisp,
+	hemlock/unused/hacks.lisp, hemlock/unused/hemcom.lisp,
+	hemlock/unused/hi-integrity.lisp, hemlock/unused/keytran.lisp,
+	hemlock/unused/keytrandefs.lisp, hemlock/unused/spell-build.lisp,
+	hemlock/unused/struct-ed.lisp, hemlock/unused/tty-stream.lisp,
+	hemlock/website/.cvsignore, hemlock/website/index.html.in,
+	objc-bridge/CocoaBridgeDoc.txt, objc-bridge/bridge.lisp,
+	objc-bridge/fake-cfbundle-path.lisp,
+	objc-bridge/name-translation.lisp, objc-bridge/objc-clos.lisp,
+	objc-bridge/objc-package.lisp, objc-bridge/objc-readtable.lisp,
+	objc-bridge/objc-runtime.lisp, objc-bridge/objc-support.lisp,
+	objc-bridge/process-objc-modules.lisp: Synch with svn rev 6898:
+	DEFINE-COMPILER-MACRO does RECORD-SOURCE-FILE.	Directory
+	reorganization: new "cocoa-ide" and "objc-bridge" directories; many
+	things moved from "examples" to one of these directories,
+	OpenMCL.app and hemock moved under "cocoa-ide".  Lots of changes in
+	cocoa-ide, objc-bridge, and hemlock; see the svn log for the
+	"ide-1.0" branch for details.
+
 2007-06-15 19:10  gb
 
 	* lib/read.lisp: use hash tables in #=, ##.  Sometimes
