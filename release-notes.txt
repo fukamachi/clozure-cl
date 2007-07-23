@@ -1,3 +1,151 @@
+OpenMCL 1.1-pre-070722
+- This will hopefully be the last set of snapshots whose version
+  number contains the string "pre-"; whether or not the last
+  20 months worth of "1.1-pre-yymmdd" snapshot releases are
+  more or less stable than something without "pre-" in its name
+  doesn't have too much to do much to do with whether or not "pre-"
+  is in the version number (and has lots to do with other things.)
+  I'd like to move to a model that's mostly similar to how things
+  have been (new version every month or two, old versions become
+  obsolete soon after, sometimes changes introduce binary incompatiblity)
+  but drop the "prerelease" designation and change the name of the
+  "testing" directory to something like "current".
+- The FASL version didn't change (for the first time in a long time.)
+  It's probably a lot easier to bootstrap new sources with a new
+  lisp and it's probably desirable to recompile your own source
+  code with the new lisp, but there shouldn't be any user-visible
+  low-level ABI changes that make that mandatory.
+- CCL::WITH-ENCODED-CSTRS (which has been unexported and somewhat
+  broken) is now exported and somewhat less broken.
+
+  (ccl:with-encoded-cstrs ENCODING-NAME ((varI stringI)*) &body body)
+
+  where ENCODING-NAME is a keyword constant that names a character
+  encoding executes BODY in an environment where each variable varI
+  is bound to a nul-terminated, dynamic-extent foreign pointer to
+  an encoded version of the corresponding stringI.
+
+  (ccl:with-cstrs ((x "x")) (#_puts x))
+
+  is functionally equivalent to:
+
+  (ccl:with-encoded-cstrs :iso-8859-1 ((x "x")) (#_puts x))
+
+
+  CCL:WITH-ENCODED-CSTRS doesn't automatically prepend byte-order-marks
+  to its output; the size of the terminating #\NUL depends on the
+  number of octets-per-code-unit in the encoding.
+
+  There are certainly lots of other conventions for expressing
+  the length of foreign strings besides NUL-termination (length in
+  code units, length in octets.)  I'm not sure if it's better to
+  try to come up with high-level interfaces that support those
+  conventions ("with-encoded-string-and-length-in-octets ...")
+  or to try to support mid-level primitives ("number of octets
+  in encoded version of lisp string in specified encoding", etc.)
+
+- STREAM-ERRORs (and their subclasses, including READER-ERROR)
+  try to describe the context in which they occur a little better
+  (e.g., by referencing the file position if available and
+  by trying to show a few surrounding characters when possible.)
+  Since streams are usually buffered, this context information
+  may be incomplete, but it's often much better than nothing.
+
+- Leading tilde (~) characters in physical pathname namestrings
+  are expanded in the way that most shells do:
+
+  "~user/...." can be used to refer to an absolute pathname rooted
+  at the home directory of the user named "user"
+
+  "~/..." can be used to refer to an absulte pathname rooted at
+  the home directory of the current user.
+
+- The break-loop colon commands for showing the contents of
+  stack frames try to present the frame's contents in a way that's
+  (hopefully) more meaningful and useful.  For each stack frame
+  shown in detail, the corresponding function's argument list
+  is printed, followed by the current values of the function's
+  arguments (indented slightly), a blank line, and the current
+  values of the function's local variables (outdented slightly.)
+  The old method of showing a stack frame's "raw" contents is
+  still available as the :RAW break loop command.
+
+  The new style of presenting a stack-frame's contents is also
+  used in the Cocoa IDE.
+
+- It's historically been possible to create stacks (for threads
+  other than the original one) whose size exceeds the nominal
+  OS resource limits for a stack's size.  (OpenMCL's threads
+  use multiple stacks; the stack in question is the one that
+  OpenMCL generally refers to as the "control" or "C" stack.)
+  It's not entirely clear what (if anything) the consequences
+  of exceeding these limits have been, but OpenMCL's GC can
+  use all of the available (C) stack space that it thinks it
+  has under some conditions, and, under OSX/Mach/Darwin, there
+  have been reports of excessive page file creation and paging
+  activity that don't seem related to heap behavior in environments
+  where the GC is running on (and possibly using much of) a stack
+  whose size greatly exceeds the hard resource limit on stack
+  size.
+
+  Trying to determine exactly what was causing the excessive
+  pages got me trapped in a twisty maze of Mach kernel sources,
+  all alike.  I tried to pin C stack size to the hard resource
+  limit on stack size and have not been able to provoke the
+  excessive paging problems since, but am not confident in
+  concluding (yet) that the problems had to do with resource
+  limits being exceeded.
+
+  The hard resource limits on stack size for the OS versions
+  that I have readily available (in bash, do "ulimit -s -H";
+  in tcsh, it's "limit -h s", don't know offhand about other
+  shells) are:
+
+  unlimited on Linux
+  ~512M on FreeBSD
+  ~64M on Darwin
+
+  The effect of observing (rather than exceeding) this limit
+  on the maximum depth of lisp recursion in OpenMCL is:
+
+  * nothing, on x86-64 (the C stack is not used by lisp code
+    on x86-64)
+
+  * visible on ppc32, which uses 4 32-bit words on the control
+    stack for each lisp function invocation
+
+  * more visible on ppc64, which uses 4 64-bit words of control
+    stack for each lisp function invocation.
+
+  That seems to suggest that (given that the actual stack resource
+  limit is a bit under 64M and that OpenMCL signals stack overflow
+  when the stack pointer gets within a few hundred KB of the actual
+  limit) that ppc64 threads are now limited to a maximum of about
+  2000000 function calls.
+
+  (All of this only matters if attempts are made to create threads
+  with large stacks; the default stack sizes in OpenMCL are usually
+  1-2 MB.)
+
+- On a cheerier (and certainly less confusing) note: for the last few
+  years, OpenMCL has shipped with an extended example which provides an
+  integrated development environment (IDE) based on Cocoa; that's often
+  been described as "the demo IDE" and could also be fairly described as
+  "slow", "buggy", "incomplete", and "little more than a proof of
+  concept."
+
+  I think that it's fair to describe the current state of the IDE as
+  being "less slow", "less buggy", "less incomplete", and "much more
+  than a proof of concept" than it has been (e.g., there's been some
+  actual progress over the last few months and there are plans to
+  try to continue working on the IDE and related tools.)  It'd probably
+  be optimistic to call it "usable" in its current state (that may
+  depend on how low one's threshold of usability is), but I hope that
+  people who've been discouraged by the lack of IDE progress over the
+  last few years will see reason to be encouraged (and that anyone
+  interested will submit bug reports, patches, feature requests, code ...)
+
+
 OpenMCL 1.1-pre-070512
 - The FASL version changed (old FASL files won't work with this
   lisp version), as did the version information which tries to
