@@ -51,6 +51,41 @@ OpenMCL 1.1-pre-070722
   Since streams are usually buffered, this context information
   may be incomplete, but it's often much better than nothing.
 
+- Hashing (where some objects are hashed by address) and OpenMCL's
+  GC (which often changes the addresses of lisp objects, possibly
+  invalidating hash tables in which those objects are used as keys)
+  have never interacted well; to minimize the negative effects of
+  this interaction, most primitive functions which access hash
+  tables has disabled the GC while performing that access, secure
+  in the knowledge that hash table keys won't be moving around
+  (because of GC activity in other threads) while the hash table
+  lookup is being performed.
+
+  Disabling and reenabling the GC can be somewhat expensive, both
+  directly (in terms of the primitive operations used to do so)
+  and indirectly (in terms of the cost of - temporarily - not being
+  able to GC when otherwise desirable.)  If the GC runs (and possibly
+  moves a hash-table key) very rarely relative to the frequency of
+  hash-table access - and that's probably true, much of the time -
+  then it seems like it'd be desirable to avoid the overhead of
+  disabling/reenabling the GC on every hash table access, and it'd
+  be correct to do this as long as we're careful about it.
+
+  I was going to try to change all hash-table primitives to try
+  to make them avoid inhibiting/enabling the GC for as long as
+  possible, but wimped out and only did that for GETHASH.  (If
+  another thread could GC while we're accessing a hash table, there
+  can still be weird intercations between things like the GC's
+  handling of weak objects and code which looks at the hash table,
+  and that weirdness seemed easier to deal with in the GETHASH case
+  than in some others.)
+
+  If GETHASH's performance has improved without loss of correctness,
+  then it'd likely be worth trying to make similar changes to
+  REMHASH and CCL::PUTHASH (which implements (SETF (GETHASH ...) ...).
+  If problems are observed or performance still hasn't improved, it'd
+  probably be worth re-thinking some of this.
+
 - Leading tilde (~) characters in physical pathname namestrings
   are expanded in the way that most shells do:
 
@@ -144,6 +179,12 @@ OpenMCL 1.1-pre-070722
   people who've been discouraged by the lack of IDE progress over the
   last few years will see reason to be encouraged (and that anyone
   interested will submit bug reports, patches, feature requests, code ...)
+
+- There are now "objc-bridge" and "cocoa-ide" subdirectories; by default,
+  REQUIRE will look in these directories for files whose name matches
+  a module name.  Several files were moved from the "examples" directory
+  to "objc-bridge"; other example files, the "OpenMCL.app" skeleton
+  bundle, and the "hemlock" directory were moved to "cocoa-ide".
 
 
 OpenMCL 1.1-pre-070512
