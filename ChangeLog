@@ -1,3 +1,11 @@
+2007-07-22 23:11  gb
+
+	* level-1/version.lisp: Bump.
+
+2007-07-22 23:10  gb
+
+	* release-notes.txt: Update for 1.1-pre-070722.
+
 2007-07-22 21:11  gb
 
 	* lib/ccl-export-syms.lisp: Export WITH-ENCODED-CSTRS.
