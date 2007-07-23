@@ -332,6 +332,7 @@
      rref
      paref
      with-cstrs
+     with-encoded-cstrs
      with-string-vector
      with-pointer-to-ivector
      +null-ptr+
