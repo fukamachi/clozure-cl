@@ -143,10 +143,11 @@
     (if (assoc :help opts)
       (%usage-exit "" 0 (summarize-option-syntax a))
       (if (assoc :version opts)
+        ;; Can't use lisp streams yet.
 	(progn
-	  (format t "~&~a~&" (application-version-string a))
-	  (force-output t)
-	  (#_exit 0))
+          (with-cstrs ((s (format nil "~&~a~&" (application-version-string a))))
+            (fd-write 1 s (%cstrlen s)))
+	  (#_ _exit 0))
         (let* ((encoding (assoc :terminal-encoding opts)))
           (if encoding
             (setq *terminal-character-encoding-name*
