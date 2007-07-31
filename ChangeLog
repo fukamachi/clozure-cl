@@ -1,3 +1,14 @@
+2007-07-31 07:12  gb
+
+	* lib/dumplisp.lisp: Default the :MODE option to SAVE-APPLICATION
+	to #o644 (not #o666); make sure that it's actually used when
+	creating the image (even if not prepending a kernel to the image.)
+
+2007-07-31 07:11  gb
+
+	* level-1/l1-application.lisp: When processing --version option,
+	don't write to *terminal-io* (which doesn't exist yet.)
+
 2007-07-22 23:50  gb
 
 	* release-notes.txt: Add more stuff.
