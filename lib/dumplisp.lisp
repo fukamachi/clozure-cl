@@ -47,7 +47,7 @@
 			 clear-clos-caches
                          (purify t)
                          impurify
-			 (mode #o666)
+			 (mode #o644)
 			 prepend-kernel
 			 )
   (declare (ignore toplevel-function error-handler application-class
@@ -78,7 +78,7 @@
                                             toplevel-function  ;???? 
                                             error-handler ; meaningless unless application-class or *application* not lisp-development..
                                             application-class
-					    (mode #o666)
+					    (mode #o644)
                                             (purify t)
                                             (impurify nil)
 					    (init-file nil init-file-p)
@@ -175,7 +175,7 @@
 					   (car *command-line-argument-list*)
 					   (native-translated-namestring
 					    (pathname prepend-kernel)))
-					#$O_RDONLY)))
+                                         #$O_RDONLY)))
 	 (prepend-len (if (and prepend-fd (>= prepend-fd 0))
 			(skip-embedded-image prepend-fd)))
 	 (filename (native-translated-namestring path)))
@@ -183,7 +183,7 @@
       (%delete-file filename))
     (when prepend-fd
       (setq mode (logior #o111 mode)))
-    (let* ((image-fd (fd-open filename (logior #$O_WRONLY #$O_CREAT))))
+    (let* ((image-fd (fd-open filename (logior #$O_WRONLY #$O_CREAT) mode)))
       (unless (>= image-fd 0) (signal-file-error image-fd filename))
       (fd-chmod image-fd mode)
       (when prepend-fd
