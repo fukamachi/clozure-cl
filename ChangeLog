@@ -1,3 +1,8 @@
+2007-07-31 19:10  gb
+
+	* darwin-x86-headers64/cocoa/: .cvsignore, C/.cvsignore,
+	C/populate.sh, C/.cvsignore, C/populate.sh: Added.
+
 2007-07-31 07:12  gb
 
 	* lib/dumplisp.lisp: Default the :MODE option to SAVE-APPLICATION
