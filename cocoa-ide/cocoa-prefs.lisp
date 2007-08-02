@@ -48,31 +48,46 @@
 
 
 (defclass lisp-preferences-window-controller (ns:ns-window-controller)
-    ((selected-font-index :foreign-type :int))
+    ()
   (:metaclass ns:+ns-object))
 
 (objc:defmethod (#/fontPanelForDefaultFont: :void)
     ((self lisp-preferences-window-controller) sender)
-  (with-slots (selected-font-index) self
-    (setq selected-font-index 1))
+  (let* ((fm (#/sharedFontManager ns:ns-font-manager)))
+    (#/setSelectedFont:isMultiple: fm (default-font) nil)
+    (#/setEnabled: fm t)
+    (#/setTarget: fm self)
+    (#/setAction: fm (@selector #/changeDefaultFont:)))
   (#/orderFrontFontPanel: *NSApp* sender))
 
 
 (objc:defmethod (#/fontPanelForModelineFont: :void)
-    ((self lisp-preferences-window-controller) sender)
-  (with-slots (selected-font-index) self
-    (setq selected-font-index 2))
+		((self lisp-preferences-window-controller) sender)
+  (let* ((fm (#/sharedFontManager ns:ns-font-manager)))
+    (#/setSelectedFont:isMultiple: fm (default-font
+					  :name *modeline-font-name*
+					:size *modeline-font-size*)
+				   nil)
+    (#/setTarget: fm self)
+    (#/setAction: fm (@selector #/changeModelineFont:)))
   (#/orderFrontFontPanel: *NSApp* sender))
 
-(objc:defmethod (#/changeFont: :void) ((self lisp-preferences-window-controller) sender)
-  #+debug (#_NSLog #@"ChangeFont.")
-  (with-slots ((idx selected-font-index)) self
-    (when (> idx 0)
-      (let* ((f (#/convertFont: sender (default-font))))
-        (when (is-fixed-pitch-font f)
-          (let* ((values (#/values (#/sharedUserDefaultsController ns:ns-user-defaults-controller))))
-            (#/setValue:forKey: values (#/fontName f) (if (eql 1 idx) #@"defaultFontName" #@"modelineFontName:"))
-            (#/setValue:forKey: values (#/stringWithFormat: ns:ns-string #@"%u" (round (#/pointSize f))) (if (eql 1 idx) #@"defaultFontSize" #@"modelineFontSize"))))))))
+
+(objc:defmethod (#/changeDefaultFont: :void) ((self lisp-preferences-window-controller) sender)
+  (let* ((f (#/convertFont: sender (default-font))))
+    (when (is-fixed-pitch-font f)
+      (let* ((values (#/values (#/sharedUserDefaultsController ns:ns-user-defaults-controller))))
+        (#/setValue:forKey: values (#/fontName f) #@"defaultFontName")
+        (#/setValue:forKey: values (#/stringWithFormat: ns:ns-string #@"%u" (round (#/pointSize f))) #@"defaultFontSize")))))
+
+(objc:defmethod (#/changeModelineFont: :void) ((self lisp-preferences-window-controller) sender)
+  (let* ((f (#/convertFont: sender (default-font
+					  :name *modeline-font-name*
+					:size *modeline-font-size*))))
+    (when (is-fixed-pitch-font f)
+      (let* ((values (#/values (#/sharedUserDefaultsController ns:ns-user-defaults-controller))))
+        (#/setValue:forKey: values (#/fontName f) #@"modelineFontName:")
+        (#/setValue:forKey: values (#/stringWithFormat: ns:ns-string #@"%u" (round (#/pointSize f))) #@"modelineFontSize")))))
 
 
 (objc:defmethod (#/changeColor: :void) ((self lisp-preferences-panel)
