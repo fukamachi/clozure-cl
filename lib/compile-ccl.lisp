@@ -535,3 +535,31 @@
       (setf (current-directory) cd))))
                                                   
                
+(defun create-interfaces (dirname &key target populate-arg)
+  (let* ((backend (if target (find-backend target) *target-backend*))
+         (*default-pathname-defaults* nil)
+         (ftd (backend-target-foreign-type-data backend))
+         (d (use-interface-dir dirname ftd))
+         (populate (merge-pathnames "C/populate.sh"
+                                    (merge-pathnames
+                                     (interface-dir-subdir d)
+                                     (ftd-interface-db-directory ftd))))
+         (cdir (make-pathname :directory (pathname-directory (translate-logical-pathname populate))))
+         (args (list "-c"
+                     (format nil "cd ~a && /bin/sh ~a ~@[~a~]"
+                             (native-translated-namestring cdir)
+                             (native-translated-namestring populate)
+                             populate-arg))))
+    (format t "~&;[Running interface translator via ~s to produce .ffi file(s) from headers]~&" populate)
+    (force-output t)
+    (multiple-value-bind (status exit-code)
+        (external-process-status
+         (run-program "/bin/sh" args :output t))
+      (if (and (eq status :exited)
+               (eql exit-code 0))
+        (let* ((f 'parse-standard-ffi-files))
+          (require "PARSE-FFI")
+          (format t "~%~%;[Parsing .ffi files; may create new .cdb files for ~s]" dirname)
+          (funcall f dirname target)
+          (format t "~%~%;[Parsing .ffi files again to resolve forward-referenced constants]")
+          (funcall f dirname target))))))

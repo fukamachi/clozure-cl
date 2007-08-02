@@ -562,6 +562,7 @@
      external-entry-point
      use-interface-dir
      unuse-interface-dir
+     create-interfaces
      ;;
      run-program
      external-process
