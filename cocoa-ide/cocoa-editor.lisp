@@ -626,7 +626,8 @@
 (defclass hemlock-textstorage-text-view (ns::ns-text-view)
     ((blink-location :foreign-type :unsigned :accessor text-view-blink-location)
      (blink-color-attribute :foreign-type :id :accessor text-view-blink-color)
-     (blink-enabled :foreign-type :<BOOL> :accessor text-view-blink-enabled) )
+     (blink-enabled :foreign-type :<BOOL> :accessor text-view-blink-enabled)
+     (peer :foreign-type :id))
   (:metaclass ns:+ns-object))
 
 (objc:defmethod (#/changeColor: :void) ((self hemlock-textstorage-text-view)
@@ -788,10 +789,8 @@
 
                menu)))))
 
-(objc:defmethod (#/changeFont: :void)
-    ((self hemlock-text-view) sender)
-  (declare (ignorable sender))
-  (#_NSLog #@"changefont!"))
+
+
 
 
 (objc:defmethod (#/changeBackgroundColor: :void)
@@ -841,12 +840,16 @@
    
 (objc:defmethod (#/updateTextColor: :void)
     ((self hemlock-textstorage-text-view) sender)
-    (%call-next-objc-method
-     self
-     hemlock-textstorage-text-view
-     (@selector #/changeColor:)
-     '(:void :id)
-     sender)
+  (unwind-protect
+      (progn
+	(#/setUsesFontPanel: self t)
+	(%call-next-objc-method
+	 self
+	 hemlock-textstorage-text-view
+         (@selector #/changeColor:)
+         '(:void :id)
+         sender))
+    (#/setUsesFontPanel: self nil))
   (#/setNeedsDisplay: self t))
    
 (objc:defmethod (#/updateTextColor: :void)
@@ -1279,7 +1282,7 @@
                 (#/setSmartInsertDeleteEnabled: tv nil)
                 (#/setAllowsUndo: tv nil) ; don't want NSTextView undo
                 (#/setUsesFindPanel: tv t)
-                (#/setUsesFontPanel: tv t)
+                (#/setUsesFontPanel: tv nil)
                 (#/setMenu: tv (text-view-context-menu))
                 (#/setWidthTracksTextView: container tracks-width)
                 (#/setHeightTracksTextView: container nil)
@@ -1313,6 +1316,9 @@
   (let* ((the-hemlock-frame (#/window view))
 	 (text-view (text-pane-text-view view)))
     #+debug (#_NSLog #@"Activating text pane")
+    (with-slots ((echo peer)) text-view
+      (#/setSelectable: echo nil))
+    (#/setEditable: text-view t)
     (#/makeFirstResponder: the-hemlock-frame text-view)))
 
 
@@ -1324,7 +1330,10 @@
   (let* ((the-hemlock-frame (#/window view)))
     #+debug
     (#_NSLog #@"Activating echo area")
-    (#/makeFirstResponder: the-hemlock-frame view)))
+    (with-slots ((pane peer)) view
+      (#/setSelectable: pane nil))
+    (#/setEditable: view t)
+  (#/makeFirstResponder: the-hemlock-frame view)))
 
 (defmethod text-view-buffer ((self echo-area-view))
   (buffer-cache-buffer (hemlock-buffer-string-cache (#/hemlockString (#/textStorage self)))))
@@ -1415,7 +1424,7 @@
           (make-echo-area w
                           0.0f0
                           0.0f0
-                          (- (ns:ns-rect-width bounds) 24.0f0)
+                          (- (ns:ns-rect-width bounds) 16.0f0)
                           20.0f0
                           gap-context-for-echo-area-buffer
                           color)
@@ -1633,9 +1642,16 @@
 (defun %hemlock-frame-for-textstorage (class ts ncols nrows container-tracks-text-view-width color style)
   (let* ((pane (textpane-for-textstorage class ts ncols nrows container-tracks-text-view-width color style))
          (frame (#/window pane))
-         (buffer (text-view-buffer (text-pane-text-view pane))))
+         (buffer (text-view-buffer (text-pane-text-view pane)))
+         (echo-area (make-echo-area-for-window frame (hi::buffer-gap-context buffer) color))
+         (tv (text-pane-text-view pane)))
+    (with-slots (peer) tv
+      (setq peer echo-area))
+    (with-slots (peer) echo-area
+      (setq peer tv))
+    (hi::activate-hemlock-view pane)
     (setf (slot-value frame 'echo-area-view)
-          (make-echo-area-for-window frame (hi::buffer-gap-context buffer) color)
+          echo-area
           (slot-value frame 'pane)
           pane
           (slot-value frame 'command-thread)
