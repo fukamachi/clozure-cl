@@ -1,3 +1,44 @@
+2007-08-02 07:16  gb
+
+	* cocoa-ide/cocoa-prefs.lisp: Don't make font panel broadcast
+	#/changeFont:; use targeted messages.  Ensure that font panel picks
+	up the right font.
+
+2007-08-02 07:16  gb
+
+	* cocoa-ide/cocoa-window.lisp: Don't enable "metal" style by
+	default.
+
+2007-08-02 07:15  gb
+
+	* cocoa-ide/cocoa-editor.lisp: Make "peer" text view (main text
+	view, echo area) unselectable when activating via Hemlock command. 
+	Text views don't use font panel by default; enable/disable font
+	panel when setting text color.
+
+2007-08-02 07:14  gb
+
+	* cocoa-ide/.cvsignore: New.
+
+2007-08-02 07:13  gb
+
+	* lib/: ccl-export-syms.lisp, compile-ccl.lisp: Define and export
+	CREATE-INTERFACES.
+
+2007-08-02 07:12  gb
+
+	* cocoa-ide/cocoa-defaults.lisp: Don't need carbon interfaces.
+
+2007-08-02 07:11  gb
+
+	* library/parse-ffi.lisp: Don't be verbose about explict struct
+	returns.
+
+2007-08-02 07:10  gb
+
+	* objc-bridge/objc-runtime.lisp: Don't use carbon  interfaces
+	anymore.
+
 2007-07-31 19:10  gb
 
 	* darwin-x86-headers64/cocoa/: .cvsignore, C/.cvsignore,
