@@ -44,6 +44,7 @@
   #+apple-objc
   (progn
     (use-interface-dir :cocoa)
+    #+nomore
     (use-interface-dir :carbon))        ; need :carbon for things in this file
   #+gnu-objc
   (use-interface-dir :gnustep))
