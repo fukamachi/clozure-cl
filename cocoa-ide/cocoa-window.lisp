@@ -358,7 +358,7 @@
                          (width 500.0)
                          (closable t)
                          (iconifyable t)
-                         (metal t)
+                         (metal nil)
                          (expandable t)
                          (backing :buffered)
                          (defer t)
