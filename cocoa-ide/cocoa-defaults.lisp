@@ -18,6 +18,7 @@
 
 (eval-when (:compile-toplevel :execute)
   (use-interface-dir :cocoa)
+  #+nomore
   (use-interface-dir :carbon))
 
 (require "OBJC-SUPPORT")
