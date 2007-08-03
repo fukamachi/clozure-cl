@@ -483,7 +483,7 @@ minimum number of elements to add if it must be extended."
       (setf (%svref vector target::vectorH.logsize-cell) (the fixnum (1+ fill))))
     fill))
 
-; Could avoid potential memoization somehow
+;;; Could avoid potential memoization somehow
 (defun vector (&lexpr vals)
   "Construct a SIMPLE-VECTOR from the given objects."
   (let* ((n (%lexpr-count vals))
@@ -491,6 +491,16 @@ minimum number of elements to add if it must be extended."
     (declare (fixnum n))
     (dotimes (i n v) (setf (%svref v i) (%lexpr-ref vals n i)))))
 
+;;; CALL-ARGUMENTS-LIMIT.
+(defun list-to-vector (elts)
+  (let* ((n (length elts)))
+    (declare (fixnum n))
+    (if (< n (floor #x8000 target::node-size))
+      (apply #'vector elts)
+      (make-array n :initial-contents elts))))
+
+             
+    
 (defun %gvector (subtag &lexpr vals)
   (let* ((n (%lexpr-count vals))
          (v (%alloc-misc n subtag)))
