@@ -1,3 +1,8 @@
+2007-08-03 10:10  gb
+
+	* lib/backquote.lisp: Use list-to-vector, not (apply #'vector ...),
+	since the latter can run into problems with CALL-ARGUMENTS-LIMIT.
+
 2007-08-03 09:10  gb
 
 	* level-0/l0-array.lisp: Define list-to-vector.
