@@ -1,3 +1,7 @@
+2007-08-03 15:10  gb
+
+	* compiler/X86/x86-disassemble.lisp: Correct spelling errors.
+
 2007-08-03 10:10  gb
 
 	* lib/backquote.lisp: Use list-to-vector, not (apply #'vector ...),
