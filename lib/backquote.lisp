@@ -321,17 +321,17 @@
      (backq-form form constantp)))
 
 (defun backquote-aux (form)
-  ;Doesn't try to optimize multiple CONS's into LIST/LIST*'s, leaving it up
-  ;to the compiler.  The code here is mainly concerned with folding
-  ;constants, since the compiler is not allowed to do that in general.
+  ;;Doesn't try to optimize multiple CONS's into LIST/LIST*'s, leaving it up
+  ;;to the compiler.  The code here is mainly concerned with folding
+  ;;constants, since the compiler is not allowed to do that in general.
   (cond
    ((simple-vector-p form)
     (let ((elts ()) (i (length form)))
       (until (%izerop i) (push (svref form (setq i (%i- i 1))) elts))
       (multiple-value-bind (elts quotedp) (backquote-aux elts)
         (if quotedp
-          (values (apply #'vector elts) t)
-          (list 'apply '#'vector elts)))))
+          (values (list-to-vector elts) t)
+          (list 'list-to-vector elts)))))
    ((self-evaluating-p form) (values form t))
    ((atom form) (values form t))
    ((eq (%car form) 'backquote-expander) (backquote-aux (macroexpand-1 form)))
