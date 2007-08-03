@@ -2273,8 +2273,8 @@
                    
            (setf (x86-di-mnemonic instruction)
                  (case intop
-                   (#xc0 "uuo-error-two-few-args")
-                   (#xc1 "uuo-error-two-many-args")
+                   (#xc0 "uuo-error-too-few-args")
+                   (#xc1 "uuo-error-too-many-args")
                    (#xc2 "uuo-error-wrong-number-of-args")
                    (#xc4 (progn (setq stop nil) "uuo-gc-trap"))
                    (#xc5 "uuo-alloc")
