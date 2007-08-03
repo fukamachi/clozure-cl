@@ -1,3 +1,7 @@
+2007-08-03 09:10  gb
+
+	* level-0/l0-array.lisp: Define list-to-vector.
+
 2007-08-02 07:16  gb
 
 	* cocoa-ide/cocoa-prefs.lisp: Don't make font panel broadcast
