@@ -339,7 +339,7 @@
   "Display the last 60 characters typed."
   "Display the last 60 characters typed."
   (declare (ignore p))
-  (with-pop-up-display (s :title (format nil "The last ~d characters typed") :height 7)
+  (with-pop-up-display (s :title (format nil "The last characters typed") :height 7)
     (let ((num (ring-length *key-event-history*)))
       (format s "The last ~D characters typed:~%" num)
       (do ((i (1- num) (1- i)))
