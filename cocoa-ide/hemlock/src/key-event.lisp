@@ -107,7 +107,100 @@
 
 
 
+(defvar *mouse-translation-info*)
 
+;;; MOUSE-TRANSLATION-INFO -- Internal.
+;;;
+;;; This returns the requested information, :keysym or :shifted-modifier-name,
+;;; for the button cross event-key.  If the information is undefined, this
+;;; signals an error.
+;;;
+(defun mouse-translation-info (button event-key info)
+  (let ((event-dispatch (svref *mouse-translation-info* button)))
+    (unless event-dispatch
+      (error "No defined mouse translation information for button ~S." button))
+    (let ((data (ecase event-key
+		  (:button-press (button-press-info event-dispatch))
+		  (:button-release (button-release-info event-dispatch)))))
+      (unless data
+	(error
+	 "No defined mouse translation information for button ~S and event ~S."
+	 button event-key))
+      (ecase info
+	(:keysym (button-keysym data))
+	(:shifted-modifier-name (button-shifted-modifier-name data))))))
+
+
+(eval-when (:compile-toplevel :execute)
+  (defmacro button-press-info (event-dispatch) `(car ,event-dispatch))
+  (defmacro button-release-info (event-dispatch) `(cdr ,event-dispatch))
+  (defmacro button-keysym (info) `(car ,info))
+  (defmacro button-shifted-modifier-name (info) `(cdr ,info))
+)
+
+;;; MOUSE-TRANSLATION-INFO -- Internal.
+;;;
+;;; This returns the requested information, :keysym or :shifted-modifier-name,
+;;; for the button cross event-key.  If the information is undefined, this
+;;; signals an error.
+;;;
+(defun mouse-translation-info (button event-key info)
+  (let ((event-dispatch (svref *mouse-translation-info* button)))
+    (unless event-dispatch
+      (error "No defined mouse translation information for button ~S." button))
+    (let ((data (ecase event-key
+		  (:button-press (button-press-info event-dispatch))
+		  (:button-release (button-release-info event-dispatch)))))
+      (unless data
+	(error
+	 "No defined mouse translation information for button ~S and event ~S."
+	 button event-key))
+      (ecase info
+	(:keysym (button-keysym data))
+	(:shifted-modifier-name (button-shifted-modifier-name data))))))
+
+;;; (setf MOUSE-TRANSLATION-INFO) -- Internal.
+;;;
+;;; This walks into *mouse-translation-info* the same way MOUSE-TRANSLATION-INFO
+;;; does, filling in the data structure on an as-needed basis, and stores
+;;; the value for the indicated info.
+;;;
+(defun (setf mouse-translation-info) (value button event-key info)
+  (let ((event-dispatch (svref *mouse-translation-info* button)))
+    (unless event-dispatch
+      (setf event-dispatch
+	    (setf (svref *mouse-translation-info* button) (cons nil nil))))
+    (let ((data (ecase event-key
+		  (:button-press (button-press-info event-dispatch))
+		  (:button-release (button-release-info event-dispatch)))))
+      (unless data
+	(setf data
+	      (ecase event-key
+		(:button-press
+		 (setf (button-press-info event-dispatch) (cons nil nil)))
+		(:button-release
+		 (setf (button-release-info event-dispatch) (cons nil nil))))))
+      (ecase info
+	(:keysym
+	 (setf (button-keysym data) value))
+	(:shifted-modifier-name
+	 (setf (button-shifted-modifier-name data) value))))))
+
+
+
+;;; DEFINE-MOUSE-KEYSYM -- Public.
+;;;
+(defun define-mouse-keysym (button keysym name shifted-bit event-key)
+  "This defines keysym named name for the X button cross the X event-key.
+   Shifted-bit is a defined modifier name that TRANSLATE-MOUSE-KEY-EVENT sets
+   in the key-event it returns whenever the X shift bit is on."
+  (unless (<= 1 button 5)
+    (error "Buttons are number 1-5, not ~D." button))
+  (setf (gethash keysym *keysyms-to-names*) (list name))
+  (setf (gethash  (get-name-case-right name) *names-to-keysyms*) keysym)
+  (setf (mouse-translation-info button event-key :keysym) keysym)
+  (setf (mouse-translation-info button event-key :shifted-modifier-name)
+	shifted-bit))
 
 
 
@@ -568,6 +661,7 @@
   (setf *names-to-keysyms* (make-hash-table :test #'equal))
   (setf *modifier-translations* ())
   (setf *modifiers-to-internal-masks* ())
+  (setf *mouse-translation-info* (make-array 6 :initial-element nil))
   (setf *modifier-count* 0)
   (setf *all-modifier-names* ())
   (setf *keysym-high-bytes* (make-array 256 :initial-element nil))
