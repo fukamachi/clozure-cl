@@ -1,3 +1,10 @@
+2007-08-04 13:12  gb
+
+	* cocoa-ide/cocoa-editor.lisp: Conditionalize an #_NSLog call. 
+	Post a #k"leftdown" to Hemlock on mouseDown: in the main text view.
+	 (Should maybe do this on mousedown in the echo area, too.) Some
+	indentation changes.
+
 2007-08-04 12:14  gb
 
 	* cocoa-ide/hemlock/src/bindings.lisp: Make #k"leftdown" a logical
