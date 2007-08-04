@@ -1,3 +1,22 @@
+2007-08-04 12:14  gb
+
+	* cocoa-ide/hemlock/src/bindings.lisp: Make #k"leftdown" a logical
+	:abort key event.
+
+2007-08-04 12:13  gb
+
+	* cocoa-ide/hemlock/src/doccoms.lisp: Fix format string in window
+	title for show lossage command.
+
+2007-08-04 12:12  gb
+
+	* cocoa-ide/hemlock/src/keysym-defs.lisp: Define the keysym for
+	left mouse down, so that we can use #k"leftdown".
+
+2007-08-04 12:11  gb
+
+	* cocoa-ide/hemlock/src/key-event.lisp: Revive mouse-event stuff.
+
 2007-08-03 15:10  gb
 
 	* compiler/X86/x86-disassemble.lisp: Correct spelling errors.
