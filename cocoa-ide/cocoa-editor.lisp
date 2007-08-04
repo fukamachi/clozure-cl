@@ -815,7 +815,7 @@
                (echo-view (unless (%null-ptr-p window)
                             (slot-value window 'echo-area-view))))
           (when echo-view (#/setBackgroundColor: echo-view color))))
-      (#_NSLog #@"Updating backgroundColor to %@, sender = %@" :id color :id sender)
+      #+debug (#_NSLog #@"Updating backgroundColor to %@, sender = %@" :id color :id sender)
       (#/setBackgroundColor: self color))))
 
 (objc:defmethod (#/changeTextColor: :void)
@@ -973,6 +973,11 @@
 (objc:defmethod (#/keyDown: :void) ((self hemlock-text-view) event)
   (or (handle-key-down self event)
       (call-next-method event)))
+
+(objc:defmethod (#/mouseDown: :void) ((self hemlock-text-view) event)
+  (let* ((q (hemlock-frame-event-queue (#/window self))))
+    (hi::enqueue-key-event q #k"leftdown"))
+  (call-next-method event))
 
 ;;; Update the underlying buffer's point (and "active region", if appropriate.
 ;;; This is called in response to a mouse click or other event; it shouldn't
@@ -1573,11 +1578,11 @@
 
 (defun add-pane-to-window (w &key (reserve-above 0.0f0) (reserve-below 0.0f0))
   (let* ((window-content-view (#/contentView w))
-         (window-frame (#/frame window-content-view)))
+	 (window-frame (#/frame window-content-view)))
     (ns:with-ns-rect (pane-rect  0 reserve-below (ns:ns-rect-width window-frame) (- (ns:ns-rect-height window-frame) (+ reserve-above reserve-below)))
-      (let* ((pane (make-instance 'text-pane :with-frame pane-rect)))
-        (#/addSubview: window-content-view pane)
-        pane))))
+       (let* ((pane (make-instance 'text-pane :with-frame pane-rect)))
+	 (#/addSubview: window-content-view pane)
+	 pane))))
 
 (defun textpane-for-textstorage (class ts ncols nrows container-tracks-text-view-width color style)
   (let* ((pane (nth-value
