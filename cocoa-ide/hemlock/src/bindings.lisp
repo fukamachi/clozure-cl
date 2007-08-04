@@ -893,6 +893,7 @@
 (setf (logical-key-event-p #k"backspace" :cancel) t)
 (setf (logical-key-event-p #k"control-g" :abort) t)
 (setf (logical-key-event-p #k"escape" :exit) t)
+(setf (logical-key-event-p #k"leftdown" :abort) t)
 (setf (logical-key-event-p #k"y" :yes) t)
 (setf (logical-key-event-p #k"space" :yes) t)
 (setf (logical-key-event-p #k"n" :no) t)
