@@ -154,6 +154,9 @@
 (hemlock-ext:define-keysym 46 ".") (hemlock-ext:define-keysym 62 ">")
 (hemlock-ext:define-keysym 47 "/") (hemlock-ext:define-keysym 63 "?")
 
+
+(hemlock-ext::define-mouse-keysym 1 #xe000 "Leftdown" "Super" :button-press)
+
 ;;;
 
 ;(hemlock-ext:define-keysym 65290 "linefeed")
