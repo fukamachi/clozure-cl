@@ -1,3 +1,21 @@
+2007-08-06 23:10  gb
+
+	* cocoa-ide/: hemlock/src/bindings.lisp, hemlock/src/buffer.lisp,
+	hemlock/src/cocoa-hemlock.lisp, hemlock/src/command.lisp,
+	hemlock/src/lispmode.lisp, hemlock/src/morecoms.lisp,
+	hemlock/src/package.lisp, cocoa-editor.lisp: When generating a
+	hemlock key event, set the hemlock shift bit if the the Cocoa shift
+	bit was set.  In HI::GET-KEY-EVENT, return an event with the shift
+	bit cleared and the keysym downcased (if necessary).  Leave
+	HI::*LAST-KEY-EVENT-TYPED* as the unmodified event (which may have
+	shift bits set.) Define HI:CURRENT-POINT-FOR-MOVEMENT, which
+	deactivates the region ("collapses the selection") if the shift bit
+	was clear in HI::*LAST-KEY-EVENT-TYPED* and ensures that a region
+	is active otherwise.  Use HI:CURRENT-POINT-FOR-MOVEMENT in (most,
+	hopefully all) movement commands, to address ticket:36 .  Define a
+	"Do Nothing" hemlock command, bind #k"leftdown" (left mouse down)
+	to it to address ticket:44 .
+
 2007-08-06 19:10  gb
 
 	* objc-bridge/objc-support.lisp: careful with db stuff
