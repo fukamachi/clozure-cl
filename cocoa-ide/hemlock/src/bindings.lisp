@@ -67,7 +67,8 @@
 
 (bind-key "Process File Options" #k"control-x m" :global)
 (bind-key "Ensure File Options Line" #k"control-meta-M" :global)
-(bind-key "Help" #k"home")
+(bind-key "Beginning of Buffer" #k"home")
+(bind-key "End of Buffer" #k"end")
 (bind-key "Undo" #k"control-_")
 (bind-key "Describe Key" #k"meta-?")
 (bind-key "What Cursor Position" #k"control-x =")
@@ -896,7 +897,7 @@
 (setf (logical-key-event-p #k"backspace" :cancel) t)
 (setf (logical-key-event-p #k"control-g" :abort) t)
 (setf (logical-key-event-p #k"escape" :exit) t)
-(setf (logical-key-event-p #k"leftdown" :abort) t)
+(setf (logical-key-event-p #k"leftdown" :exit) t)
 (setf (logical-key-event-p #k"y" :yes) t)
 (setf (logical-key-event-p #k"space" :yes) t)
 (setf (logical-key-event-p #k"n" :no) t)
