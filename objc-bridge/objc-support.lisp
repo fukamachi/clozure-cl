@@ -90,18 +90,18 @@
 
 (let* ((nclasses 0))
   (declare (fixnum nclasses))
-  (defun maybe-map-objc-classes ()
+  (defun maybe-map-objc-classes (&optional use-db)
     (let* ((new (count-objc-classes)))
       (declare (fixnum new))
     (unless (= nclasses new)
       (setq nclasses new)
-      (map-objc-classes)
+      (map-objc-classes use-db)
       t)))
   (defun reset-objc-class-count ()
     (setq nclasses 0)))
 
 (register-objc-class-decls)
-(maybe-map-objc-classes)
+(maybe-map-objc-classes t)
 (register-objc-init-messages)
 
 #+gnu-objc
