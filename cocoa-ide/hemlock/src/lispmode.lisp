@@ -1219,7 +1219,7 @@
   "Move the point to the beginning of a top-level form.
   with an argument, skips the previous p top-level forms."
   "Move the point to the beginning of a top-level form."
-  (let ((point (current-point))
+  (let ((point (current-point-for-movement))
 	(count (or p 1)))
     (pre-command-parse-check point)
     (if (minusp count)
@@ -1239,7 +1239,7 @@
   "Move the point to the end of a top-level form.
    With an argument, skips the next p top-level forms."
   "Move the point to the end of a top-level form."
-  (let ((point (current-point))
+  (let ((point (current-point-for-movement))
 	(count (or p 1)))
     (pre-command-parse-check point)
     (if (minusp count)
@@ -1262,7 +1262,7 @@
   "Skip over the next Lisp list.
   With argument, skips the next p lists."
   "Skip over the next Lisp list."
-  (let ((point (current-point))
+  (let ((point (current-point-for-movement))
 	(count (or p 1)))
     (pre-command-parse-check point)
     (unless (list-offset point count) (editor-error))))
@@ -1271,7 +1271,7 @@
   "Skip over the previous Lisp list.
   With argument, skips the previous p lists."
   "Skip over the previous Lisp list."
-  (let ((point (current-point))
+  (let ((point (current-point-for-movement))
 	(count (- (or p 1))))
     (pre-command-parse-check point)
     (unless (list-offset point count) (editor-error))))
@@ -1280,7 +1280,7 @@
   "Skip over the next Form.
   With argument, skips the next p Forms."
   "Skip over the next Form."
-  (let ((point (current-point))
+  (let ((point (current-point-for-movement))
 	(count (or p 1)))
     (pre-command-parse-check point)
     (unless (form-offset point count) (editor-error))))
@@ -1289,7 +1289,7 @@
   "Skip over the previous Form.
   With argument, skips the previous p Forms."
   "Skip over the previous Form."
-  (let ((point (current-point))
+  (let ((point (current-point-for-movement))
 	(count (- (or p 1))))
     (pre-command-parse-check point)
     (unless (form-offset point count) (editor-error))))
@@ -1502,7 +1502,7 @@
 (defcommand "Forward Up List" (p)
   "Move forward past a one containing )."
   "Move forward past a one containing )."
-  (let ((point (current-point))
+  (let ((point (current-point-for-movement))
 	(count (or p 1)))
     (pre-command-parse-check point)
     (if (minusp count)
@@ -1515,7 +1515,7 @@
 (defcommand "Backward Up List" (p)
   "Move backward past a one containing (."
   "Move backward past a one containing (."
-  (let ((point (current-point))
+  (let ((point (current-point-for-movement))
 	(count (or p 1)))
     (pre-command-parse-check point)
     (if (minusp count)
@@ -1530,7 +1530,7 @@
    p levels.  With negative argument, moves down backward, but only one
    level."
   "Move down a level in list structure."
-  (let ((point (current-point))
+  (let ((point (current-point-for-movement))
 	(count (or p 1)))
     (pre-command-parse-check point)
     (with-mark ((m point))

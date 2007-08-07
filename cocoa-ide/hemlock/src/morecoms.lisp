@@ -32,6 +32,11 @@
 		   :must-exist t)))
 	(editor-error))))
 
+;;; Do nothing, but do it well ...
+(defcommand "Do Nothing" (p)
+  "Do nothing."
+  "Absolutely nothing."
+  (declare (ignore p)))
 
 
 ;;;; Casing commands...

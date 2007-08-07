@@ -82,7 +82,8 @@
 (defmacro abort-key-event-p (key-event)
   `(member (event-queue-node-event ,key-event) editor-abort-key-events))
 
-
+(defconstant +shift-event-mask+ (hemlock-ext::key-event-modifier-mask "Shift"))
+    
 (defun get-key-event (q &optional ignore-pending-aborts)
   (do* ((e (dequeue-key-event q) (dequeue-key-event q)))
        ((typep e 'event-queue-node)
@@ -91,9 +92,21 @@
             (beep)
             (clear-echo-area)
             (throw 'editor-top-level-catcher nil)))
-        (values (setq *last-key-event-typed* (event-queue-node-event e))
+        (let* ((event (event-queue-node-event e))
+               (bits  (hemlock-ext::key-event-bits event))
+               (keysym (hemlock-ext::key-event-keysym event)))
+          (setq *last-key-event-typed* event)
+          (when (and (logtest +shift-event-mask+ bits)
+                     (not (frame-event-queue-quoted-insert q)))
+            (setq event (hemlock-ext::make-key-event
+                         (let* ((char (code-char keysym)))
+                           (if char
+                             (char-code (char-downcase char))
+                             keysym))
+                         (logandc2 bits +shift-event-mask+))))
+        (values event
                 (prog1 (frame-event-queue-quoted-insert q)
-                  (setf (frame-event-queue-quoted-insert q) nil))))
+                  (setf (frame-event-queue-quoted-insert q) nil)))))
     (if (typep e 'buffer-operation)
       (catch 'command-loop-catcher
         (funcall (buffer-operation-thunk e))))))

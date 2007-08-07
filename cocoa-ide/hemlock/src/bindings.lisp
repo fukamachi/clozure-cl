@@ -62,6 +62,9 @@
 (bind-key "Scroll Next Window Down" #k"control-meta-v")
 (bind-key "Scroll Next Window Up" #k"control-meta-V")
 
+(bind-key "Do Nothing" #k"leftdown")
+
+
 (bind-key "Process File Options" #k"control-x m" :global)
 (bind-key "Ensure File Options Line" #k"control-meta-M" :global)
 (bind-key "Help" #k"home")

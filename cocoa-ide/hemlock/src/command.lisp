@@ -60,16 +60,17 @@
    With prefix argument move that many characters, with negative argument
    go backwards."
   "Move the point of the current buffer forward p characters."
-  (let ((p (or p 1)))
-    (cond ((character-offset (current-point) p))
+  (let* ((p (or p 1))
+         (point (current-point-for-movement)))
+    (cond ((character-offset point p))
 	  ((= p 1)
 	   (editor-error "No next character."))
 	  ((= p -1)
 	   (editor-error "No previous character."))
 	  (t
 	   (if (plusp p)
-	       (buffer-end (current-point))
-	       (buffer-start (current-point)))
+	       (buffer-end point)
+	       (buffer-start point))
 	   (editor-error "Not enough characters.")))))
 
 (defcommand "Backward Character" (p)
@@ -166,13 +167,14 @@
   "Moves forward one word.
   With prefix argument, moves the point forward over that many words."
   "Moves the point forward p words."
-  (cond ((word-offset (current-point) (or p 1)))
-	((and p (minusp p))
-	 (buffer-start (current-point))
-	 (editor-error "No previous word."))
-	(t
-	 (buffer-end (current-point))
-	 (editor-error "No next word."))))
+  (let* ((point (current-point-for-movement)))
+    (cond ((word-offset point (or p 1)))
+          ((and p (minusp p))
+           (buffer-start point)
+           (editor-error "No previous word."))
+          (t
+           (buffer-end point)
+           (editor-error "No next word.")))))
 
 (defcommand "Backward Word" (p)
   "Moves forward backward word.
@@ -202,7 +204,7 @@
    With prefix argument, moves the point that many lines down (or up if
    the prefix is negative)."
   "Moves the down p lines."
-  (let* ((point (current-point))
+  (let* ((point (current-point-for-movement))
 	 (target (set-target-column point)))
     (unless (line-offset point (or p 1))
       (when (value next-line-inserts-newlines)
@@ -243,7 +245,7 @@
   "Moves the point to the beginning of the current buffer."
   "Moves the point to the beginning of the current buffer."
   (declare (ignore p))
-  (let ((point (current-point)))
+  (let ((point (current-point-for-movement)))
     (push-buffer-mark (copy-mark point))
     (buffer-start point)))
 
@@ -251,7 +253,7 @@
   "Moves the point to the end of the current buffer."
   "Moves the point to the end of the current buffer."
   (declare (ignore p))
-  (let ((point (current-point)))
+  (let ((point (current-point-for-movement)))
     (push-buffer-mark (copy-mark point))
     (buffer-end point)))
 
@@ -260,7 +262,7 @@
   With prefix argument, moves the point to the beginning of the prefix'th
   next line."
   "Moves the point down p lines and then to the beginning of the line."
-  (let ((point (current-point)))
+  (let ((point (current-point-for-movement)))
     (unless (line-offset point (if p p 0)) (editor-error "No such line."))
     (line-start point)))
 
@@ -268,7 +270,7 @@
   "Moves the point to the end of the current line.
   With prefix argument, moves the point to the end of the prefix'th next line."
   "Moves the point down p lines and then to the end of the line."
-  (let ((point (current-point)))
+  (let ((point (current-point-for-movement)))
     (unless (line-offset point (if p p 0)) (editor-error "No such line."))
     (line-end point)))
 
@@ -317,20 +319,7 @@
     (when (eq win (current-window)) (editor-error "Only one window."))
     (scroll-window-up-command p win)))
 
-(defcommand "Top of Window" (p)
-  "Move the point to the top of the current window.
-  The point is left before the first character displayed in the window."
-  "Move the point to the top of the current window."
-  (declare (ignore p))
-  (move-mark (current-point) (window-display-start (current-window))))
 
-(defcommand "Bottom of Window" (p)
-  "Move the point to the bottom of the current window.
-  The point is left at the start of the bottom line."
-  "Move the point to the bottom of the current window."
-  (declare (ignore p))
-  (line-start (current-point)
-	      (mark-line (window-display-end (current-window)))))
 
 ;;;; Kind of miscellaneous commands:
 

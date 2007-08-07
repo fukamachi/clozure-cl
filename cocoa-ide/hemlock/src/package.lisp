@@ -61,6 +61,7 @@
    #:current-point-for-insertion
    #:current-point-for-deletion
    #:current-point-unless-selection
+   #:current-point-for-movement
    #:current-point
    #:current-mark
    #:pop-buffer-mark

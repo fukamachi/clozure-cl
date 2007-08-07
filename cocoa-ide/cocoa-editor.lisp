@@ -930,7 +930,7 @@
         (when c
           (let* ((bits 0)
                  (useful-modifiers (logandc2 modifiers
-                                             (logior #$NSShiftKeyMask
+                                             (logior ;#$NSShiftKeyMask
                                                      #$NSAlphaShiftKeyMask))))
             (unless quoted
               (dolist (map hemlock-ext::*modifier-translations*)
@@ -1424,17 +1424,17 @@
 		    
 (defun make-echo-area-for-window (w gap-context-for-echo-area-buffer color)
   (let* ((content-view (#/contentView w))
-         (bounds (#/bounds content-view)))
-      (multiple-value-bind (echo-area box)
-          (make-echo-area w
-                          0.0f0
-                          0.0f0
-                          (- (ns:ns-rect-width bounds) 16.0f0)
-                          20.0f0
-                          gap-context-for-echo-area-buffer
-                          color)
-	(#/addSubview: content-view box)
-	echo-area)))
+	 (bounds (#/bounds content-view)))
+    (multiple-value-bind (echo-area box)
+			 (make-echo-area w
+					 0.0f0
+					 0.0f0
+					 (- (ns:ns-rect-width bounds) 16.0f0)
+					 20.0f0
+					 gap-context-for-echo-area-buffer
+					 color)
+      (#/addSubview: content-view box)
+      echo-area)))
                
 (defclass hemlock-frame (ns:ns-window)
     ((echo-area-view :foreign-type :id)
@@ -1660,7 +1660,8 @@
           (slot-value frame 'pane)
           pane
           (slot-value frame 'command-thread)
-          (process-run-function (format nil "Hemlock window thread")
+          (process-run-function (format nil "Hemlock window thread for ~s"
+					(hi::buffer-name buffer))
                                 #'(lambda ()
                                     (hemlock-thread-function
                                      (hemlock-frame-event-queue frame)
@@ -2549,34 +2550,34 @@
 
                                        
 (objc:defmethod (#/documentClassForType: :<C>lass) ((self hemlock-document-controller)
-                                         type)
+						    type)
   (if (#/isEqualToString: type #@"html")
-    display-document
-    (call-next-method type)))
+      display-document
+      (call-next-method type)))
       
 
 (objc:defmethod #/newDisplayDocumentWithTitle:content:
-    ((self hemlock-document-controller)
-     title
-     string)
+		((self hemlock-document-controller)
+		 title
+		 string)
   (let* ((doc (#/makeUntitledDocumentOfType:error: self #@"html" +null-ptr+)))
     (unless (%null-ptr-p doc)
       (#/addDocument: self doc)
       (#/makeWindowControllers doc)
       (let* ((window (#/window (#/objectAtIndex: (#/windowControllers doc) 0))))
-        (#/setTitle: window title)
-        (let* ((tv (slot-value doc 'text-view))
-               (lm (#/layoutManager tv))
-               (ts (#/textStorage lm)))
-          (#/beginEditing ts)
-          (#/replaceCharactersInRange:withAttributedString:
-           ts
-           (ns:make-ns-range 0 (#/length ts))
-           string)
-          (#/endEditing ts))
-        (#/makeKeyAndOrderFront:
-         window
-         self)))))
+	(#/setTitle: window title)
+	(let* ((tv (slot-value doc 'text-view))
+	       (lm (#/layoutManager tv))
+	       (ts (#/textStorage lm)))
+	  (#/beginEditing ts)
+	  (#/replaceCharactersInRange:withAttributedString:
+	   ts
+	   (ns:make-ns-range 0 (#/length ts))
+	   string)
+	  (#/endEditing ts))
+	(#/makeKeyAndOrderFront:
+	 window
+	 self)))))
 
 
 
