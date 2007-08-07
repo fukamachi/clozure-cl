@@ -1,3 +1,13 @@
+2007-08-07 15:10  gb
+
+	* cocoa-ide/hemlock/src/bindings.lisp: Bind home and end to
+	beginning of buffer and end of buffer.	It's Mac standard, and I
+	use it a lot.  Home was bound to "Help".
+	
+	Make clicking the mouse while incremental searching exit instead of
+	abort, leaving the insertion point where you click instead of where
+	the isearch was started.
+
 2007-08-06 23:10  gb
 
 	* cocoa-ide/: hemlock/src/bindings.lisp, hemlock/src/buffer.lisp,
