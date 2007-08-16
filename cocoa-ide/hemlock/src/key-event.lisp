@@ -473,6 +473,12 @@
 ;;; error when the system tries to print it.
 ;;;
 (defun get-key-event* (keysym bits)
+  (let* ((char (code-char keysym)))
+    (when (and char (standard-char-p char))
+      (let* ((mask (key-event-modifier-mask "Shift")))
+        (when (logtest bits mask)
+          (setq bits (logandc2 bits mask)
+                keysym (char-code (char-upcase char)))))))
   (let* ((high-byte (ash keysym -8))
 	 (low-byte-vector (svref *keysym-high-bytes* high-byte)))
     (unless low-byte-vector
