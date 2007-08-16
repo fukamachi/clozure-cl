@@ -54,16 +54,17 @@
 	 (point (current-point))
 	 (mark (copy-mark point))
 	 (won (find-pattern point pattern)))
-    (cond (won (character-offset point won)
-	       (if (region-active-p)
-		   (delete-mark mark)
-		   (push-buffer-mark mark)))
+    (cond (won (move-mark mark point)
+	       (character-offset point won)
+               (push-buffer-mark mark t)
+	       (hi::note-selection-set-by-search))
 	  (t (delete-mark mark)
-	     (editor-error)))))
+	     (editor-error)))
+    (clear-echo-area)))
 
 (defcommand "Reverse Search" (p &optional string)
   "Do a backward search for a string.
-  Prompt for the string and leave the point before where it is found."
+   Prompt for the string and leave the point before where it is found."
   "Searches backwards for the specified String in the current buffer."
   (declare (ignore p))
   (if (not string)
@@ -74,11 +75,13 @@
 	 (point (current-point))
 	 (mark (copy-mark point))
 	 (won (find-pattern point pattern)))
-    (cond (won (if (region-active-p)
-		   (delete-mark mark)
-		   (push-buffer-mark mark)))
+    (cond (won (move-mark mark point)
+	       (character-offset mark won)
+	       (push-buffer-mark mark t)
+	       (hi::note-selection-set-by-search))
 	  (t (delete-mark mark)
-	     (editor-error)))))
+	     (editor-error)))
+    (clear-echo-area)))
 
 
 
@@ -187,6 +190,9 @@
              (hi::document-begin-editing doc))))
       (case (%i-search-char-eval next-key-event string point trailer
                                  direction failure)
+        (:mouse-exit
+         (clear-echo-area)
+         (throw 'exit-i-search nil))
         (:cancel
          (%i-search-echo-refresh string direction failure)
          (unless (zerop (length string))
@@ -310,7 +316,8 @@
   (let ((found-offset (find-pattern trailer *last-search-pattern*)))
     (cond (found-offset
 	    (cond ((eq direction :forward)
-		   (character-offset (move-mark point trailer) found-offset))
+		   (character-offset (move-mark point trailer) found-offset)
+		   (push-buffer-mark (copy-mark trailer) t))
 		  (t
 		   (move-mark point trailer)
 		   (character-offset trailer found-offset)))
