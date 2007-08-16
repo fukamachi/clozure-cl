@@ -1,3 +1,68 @@
+2007-08-16 08:20  gb
+
+	* cocoa-ide/hemlock/src/bindings.lisp: Shifted and unshifted keys
+	bound to movement commands run different commands.
+	
+	Left-mouse has the :mouse-exit logical attribute.
+
+2007-08-16 08:19  gb
+
+	* cocoa-ide/hemlock/src/buffer.lisp:
+	CURRENT-POINT-COLLAPSING-SELECTION and
+	CURRENT-POINT-EXTENDING-SELECTION replace
+	CURRENT-POINT-FOR-MOVEMENT.
+
+2007-08-16 08:18  gb
+
+	* cocoa-ide/hemlock/src/cocoa-hemlock.lisp: Simplify key-event
+	translation.
+	
+	Define NOTE-SELECTION-SET-BY-SEARCH, which can cause special
+	selection highlighting under Leopard.
+
+2007-08-16 08:16  gb
+
+	* cocoa-ide/hemlock/src/command.lisp: Movement commands come in
+	"shifted" and "unshifted" variants.
+
+2007-08-16 08:15  gb
+
+	* cocoa-ide/hemlock/src/echo.lisp: :mouse-exit is a new logical key
+	attribute.
+
+2007-08-16 08:14  gb
+
+	* cocoa-ide/hemlock/src/key-event.lisp: GET-KEY-EVENT*: clear shift
+	bit for standard-char (and upper-case.) This means that
+	#k"ctrl-shift-a" and #k"ctrl-A" both refer to the same key event
+	(in which the shift modifier isn't explicitly set) and that
+	#k"rightarrow" and #k"shift-rightarrow" are distinct (and the shift
+	modifier is set in the latter.)
+
+2007-08-16 08:13  gb
+
+	* cocoa-ide/hemlock/src/lispmode.lisp: When indenting, don't change
+	the buffer if the line's already indented properly.
+	
+	Movement commands come in two variants: those that collapse and
+	those that extend the selection.
+
+2007-08-16 08:12  gb
+
+	* cocoa-ide/hemlock/src/package.lisp: Export
+	CURRENT-POINT-EXTENDING-SELECTION and
+	CURRENT-POINT-COLLAPSING-SELECTION.  Don't export
+	CURRENT-POINT-FOR-MOVEMENT.
+
+2007-08-16 08:10  gb
+
+	* cocoa-ide/hemlock/src/searchcoms.lisp: Hilite the selection more
+	empatically (under Leopard) after successful (non incremental)
+	search.
+	
+	Incremental search also hilites the selection, but doesn't yet
+	manage the selection on failure.
+
 2007-08-16 07:10  gb
 
 	* cocoa-ide/cocoa-editor.lisp: activate-hemlock-view: implemenent
