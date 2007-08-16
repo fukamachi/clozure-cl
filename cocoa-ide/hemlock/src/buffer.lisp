@@ -319,21 +319,26 @@
   "Return the Buffer-Point of the current buffer."
   (buffer-point *current-buffer*))
 
-(defun current-point-for-movement ()
+
+
+(defun current-point-collapsing-selection ()
   "Return the Buffer-Point of the current buffer, deactivating the
-   region unless the shift modifier was set in *last-key-event-typed*"
+   region."
   (let* ((b *current-buffer*)
-         (point (buffer-point b))
-         (shift-key-p (logtest +shift-event-mask+
-                               (hemlock-ext::key-event-bits
-                                *last-key-event-typed*))))
-    (if shift-key-p
-      ;; If the region is active, keep it active.  Otherwise,
-      ;; establish a new (empty) region at point.
-      (unless (%buffer-current-region-p b)
-        (push-buffer-mark (copy-mark point) t))
-      ;; Deactivate the region
-      (setf (buffer-region-active b) nil))
+         (point (buffer-point b)))
+    ;; Deactivate the region
+    (setf (buffer-region-active b) nil)
+    point))
+
+(defun current-point-extending-selection ()
+  "Return the Buffer-Point of the current buffer, deactivating the
+   region."
+  (let* ((b *current-buffer*)
+         (point (buffer-point b)))
+    ;; If the region is active, keep it active.  Otherwise,
+    ;; establish a new (empty) region at point.
+    (unless (%buffer-current-region-p b)
+      (push-buffer-mark (copy-mark point) t))
     point))
 
 (defun current-point-for-insertion ()
