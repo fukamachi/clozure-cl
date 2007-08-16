@@ -1,3 +1,13 @@
+2007-08-16 07:10  gb
+
+	* cocoa-ide/cocoa-editor.lisp: activate-hemlock-view: implemenent
+	by invoking #/activateHemlockView on main thread; call
+	deactivate-hemlock-view on the peer.
+	
+	Not sure if edit-count fuss in deactivate-hemlock-view is correct,
+	but I'm fairly sure that this stuff needs to happen on the main
+	thread.
+
 2007-08-09 16:10  gb
 
 	* lib/arglist.lisp: Use PRINC-TO-STRING (not PRIN1-TO-STRING) in
