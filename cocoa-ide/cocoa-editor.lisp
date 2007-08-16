@@ -386,7 +386,7 @@
 
 ;;; Return true iff we're inside a "beginEditing/endEditing" pair
 (objc:defmethod (#/editingInProgress :<BOOL>) ((self hemlock-text-storage))
-  (not (eql (slot-value self 'edit-count) 0)))
+  (> (slot-value self 'edit-count) 0))
 
 (defun textstorage-note-insertion-at-position (self pos n)
   (ns:with-ns-range (r pos 0)
@@ -410,7 +410,7 @@
 (objc:defmethod (#/noteModification: :void) ((self hemlock-text-storage) params)
   (let* ((pos (#/longValue (#/objectAtIndex: params 0)))
          (n (#/longValue (#/objectAtIndex: params 1))))
-    #+debug 0
+    #+debug
     (#_NSLog #@"Note modification: pos = %d, n = %d" :int pos :int n)
     (#/edited:range:changeInLength: self (logior #$NSTextStorageEditedCharacters
                                                  #$NSTextStorageEditedAttributes) (ns:make-ns-range pos n) 0)))
@@ -500,6 +500,9 @@
   #+debug
   (#_NSLog #@"Attributes at index: %d storage %@" :unsigned index :id self)
   (with-slots (cache styles) self
+    (when (>= index (#/length cache))
+      (#_NSLog #@"Attributes at index: %d  edit-count: %d cache: %@ layout: %@" :unsigned index ::unsigned (slot-value self 'edit-count) id cache :id (#/objectAtIndex: (#/layoutManagers self) 0))
+      (dbg))
     (let* ((attrs (#/attributesAtIndex:effectiveRange: cache index rangeptr)))
       (when (eql 0 (#/count attrs))
         (#_NSLog #@"No attributes ?")
@@ -716,10 +719,9 @@
              (point (hi::buffer-point buffer)))
         #+debug (#_NSLog #@"Syntax check for blinking")
         (update-buffer-package (hi::buffer-document buffer) buffer)
-          
         (cond ((eql (hi::next-character point) #\()
                (hemlock::pre-command-parse-check point)
-               (when (hemlock::valid-spot point nil)
+               (when (hemlock::valid-spot point t)
                  (hi::with-mark ((temp point))
                    (when (hemlock::list-offset temp 1)
                      #+debug (#_NSLog #@"enable blink, forward")
@@ -765,6 +767,7 @@
      (char-width :foreign-type :<CGF>loat :accessor text-view-char-width)
      (char-height :foreign-type :<CGF>loat :accessor text-view-char-height))
   (:metaclass ns:+ns-object))
+
 
 
 (defloadvar *text-view-context-menu* ())
@@ -1317,28 +1320,59 @@
       tv)))
 
 
-(defmethod hi::activate-hemlock-view ((view text-pane))
-  (let* ((the-hemlock-frame (#/window view))
-	 (text-view (text-pane-text-view view)))
-    #+debug (#_NSLog #@"Activating text pane")
+(objc:defmethod (#/activateHemlockView :void) ((self text-pane))
+  (let* ((the-hemlock-frame (#/window self))
+	 (text-view (text-pane-text-view self)))
+    #+debug  (#_NSLog #@"Activating text pane")
     (with-slots ((echo peer)) text-view
-      (#/setSelectable: echo nil))
+      (deactivate-hemlock-view echo))
     (#/setEditable: text-view t)
     (#/makeFirstResponder: the-hemlock-frame text-view)))
 
+(defmethod hi::activate-hemlock-view ((view text-pane))
+  (#/performSelectorOnMainThread:withObject:waitUntilDone:
+   view
+   (@selector #/activateHemlockView)
+   +null-ptr+
+   t))
+
+
+
+(defmethod deactivate-hemlock-view ((self hemlock-text-view))
+    (#/setSelectable: self nil))
 
 (defclass echo-area-view (hemlock-textstorage-text-view)
     ()
   (:metaclass ns:+ns-object))
 
-(defmethod hi::activate-hemlock-view ((view echo-area-view))
-  (let* ((the-hemlock-frame (#/window view)))
+(objc:defmethod (#/activateHemlockView :void) ((self echo-area-view))
+  (let* ((the-hemlock-frame (#/window self)))
     #+debug
     (#_NSLog #@"Activating echo area")
-    (with-slots ((pane peer)) view
-      (#/setSelectable: pane nil))
-    (#/setEditable: view t)
-  (#/makeFirstResponder: the-hemlock-frame view)))
+    (with-slots ((pane peer)) self
+      (deactivate-hemlock-view pane))
+    (#/setEditable: self t)
+  (#/makeFirstResponder: the-hemlock-frame self)))
+
+(defmethod hi::activate-hemlock-view ((view echo-area-view))
+  (#/performSelectorOnMainThread:withObject:waitUntilDone:
+   view
+   (@selector #/activateHemlockView)
+   +null-ptr+
+   t))
+
+(defmethod deactivate-hemlock-view ((self echo-area-view))
+  #+debug (#_NSLog #@"deactivating echo area")
+  (let* ((ts (#/textStorage self)))
+    #+debug 0
+    (when (#/editingInProgress ts)
+      (#_NSLog #@"deactivating %@, edit-count = %d" :id self :int (slot-value ts 'edit-count)))
+    (do* ()
+         ((not (#/editingInProgress ts)))
+      (#/endEditing ts))
+
+    (#/setSelectable: self nil)))
+
 
 (defmethod text-view-buffer ((self echo-area-view))
   (buffer-cache-buffer (hemlock-buffer-string-cache (#/hemlockString (#/textStorage self)))))
