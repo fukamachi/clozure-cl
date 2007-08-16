@@ -366,7 +366,8 @@
      (hemlock-string :foreign-type :id)
      (edit-count :foreign-type :int)
      (cache :foreign-type :id)
-     (styles :foreign-type :id))
+     (styles :foreign-type :id)
+     (selection-set-by-search :foreign-type :<BOOL>))
   (:metaclass ns:+ns-object))
 
 
@@ -744,21 +745,40 @@
 ;;; underlying buffer's point and/or mark
 
 (objc:defmethod (#/updateSelection:length:affinity: :void)
-    ((self hemlock-textstorage-text-view)
-     (pos :int)
-     (length :int)
-     (affinity :<NSS>election<A>ffinity))
+		((self hemlock-textstorage-text-view)
+		 (pos :int)
+		 (length :int)
+		 (affinity :<NSS>election<A>ffinity))
   (when (eql length 0)
     (update-blink self))
   (rlet ((range :ns-range :location pos :length length))
-    (%call-next-objc-method self
-                            hemlock-textstorage-text-view
-                            (@selector #/setSelectedRange:affinity:stillSelecting:)
-                            '(:void :<NSR>ange :<NSS>election<A>ffinity :<BOOL>)
-                            range
-                            affinity
-                            nil)
-    (#/scrollRangeToVisible: self range)))
+	(%call-next-objc-method self
+				hemlock-textstorage-text-view
+				(@selector #/setSelectedRange:affinity:stillSelecting:)
+				'(:void :<NSR>ange :<NSS>election<A>ffinity :<BOOL>)
+				range
+				affinity
+				nil)
+	(#/scrollRangeToVisible: self range)
+	(when (> length 0)
+	  (let* ((ts (#/textStorage self)))
+	    (with-slots (selection-set-by-search) ts
+	      (when (prog1 (eql #$YES selection-set-by-search)
+		      (setq selection-set-by-search #$NO))
+		(highlight-search-selection self pos length)))))
+))
+
+(defloadvar *can-use-show-find-indicator-for-range*
+	    (coerce-from-bool (#_class_respondsToSelector 
+			       (@class "NSTextView")
+			       (@selector "showFindIndicatorForRange:"))))
+
+;;; Add transient highlighting to a selection established via a search
+;;; primitive, if the OS supports it.
+(defun highlight-search-selection (tv pos length)
+  (when *can-use-show-find-indicator-for-range*
+    (ns:with-ns-range (r pos length)
+      (objc-message-send tv "showFindIndicatorForRange:" :<NSR>ange r :void))))
   
 ;;; A specialized NSTextView. The NSTextView is part of the "pane"
 ;;; object that displays buffers.
@@ -767,6 +787,9 @@
      (char-width :foreign-type :<CGF>loat :accessor text-view-char-width)
      (char-height :foreign-type :<CGF>loat :accessor text-view-char-height))
   (:metaclass ns:+ns-object))
+
+
+
 
 
 
@@ -940,6 +963,9 @@
                 (when (logtest useful-modifiers (car map))
                   (setq bits (logior bits (hemlock-ext::key-event-modifier-mask
                                          (cdr map)))))))
+            (let* ((char (code-char c)))
+              (when (and char (standard-char-p char))
+                (setq bits (logandc2 bits hi::+shift-event-mask+))))
             (hemlock-ext::make-key-event c bits)))))))
 
 (defun pass-key-down-event-to-hemlock (self event q)
@@ -1186,21 +1212,7 @@
         (#/setFrame: hscroll scrollbar-frame)
         (#/setFrame: modeline modeline-frame)))))
 
-;;; We want to constrain the scrolling that happens under program control,
-;;; so that the clipview is always scrolled in character-sized increments.
-#+doesnt-work-yet
-(objc:defmethod (#/scrollClipView:toPoint: :void)
-    ((self modeline-scroll-view)
-     clip-view
-     (p :ns-point))
-  #+debug
-  (#_NSLog #@"Scrolling to point %@" :id (#_NSStringFromPoint p))
-  (let* ((char-height (#/verticalLineScroll self)))
-    (ns:with-ns-point (proposed (ns:ns-point-x p) (* char-height (round (ns:ns-point-y p) char-height)))
-    #+debug
-    (#_NSLog #@" Proposed point = %@" :id
-             (#_NSStringFromPoint proposed)))
-    (call-next-method clip-view proposed)))
+
 
 
 
@@ -1817,7 +1829,7 @@
                (font (buffer-active-font buffer)))
           (unless (eq (hi::mark-%kind mark) :right-inserting)
             (decf pos n))
-          #+debug
+          #+debug 
 	  (#_NSLog #@"insert: pos = %d, n = %d" :int pos :int n)
           ;;(reset-buffer-cache display)
           (adjust-buffer-cache-for-insertion display pos n)
@@ -1827,6 +1839,7 @@
               (#/replaceCharactersInRange:withString:
                cache replacerange replacestring)))
           (#/setAttributes:range: cache font (ns:make-ns-range pos n))
+	  #+debug (#_NSLog #@"cache = %@" :id cache)
           #-all-in-cocoa-thread
           (textstorage-note-insertion-at-position textstorage pos n)
           #+all-in-cocoa-thread
@@ -1977,6 +1990,12 @@
         (if (or (null curname)
                 (not (string= curname name)))
           (setf (hi::variable-value 'hemlock::current-package :buffer buffer) name))))))
+
+(defun hi::document-note-selection-set-by-search (doc)
+  (with-slots (textstorage) doc
+    (when textstorage
+      (with-slots (selection-set-by-search) textstorage
+	(setq selection-set-by-search #$YES)))))
 
 (objc:defmethod (#/validateMenuItem: :<BOOL>)
     ((self hemlock-text-view) item)
@@ -2131,6 +2150,8 @@
   #+debug
   (#_NSLog #@"saving file to %@" :id path)
   (call-next-method path type save-operation))
+
+
 
 (def-cocoa-default *editor-keep-backup-files* :bool t "maintain backup files")
 
@@ -2292,7 +2313,7 @@
          (char-height (text-view-char-height tv))
          (sv-height (ns:ns-size-height (#/contentSize sv)))
          (nlines (floor sv-height char-height))
-         (point (hi::current-point)))
+         (point (hi::current-point-collapsing-selection)))
     (or (hi::line-offset point (* n nlines))        
         (if (< n 0)
           (hi::buffer-start point)
