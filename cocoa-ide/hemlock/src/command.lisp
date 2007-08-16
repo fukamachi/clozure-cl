@@ -56,12 +56,30 @@
   (hi::enable-self-insert *editor-input*))
 
 (defcommand "Forward Character" (p)
-  "Move the point forward one character.
+  "Move the point forward one character, collapsing the selection.
    With prefix argument move that many characters, with negative argument
    go backwards."
-  "Move the point of the current buffer forward p characters."
+  "Move the point of the current buffer forward p characters, collapsing the selection."
   (let* ((p (or p 1))
-         (point (current-point-for-movement)))
+         (point (current-point-collapsing-selection)))
+    (cond ((character-offset point p))
+	  ((= p 1)
+	   (editor-error "No next character."))
+	  ((= p -1)
+	   (editor-error "No previous character."))
+	  (t
+	   (if (plusp p)
+	       (buffer-end point)
+	       (buffer-start point))
+	   (editor-error "Not enough characters.")))))
+
+(defcommand "Select Forward Character" (p)
+  "Move the point forward one character, extending the selection.
+   With prefix argument move that many characters, with negative argument
+   go backwards."
+  "Move the point of the current buffer forward p characters, extending the selection."
+  (let* ((p (or p 1))
+         (point (current-point-extending-selection)))
     (cond ((character-offset point p))
 	  ((= p 1)
 	   (editor-error "No next character."))
@@ -74,10 +92,16 @@
 	   (editor-error "Not enough characters.")))))
 
 (defcommand "Backward Character" (p)
-  "Move the point backward one character.
+  "Move the point backward one character, collapsing the selection.
   With prefix argument move that many characters backward."
-  "Move the point p characters backward."
+  "Move the point p characters backward, collapsing the selection."
   (forward-character-command (if p (- p) -1)))
+
+(defcommand "Select Backward Character" (p)
+  "Move the point backward one character, extending the selection.
+  With prefix argument move that many characters backward."
+  "Move the point p characters backward, extending the selection."
+  (select-forward-character-command (if p (- p) -1)))
 
 #|
 (defcommand "Delete Next Character" (p)
@@ -164,10 +188,23 @@
 	  (return nil))))))
 
 (defcommand "Forward Word" (p)
-  "Moves forward one word.
+  "Moves forward one word, collapsing the selection.
   With prefix argument, moves the point forward over that many words."
-  "Moves the point forward p words."
-  (let* ((point (current-point-for-movement)))
+  "Moves the point forward p words, collapsing the selection."
+  (let* ((point (current-point-collapsing-selection)))
+    (cond ((word-offset point (or p 1)))
+          ((and p (minusp p))
+           (buffer-start point)
+           (editor-error "No previous word."))
+          (t
+           (buffer-end point)
+           (editor-error "No next word.")))))
+
+(defcommand "Select Forward Word" (p)
+  "Moves forward one word, extending the selection.
+  With prefix argument, moves the point forward over that many words."
+  "Moves the point forward p words, extending the selection."
+  (let* ((point (current-point-extending-selection)))
     (cond ((word-offset point (or p 1)))
           ((and p (minusp p))
            (buffer-start point)
@@ -181,6 +218,12 @@
   With prefix argument, moves the point back over that many words."
   "Moves the point backward p words."
   (forward-word-command (- (or p 1))))
+
+(defcommand "Select Backward Word" (p)
+  "Moves forward backward word, extending the selection.
+  With prefix argument, moves the point back over that many words."
+  "Moves the point backward p words, extending the selection."
+  (select-forward-word-command (- (or p 1))))
 
 
 
@@ -200,11 +243,33 @@
 
 
 (defcommand "Next Line" (p)
-  "Moves the point to the next line.
+  "Moves the point to the next line, collapsing the selection.
    With prefix argument, moves the point that many lines down (or up if
    the prefix is negative)."
-  "Moves the down p lines."
-  (let* ((point (current-point-for-movement))
+  "Moves the down p lines, collapsing the selection."
+  (let* ((point (current-point-collapsing-selection))
+	 (target (set-target-column point)))
+    (unless (line-offset point (or p 1))
+      (when (value next-line-inserts-newlines)
+        (cond ((not p)
+               (when (same-line-p point (buffer-end-mark (current-buffer)))
+                 (line-end point))
+               (insert-character point #\newline))
+              ((minusp p)
+               (buffer-start point)
+               (editor-error "No previous line."))
+              (t
+               (buffer-end point)
+               (when p (editor-error "No next line."))))))
+    (unless (move-to-column point target) (line-end point))
+    (setf (last-command-type) :line-motion)))
+
+(defcommand "Select Next Line" (p)
+  "Moves the point to the next line, extending the selection.
+   With prefix argument, moves the point that many lines down (or up if
+   the prefix is negative)."
+  "Moves the down p lines, extendin the selection."
+  (let* ((point (current-point-extending-selection))
 	 (target (set-target-column point)))
     (unless (line-offset point (or p 1))
       (when (value next-line-inserts-newlines)
@@ -223,11 +288,18 @@
 
 
 (defcommand "Previous Line" (p)
-  "Moves the point to the previous line.
+  "Moves the point to the previous line, collapsing the selection.
   With prefix argument, moves the point that many lines up (or down if
   the prefix is negative)."
-  "Moves the point up p lines."
+  "Moves the point up p lines, collapsing the selection."
   (next-line-command (- (or p 1))))
+
+(defcommand "Select Previous Line" (p)
+  "Moves the point to the previous line, collapsing the selection.
+  With prefix argument, moves the point that many lines up (or down if
+  the prefix is negative)."
+  "Moves the point up p lines, collapsing the selection."
+  (select-next-line-command (- (or p 1))))
 
 (defcommand "Mark to End of Buffer" (p)
   "Sets the current region from point to the end of the buffer."
@@ -242,10 +314,10 @@
   (push-buffer-mark (buffer-start (copy-mark (current-point))) t))
 
 (defcommand "Beginning of Buffer" (p)
-  "Moves the point to the beginning of the current buffer."
-  "Moves the point to the beginning of the current buffer."
+  "Moves the point to the beginning of the current buffer, collapsing the selection."
+  "Moves the point to the beginning of the current buffer, collapsing the selection."
   (declare (ignore p))
-  (let ((point (current-point-for-movement)))
+  (let ((point (current-point-collapsing-selection)))
     (push-buffer-mark (copy-mark point))
     (buffer-start point)))
 
@@ -253,24 +325,41 @@
   "Moves the point to the end of the current buffer."
   "Moves the point to the end of the current buffer."
   (declare (ignore p))
-  (let ((point (current-point-for-movement)))
+  (let ((point (current-point-collapsing-selection)))
     (push-buffer-mark (copy-mark point))
     (buffer-end point)))
 
 (defcommand "Beginning of Line" (p)
-  "Moves the point to the beginning of the current line.
+  "Moves the point to the beginning of the current line, collapsing the selection.
   With prefix argument, moves the point to the beginning of the prefix'th
   next line."
-  "Moves the point down p lines and then to the beginning of the line."
-  (let ((point (current-point-for-movement)))
+  "Moves the point down p lines and then to the beginning of the line, collapsing the selection."
+  (let ((point (current-point-collapsing-selection)))
+    (unless (line-offset point (if p p 0)) (editor-error "No such line."))
+    (line-start point)))
+
+(defcommand "Select to Beginning of Line" (p)
+  "Moves the point to the beginning of the current line, extending the selection.
+  With prefix argument, moves the point to the beginning of the prefix'th
+  next line."
+  "Moves the point down p lines and then to the beginning of the line, extending the selection."
+  (let ((point (current-point-extending-selection)))
     (unless (line-offset point (if p p 0)) (editor-error "No such line."))
     (line-start point)))
 
 (defcommand "End of Line" (p)
-  "Moves the point to the end of the current line.
+  "Moves the point to the end of the current line, collapsing the selection.
   With prefix argument, moves the point to the end of the prefix'th next line."
-  "Moves the point down p lines and then to the end of the line."
-  (let ((point (current-point-for-movement)))
+  "Moves the point down p lines and then to the end of the line, collapsing the selection."
+  (let ((point (current-point-collapsing-selection)))
+    (unless (line-offset point (if p p 0)) (editor-error "No such line."))
+    (line-end point)))
+
+(defcommand "Select to End of Line" (p)
+  "Moves the point to the end of the current line, extending the selection.
+  With prefix argument, moves the point to the end of the prefix'th next line."
+  "Moves the point down p lines and then to the end of the line, extending the selection."
+  (let ((point (current-point-extending-selection)))
     (unless (line-offset point (if p p 0)) (editor-error "No such line."))
     (line-end point)))
 
