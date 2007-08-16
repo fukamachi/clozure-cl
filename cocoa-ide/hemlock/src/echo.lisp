@@ -707,7 +707,8 @@
   "This key-event is used to quote the next key-event of input.")
 (define-logical-key-event "Keep"
   "This key-event means exit but keep something around.")
-
+(define-logical-key-event "Mouse Exit"
+  "This key-event means exit completely.")
 
 
 ;;;; COMMAND-CASE help message printing.
