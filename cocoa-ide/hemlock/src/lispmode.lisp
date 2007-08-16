@@ -1191,7 +1191,7 @@
            (do ((line first-line (line-next line)))
                (nil)
              (line-start bol line)
-             (insert-lisp-indentation bol)
+             (ensure-lisp-indentation bol)
              (let ((line-info (getf (line-plist line) 'lisp-info)))
                (parse-lisp-line-info bol line-info prev-line-info)
                (setq prev-line-info line-info))
@@ -1205,21 +1205,49 @@
 (defun indent-for-lisp (mark)
   (line-start mark)
   (pre-command-parse-check mark)
-  (insert-lisp-indentation mark))
+  (ensure-lisp-indentation mark))
 
-(defun insert-lisp-indentation (m)
-  (delete-horizontal-space m)
-  (funcall (value indent-with-tabs) m (lisp-indentation m)))
+(defun count-leading-whitespace (mark)
+  (with-mark ((m mark))
+    (line-start m)
+    (do* ((p 0)
+          (tab-width (value spaces-per-tab)))
+         ()
+      (case (next-character m)
+        (#\space (incf p))
+        (#\tab (setq p (* tab-width (ceiling (1+ p) tab-width))))
+        (t (return p)))
+      (character-offset m 1))))
+
+;;; Don't do anything if M's line is already correctly indented.
+(defun ensure-lisp-indentation (m)
+  (let* ((col (lisp-indentation m)))
+    (unless (= (count-leading-whitespace m) col)
+      (delete-horizontal-space m)
+      (funcall (value indent-with-tabs) m col))))
+
 
 
 
 ;;;; Most "Lisp" mode commands.
 
 (defcommand "Beginning of Defun" (p)
-  "Move the point to the beginning of a top-level form.
+  "Move the point to the beginning of a top-level form, collapsing the selection.
   with an argument, skips the previous p top-level forms."
-  "Move the point to the beginning of a top-level form."
-  (let ((point (current-point-for-movement))
+  "Move the point to the beginning of a top-level form, collapsing the selection."
+  (let ((point (current-point-collapsing-selection))
+	(count (or p 1)))
+    (pre-command-parse-check point)
+    (if (minusp count)
+	(end-of-defun-command (- count))
+	(unless (top-level-offset point (- count))
+	  (editor-error)))))
+
+(defcommand "Select to Beginning of Defun" (p)
+  "Move the point to the beginning of a top-level form, extending the selection.
+  with an argument, skips the previous p top-level forms."
+  "Move the point to the beginning of a top-level form, extending the selection."
+  (let ((point (current-point-extending-selection))
 	(count (or p 1)))
     (pre-command-parse-check point)
     (if (minusp count)
@@ -1236,10 +1264,33 @@
 ;;; at the end of the p'th form.
 ;;;
 (defcommand "End of Defun" (p)
-  "Move the point to the end of a top-level form.
+  "Move the point to the end of a top-level form, collapsing the selection.
    With an argument, skips the next p top-level forms."
-  "Move the point to the end of a top-level form."
-  (let ((point (current-point-for-movement))
+  "Move the point to the end of a top-level form, collapsing the selection."
+  (let ((point (current-point-collapsing-selection))
+	(count (or p 1)))
+    (pre-command-parse-check point)
+    (if (minusp count)
+	(beginning-of-defun-command (- count))
+	(with-mark ((m point)
+		    (dummy point))
+	  (cond ((not (mark-top-level-form m dummy))
+		 (editor-error "No current or next top level form."))
+		(t 
+		 (unless (top-level-offset m (1- count))
+		   (editor-error "Not enough top level forms."))
+		 ;; We might be one unparsed for away.
+		 (pre-command-parse-check m)
+		 (unless (form-offset m 1)
+		   (editor-error "Not enough top level forms."))
+		 (when (blank-after-p m) (line-offset m 1 0))
+		 (move-mark point m)))))))
+
+(defcommand "Select to End of Defun" (p)
+  "Move the point to the end of a top-level form, extending the selection.
+   With an argument, skips the next p top-level forms."
+  "Move the point to the end of a top-level form, extending the selection."
+  (let ((point (current-point-extending-selection))
 	(count (or p 1)))
     (pre-command-parse-check point)
     (if (minusp count)
@@ -1259,37 +1310,73 @@
 		 (move-mark point m)))))))
 
 (defcommand "Forward List" (p)
-  "Skip over the next Lisp list.
+  "Skip over the next Lisp list, collapsing the selection.
   With argument, skips the next p lists."
-  "Skip over the next Lisp list."
-  (let ((point (current-point-for-movement))
+  "Skip over the next Lisp list, collapsing the selection."
+  (let ((point (current-point-collapsing-selection))
+	(count (or p 1)))
+    (pre-command-parse-check point)
+    (unless (list-offset point count) (editor-error))))
+
+(defcommand "Select Forward List" (p)
+  "Skip over the next Lisp list, extending the selection.
+  With argument, skips the next p lists."
+  "Skip over the next Lisp list, extending the selection."
+  (let ((point (current-point-extending-selection))
 	(count (or p 1)))
     (pre-command-parse-check point)
     (unless (list-offset point count) (editor-error))))
 
 (defcommand "Backward List" (p)
-  "Skip over the previous Lisp list.
+  "Skip over the previous Lisp list, collapsing the selection.
   With argument, skips the previous p lists."
-  "Skip over the previous Lisp list."
-  (let ((point (current-point-for-movement))
+  "Skip over the previous Lisp list, collapsing the selection."
+  (let ((point (current-point-collapsing-selection))
+	(count (- (or p 1))))
+    (pre-command-parse-check point)
+    (unless (list-offset point count) (editor-error))))
+
+(defcommand "Select Backward List" (p)
+  "Skip over the previous Lisp list, extending the selection.
+  With argument, skips the previous p lists."
+  "Skip over the previous Lisp list, extending the selection."
+  (let ((point (current-point-extending-selection))
 	(count (- (or p 1))))
     (pre-command-parse-check point)
     (unless (list-offset point count) (editor-error))))
 
 (defcommand "Forward Form" (p)
-  "Skip over the next Form.
+  "Skip over the next Form, collapsing the selection.
   With argument, skips the next p Forms."
-  "Skip over the next Form."
-  (let ((point (current-point-for-movement))
+  "Skip over the next Form, collapsing the selection."
+  (let ((point (current-point-collapsing-selection))
+	(count (or p 1)))
+    (pre-command-parse-check point)
+    (unless (form-offset point count) (editor-error))))
+
+(defcommand "Select Forward Form" (p)
+  "Skip over the next Form, extending the selection.
+  With argument, skips the next p Forms."
+  "Skip over the next Form, extending the selection."
+  (let ((point (current-point-extending-selection))
 	(count (or p 1)))
     (pre-command-parse-check point)
     (unless (form-offset point count) (editor-error))))
 
 (defcommand "Backward Form" (p)
-  "Skip over the previous Form.
+  "Skip over the previous Form, collapsing the selection.
   With argument, skips the previous p Forms."
-  "Skip over the previous Form."
-  (let ((point (current-point-for-movement))
+  "Skip over the previous Form, collaspsing the selection."
+  (let ((point (current-point-collapsing-selection))
+	(count (- (or p 1))))
+    (pre-command-parse-check point)
+    (unless (form-offset point count) (editor-error))))
+
+(defcommand "Select Backward Form" (p)
+  "Skip over the previous Form, extending the selection.
+  With argument, skips the previous p Forms."
+  "Skip over the previous Form, extending the selection."
+  (let ((point (current-point-extending-selection))
 	(count (- (or p 1))))
     (pre-command-parse-check point)
     (unless (form-offset point count) (editor-error))))
@@ -1502,7 +1589,7 @@
 (defcommand "Forward Up List" (p)
   "Move forward past a one containing )."
   "Move forward past a one containing )."
-  (let ((point (current-point-for-movement))
+  (let ((point (current-point-collapsing-selection))
 	(count (or p 1)))
     (pre-command-parse-check point)
     (if (minusp count)
@@ -1515,7 +1602,7 @@
 (defcommand "Backward Up List" (p)
   "Move backward past a one containing (."
   "Move backward past a one containing (."
-  (let ((point (current-point-for-movement))
+  (let ((point (current-point-collapsing-selection))
 	(count (or p 1)))
     (pre-command-parse-check point)
     (if (minusp count)
@@ -1530,7 +1617,7 @@
    p levels.  With negative argument, moves down backward, but only one
    level."
   "Move down a level in list structure."
-  (let ((point (current-point-for-movement))
+  (let ((point (current-point-collapsing-selection))
 	(count (or p 1)))
     (pre-command-parse-check point)
     (with-mark ((m point))
