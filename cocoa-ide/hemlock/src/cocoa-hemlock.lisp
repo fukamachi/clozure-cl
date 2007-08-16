@@ -92,21 +92,9 @@
             (beep)
             (clear-echo-area)
             (throw 'editor-top-level-catcher nil)))
-        (let* ((event (event-queue-node-event e))
-               (bits  (hemlock-ext::key-event-bits event))
-               (keysym (hemlock-ext::key-event-keysym event)))
-          (setq *last-key-event-typed* event)
-          (when (and (logtest +shift-event-mask+ bits)
-                     (not (frame-event-queue-quoted-insert q)))
-            (setq event (hemlock-ext::make-key-event
-                         (let* ((char (code-char keysym)))
-                           (if char
-                             (char-code (char-downcase char))
-                             keysym))
-                         (logandc2 bits +shift-event-mask+))))
-        (values event
+        (values (setq *last-key-event-typed* (event-queue-node-event e))
                 (prog1 (frame-event-queue-quoted-insert q)
-                  (setf (frame-event-queue-quoted-insert q) nil)))))
+                  (setf (frame-event-queue-quoted-insert q) nil))))
     (if (typep e 'buffer-operation)
       (catch 'command-loop-catcher
         (funcall (buffer-operation-thunk e))))))
@@ -207,3 +195,8 @@
     (if error
       (editor-error)
       (hi::edit-definition fun-name))))
+
+;;; Search highlighting
+(defun note-selection-set-by-search (&optional (buffer (current-buffer)))
+  (let* ((doc (buffer-document buffer)))
+    (when doc (hi::document-note-selection-set-by-search doc))))
