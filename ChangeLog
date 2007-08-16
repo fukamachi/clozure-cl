@@ -1,3 +1,10 @@
+2007-08-16 08:22  gb
+
+	* cocoa-ide/cocoa-editor.lisp: Hemlock text storage can use
+	extended selection highlighting if it's supported.
+	
+	Clear the shift bit from key events associated with standard-chars.
+
 2007-08-16 08:20  gb
 
 	* cocoa-ide/hemlock/src/bindings.lisp: Shifted and unshifted keys
