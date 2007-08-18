@@ -1547,10 +1547,7 @@ satisfy the optional predicate PREDICATE."
       (#.encoded-type-single-float (values (parse-foreign-type :float) q))
       (#.encoded-type-double-float (values (parse-foreign-type :double) q))
       (#.encoded-type-pointer (multiple-value-bind (target qq)
-                                    (if (eql (%get-unsigned-byte buf q)
-                                             encoded-type-void)
-                                      (values nil (1+ q))
-                                      (%decode-type buf q ftd suppress-typedef-expansion))
+                                  (%decode-type buf q ftd suppress-typedef-expansion)
                                 (values (make-foreign-pointer-type
                                          :to target
                                          :bits (getf (ftd-attributes ftd)
