@@ -769,9 +769,7 @@
 ))
 
 (defloadvar *can-use-show-find-indicator-for-range*
-	    (coerce-from-bool (#_class_respondsToSelector 
-			       (@class "NSTextView")
-			       (@selector "showFindIndicatorForRange:"))))
+    (#/instancesRespondToSelector: ns:ns-text-view (@selector "showFindIndicatorForRange:")))
 
 ;;; Add transient highlighting to a selection established via a search
 ;;; primitive, if the OS supports it.
