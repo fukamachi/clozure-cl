@@ -1,3 +1,9 @@
+2007-08-18 16:10  gb
+
+	* cocoa-ide/cocoa-editor.lisp: Use #/instancesRespondToSelector: to
+	determine if selection highlighting can be used, since
+	#_class_respondsToSelector requires ObjC-2.0)
+
 2007-08-16 08:22  gb
 
 	* cocoa-ide/cocoa-editor.lisp: Hemlock text storage can use
