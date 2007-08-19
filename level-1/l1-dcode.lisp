@@ -858,8 +858,7 @@ congruent with lambda lists of existing methods." lambda-list gf)))
                          (find-gf-dispatch-table-index table wrapper)
       (if index
         (if (%gf-dispatch-table-store-conditional table (%i+ index 1) combined-method)
-          (setf (%gf-dispatch-table-ref table index) wrapper)
-          (dbg))
+          (setf (%gf-dispatch-table-ref table index) wrapper))
         (grow-gf-dispatch-table gf wrapper combined-method obsolete-wrappers-p)))
     combined-method))
 
@@ -1248,8 +1247,7 @@ congruent with lambda lists of existing methods." lambda-list gf)))
         ( find-gf-dispatch-table-index table wrapper)
       (if index
         (if (%gf-dispatch-table-store-conditional table (%i+ index 1) combined-method)
-           (setf (%gf-dispatch-table-ref table index) wrapper)
-          (dbg))
+           (setf (%gf-dispatch-table-ref table index) wrapper))
         (grow-gf-dispatch-table gf-or-cm wrapper combined-method obsolete-wrappers-p)))
     (if sub-dispatch?
       (let ((table (%combined-method-methods combined-method)))
