@@ -181,6 +181,15 @@ congruent with lambda lists of existing methods." lambda-list gf)))
         (setf (%gf-dispatch-table-argnum new) (%gf-dispatch-table-argnum dt))
         (setf (%gf-dispatch-table gf) new)))))
 
+(defun %gf-dispatch-table-store-conditional (dt index new)
+  "Returns T if the new value can be stored in DT at INDEX, replacing a NIL.
+   Returns NIL - without storing anything - if the value already in DT
+   at INDEX is non-NIL at the time of the store."
+  (%store-node-conditional (+ (ash (%i+ index %gf-dispatch-table-first-data)
+                                   target::word-shift)
+                              target::misc-data-offset)
+                           dt nil new))
+
 (defun grow-gf-dispatch-table (gf-or-cm wrapper table-entry &optional obsolete-wrappers-p)
   ;; Grow the table associated with gf and insert table-entry as the value for
   ;; wrapper.  Wrapper is a class-wrapper.  Assumes that it is not obsolete.
@@ -848,8 +857,9 @@ congruent with lambda lists of existing methods." lambda-list gf)))
     (multiple-value-bind (index obsolete-wrappers-p)
                          (find-gf-dispatch-table-index table wrapper)
       (if index
-        (setf (%gf-dispatch-table-ref table index) wrapper
-              (%gf-dispatch-table-ref table (%i+ index 1)) combined-method)
+        (if (%gf-dispatch-table-store-conditional table (%i+ index 1) combined-method)
+          (setf (%gf-dispatch-table-ref table index) wrapper)
+          (dbg))
         (grow-gf-dispatch-table gf wrapper combined-method obsolete-wrappers-p)))
     combined-method))
 
@@ -1012,9 +1022,9 @@ congruent with lambda lists of existing methods." lambda-list gf)))
   
 
 
-; called from %%call-next-method-with-args - its the key-or-init-fn 
-; called from call-next-method-with-args - just check the blooming keys
-; dont invoke any methods - maybe use x%%check-keywords with last vector elt nil
+;;; called from %%call-next-method-with-args - its the key-or-init-fn 
+;;; called from call-next-method-with-args - just check the blooming keys
+;;; dont invoke any methods - maybe use x%%check-keywords with last vector elt nil
 ; means dont call any methods - but need the gf or method for error message
 (defun x-%%check-keywords (vector-arg ARGS)
   ;(declare (dynamic-extent args))
@@ -1062,9 +1072,9 @@ congruent with lambda lists of existing methods." lambda-list gf)))
 
 
 
-; Map an effective-method to it's generic-function.
-; This is only used for effective-method's which are not combined-method's
-; (e.g. those created by non-STANDARD method-combination)
+;;; Map an effective-method to it's generic-function.
+;;; This is only used for effective-method's which are not combined-method's
+;;; (e.g. those created by non-STANDARD method-combination)
 (defvar *effective-method-gfs* (make-hash-table :test 'eq :weak :key))
 
 
@@ -1109,9 +1119,9 @@ congruent with lambda lists of existing methods." lambda-list gf)))
 ; Initialized after the initialization (generic) functions exist.
 (defvar *initialization-functions-alist* nil)
 
-; This could be in-line above, but I was getting confused.
+;;; This could be in-line above, but I was getting confused.
 
-; ok
+;;; ok
 (defun make-cnm-combined-method (gf methods method-list keywords)
   (setq gf (combined-method-gf gf))
   (let ((key (cons methods method-list)))
@@ -1231,14 +1241,15 @@ congruent with lambda lists of existing methods." lambda-list gf)))
   ;; Here when we can't find the method in the dispatch table.
   ;; Compute it and add it to the table.  This code will remain in Lisp.
   (multiple-value-bind (combined-method sub-dispatch?)
-                       (compute-nth-arg-combined-method
-                        gf-or-cm (%gf-dispatch-table-methods table) argnum args
-                        wrapper)
+      (compute-nth-arg-combined-method
+       gf-or-cm (%gf-dispatch-table-methods table) argnum args
+       wrapper)
     (multiple-value-bind (index obsolete-wrappers-p)
-                         ( find-gf-dispatch-table-index table wrapper)
+        ( find-gf-dispatch-table-index table wrapper)
       (if index
-        (setf (%gf-dispatch-table-ref table index) wrapper
-              (%gf-dispatch-table-ref table (%i+ index 1)) combined-method)
+        (if (%gf-dispatch-table-store-conditional table (%i+ index 1) combined-method)
+           (setf (%gf-dispatch-table-ref table index) wrapper)
+          (dbg))
         (grow-gf-dispatch-table gf-or-cm wrapper combined-method obsolete-wrappers-p)))
     (if sub-dispatch?
       (let ((table (%combined-method-methods combined-method)))
