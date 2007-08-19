@@ -1,3 +1,20 @@
+2007-08-18 19:11  gb
+
+	* level-1/: l1-dcode.lisp, l1-dcode.lisp: Define and use
+	%GF-DISPATCH-TABLE-STORE-CONDITIONAL; this is intended to avoid
+	race conditions where two threads try to update a distpatch table
+	index with different {wrapper, combined-method} pairs at the same
+	time.  (As it's written, if the store-conditional fails because a
+	slot that we thought was free is now in use, we simply don't cache
+	the pair and get a cache miss the next time; that may or may not be
+	more work than repeating the whole process would be.)
+	
+	The store-conditional is used on attempt to update the
+	combined-method slot in the pair; the wrapper slot is only updated
+	if the store-conditional succeeds.  Code which probes the wrapper
+	slots shouldn't be confused by a half-updated pair (should never
+	see a non-null wrapper slot and a null combined-method slot.)
+
 2007-08-18 17:11  gb
 
 	* lib/db-io.lisp: Don't treat (:* :void) as (:* nil) in
