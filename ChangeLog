@@ -1,3 +1,60 @@
+2007-08-23 17:17  gb
+
+	* cocoa-ide/cocoa-listener.lisp: Remove a duplicate #/continue:
+	method.
+
+2007-08-23 17:16  gb
+
+	* cocoa-ide/cocoa-editor.lisp: Remove a duplicate
+	#/editingInProgress method.  Add some more (conditionalized) debug
+	info.  If ticket:50 bug is encountered, try to force DBG on Hemlock
+	command thread as well as in Cocoa thread.  Make sure that Hemlock
+	command thread has bindings of command-processing data structures,
+	prompt data structures.  Do not bind *LAST-SEARCH-STRING* or
+	*LAST-SEARCH-PATTERN*; note that *LAST-SEARCH-STRING* is usually
+	only set by isearch when it exits.
+
+2007-08-23 17:15  gb
+
+	* cocoa-ide/cocoa-backtrace.lisp: Use new defaults-based backtrace
+	font name and size; initially, Monaco 9.  (Not yet changeable
+	through preferences panel.) Adjust outline view's row height based
+	on font height.  Set the data cell to "non-editable" (could have
+	done this in IB).  Provide handlers for some menu commands
+	(continue, restarts, exitBreak); no need to validate menu items for
+	them (those commands should be available whenever backtrace dialog
+	is active.)
+
+2007-08-23 17:14  gb
+
+	* cocoa-ide/hemlock/src/searchcoms.lisp: Use
+	RECURSIVE-GET-KEY-EVENT in isearch, query-replace.
+
+2007-08-23 17:13  gb
+
+	* cocoa-ide/hemlock/src/package.lisp: Export
+	RECURSIVE-GET-KEY-EVENT.
+
+2007-08-23 17:12  gb
+
+	* cocoa-ide/hemlock/src/lispmode.lisp: Ignore erorrs when trying to
+	read symbol for arglist.  (Should probably be more careful
+	elsewhere, too.)
+
+2007-08-23 17:11  gb
+
+	* cocoa-ide/hemlock/src/interp.lisp: Keep track of
+	*COMMAND-KEY-EVENT-BUFFER* in %COMMAND-LOOP, to enable the
+	RECURSIVE-GET-KEY-EVENT redisplay mechanism.
+
+2007-08-23 17:10  gb
+
+	* cocoa-ide/hemlock/src/echo.lisp: Don't call
+	DOCUMENT-SET-POINT-POSITION in CLEAR-ECHO-AREA: editing changes may
+	still be pending on the echo area (how ?), and
+	DOCUMENT-SET-POINT-POSITION may need to do layout/display updates. 
+	Use RECURSIVE-GET-KEY-EVENT when prompting in the echo area.
+
 2007-08-23 16:11  gb
 
 	* cocoa-ide/hemlock/src/cocoa-hemlock.lisp: Define
