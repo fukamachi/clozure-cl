@@ -44,7 +44,7 @@
       (ccl:signal-semaphore signal)
       t)))
 
-
+(defvar *command-key-event-buffer* nil)
 
   
 
@@ -98,6 +98,18 @@
     (if (typep e 'buffer-operation)
       (catch 'command-loop-catcher
         (funcall (buffer-operation-thunk e))))))
+
+(defun recursive-get-key-event (q &optional ignore-pending-aborts)
+  (let* ((buffer *command-key-event-buffer*)
+         (doc (when buffer (buffer-document buffer))))
+    (if (null doc)
+      (get-key-event q ignore-pending-aborts)
+      (unwind-protect
+           (progn
+             (document-end-editing doc)
+             (get-key-event q ignore-pending-aborts))
+        (document-begin-editing doc)))))
+
 
 (defun listen-editor-input (q)
   (ccl::with-locked-dll-header (q)
