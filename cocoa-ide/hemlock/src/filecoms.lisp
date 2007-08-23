@@ -343,30 +343,11 @@
   "With an argument reverts to the last saved version of the file in the
    current buffer. Without, reverts to the last checkpoint or last saved
    version, whichever is more recent."
-  (let* ((buffer (current-buffer))
-	 (buffer-pn (buffer-pathname buffer))
-	 (point (current-point))
-	 (lines (1- (count-lines (region (buffer-start-mark buffer) point)))))
-    (multiple-value-bind (revert-pn used-checkpoint)
-			 (if p buffer-pn (revert-pathname buffer))
-      (unless revert-pn
-	(editor-error "No file associated with buffer to revert to!"))
-      (when (or (not (value revert-file-confirm))
-		(not (buffer-modified buffer))
-		(prompt-for-y-or-n
-		 :prompt
-		 "Buffer contains changes, are you sure you want to revert? "
-		 :help (list
- "Reverting the file will undo any changes by reading in the last ~
- ~:[saved version~;checkpoint file~]." used-checkpoint)
-		 :default t))
-	(read-buffer-file revert-pn buffer)
-	(when used-checkpoint
-	  (setf (buffer-modified buffer) t)
-	  (setf (buffer-pathname buffer) buffer-pn)
-	  (message "Reverted to checkpoint file ~A." (namestring revert-pn)))
-	(unless (line-offset point lines)
-	  (buffer-end point))))))
+  (declare (ignore p))
+  (let* ((doc (hi::buffer-document (current-buffer))))
+    (when doc
+      (hi::revert-document doc)))
+  (clear-echo-area))
 
 ;;; REVERT-PATHNAME -- Internal
 ;;;
