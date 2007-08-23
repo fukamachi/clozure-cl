@@ -1905,18 +1905,19 @@
   :value 'indent-for-lisp
   :mode "Lisp")
 
-(defun string-to-arglist (string buffer &optional quiet-if-unknown)  
-  (let* ((name
-          (let* ((*package* (or
-                             (find-package
-                              (variable-value 'current-package :buffer buffer))
-                             *package*)))
-            (read-from-string string))))
-    (when (typep name 'symbol)
-      (multiple-value-bind (arglist win)
-          (ccl::arglist-string name)
-        (if (or win (not quiet-if-unknown))
-          (format nil "~S : ~A" name (if win (or arglist "()") "(unknown)")))))))
+(defun string-to-arglist (string buffer &optional quiet-if-unknown)
+  (multiple-value-bind (name error)
+      (let* ((*package* (or
+                         (find-package
+                          (variable-value 'current-package :buffer buffer))
+                         *package*)))
+        (ignore-errors (values (read-from-string string))))
+    (unless error
+      (when (typep name 'symbol)
+        (multiple-value-bind (arglist win)
+            (ccl::arglist-string name)
+          (if (or win (not quiet-if-unknown))
+            (format nil "~S : ~A" name (if win (or arglist "()") "(unknown)"))))))))
 
 (defcommand "Current Function Arglist" (p)
   "Show arglist of function whose name precedes point."
