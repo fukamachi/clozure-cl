@@ -1,3 +1,19 @@
+2007-08-23 16:11  gb
+
+	* cocoa-ide/hemlock/src/cocoa-hemlock.lisp: Define
+	RECURSIVE-GET-KEY-EVENT, to allow redisplay on the buffer
+	designated as *COMMAND-KEY-EVENT-BUFFER* in while getting key
+	events in some modal loop in a command.  (The idea is that toplevel
+	editing commands inhibit redisplay in the main buffer while they're
+	active; commands which recursively process key events and which may
+	make changes to that buffer should allow redisplay while they're
+	waiting in RECURSIVE-GET-KEY-EVENT.)
+
+2007-08-23 16:10  gb
+
+	* cocoa-ide/hemlock/src/filecoms.lisp: Use the NSDocument-based
+	revert.
+
 2007-08-18 19:11  gb
 
 	* level-1/: l1-dcode.lisp, l1-dcode.lisp: Define and use
