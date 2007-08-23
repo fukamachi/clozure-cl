@@ -238,6 +238,7 @@
    #:pause-hemlock
    #:get-key-event
    #:unget-key-event
+   #:recursive-get-key-event
    #:clear-editor-input
    #:listen-editor-input
    #:editor-sleep
