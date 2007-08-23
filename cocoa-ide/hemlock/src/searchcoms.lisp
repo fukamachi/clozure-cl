@@ -178,16 +178,9 @@
 ;;;
 (defun %i-search (string point trailer direction failure)
   (do* ((curr-point (copy-mark point :temporary))
-        (curr-trailer (copy-mark trailer :temporary))
-        (doc (hi::buffer-document
-              (hi::line-%buffer (hi::mark-line point)))))
+        (curr-trailer (copy-mark trailer :temporary)))
        (nil)
-    (let ((next-key-event
-           (unwind-protect
-                (progn
-                  (hi::document-end-editing doc)
-                  (get-key-event *editor-input* t))
-             (hi::document-begin-editing doc))))
+    (let ((next-key-event (recursive-get-key-event *editor-input* t)))
       (case (%i-search-char-eval next-key-event string point trailer
                                  direction failure)
         (:mouse-exit
@@ -316,11 +309,12 @@
   (let ((found-offset (find-pattern trailer *last-search-pattern*)))
     (cond (found-offset
 	    (cond ((eq direction :forward)
-		   (character-offset (move-mark point trailer) found-offset)
-		   (push-buffer-mark (copy-mark trailer) t))
+		   (character-offset (move-mark point trailer) found-offset))
 		  (t
 		   (move-mark point trailer)
 		   (character-offset trailer found-offset)))
+	    (push-buffer-mark (copy-mark trailer) t)
+	    (hi::note-selection-set-by-search)
 	    (%i-search string point trailer direction nil))
 	  (t
 	   (%i-search-echo-refresh string direction t)
