@@ -476,15 +476,19 @@
                          (command 
                           (let ((punt t))
                             (catch 'command-loop-catcher
-                              (let* ((doc (buffer-document *current-buffer*)))
+                              (let* ((buffer *current-buffer*)
+                                     (*command-key-event-buffer* buffer)
+                                     (doc (buffer-document buffer)))
                                 (unwind-protect
                                      (progn
-                                       (when doc (hi::document-begin-editing doc))
+                                       (when doc
+                                         (hi::document-begin-editing doc))
                                        (dolist (c t-bindings)
                                          (funcall *invoke-hook* c *prefix-argument*))
                                        (funcall *invoke-hook* res *prefix-argument*)
                                        (setf punt nil))
-                                  (when doc (hi::document-end-editing doc)))))
+                                  (when doc
+                                    (hi::document-end-editing doc)))))
                             (when punt (invoke-hook hemlock::command-abort-hook)))
                           (if *command-type-set*
                             (setq *command-type-set* nil)
