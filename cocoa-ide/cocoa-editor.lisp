@@ -437,12 +437,10 @@
     (#_NSLog #@"end-editing")
     (call-next-method)
     (decf edit-count)
-    (when (< edit-count 0)
-      (#_NSLog #@"after endEditing on %@, edit-count now = %d" :id self :int edit-count))))
+    #+debug
+    (#_NSLog #@"after endEditing on %@, edit-count now = %d" :id self :int edit-count)))
 
-;;; Return true iff we're inside a "beginEditing/endEditing" pair
-(objc:defmethod (#/editingInProgress :<BOOL>) ((self hemlock-text-storage))
-  (not (eql (slot-value self 'edit-count) 0)))
+
 
   
 
@@ -499,10 +497,15 @@
 (objc:defmethod #/attributesAtIndex:effectiveRange:
     ((self hemlock-text-storage) (index :<NSUI>nteger) (rangeptr (* :<NSR>ange)))
   #+debug
-  (#_NSLog #@"Attributes at index: %d storage %@" :unsigned index :id self)
+  (#_NSLog #@"Attributes at index: %lu storage %@" :<NSUI>nteger index :id self)
   (with-slots (cache styles) self
     (when (>= index (#/length cache))
-      (#_NSLog #@"Attributes at index: %d  edit-count: %d cache: %@ layout: %@" :unsigned index ::unsigned (slot-value self 'edit-count) id cache :id (#/objectAtIndex: (#/layoutManagers self) 0))
+      (#_NSLog #@"Attributes at index: %lu  edit-count: %d cache: %@ layout: %@" :<NSUI>nteger index ::unsigned (slot-value self 'edit-count) :id cache :id (#/objectAtIndex: (#/layoutManagers self) 0))
+      (for-each-textview-using-storage self
+                                       (lambda (tv)
+                                         (let* ((w (#/window tv))
+                                                (proc (slot-value w 'command-thread)))
+                                           (process-interrupt proc #'dbg))))
       (dbg))
     (let* ((attrs (#/attributesAtIndex:effectiveRange: cache index rangeptr)))
       (when (eql 0 (#/count attrs))
@@ -1333,7 +1336,7 @@
 (objc:defmethod (#/activateHemlockView :void) ((self text-pane))
   (let* ((the-hemlock-frame (#/window self))
 	 (text-view (text-pane-text-view self)))
-    #+debug  (#_NSLog #@"Activating text pane")
+    #+debug (#_NSLog #@"Activating text pane")
     (with-slots ((echo peer)) text-view
       (deactivate-hemlock-view echo))
     (#/setEditable: text-view t)
@@ -1349,7 +1352,8 @@
 
 
 (defmethod deactivate-hemlock-view ((self hemlock-text-view))
-    (#/setSelectable: self nil))
+  #+debug (#_NSLog #@"deactivating text view")
+  (#/setSelectable: self nil))
 
 (defclass echo-area-view (hemlock-textstorage-text-view)
     ()
@@ -1578,10 +1582,16 @@
          (hi::*buffer-gap-context* (hi::buffer-gap-context buffer))
          (hemlock::*target-column* 0)
          (hemlock::*last-comment-start* " ")
+         (hi::*translate-key-temp* (make-array 10 :fill-pointer 0 :adjustable t))
+         (hi::*current-command* (make-array 10 :fill-pointer 0 :adjustable t))
+         (hi::*current-translation* (make-array 10 :fill-pointer 0 :adjustable t))
+         #+no
          (hemlock::*last-search-string* ())
+         #+no
          (hemlock::*last-search-pattern*
-            (hemlock::new-search-pattern :string-insensitive :forward "Foo"))
-         )
+            (hemlock::new-search-pattern :string-insensitive :forward ""))
+         (hi::*prompt-key* (make-array 10 :adjustable t :fill-pointer 0))
+         (hi::*command-key-event-buffer* buffer))
     
     (setf (hi::current-buffer) buffer)
     (unwind-protect
@@ -2632,6 +2642,53 @@
 	 window
 	 self)))))
 
+(defun hi::revert-document (doc)
+  (#/performSelectorOnMainThread:withObject:waitUntilDone:
+   doc
+   (@selector #/revertDocumentToSaved:)
+   +null-ptr+
+   t))
 
+
+;;; Enable CL:ED
+(defun cocoa-edit (arg)
+  (let* ((document-controller (#/sharedDocumentController ns:ns-document-controller)))
+    (cond ((null arg)
+           (#/performSelectorOnMainThread:withObject:waitUntilDone:
+            document-controller
+            (@selector #/newDocument:)
+            +null-ptr+
+            t))
+          ((or (typep arg 'string)
+               (typep arg 'pathname))
+           (unless (probe-file arg)
+             (touch arg))
+           (with-autorelease-pool
+             (let* ((url (pathname-to-url arg))
+                    (signature (#/methodSignatureForSelector:
+                                document-controller
+                                (@selector #/openDocumentWithContentsOfURL:display:)))
+                    (invocation (#/invocationWithMethodSignature: ns:ns-invocation
+                                                                  signature)))
+             
+               (#/setTarget: invocation document-controller)
+               (#/setSelector: invocation (@selector #/openDocumentWithContentsOfURL:display:))
+               (rlet ((p :id)
+                      (q :<BOOL>))
+                 (setf (pref p :id) url
+                       (pref q :<BOOL>) #$YES)
+                 (#/setArgument:atIndex: invocation p 2)
+                 (#/setArgument:atIndex: invocation q 3)
+                 (#/performSelectorOnMainThread:withObject:waitUntilDone:
+                  invocation
+                  (@selector #/invoke)
+                  +null-ptr+
+                  t)))))
+          ((valid-function-name-p arg)
+           (hi::edit-definition arg))
+          (t (report-bad-arg arg '(or null string pathname (satisifies valid-function-name-p)))))
+    t))
+
+(setq ccl::*resident-editor-hook* 'cocoa-edit)
 
 (provide "COCOA-EDITOR")
