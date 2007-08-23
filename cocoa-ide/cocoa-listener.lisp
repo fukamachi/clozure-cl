@@ -356,12 +356,7 @@
     (when (typep process 'cocoa-listener-process)
       (ccl::force-break-in-listener process))))
 
-(objc:defmethod (#/continue: :void) ((self hemlock-listener-document) sender)
-  (declare (ignore sender))
-  (let* ((buffer (hemlock-document-buffer self))
-         (process (if buffer (hi::buffer-process buffer))))
-    (when (typep process 'cocoa-listener-process)
-      (process-interrupt process #'continue))))
+
 
 (objc:defmethod (#/exitBreak: :void) ((self hemlock-listener-document) sender)
   (declare (ignore sender))
