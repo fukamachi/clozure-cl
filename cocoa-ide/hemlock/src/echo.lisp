@@ -111,17 +111,14 @@
 
 (defun clear-echo-area ()
   "You guessed it."
-  ;(maybe-wait)
-  (let* ((b (current-buffer))
-         (doc (buffer-document *echo-area-buffer*)))
+  ;;(maybe-wait)
+  (let* ((b (current-buffer)))
     (unwind-protect
 	 (progn
 	   (setf (current-buffer) *echo-area-buffer*)
 	   (modifying-echo-buffer
             (delete-region *echo-area-region*))
 	   (setf (buffer-modified *echo-area-buffer*) nil))
-      (when doc
-        (document-set-point-position doc))
       (setf (current-buffer) b))))
 
 ;;; Message  --  Public
@@ -488,7 +485,7 @@
 	  (display-prompt-nicely prompt (or default-string
 					    (if defaultp (if default "Y" "N"))))
 	  (loop
-	    (let ((key-event (get-key-event *editor-input*)))
+	    (let ((key-event (recursive-get-key-event *editor-input*)))
 	      (cond ((or (eq key-event #k"y")
 			 (eq key-event #k"Y"))
 		     (return t))
@@ -521,7 +518,7 @@
 	  (when change-window
 	    (setf (current-window) *echo-area-window*))
 	  (display-prompt-nicely prompt)
-	  (get-key-event *editor-input* t))
+	  (recursive-get-key-event *editor-input* t))
       (when change-window (setf (current-window) old-window)))))
 
 (defvar *prompt-key* (make-array 10 :adjustable t :fill-pointer 0))
@@ -543,9 +540,9 @@
 	  (prog ((key *prompt-key*) key-event)
 		(declare (vector key))
 		TOP
-		(setf key-event (get-key-event *editor-input*))
+		(setf key-event (recursive-get-key-event *editor-input*))
 		(cond ((logical-key-event-p key-event :quote)
-		       (setf key-event (get-key-event *editor-input* t)))
+		       (setf key-event (recursive-get-key-event *editor-input* t)))
 		      ((logical-key-event-p key-event :confirm)
 		       (cond ((and default (zerop (length key)))
 			      (let ((res (get-command default :current)))
