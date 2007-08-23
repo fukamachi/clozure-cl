@@ -55,17 +55,23 @@
   (and (typep thing 'frame-label)
        (eql self (frame-label-controller thing))))
 
+(def-cocoa-default *backtrace-font-name* :string "Monaco" "Name of font used in backtrace views")
+(def-cocoa-default *backtrace-font-size* :float 9.0f0 "Size of font used in backtrace views")
+
+
 (objc:defmethod (#/windowDidLoad :void) ((self backtrace-window-controller))
   (let* ((outline (slot-value self 'outline-view))
-         (font (default-font :name "Monaco" :size 12)))
+         (font (default-font :name *backtrace-font-name* :size *backtrace-font-size*)))
     (unless (%null-ptr-p outline)
       (#/setTarget: outline self)
+      (#/setRowHeight: outline  (size-of-char-in-font font))
       (#/setDoubleAction: outline (@selector #/backtraceDoubleClick:))
       (#/setShouldCascadeWindows: self nil)
       (let* ((columns (#/tableColumns outline)))
         (dotimes (i (#/count columns))
           (let* ((column (#/objectAtIndex:  columns i))
                  (data-cell (#/dataCell column)))
+            (#/setEditable: data-cell nil)
             (#/setFont: data-cell font)
             (when (eql i 0)
               (let* ((header-cell (#/headerCell column))
@@ -80,7 +86,7 @@
                         (format nil "~a: ~a"
                                 (class-name (class-of break-condition))
                                 break-condition))))
-                (#/setFont: header-cell (default-font :attributes '(:bold)))
+                (#/setFont: header-cell (default-font :name "Courier" :size 10 :attributes '(:bold)))
                 (#/setStringValue: header-cell (%make-nsstring break-condition-string))))))))
     (let* ((window (#/window  self)))
       (unless (%null-ptr-p window)
@@ -101,6 +107,24 @@
                                         (process-name process)
                                         (process-serial-number process)
                                         (bt.break-level context)))))))))
+
+(objc:defmethod (#/continue: :void) ((self backtrace-window-controller) sender)
+  (declare (ignore sender))
+  (let* ((context (backtrace-controller-context self))
+         (process (and context (tcr->process (bt.tcr context)))))
+    (when process (process-interrupt process #'continue))))
+
+(objc:defmethod (#/exitBreak: :void) ((self backtrace-window-controller) sender)
+  (declare (ignore sender))
+  (let* ((context (backtrace-controller-context self))
+         (process (and context (tcr->process (bt.tcr context)))))
+    (when process (process-interrupt process #'abort-break))))
+
+(objc:defmethod (#/restarts: :void) ((self backtrace-window-controller) sender)
+  (let* ((context (backtrace-controller-context self)))
+    (when context
+      (#/showWindow: (restarts-controller-for-context context) sender))))
+
 
 
 (objc:defmethod (#/backtraceDoubleClick: :void)
