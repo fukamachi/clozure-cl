@@ -1,3 +1,33 @@
+2007-08-25 02:13  gb
+
+	* cocoa-ide/cocoa-listener.lisp:
+	HI::SEND-STRING-TO-LISTENER-PROCESS quotes #\^d, sends unquoted
+	#\^d after sending the string.	(This is just a workaround for
+	ticket:82; the trailing #\^d is just treated as whitespace and
+	terminates calls to READ.  We really want some way of recognizing
+	"end of selection" and treating that like a transient EOF in some
+	cases.)
+
+2007-08-25 02:12  gb
+
+	* cocoa-ide/cocoa-editor.lisp: In COCOA-EDIT, invoke
+	#/openDocumentWithContentsOfURL:display:error:, since calling
+	#/openDocumentWithContentsOfURL:display: complains that
+	#/dataRepresentationOfType: isn't implemented in 32-bit versions of
+	Cocoa.	(Note that we'd been calling
+	#/openDocumentWithContentsOfURL:display:error: as part of the m-.
+	implementation without incident.)
+
+2007-08-25 02:11  gb
+
+	* cocoa-ide/hemlock/src/morecoms.lisp: "Capitalize Word" command
+	notes buffer modification.
+
+2007-08-25 02:10  gb
+
+	* cocoa-ide/hemlock/src/htext4.lisp: FILTER-REGION notes buffer
+	modification.
+
 2007-08-23 17:17  gb
 
 	* cocoa-ide/cocoa-listener.lisp: Remove a duplicate #/continue:
