@@ -500,7 +500,8 @@
                (when (or (eql ch #\^v)
                          (eql ch #\^p)
                          (eql ch #\newline)
-                         (eql ch #\^q))
+                         (eql ch #\^q)
+                         (eql ch #\^d))
                  (out-raw-char #\^q))
                (out-raw-char ch))
              (out-string (s)
@@ -513,6 +514,7 @@
       (when path (out-string path))
       (out-raw-char #\newline)
       (out-string string)
+      (out-raw-char #\^d)
       (force-output stream))))
 
 
