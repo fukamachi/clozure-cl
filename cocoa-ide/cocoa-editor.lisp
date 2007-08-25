@@ -2651,7 +2651,7 @@
 
 
 ;;; Enable CL:ED
-(defun cocoa-edit (arg)
+(defun cocoa-edit (&optional arg)
   (let* ((document-controller (#/sharedDocumentController ns:ns-document-controller)))
     (cond ((null arg)
            (#/performSelectorOnMainThread:withObject:waitUntilDone:
@@ -2667,18 +2667,20 @@
              (let* ((url (pathname-to-url arg))
                     (signature (#/methodSignatureForSelector:
                                 document-controller
-                                (@selector #/openDocumentWithContentsOfURL:display:)))
+                                (@selector #/openDocumentWithContentsOfURL:display:error:)))
                     (invocation (#/invocationWithMethodSignature: ns:ns-invocation
                                                                   signature)))
              
                (#/setTarget: invocation document-controller)
-               (#/setSelector: invocation (@selector #/openDocumentWithContentsOfURL:display:))
+               (#/setSelector: invocation (@selector #/openDocumentWithContentsOfURL:display:error:))
                (rlet ((p :id)
-                      (q :<BOOL>))
+                      (q :<BOOL>)
+                      (perror :id +null-ptr+))
                  (setf (pref p :id) url
                        (pref q :<BOOL>) #$YES)
                  (#/setArgument:atIndex: invocation p 2)
                  (#/setArgument:atIndex: invocation q 3)
+                 (#/setArgument:atIndex: invocation perror 4)
                  (#/performSelectorOnMainThread:withObject:waitUntilDone:
                   invocation
                   (@selector #/invoke)
