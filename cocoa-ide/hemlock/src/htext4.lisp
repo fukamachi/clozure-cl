@@ -335,6 +335,8 @@
    a simple-string.  It is an error for any string returned to contain
    newlines."
   (let* ((start (region-start region))
+         (count (hemlock::count-characters region))
+         (origin (copy-mark start :right-inserting))
 	 (start-line (mark-line start))
 	 (first (mark-charpos start))
 	 (end (region-end region))
@@ -430,4 +432,6 @@
 			(setf (mark-charpos m) first)
 			(setf (mark-line m) start-line)
 			(push m (line-marks start-line)))))))))
+    (hi::buffer-note-modification buffer origin count)
+    (delete-mark origin)
     region))
