@@ -91,6 +91,7 @@
 	  (when (alpha-char-p (next-character start)) (return))
 	  (character-offset start 1))
 	(setf (next-character start) (char-upcase (next-character start)))
+        (hi::buffer-note-modification (current-buffer) start 1)
 	(mark-after start)
 	(filter-region #'string-downcase region)))))
 
