@@ -18,6 +18,11 @@
                           (type-string "APPL")
                           (creator-string "OMCL")
                           (directory (current-directory))
+                          (nibfiles nil) ; a list of user-specified nibfiles
+                                         ; to be copied into the app bundle
+                          (main-nib-name); the name of the nib that is to be loaded
+                                         ; as the app's main. this name gets written
+                                         ; into the Info.plist on the "NSMainNibFile" key
                           (application-class 'cocoa-application)
                           (toplevel-function nil)
                           (swank-loader nil)
@@ -44,7 +49,8 @@
          (ide-bundle-path (pathname 
                            (ensure-directory-pathname 
                             (lisp-string-from-nsstring ide-bundle-path-nsstring))))
-         (app-bundle (make-application-bundle name type-string creator-string directory))
+         (app-bundle (make-application-bundle name type-string creator-string directory
+                                              :main-nib-name main-nib-name))
          (image-path (namestring (path app-bundle "Contents" "MacOS" name))))
     ;; copy IDE resources into the application bundle
     (recursive-copy-directory (path ide-bundle-path "Contents" "Resources/")

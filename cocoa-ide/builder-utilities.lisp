@@ -11,6 +11,12 @@
 
 (in-package :ccl)
 
+;;; ABOUT
+;;; ------------------------------------------------------------------------
+;;; Builder-utilities contains several functions used by OpenMCL
+;;; application-building tools for building and copying bundles,
+;;; resource directories, and magic files used by OSX applications.
+
 ;;; PATHNAME-SEPARATOR
 ;;; returns the character used to separate elements of a pathname
 ;;; on this platform. 
@@ -93,9 +99,14 @@
 ;;;       copied from the IDE. Should separate the IDE-specific
 ;;;       behavior from more general behavior that can be used
 ;;;       by the batch builder, which does not depend on the IDE.
-(defun write-info-plist (path name package-type bundle-signature)
+(defun write-info-plist (path name package-type bundle-signature
+                         &key main-nib-name)
   ;; read the Info.plist of the IDE app, change
   ;; the fields needed, write the results to PATH
+  (assert (or (null main-nib-name)
+              (stringp main-nib-name))
+          (main-nib-name)
+          "The main-nib-name must be a string or NIL, not ~S" main-nib-name)
   (with-autorelease-pool
     (let* ((type-key (%make-nsstring "CFBundlePackageType"))
            (type-str (%make-nsstring package-type))
@@ -116,12 +127,17 @@
       (#/setValue:forKey: info-dict app-name-str app-name-key)
       (#/setValue:forKey: info-dict type-str type-key)
       (#/setValue:forKey: info-dict sig-str sig-key)
+      (when main-nib-name
+        (#/setValue:forKey: info-dict 
+                            (%make-nsstring main-nib-name)
+                            #@"NSMainNibFile"))
       (#/writeToFile:atomically: info-dict app-plist-path-str #$YES))))
 
 ;;; MAKE-APPLICATION-BUNDLE name package-type bundle-signature project-path
 ;;; Build the directory structure of a Cocoa application bundle and
 ;;; populate it with the required PkgInfo and Info.plist files.
-(defun make-application-bundle (name package-type bundle-signature project-path)
+(defun make-application-bundle (name package-type bundle-signature project-path
+                                &key main-nib-name)
   (let* ((app-bundle (path project-path 
 			   (ensure-directory-pathname (concatenate 'string name ".app"))))
          (contents-dir (path app-bundle (ensure-directory-pathname "Contents")))
@@ -131,7 +147,7 @@
     (ensure-directories-exist macos-dir)
     (ensure-directories-exist rsrc-dir)
     (write-info-plist (path app-bundle "Contents" "Info.plist")
-                      name package-type bundle-signature)
+                      name package-type bundle-signature :main-nib-name main-nib-name)
     (write-pkginfo (path app-bundle "Contents" "PkgInfo")
                    package-type bundle-signature)
     app-bundle))
