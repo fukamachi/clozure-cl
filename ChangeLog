@@ -1,3 +1,8 @@
+2007-08-26 12:10  gb
+
+	* cocoa-ide/: build-application.lisp, builder-utilities.lisp: added
+	application bulder to trunk
+
 2007-08-25 02:13  gb
 
 	* cocoa-ide/cocoa-listener.lisp:
