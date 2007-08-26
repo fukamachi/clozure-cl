@@ -1,3 +1,9 @@
+2007-08-26 13:11  gb
+
+	* cocoa-ide/: build-application.lisp, builder-utilities.lisp: new
+	keyword argument to build-application: main-nib-name; names the
+	nigfile that is to be the main nib of the built application
+
 2007-08-26 12:10  gb
 
 	* cocoa-ide/: build-application.lisp, builder-utilities.lisp: added
