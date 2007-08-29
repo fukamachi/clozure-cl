@@ -2311,21 +2311,74 @@
       (close-hemlock-textstorage textstorage)))
   (call-next-method))
 
-
-
-
+(defun window-visible-range (text-view)
+  (let* ((rect (#/visibleRect text-view))
+	 (layout (#/layoutManager text-view))
+	 (text-container (#/textContainer text-view))
+	 (container-origin (#/textContainerOrigin text-view)))
+    ;; Convert from view coordinates to container coordinates
+    (decf (pref rect :<NSR>ect.origin.x) (pref container-origin :<NSP>oint.x))
+    (decf (pref rect :<NSR>ect.origin.y) (pref container-origin :<NSP>oint.y))
+    (let* ((glyph-range (#/glyphRangeForBoundingRect:inTextContainer:
+			 layout rect text-container))
+	   (char-range (#/characterRangeForGlyphRange:actualGlyphRange:
+			layout glyph-range +null-ptr+)))
+      (values (pref char-range :<NSR>ange.location)
+	      (pref char-range :<NSR>ange.length)))))
+    
 (defun hi::scroll-window (textpane n)
-  (let* ((n (or n 0))
-         (sv (text-pane-scroll-view textpane))
-         (tv (text-pane-text-view textpane))
-         (char-height (text-view-char-height tv))
-         (sv-height (ns:ns-size-height (#/contentSize sv)))
-         (nlines (floor sv-height char-height))
-         (point (hi::current-point-collapsing-selection)))
-    (or (hi::line-offset point (* n nlines))        
-        (if (< n 0)
-          (hi::buffer-start point)
-          (hi::buffer-end point)))))
+  (when n
+    (let* ((sv (text-pane-scroll-view textpane))
+	   (tv (text-pane-text-view textpane))
+	   (char-height (text-view-char-height tv))
+	   (sv-height (ns:ns-size-height (#/contentSize sv)))
+	   (nlines (floor sv-height char-height))
+	   (count (case n
+		    (:page-up (- nlines))
+		    (:page-down nlines)
+		    (t n))))
+      (multiple-value-bind (pages lines) (floor (abs count) nlines)
+	(dotimes (i pages)
+	  (if (< count 0)
+	      (#/performSelectorOnMainThread:withObject:waitUntilDone:
+	       tv
+	       (@selector #/scrollPageUp:)
+	       +null-ptr+
+	       t)
+	      (#/performSelectorOnMainThread:withObject:waitUntilDone:
+	       tv
+	       (@selector #/scrollPageDown:)
+	       +null-ptr+
+	       t)))
+	(dotimes (i lines)
+	  (if (< count 0)
+	      (#/performSelectorOnMainThread:withObject:waitUntilDone:
+	       tv
+	       (@selector #/scrollLineUp:)
+	       +null-ptr+
+	       t)
+	      (#/performSelectorOnMainThread:withObject:waitUntilDone:
+	       tv
+	       (@selector #/scrollLineDown:)
+	       +null-ptr+
+	       t))))
+      ;; If point is not on screen, move it.
+      (let* ((point (hi::current-point))
+	     (point-pos (mark-absolute-position point)))
+	(multiple-value-bind (win-pos win-len) (window-visible-range tv)
+	  (unless (and (<= win-pos point-pos) (< point-pos (+ win-pos win-len)))
+	    (let* ((point (hi::current-point-collapsing-selection))
+		   (cache (hemlock-buffer-string-cache
+			   (#/hemlockString (#/textStorage tv)))))
+	      (move-hemlock-mark-to-absolute-position point cache win-pos)
+	      ;; We should be done, but unfortunately, well, we're not.
+	      ;; Something insists on recentering around point, so fake it out
+	      #-work-around-overeager-centering
+	      (or (hi::line-offset point (floor nlines 2))
+		  (if (< count 0)
+		      (hi::buffer-start point)
+		      (hi::buffer-end point))))))))))
+
 
 (defmethod hemlock::center-text-pane ((pane text-pane))
   (#/performSelectorOnMainThread:withObject:waitUntilDone:

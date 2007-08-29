@@ -384,7 +384,7 @@
   "If P is NIL then scroll Window, which defaults to the current
   window, down one screenfull.  If P is supplied then scroll that
   many lines."
-  (scroll-window window (or p 1)))
+  (scroll-window window (or p :page-down)))
 
 (defcommand "Scroll Window Up" (p &optional (window (current-window)))
   "Move up one screenfull.
@@ -392,7 +392,7 @@
   "If P is NIL then scroll Window, which defaults to the current
   window, up one screenfull.  If P is supplied then scroll that
   many lines."
-  (scroll-window window (or p -1)))
+  (scroll-window window (if p (- p) :page-up)))
 
 (defcommand "Scroll Next Window Down" (p)
   "Do a \"Scroll Window Down\" on the next window."
