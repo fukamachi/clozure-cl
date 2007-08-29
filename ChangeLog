@@ -1,3 +1,9 @@
+2007-08-28 23:10  gb
+
+	* cocoa-ide/: cocoa-editor.lisp, hemlock/src/command.lisp: Make
+	hi::scroll-window actually scroll, not just move insertion point
+	around.  Fixes ticket:88.
+
 2007-08-26 13:11  gb
 
 	* cocoa-ide/: build-application.lisp, builder-utilities.lisp: new
