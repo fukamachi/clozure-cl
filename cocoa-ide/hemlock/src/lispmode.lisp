@@ -1211,20 +1211,23 @@
   (with-mark ((m mark))
     (line-start m)
     (do* ((p 0)
+	  (q 0 (1+ q))
           (tab-width (value spaces-per-tab)))
          ()
       (case (next-character m)
         (#\space (incf p))
         (#\tab (setq p (* tab-width (ceiling (1+ p) tab-width))))
-        (t (return p)))
+        (t (return (values p q))))
       (character-offset m 1))))
 
 ;;; Don't do anything if M's line is already correctly indented.
 (defun ensure-lisp-indentation (m)
   (let* ((col (lisp-indentation m)))
-    (unless (= (count-leading-whitespace m) col)
-      (delete-horizontal-space m)
-      (funcall (value indent-with-tabs) m col))))
+    (multiple-value-bind (curcol curpos) (count-leading-whitespace m)
+      (cond ((= curcol col) (setf (mark-charpos m) curpos))
+	    (t
+	     (delete-horizontal-space m)
+	     (funcall (value indent-with-tabs) m col))))))
 
 
 
