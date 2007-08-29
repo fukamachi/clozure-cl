@@ -1,3 +1,25 @@
+2007-08-29 12:12  gb
+
+	* cocoa-ide/hemlock/src/indent.lisp: Indent command: if no prefix
+	arg (simple case), move point to the location of the temporary mark
+	after calling the indent function.
+
+2007-08-29 12:11  gb
+
+	* cocoa-ide/hemlock/src/lispmode.lisp: COUNT-LEADING-WHITESPACE
+	returns 2 values: the "column" (with tabs expanded) of the first
+	non-whitespace character on the line and that character's position.
+	 ENSURE-LISP-INDENTATION moves the (temporary) mark to that
+	position if no changes are necessary.
+
+2007-08-29 12:10  gb
+
+	* cocoa-ide/cocoa-editor.lisp: In HEMLOCK-TEXT-VIEW #/paste:
+	method, make an NS-MUTABLE-STRING even if the string from the
+	clipboard already appears to be an NS-MUTABLE-STRING.  (NSCFString
+	is apparently a subclass of NS-MUTABLE-STRING, but isn't really ...
+	 mutable.) For ticket:84.
+
 2007-08-28 23:10  gb
 
 	* cocoa-ide/: cocoa-editor.lisp, hemlock/src/command.lisp: Make
