@@ -1,3 +1,7 @@
+2007-08-29 13:11  gb
+
+	* cocoa-ide/cocoa-grep.lisp: Implement m-x grep
+
 2007-08-29 12:12  gb
 
 	* cocoa-ide/hemlock/src/indent.lisp: Indent command: if no prefix
