@@ -2571,8 +2571,7 @@
          (string (progn (#/types pb) (#/stringForType: pb #&NSStringPboardType))))
     (unless (%null-ptr-p string)
       (unless (zerop (ns:ns-range-length (#/rangeOfString: string *ns-cr-string*)))
-        (unless (typep string 'ns:ns-mutable-string)
-          (setq string (make-instance 'ns:ns-mutable-string :with-string string)))
+        (setq string (make-instance 'ns:ns-mutable-string :with-string string))
         (#/replaceOccurrencesOfString:withString:options:range:
                 string *ns-cr-string* *ns-lf-string* #$NSLiteralSearch (ns:make-ns-range 0 (#/length string))))
       (let* ((textstorage (#/textStorage self)))
