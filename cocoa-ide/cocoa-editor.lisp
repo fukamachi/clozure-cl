@@ -5,7 +5,8 @@
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (require "COCOA-WINDOW")
-  (require "HEMLOCK"))
+  (require "HEMLOCK")
+  (require "COCOA-GREP"))
 
 (eval-when (:compile-toplevel :execute)
   ;; :ALL-IN-COCOA-THREAD selects code that does all rendering
