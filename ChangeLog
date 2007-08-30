@@ -1,3 +1,9 @@
+2007-08-30 14:10  gb
+
+	* cocoa-ide/hemlock/src/: command.lisp, listener.lisp: Make sure
+	all callers of current-point-for-deletion handle the nil return
+	value case.  This fixes ticket:85
+
 2007-08-29 20:11  gb
 
 	* cocoa-ide/: cocoa-editor.lisp, cocoa.lisp, hemlock/TODO,
