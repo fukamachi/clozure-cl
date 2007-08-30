@@ -23,6 +23,7 @@
 (require "COCOA-WINDOW")
 (require "COCOA-DOC")
 (require "COCOA-LISTENER")
+(require "COCOA-GREP")
 (require "COCOA-BACKTRACE")
 (require "COCOA-INSPECTOR")
 
