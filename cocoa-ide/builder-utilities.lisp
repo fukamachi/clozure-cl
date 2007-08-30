@@ -37,6 +37,16 @@
 (defmethod ensure-directory-pathname ((p pathname)) 
   (ensure-directory-pathname (namestring p)))
 
+(defun basename (path)
+  (let* ((dir (pathname-directory path))
+         (name (pathname-name path))
+         (type (pathname-type path)))
+    (if name
+        (if type
+            (make-pathname :name name :type type)
+            (make-pathname :name name))
+        (make-pathname :directory (first (last dir))))))
+
 ;;; PATH (&rest components)
 ;;; returns a pathname. The input COMPONENTS are treated as 
 ;;; directory names, each contained in the one to the left, except
