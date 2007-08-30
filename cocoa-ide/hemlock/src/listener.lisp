@@ -206,10 +206,11 @@ between the region's start and end, and if there are no ill-formed expressions i
   "Send :POP if input-mark is at buffer's end, else delete forward character."
   (let* ((input-mark (value buffer-input-mark))
          (point (current-point-for-deletion)))
-    (if (and (null (next-character point))
-             (null (next-character input-mark)))
-      (listener-document-send-string (hi::buffer-document (current-buffer)) *pop-string*)
-      (delete-next-character-command p))))
+    (when point
+      (if (and (null (next-character point))
+	       (null (next-character input-mark)))
+	  (listener-document-send-string (hi::buffer-document (current-buffer)) *pop-string*)
+	  (delete-next-character-command p)))))
 
              
 

@@ -128,11 +128,12 @@
   (or left if prefix is negative)."
   "Deletes p characters to the right of the point."
   (let* ((point (current-point-for-deletion)))
-    (cond ((kill-characters point (or p 1)))
-          ((and p (minusp p))
-           (editor-error "Not enough previous characters."))
-          (t
-           (editor-error "Not enough next characters.")))))
+    (when point
+      (cond ((kill-characters point (or p 1)))
+	    ((and p (minusp p))
+	     (editor-error "Not enough previous characters."))
+	    (t
+	     (editor-error "Not enough next characters."))))))
 
 (defcommand "Delete Previous Character" (p)
   "Deletes the character to the left of the point.
