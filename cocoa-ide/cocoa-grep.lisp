@@ -78,13 +78,14 @@
 				     (list "--recursive"
 					   "--with-filename"
 					   "--line-number"
+                                           "--no-messages"
 					   "-e" pattern
 					   (native-untranslated-namestring directory)))
 			      :input nil
 			      :output stream)))
       (multiple-value-bind (status exit-code) (external-process-status proc)
 	(let ((output (get-output-stream-string stream)))
-	  (if (and (eq :exited status) (= exit-code 0))
+	  (if (and (eq :exited status) (or (= exit-code 0) (= exit-code 2)))
 	      (make-instance 'sequence-window-controller
 			     :sequence (split-grep-lines output)
 			     :result-callback #'request-edit-grep-line
