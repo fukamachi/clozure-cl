@@ -1,3 +1,10 @@
+2007-08-30 20:10  gb
+
+	* level-1/l1-error-system.lisp: Add a restart for unbound
+	variable/undefined function errors -- if there is a unique
+	bound/fbound symbol of the same name in another package, offer to
+	use it instead.
+
 2007-08-30 19:10  gb
 
 	* cocoa-ide/cocoa-grep.lisp: Tell grep not to complain about
