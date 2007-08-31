@@ -1,3 +1,9 @@
+2007-08-30 19:10  gb
+
+	* cocoa-ide/cocoa-grep.lisp: Tell grep not to complain about
+	inaccesible files; it might return an exit status of 2 if it finds
+	such files, so treat that as "success" for now (ticket:98).
+
 2007-08-30 18:11  gb
 
 	* cocoa-ide/hemlock/src/doccoms.lisp: Fix format call in Show
