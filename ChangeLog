@@ -1,3 +1,13 @@
+2007-08-30 18:11  gb
+
+	* cocoa-ide/hemlock/src/doccoms.lisp: Fix format call in Show
+	Variable command output (ticket:97).
+
+2007-08-30 18:10  gb
+
+	* cocoa-ide/hemlock/src/listener.lisp: EVAL-REGION uses
+	VARIABLE-VALUE to access buffer's package (ticket:82).
+
 2007-08-30 15:11  gb
 
 	* cocoa-ide/: build-application.lisp, builder-utilities.lisp: added
