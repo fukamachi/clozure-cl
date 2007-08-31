@@ -18,7 +18,7 @@
    named by \"Current Package\" if it is non-nil."
   (let ((name (gensym)) (package (gensym)))
     `(handle-lisp-errors
-      (let* ((,name (value current-package))
+      (let* ((,name (variable-value 'current-package :buffer (current-buffer)))
 	     (,package (and ,name (find-package ,name))))
 	(progv (if ,package '(*package*)) (if ,package (list ,package))
 	  ,@body)))))
@@ -449,7 +449,7 @@ between the region's start and end, and if there are no ill-formed expressions i
 
 (defun eval-region (region
 		    &key
-		    (package (value current-package))
+		    (package (variable-value 'current-package :buffer (current-buffer)))
 		    (path (buffer-pathname (current-buffer))))
   (evaluate-input-selection
    (list package path (region-to-string region))))
