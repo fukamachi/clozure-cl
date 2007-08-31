@@ -258,7 +258,7 @@
 		       (prompt-for-variable
 			:help "Name of variable to describe."
 			:prompt "Variable: ")
-    (with-pop-up-display (s :title (format nil "~S Variable documentation"))
+    (with-pop-up-display (s :title (format nil "~S Variable documentation" name))
       (show-variable s name var))))
 
 (defcommand "Describe and Show Variable" (p)
