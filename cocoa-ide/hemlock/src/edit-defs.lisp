@@ -30,36 +30,50 @@
 (defvar *last-go-to-def-string* "")
 (declaim (simple-string *last-go-to-def-string*))
   
-
-
-
-
-
-
-(defcommand "Goto Definition" (p)
-  "Go to the current function/macro's definition."
-  "Go to the current function/macro's definition."
-  (declare (ignore p))
-  (let* ((point (current-point))
-         (buffer (current-buffer)))
-    (pre-command-parse-check point)
-    (when (valid-spot point t)
-      (with-mark ((mark1 point)
-                  (mark2 point))
-        (if (hi::%buffer-current-region-p buffer)
-          (let* ((mark (hi::buffer-%mark buffer)))
-            (if (mark< mark point)
+(defun symbol-at-point (buffer point)
+  "Returns symbol at point, or contents of selection if there is one"
+  (with-mark ((mark1 point)
+	      (mark2 point))
+    (if (hi::%buffer-current-region-p buffer)
+	(let* ((mark (hi::buffer-%mark buffer)))
+	  (if (mark< mark point)
               (move-mark mark1 mark)
               (move-mark mark2 mark)))
-          (progn
-            (form-offset mark1 -1)
-            (form-offset (move-mark mark2 mark1) 1)))
-        (unless (mark= mark1 mark2)
-          (let ((fun-name (region-to-string (region mark1 mark2))))
-            (get-def-info-and-go-to-it fun-name (or
-                                                 (find-package
-                                                  (variable-value 'current-package :buffer (current-buffer)))
-                                                 *package*))))))))
+	;; This doesn't handle embedded #'s or escaped chars in names.
+	;; So let them report it as a bug...
+	(progn
+	  (when (test-char (previous-character point) :lisp-syntax :constituent)
+	    (or (rev-scan-char mark1 :lisp-syntax (not :constituent))
+		(buffer-start mark1))
+	    (scan-char mark1 :lisp-syntax :constituent))
+	  (when (test-char (next-character point) :lisp-syntax :constituent)
+	    (or (scan-char mark2 :lisp-syntax (not :constituent))
+		(buffer-end mark2)))
+	  (when (mark= mark1 mark2)
+	    ;; Try to get whole form
+	    (pre-command-parse-check point)
+	    (when (valid-spot point t)
+	      (move-mark mark1 point)
+	      (form-offset mark1 -1)
+	      (move-mark mark2 mark1)
+	      (form-offset mark2 1)))))
+    (unless (mark= mark1 mark2)
+      (region-to-string (region mark1 mark2)))))
+
+(defcommand "Goto Definition" (p)
+  "Go to the current function/macro's definition.  With a numarg, prompts for name to go to."
+  "Go to the current function/macro's definition."
+  (if p
+      (edit-definition-command nil)
+      (let* ((point (current-point))
+	     (buffer (current-buffer))
+	     (fun-name (symbol-at-point buffer point)))
+	(if fun-name
+	    (get-def-info-and-go-to-it fun-name (or
+						 (find-package
+						  (variable-value 'current-package :buffer (current-buffer)))
+						 *package*))
+	    (beep)))))
 
 (defcommand "Edit Definition" (p)
   "Prompts for function/macro's definition name and goes to it for editing."
