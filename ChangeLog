@@ -1,3 +1,10 @@
+2007-09-03 18:10  gb
+
+	* cocoa-ide/hemlock/src/edit-defs.lisp: Make meta-. use either the
+	selection or the symbol around point, regardless of global parsing
+	state (Ticket:95).  While in there, make meta-. with a numarg
+	prompt for symbol to look up.
+
 2007-08-30 20:10  gb
 
 	* level-1/l1-error-system.lisp: Add a restart for unbound
