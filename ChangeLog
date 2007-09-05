@@ -1,3 +1,56 @@
+2007-09-04 23:11  gb
+
+	* cocoa-ide/cocoa-editor.lisp: New! Improved!
+	
+	The code which arranges for editing changes to be processed in the
+	main thread now does so via an NSInvocation (ObjC's notion of a
+	closure, sort of); the methods which run in the main thread handle
+	the job of synchronizing the underlying the Hemlock string and the
+	"real" NSMutableAttributedString as well as informing the text
+	system of pending editing changes via
+	#/edited:range:changeInLength:.  The code which processes deletions
+	does the change processing before modifying the string (other
+	methods do it after the change); this seems to be necessary to
+	avoid some things that could cause ticket:50.  (I'm not sure if
+	this fixes ticket:50, but it does seem to fix a reproducible case.)
+	
+	The #/replaceCharactersInRange:withString: method on
+	hemlock-text-storage (which handles buffer changes originating from
+	non-Hemlock sources) is careful to use a :right-inserting temporary
+	mark when modifying the buffer, to help ensure that
+	insertions/deletions take place at the correct absolute position. 
+	(This may at least partially address bugs related to things getting
+	confused/out-of-bounds errors when doing lots of cutting and
+	pasting, though it's hard to know without reproducible cases.)
+	
+	The macros NSSTRING-ENCODING-TO-NSINTEGER and
+	NSINTEGER-TO-NSSTRING-ENCODING are defined before they're used (at
+	least one of them wasn't.)
+	
+	The handling of text encoding for editor documents has changed in a
+	few ways.  If "automatic" encoding is used in an "Open ..." dialog
+	and is successfully able to infer a text file's encoding, the
+	encoding that was inferred becomes the document's encoding (used in
+	subsequent "save" operations.)	On some OSX versions, the automatic
+	detection mechanism can only recognize UTF-16 files that contain a
+	leading BOM (and the editor's code for dealing with the automatic
+	mechanism didn't expect this to ever work.)  On other systems, the
+	automatic mechanism can return something correct (I've seen UTF-8)
+	but possibly suboptimal.
+	
+	The Open... dialog now defaults to something derived from the
+	user's setting of CCL:*DEFAULT-FILE-CHARACTER-ENCODING*; because
+	"automatic" is a little unpredictable, the new default is probably
+	better.
+	
+	The NSDocument mechanism for creating backup files (with names of
+	the form "name~.ext") is not used; when backup files are created,
+	we try to copy the original to a file whose name conforms to the
+	(simple, non-versioned) Emacs scheme ("name.ext~").  More things
+	seem to work better when the Emacs scheme is used (though I suppose
+	some people might prefer the NSDocument scheme and we could make
+	this a preference.)
+
 2007-09-04 22:11  gb
 
 	* cocoa-ide/cocoa-listener.lisp: Don't call #/setFileName: when
