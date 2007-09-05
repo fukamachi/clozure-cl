@@ -1,3 +1,38 @@
+2007-09-04 19:13  gb
+
+	* lisp-kernel/: gc.h, memory.c, pmcl-kernel.c, ppc-exceptions.c,
+	ppc-gc.c, x86-exceptions.c, x86-gc.c: Lose "HeapHighWaterMark",
+	which was supposed to allow us to track the high end of a range of
+	pages that'd been written to and not freed (so we'd zero them
+	lazily when they were reallocated.)  Such a scheme would really
+	need to track both ends of such a range, and the old scheme wound
+	up being overly zealous and often zeroed pages that were already
+	zeroed.  Zero the range between the old free pointer and the new
+	one after each GC, instead.
+	
+	At least partly address ticket:101, by doing GROW-DYNAMIC-AREA more
+	carefully.
+
+2007-09-04 19:12  gb
+
+	* level-0/: l0-numbers.lisp, PPC/ppc-numbers.lisp: Fix to 64-bit
+	%NEXT-RANDOM-SEED, random algorithm comments from Bernd Beuster.
+
+2007-09-04 19:11  gb
+
+	* lib/: ffi-darwinppc32.lisp, ffi-darwinppc64.lisp,
+	ffi-linuxppc32.lisp, ffi-linuxppc64.lisp, macros.lisp: Don't coerce
+	single-float results to double-floats in DEFCALLBACK-BODY.  Do do
+	this in the PPC backends.
+	
+	(This needs testing ...)
+
+2007-09-04 19:10  gb
+
+	* compiler/X86/X8664/x8664-backend.lisp: Don't assume that
+	:single-float callback results have been coerced to :double-float
+	on x8664.
+
 2007-09-03 18:10  gb
 
 	* cocoa-ide/hemlock/src/edit-defs.lisp: Make meta-. use either the
