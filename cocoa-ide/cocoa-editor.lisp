@@ -8,13 +8,6 @@
   (require "HEMLOCK"))
 
 (eval-when (:compile-toplevel :execute)
-  ;; :ALL-IN-COCOA-THREAD selects code that does all rendering
-  ;; in the Cocoa event thread.
-  ;; Something else that could be conditionalized (and might
-  ;; be similarly named) would force all Hemlock commands -
-  ;; as well as rendering and event handling - to happen in
-  ;; the Cocoa thread.
-  (pushnew :all-in-cocoa-thread *features*)
   (use-interface-dir :cocoa))
 
 ;;; In the double-float case, this is probably way too small.
@@ -29,6 +22,15 @@
 
 (def-cocoa-default *editor-background-color* :color '(1.0 1.0 1.0 1.0) "Editor background color")
 
+(defmacro nsstring-encoding-to-nsinteger (n)
+  (target-word-size-case
+   (32 `(u32->s32 ,n))
+   (64 n)))
+
+(defmacro nsinteger-to-nsstring-encoding (n)
+  (target-word-size-case
+   (32 `(s32->u32 ,n))
+   (64 n)))
 
 (defun make-editor-style-map ()
   (let* ((font-name *default-font-name*)
@@ -41,14 +43,7 @@
          (bold-oblique-font (let* ((f (default-font :name font-name :size font-size :attributes '(:bold :italic))))
                       (unless (eql f font) f)))
 	 (color-class (find-class 'ns:ns-color))
-	 (colors (vector (#/blackColor color-class)
-			 (#/whiteColor  color-class)
-			 (#/darkGrayColor color-class)
-			 (#/lightGrayColor color-class)
-			 (#/redColor color-class)
-			 (#/blueColor color-class)
-			 (#/greenColor color-class)
-			 (#/yellowColor color-class)))
+	 (colors (vector (#/blackColor color-class)))
 	 (styles (make-instance 'ns:ns-mutable-array
                                 :with-capacity (the fixnum (* 4 (length colors)))))
          (bold-stroke-width -10.0f0)
@@ -307,7 +302,7 @@
                  (setf (paref buffer (:* :unichar) i)
                        (char-code #\Newline)
                        line (hi::line-next line)
-                       len (if line (hi::line-length line))
+                       len (if line (hi::line-length line) 0)
                        idx 0))))))))
 
 (objc:defmethod (#/getLineStart:end:contentsEnd:forRange: :void)
@@ -395,33 +390,99 @@
     (setf (ns:ns-range-length r) n)
     (#/edited:range:changeInLength: self #$NSTextStorageEditedCharacters r 0)))
 
-(objc:defmethod (#/noteInsertion: :void) ((self hemlock-text-storage) params)
-  (let* ((pos (#/longValue (#/objectAtIndex: params 0)))
-         (n (#/longValue (#/objectAtIndex: params 1))))
-    (textstorage-note-insertion-at-position self pos n)))
 
-(objc:defmethod (#/noteDeletion: :void) ((self hemlock-text-storage) params)
-  (let* ((pos (#/longValue (#/objectAtIndex: params 0)))
-         (n (#/longValue (#/objectAtIndex: params 1))))
-    (#/edited:range:changeInLength: self #$NSTextStorageEditedCharacters (ns:make-ns-range pos n) (- n))
-    (let* ((display (hemlock-buffer-string-cache (#/hemlockString self))))
-      (reset-buffer-cache display) 
-      (update-line-cache-for-index display pos))))
+;;; This runs on the main thread; it synchronizes the "real" NSMutableAttributedString
+;;; with the hemlock string and informs the textstorage of the insertion.
+(objc:defmethod (#/noteHemlockInsertionAtPosition:length: :void) ((self hemlock-text-storage)
+                                                                  (pos :<NSI>nteger)
+                                                                  (n :<NSI>nteger)
+                                                                  (extra :<NSI>nteger))
+  (declare (ignorable extra))
+  (let* ((cache (#/cache self))
+         (hemlock-string (#/hemlockString self))
+         (display (hemlock-buffer-string-cache hemlock-string))
+         (buffer (buffer-cache-buffer display))
+         (hi::*buffer-gap-context* (hi::buffer-gap-context buffer))
+         (font (buffer-active-font buffer))
+         (document (#/document self)))
+    #+debug 
+    (#_NSLog #@"insert: pos = %ld, n = %ld" :long pos :long n)
+    ;; We need to update the hemlock string cache here so that #/substringWithRange:
+    ;; will work on the hemlock buffer string.
+    (adjust-buffer-cache-for-insertion display pos n)
+    (update-line-cache-for-index display pos)
+    (let* ((replacestring (#/substringWithRange: hemlock-string (ns:make-ns-range pos n))))
+      (ns:with-ns-range (replacerange pos 0)
+        (#/replaceCharactersInRange:withString:
+         cache replacerange replacestring)))
+    (#/setAttributes:range: cache font (ns:make-ns-range pos n))    
+    (textstorage-note-insertion-at-position self pos n)
+    ;; Arguably, changecount stuff should happen via the document's NSUndoManager.
+    ;; At some point in time, we'll know whether or not we have and are using
+    ;; an NSUndoManager; while we're in limbo about that, do it here.
+    (#/updateChangeCount: document #$NSChangeDone)))
 
-(objc:defmethod (#/noteModification: :void) ((self hemlock-text-storage) params)
-  (let* ((pos (#/longValue (#/objectAtIndex: params 0)))
-         (n (#/longValue (#/objectAtIndex: params 1))))
-    #+debug
-    (#_NSLog #@"Note modification: pos = %d, n = %d" :int pos :int n)
+
+(objc:defmethod (#/noteHemlockDeletionAtPosition:length: :void) ((self hemlock-text-storage)
+                                                                 (pos :<NSI>nteger)
+                                                                 (n :<NSI>nteger)
+                                                                 (extra :<NSI>nteger))
+  (declare (ignorable extra))
+  (ns:with-ns-range (range pos n)
+    ;; It seems to be necessary to call #/edited:range:changeInLength: before
+    ;; deleting from the cached attributed string.  It's not clear whether this
+    ;; is also true of insertions and modifications.
     (#/edited:range:changeInLength: self (logior #$NSTextStorageEditedCharacters
-                                                 #$NSTextStorageEditedAttributes) (ns:make-ns-range pos n) 0)))
+                                                 #$NSTextStorageEditedAttributes)
+                                    range (- n))
+    (#/deleteCharactersInRange: (#/cache self) range))
+  (let* ((display (hemlock-buffer-string-cache (#/hemlockString self))))
+    (reset-buffer-cache display)
+    (update-line-cache-for-index display pos))
+  ;; Arguably, changecount stuff should happen via the document's NSUndoManager.
+  ;; At some point in time, we'll know whether or not we have and are using
+  ;; an NSUndoManager; while we're in limbo about that, do it here.
+  (#/updateChangeCount: (#/document self) #$NSChangeDone))
+  
 
-(objc:defmethod (#/noteAttrChange: :void) ((self hemlock-text-storage) params)
-  (let* ((pos (#/longValue (#/objectAtIndex: params 0)))
-         (n (#/longValue (#/objectAtIndex: params 1))))
-    #+debug (#_NSLog #@"attribute-change at %d/%d" :int pos :int n)
-    (#/edited:range:changeInLength: self #$NSTextStorageEditedAttributes (ns:make-ns-range pos n) 0)))
+(objc:defmethod (#/noteHemlockModificationAtPosition:length: :void) ((self hemlock-text-storage)
+                                                                     (pos :<NSI>nteger)
+                                                                     (n :<NSI>nteger)
+                                                                     (extra :<NSI>nteger))
+  (declare (ignorable extra))
+  (let* ((hemlock-string (#/hemlockString self))
+         (cache (#/cache self)))
+    (ns:with-ns-range (range pos n)
+      (#/replaceCharactersInRange:withString:
+       cache range (#/substringWithRange: hemlock-string range))
+      (#/edited:range:changeInLength: self (logior #$NSTextStorageEditedCharacters
+                                                   #$NSTextStorageEditedAttributes) range 0)))
+  ;; Arguably, changecount stuff should happen via the document's NSUndoManager.
+  ;; At some point in time, we'll know whether or not we have and are using
+  ;; an NSUndoManager; while we're in limbo about that, do it here.
+  (#/updateChangeCount: (#/document self) #$NSChangeDone))
 
+
+(objc:defmethod (#/noteHemlockAttrChangeAtPosition:length: :void) ((self hemlock-text-storage)
+                                                                   (pos :<NSI>nteger)
+                                                                   (n :<NSI>nteger)
+                                                                   (fontnum :<NSI>nteger))
+  (ns:with-ns-range (range pos n)
+    (#/setAttributes:range: (#/cache self) (#/objectAtIndex: (#/styles self) fontnum) range)
+    (#/edited:range:changeInLength: self #$NSTextStorageEditedAttributes range 0)))
+
+(defloadvar *buffer-change-invocation*
+    (with-autorelease-pool
+        (#/retain
+                   (#/invocationWithMethodSignature: ns:ns-invocation
+                                                     (#/instanceMethodSignatureForSelector:
+                                                      hemlock-text-storage
+                                            (@selector #/noteHemlockInsertionAtPosition:length:))))))
+
+(defstatic *buffer-change-invocation-lock* (make-lock))
+
+         
+         
 (objc:defmethod (#/beginEditing :void) ((self hemlock-text-storage))
   (with-slots (edit-count) self
     #+debug
@@ -460,6 +521,17 @@
 
 (objc:defmethod #/styles ((self hemlock-text-storage))
   (slot-value self 'styles))
+
+(objc:defmethod #/document ((self hemlock-text-storage))
+  (or
+   (let* ((string (#/hemlockString self)))
+     (unless (%null-ptr-p string)
+       (let* ((cache (hemlock-buffer-string-cache string)))
+         (when cache
+           (let* ((buffer (buffer-cache-buffer cache)))
+             (when buffer
+               (hi::buffer-document buffer)))))))
+   +null-ptr+))
 
 (objc:defmethod #/initWithString: ((self hemlock-text-storage) s)
   (setq s (%inc-ptr s 0))
@@ -517,9 +589,10 @@
           (#/setAttributes:range: cache attrs r)))
       attrs)))
 
+000
 (objc:defmethod (#/replaceCharactersInRange:withString: :void)
     ((self hemlock-text-storage) (r :<NSR>ange) string)
-  #+debug (#_NSLog #@"Replace in range %ld/%ld with %@"
+  #+debug 0 (#_NSLog #@"Replace in range %ld/%ld with %@"
                     :<NSI>nteger (pref r :<NSR>ange.location)
                     :<NSI>nteger (pref r :<NSR>ange.length)
                     :id string)
@@ -529,18 +602,17 @@
          (location (pref r :<NSR>ange.location))
 	 (length (pref r :<NSR>ange.length))
 	 (point (hi::buffer-point buffer)))
-    (let* ((lisp-string (lisp-string-from-nsstring string))
+    (let* ((lisp-string (if (> (#/length string) 0) (lisp-string-from-nsstring string)))
            (document (if buffer (hi::buffer-document buffer)))
            (textstorage (if document (slot-value document 'textstorage))))
       (when textstorage (#/beginEditing textstorage))
       (setf (hi::buffer-region-active buffer) nil)
-      (unless (zerop length)
-        (hi::with-mark ((start point)
-                        (end point))
-          (move-hemlock-mark-to-absolute-position start cache location)
-          (move-hemlock-mark-to-absolute-position end cache (+ location length))
-          (hi::delete-region (hi::region start end))))
-      (hi::insert-string point lisp-string)
+      (hi::with-mark ((start point :right-inserting))
+        (move-hemlock-mark-to-absolute-position start cache location)
+        (unless (zerop length)
+          (hi::delete-characters start length))
+        (when lisp-string
+          (hi::insert-string start lisp-string)))
       (when textstorage
         (#/endEditing textstorage)
         (for-each-textview-using-storage
@@ -1410,6 +1482,8 @@
      (change :<NSD>ocument<C>hange<T>ype))
   (declare (ignore change)))
 
+(objc:defmethod (#/documentChangeCleared :void) ((self echo-area-document)))
+
 (objc:defmethod (#/keyDown: :void) ((self echo-area-view) event)
   (or (handle-key-down self event)
       (call-next-method event)))
@@ -1742,9 +1816,6 @@
   (release-lock (hi::buffer-gap-context-lock (hi::buffer-gap-context b)))) 
   
 (defun hi::document-begin-editing (document)
-  #-all-in-cocoa-thread
-  (#/beginEditing (slot-value document 'textstorage))
-  #+all-in-cocoa-thread
   (#/performSelectorOnMainThread:withObject:waitUntilDone:
    (slot-value document 'textstorage)
    (@selector #/beginEditing)
@@ -1755,9 +1826,6 @@
   (slot-value (slot-value document 'textstorage) 'edit-count))
 
 (defun hi::document-end-editing (document)
-  #-all-in-cocoa-thread
-  (#/endEditing (slot-value document 'textstorage))
-  #+all-in-cocoa-thread
   (#/performSelectorOnMainThread:withObject:waitUntilDone:
    (slot-value document 'textstorage)
    (@selector #/endEditing)
@@ -1774,20 +1842,22 @@
 
 
 
-(defun perform-edit-change-notification (textstorage selector pos n)
-  (let* ((number-for-pos
-          (#/initWithLong: (#/alloc ns:ns-number) pos))
-         (number-for-n
-          (#/initWithLong: (#/alloc ns:ns-number) n)))
-    (rlet ((paramptrs (:array :id 2)))
-      (setf (paref paramptrs (:* :id) 0) number-for-pos
-            (paref paramptrs (:* :id) 1) number-for-n)
-      (let* ((params (#/initWithObjects:count: (#/alloc ns:ns-array) paramptrs 2)))
-        (#/performSelectorOnMainThread:withObject:waitUntilDone:
-         textstorage selector params  t)
-        (#/release params)
-        (#/release number-for-n)
-        (#/release number-for-pos)))))
+(defun perform-edit-change-notification (textstorage selector pos n &optional (extra 0))
+  (with-lock-grabbed (*buffer-change-invocation-lock*)
+    (let* ((invocation *buffer-change-invocation*))
+      (rlet ((ppos :<NSI>nteger pos)
+             (pn :<NSI>nteger n)
+             (pextra :<NSI>nteger extra))
+        (#/setTarget: invocation textstorage)
+        (#/setSelector: invocation selector)
+        (#/setArgument:atIndex: invocation ppos 2)
+        (#/setArgument:atIndex: invocation pn 3)
+        (#/setArgument:atIndex: invocation pextra 4))
+      (#/performSelectorOnMainThread:withObject:waitUntilDone:
+       invocation
+       (@selector #/invoke)
+       +null-ptr+
+       t))))
 
 (defun textstorage-note-insertion-at-position (textstorage pos n)
   #+debug
@@ -1802,17 +1872,13 @@
   (when (hi::bufferp buffer)
     (let* ((document (hi::buffer-document buffer))
 	   (textstorage (if document (slot-value document 'textstorage)))
-           (styles (#/styles textstorage))
-           (cache (#/cache textstorage))
            (pos (mark-absolute-position (hi::region-start region)))
            (n (- (mark-absolute-position (hi::region-end region)) pos)))
-      #+debug
-      (#_NSLog #@"Setting font attributes for %d/%d to %@" :int pos :int n :id (#/objectAtIndex: styles font))
-      (#/setAttributes:range: cache (#/objectAtIndex: styles font) (ns:make-ns-range pos n))
       (perform-edit-change-notification textstorage
-                                        (@selector #/noteAttrChange:)
+                                        (@selector #/noteHemlockAttrChangeAtPosition:length:)
                                         pos
-                                        n))))
+                                        n
+                                        font))))
 
 (defun buffer-active-font (buffer)
   (let* ((style 0)
@@ -1829,30 +1895,11 @@
     (let* ((document (hi::buffer-document buffer))
 	   (textstorage (if document (slot-value document 'textstorage))))
       (when textstorage
-        (let* ((pos (mark-absolute-position mark))
-               (cache (#/cache textstorage))
-               (hemlock-string (#/hemlockString textstorage))
-               (display (hemlock-buffer-string-cache hemlock-string))
-               (buffer (buffer-cache-buffer display))
-               (font (buffer-active-font buffer)))
+        (let* ((pos (mark-absolute-position mark)))
           (unless (eq (hi::mark-%kind mark) :right-inserting)
             (decf pos n))
-          #+debug 
-	  (#_NSLog #@"insert: pos = %d, n = %d" :int pos :int n)
-          ;;(reset-buffer-cache display)
-          (adjust-buffer-cache-for-insertion display pos n)
-          (update-line-cache-for-index display pos)
-          (let* ((replacestring (#/substringWithRange: hemlock-string (ns:make-ns-range pos n))))
-            (ns:with-ns-range (replacerange pos 0)
-              (#/replaceCharactersInRange:withString:
-               cache replacerange replacestring)))
-          (#/setAttributes:range: cache font (ns:make-ns-range pos n))
-	  #+debug (#_NSLog #@"cache = %@" :id cache)
-          #-all-in-cocoa-thread
-          (textstorage-note-insertion-at-position textstorage pos n)
-          #+all-in-cocoa-thread
           (perform-edit-change-notification textstorage
-                                            (@selector "noteInsertion:")
+                                            (@selector #/noteHemlockInsertionAtPosition:length:)
                                             pos
                                             n))))))
 
@@ -1861,28 +1908,10 @@
     (let* ((document (hi::buffer-document buffer))
 	   (textstorage (if document (slot-value document 'textstorage))))
       (when textstorage
-        (let* ((hemlock-string (#/hemlockString textstorage))
-               (cache (#/cache textstorage))
-               (pos (mark-absolute-position mark)))
-          (ns:with-ns-range (range pos n)
-            (#/replaceCharactersInRange:withString:
-             cache range (#/substringWithRange: hemlock-string range))
-            #+debug
-            (#_NSLog #@"enqueue modify: pos = %d, n = %d"
-                     :int pos
-                     :int n)
-            #-all-in-cocoa-thread
-            (#/edited:range:changeInLength:
-             textstorage
-             (logior #$NSTextStorageEditedCharacters
-                     #$NSTextStorageEditedAttributes)
-             range
-             0)
-            #+all-in-cocoa-thread
             (perform-edit-change-notification textstorage
-                                              (@selector #/noteModification:)
+                                              (@selector #/noteHemlockModificationAtPosition:length:)
                                               (mark-absolute-position mark)
-                                              n)))))))
+                                              n)))))
   
 
 (defun hi::buffer-note-deletion (buffer mark n)
@@ -1890,24 +1919,21 @@
     (let* ((document (hi::buffer-document buffer))
 	   (textstorage (if document (slot-value document 'textstorage))))
       (when textstorage
-        (let* ((pos (mark-absolute-position mark))
-               (cache (#/cache textstorage)))
-          #-all-in-cocoa-thread
-          (progn
-            (#/edited:range:changeInLength:
-             textstorage #$NSTextStorageEditedCharacters (ns:make-ns-range pos n) (- n))
-            (let* ((display (hemlock-buffer-string-cache (#/hemlockString textstorage))))
-              (reset-buffer-cache display) 
-              (update-line-cache-for-index display pos)))
-          (#/deleteCharactersInRange: cache (ns:make-ns-range pos (abs n)))
-          #+all-in-cocoa-thread
+        (let* ((pos (mark-absolute-position mark)))
           (perform-edit-change-notification textstorage
-                                            (@selector #/noteDeletion:)
+                                            (@selector #/noteHemlockDeletionAtPosition:length:)
                                             pos
                                             (abs n)))))))
 
+
+
 (defun hi::set-document-modified (document flag)
-  (#/updateChangeCount: document (if flag #$NSChangeDone #$NSChangeCleared)))
+  (unless flag
+    (#/performSelectorOnMainThread:withObject:waitUntilDone:
+     document
+     (@selector #/documentChangeCleared)
+     +null-ptr+
+     t)))
 
 
 (defmethod hi::document-panes ((document t))
@@ -1985,8 +2011,12 @@
 
 (defclass hemlock-editor-document (ns:ns-document)
     ((textstorage :foreign-type :id)
-     (encoding :foreign-type :<NSS>tring<E>ncoding))
+     (encoding :foreign-type :<NSS>tring<E>ncoding :initform (get-default-encoding)))
   (:metaclass ns:+ns-object))
+
+(objc:defmethod (#/documentChangeCleared :void) ((self hemlock-editor-document))
+  (#/updateChangeCount: self #$NSChangeCleared))
+
 
 (defmethod update-buffer-package ((doc hemlock-editor-document) buffer)
   (let* ((name (hemlock::package-at-mark (hi::buffer-point buffer))))
@@ -2125,14 +2155,16 @@
                pused-encoding
                perror)
               +null-ptr+)))
-      (when (%null-ptr-p string)
-        (if (zerop selected-encoding)
-          (setq selected-encoding (get-default-encoding)))
-        (setq string (#/stringWithContentsOfURL:encoding:error:
-                      ns:ns-string
-                      url
-                      selected-encoding
-                      perror)))
+      (if (%null-ptr-p string)
+        (progn
+          (if (zerop selected-encoding)
+            (setq selected-encoding (get-default-encoding)))
+          (setq string (#/stringWithContentsOfURL:encoding:error:
+                        ns:ns-string
+                        url
+                        selected-encoding
+                        perror)))
+        (setq selected-encoding (pref pused-encoding :<NSS>tring<E>ncoding)))
       (unless (%null-ptr-p string)
         (with-slots (encoding) self (setq encoding selected-encoding))
         (hi::queue-buffer-change buffer)
@@ -2152,20 +2184,42 @@
         (hi::process-file-options buffer pathname)
         t))))
 
-#+experimental
-(objc:defmethod (#/writeWithBackupToFile:ofType:saveOperation: :<BOOL>)
-    ((self hemlock-editor-document) path type (save-operation :<NSS>ave<O>peration<T>ype))
-  #+debug
-  (#_NSLog #@"saving file to %@" :id path)
-  (call-next-method path type save-operation))
+
 
 
 
 (def-cocoa-default *editor-keep-backup-files* :bool t "maintain backup files")
 
 (objc:defmethod (#/keepBackupFile :<BOOL>) ((self hemlock-editor-document))
-  *editor-keep-backup-files*)
+  ;;; Don't use the NSDocument backup file scheme.
+  nil)
 
+(objc:defmethod (#/writeSafelyToURL:ofType:forSaveOperation:error: :<BOOL>)
+    ((self hemlock-editor-document)
+     absolute-url
+     type
+     (save-operation :<NSS>ave<O>peration<T>ype)
+     (error (:* :id)))
+  (when (and *editor-keep-backup-files*
+             (eql save-operation #$NSSaveOperation))
+    (write-hemlock-backup-file (#/fileURL self)))
+  (call-next-method absolute-url type save-operation error))
+
+(defun write-hemlock-backup-file (url)
+  (unless (%null-ptr-p url)
+    (when (#/isFileURL url)
+      (let* ((path (#/path url)))
+        (unless (%null-ptr-p path)
+          (let* ((newpath (#/stringByAppendingString: path #@"~"))
+                 (fm (#/defaultManager ns:ns-file-manager)))
+            ;; There are all kinds of ways for this to lose.
+            ;; In order for the copy to succeed, the destination can't exist.
+            ;; (It might exist, but be a directory, or there could be
+            ;; permission problems ...)
+            (#/removeFileAtPath:handler: fm newpath +null-ptr+)
+            (#/copyPath:toPath:handler: fm path newpath +null-ptr+)))))))
+
+             
 
 (defmethod hemlock-document-buffer (document)
   (let* ((string (#/hemlockString (slot-value document 'textstorage))))
@@ -2232,7 +2286,7 @@
 
 
 
-;;; Shadow the setFileName: method, so that we can keep the buffer
+;;; Shadow the setFileURL: method, so that we can keep the buffer
 ;;; name and pathname in synch with the document.
 (objc:defmethod (#/setFileURL: :void) ((self hemlock-editor-document)
                                         url)
@@ -2438,22 +2492,14 @@
               (ids id))))))))
 
 
-(defmacro nsstring-encoding-to-nsinteger (n)
-  (target-word-size-case
-   (32 `(u32->s32 ,n))
-   (64 n)))
 
-(defmacro nsinteger-to-nsstring-encoding (n)
-  (target-word-size-case
-   (32 `(s32->u32 ,n))
-   (64 n)))
 
 
 ;;; TexEdit.app has support for allowing the encoding list in this
 ;;; popup to be customized (e.g., to suppress encodings that the
 ;;; user isn't interested in.)
 (defmethod build-encodings-popup ((self hemlock-document-controller)
-                                  &optional (preferred-encoding 0))
+                                  &optional (preferred-encoding (get-default-encoding)))
   (let* ((id-list (supported-nsstring-encodings))
          (popup (make-instance 'ns:ns-pop-up-button)))
     ;;; Add a fake "Automatic" item with tag 0.
