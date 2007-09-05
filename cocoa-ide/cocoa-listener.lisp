@@ -203,6 +203,16 @@
   (#/removeObserver: (#/defaultCenter ns:ns-notification-center) self)
   (call-next-method))
 
+(objc:defmethod #/windowTitleForDocumentDisplayName: ((self hemlock-listener-window-controller) name)
+  (let* ((doc (#/document self)))
+    (if (or (%null-ptr-p doc)
+            (not (%null-ptr-p (#/fileURL doc))))
+      (call-next-method name)
+      (let* ((buffer (hemlock-document-buffer doc))
+             (bufname (if buffer (hi::buffer-name buffer))))
+        (if bufname
+          (%make-nsstring bufname)
+          (call-next-method name))))))
 
 
 ;;; The HemlockListenerDocument class.
@@ -271,7 +281,6 @@
 			    (format nil
 				    "Listener-~d" *cocoa-listener-count*)))
 	     (buffer (hemlock-document-buffer doc)))
-        (#/setFileName: doc  (%make-nsstring listener-name))
 	(setf (hi::buffer-pathname buffer) nil
 	      (hi::buffer-minor-mode buffer "Listener") t
 	      (hi::buffer-name buffer) listener-name)
