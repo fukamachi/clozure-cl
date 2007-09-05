@@ -1,3 +1,22 @@
+2007-09-04 22:11  gb
+
+	* cocoa-ide/cocoa-listener.lisp: Don't call #/setFileName: when
+	creating a Listener, since (a) that method's deprecated in favor of
+	#/setFileURL: and (b) a newly-created Listener doesn't really have
+	an associated filename, and so shouldn't get the icon and popup in
+	its titlebar.
+	
+	Do arrange that (unless/until a listener document is saved to a
+	file) its window title is based on the underlying Hemlock buffer's
+	name.  (If one ever attempts to save a listener document, the
+	proposed file name is the internal NSDocument name; we might or
+	might not want to change that.)
+
+2007-09-04 22:10  gb
+
+	* cocoa-ide/cocoa-prefs.lisp: Suppress warnings about
+	*MODELINE-FONT-NAME*, -SIZE*.
+
 2007-09-04 19:13  gb
 
 	* lisp-kernel/: gc.h, memory.c, pmcl-kernel.c, ppc-exceptions.c,
