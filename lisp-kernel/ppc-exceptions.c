@@ -596,10 +596,6 @@ new_heap_segment(ExceptionInformation *xp, natural need, Boolean extend, TCR *tc
   xpGPR(xp,allocptr) = (LispObj) newlimit;
   xpGPR(xp,allocbase) = (LispObj) oldlimit;
 
-  while (HeapHighWaterMark < (BytePtr)newlimit) {
-    zero_page(HeapHighWaterMark);
-    HeapHighWaterMark+=page_size;
-  }
   return true;
 }
 

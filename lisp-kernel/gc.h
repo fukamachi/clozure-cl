@@ -53,7 +53,7 @@
 #endif
 
 
-extern BytePtr HeapHighWaterMark; /* highest zeroed dynamic address  */
+extern void zero_memory_range(BytePtr,BytePtr);
 extern LispObj GCarealow, GCareadynamiclow;
 extern natural GCndnodes_in_area, GCndynamic_dnodes_in_area;
 extern bitvector GCmarkbits, GCdynamic_markbits;

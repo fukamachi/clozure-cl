@@ -407,9 +407,6 @@ thread_stack_size = 0;
   an integral number of segments.  remap the entire range.
 */
 
-BytePtr 
-HeapHighWaterMark = NULL;
-
 void 
 uncommit_pages(void *start, size_t len)
 {
@@ -425,9 +422,6 @@ uncommit_pages(void *start, size_t len)
       Fatal("mmap error", "");
       fprintf(stderr, "errno = %d", err);
     }
-  }
-  if (HeapHighWaterMark > (BytePtr) start) {
-    HeapHighWaterMark = start;
   }
 }
 
@@ -467,7 +461,6 @@ commit_pages(void *start, size_t len)
 		  0);
       if (addr == start) {
         if (touch_all_pages(start, len)) {
-          HeapHighWaterMark = ((BytePtr)start) + len;
           return true;
         }
         else {
@@ -700,6 +693,7 @@ create_reserved_area(unsigned long totalsize)
   return reserved;
 }
 
+
 void *
 allocate_from_reserved_area(natural size)
 {
@@ -782,13 +776,16 @@ grow_dynamic_area(natural delta)
   if (delta > avail) {
     return false;
   }
+
+  if (!commit_pages(a->high,delta)) {
+    return false;
+  }
+
+
   if (!allocate_from_reserved_area(delta)) {
     return false;
   }
-  /*
-    commit_pages(a->high,delta);
-  */
-  commit_pages(HeapHighWaterMark,(a->high+delta)-HeapHighWaterMark);
+
 
   a->high += delta;
   a->ndnodes = area_dnode(a->high, a->low);

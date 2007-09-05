@@ -175,6 +175,12 @@ find_protected_area(BytePtr addr)
 }
 
 
+void
+zero_memory_range(BytePtr start, BytePtr end)
+{
+  bzero(start,end-start);
+}
+
 
   
 
@@ -189,34 +195,16 @@ resize_dynamic_heap(BytePtr newfree,
 		    natural free_space_size)
 {
   extern int page_size;
-  natural protbytes, zerobytes;
   area *a = active_dynamic_area;
   BytePtr newlimit, protptr, zptr;
   int psize = page_size;
-  /* 
-     Zero the region between the new freepointer and the end of the
-     containing segment.
-  */
-  zptr = (BytePtr) align_to_power_of_2(newfree,log2_heap_segment_size);
-  zerobytes = zptr-newfree;
-  HeapHighWaterMark = zptr;
-
-  while (zerobytes >= psize) {
-    zptr -= psize;
-    zerobytes -= psize;
-    zero_page(zptr);
-  }
-  
-  if (zerobytes) {
-    bzero(newfree, zerobytes);
-  }
   if (free_space_size) {
     BytePtr lowptr = a->active;
     newlimit = lowptr + align_to_power_of_2(newfree-lowptr+free_space_size,
 					    log2_heap_segment_size);
     if (newlimit > a->high) {
       return grow_dynamic_area(newlimit-a->high);
-    } else if ((HeapHighWaterMark + free_space_size) < a->high) {
+    } else if ((lowptr + free_space_size) < a->high) {
       shrink_dynamic_area(a->high-newlimit);
       return true;
     }

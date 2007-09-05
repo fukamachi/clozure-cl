@@ -2651,6 +2651,8 @@ gc(TCR *tcr, signed_natural param)
       tenure_to_area(to);
     }
 
+    zero_memory_range(a->active, oldfree);
+
     resize_dynamic_heap(a->active,
                         (GCephemeral_low == 0) ? lisp_heap_gc_threshold : 0);
 
