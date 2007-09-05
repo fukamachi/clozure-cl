@@ -63,6 +63,7 @@
 
 (objc:defmethod (#/fontPanelForModelineFont: :void)
 		((self lisp-preferences-window-controller) sender)
+  (declare (special *modeline-font-name* *modeline-font-size*))
   (let* ((fm (#/sharedFontManager ns:ns-font-manager)))
     (#/setSelectedFont:isMultiple: fm (default-font
 					  :name *modeline-font-name*
@@ -81,6 +82,7 @@
         (#/setValue:forKey: values (#/stringWithFormat: ns:ns-string #@"%u" (round (#/pointSize f))) #@"defaultFontSize")))))
 
 (objc:defmethod (#/changeModelineFont: :void) ((self lisp-preferences-window-controller) sender)
+  (declare (special *modeline-font-name* *modeline-font-size*))
   (let* ((f (#/convertFont: sender (default-font
 					  :name *modeline-font-name*
 					:size *modeline-font-size*))))
