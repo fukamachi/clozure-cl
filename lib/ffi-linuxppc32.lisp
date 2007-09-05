@@ -194,6 +194,8 @@
 (defun linux32::generate-callback-return-value (stack-ptr fp-args-ptr result return-type struct-return-arg)
   (declare (ignore fp-args-ptr))
   (unless (eq return-type *void-foreign-type*)
+    (when (typep return-type 'foreign-single-float-type)
+      (setq result `(float ,result 0.0d0)))    
     (let* ((return-type-keyword
             (if (typep return-type 'foreign-record-type)
               (progn

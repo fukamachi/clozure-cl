@@ -2461,11 +2461,7 @@ defcallback returns the callback pointer, e.g., the value of name."
                 (let ((,result (progn ,@body)))
                   (declare (ignorable ,result)
                            (dynamic-extent ,result))
-                  ,@(progn
-                     ;; Coerce SINGLE-FLOAT result to DOUBLE-FLOAT
-                     (when (typep return-type 'foreign-single-float-type)
-                       (setq result `(float ,result 0.0d0)))
-                     nil)
+
                   ,(funcall (ftd-callback-return-value-function *target-ftd*)
                             stack-ptr
                             fp-args-ptr

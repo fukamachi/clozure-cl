@@ -179,6 +179,8 @@
 (defun linux64::generate-callback-return-value (stack-ptr fp-args-ptr result return-type struct-return-arg)
   (declare (ignore struct-return-arg))
   (unless (eq return-type *void-foreign-type*)
+    (when (typep return-type 'foreign-single-float-type)
+      (setq result `(float ,result 0.0d0)))    
     (let* ((return-type-keyword (foreign-type-to-representation-type return-type))
            (result-ptr (case return-type-keyword
                    ((:single-float :double-float)

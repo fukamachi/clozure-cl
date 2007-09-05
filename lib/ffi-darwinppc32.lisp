@@ -223,6 +223,9 @@
 
 (defun darwin32::generate-callback-return-value (stack-ptr fp-args-ptr result return-type struct-return-arg)
   (unless (eq return-type *void-foreign-type*)
+    ;; Coerce SINGLE-FLOAT result to DOUBLE-FLOAT
+    (when (typep return-type 'foreign-single-float-type)
+      (setq result `(float ,result 0.0d0)))    
     (when (typep return-type 'foreign-record-type)
       ;;; Would have been mapped to :VOID unless record-type contained
       ;;; a single scalar field.
