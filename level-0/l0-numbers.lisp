@@ -1770,7 +1770,7 @@ If         m = 2^n-1
     ab mod m = u + v                   :  u+v < 2^n
     ab mod m = ((u + v) mod 2^n) + 1   :  u+v >= 2^n
 
-What we do is use 2b and 2n so we can do arithemetic mod 2^32 instead of
+What we do is use 2b and 2^n so we can do arithemetic mod 2^32 instead of
 2^31.  This reduces the whole generator to 5 instructions on the 680x0 or
 80x86, and 8 on the 60x.
 
@@ -1782,7 +1782,7 @@ What we do is use 2b and 2n so we can do arithemetic mod 2^32 instead of
 (defun %next-random-pair (high low)
   (let* ((n (nth-value
              1
-             (%multiply 42871 (dpb (ldb (byte 15 0) high)
+             (%multiply 48271 (dpb (ldb (byte 15 0) high)
                                       (byte 16 16)
                                       (ldb (byte 16 0) low ))))))
     (values (ldb (byte 16 16) n)
