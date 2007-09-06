@@ -37,6 +37,16 @@
 (defmethod ensure-directory-pathname ((p pathname)) 
   (ensure-directory-pathname (namestring p)))
 
+;;; BASENAME path
+;;; returns the final component of a pathname--that is, the
+;;; filename (with type extension) if it names a file, or the
+;;; last directory name if it names a directory
+;;; TODO: perhaps BASENAME should check the file or directory
+;;;       named by PATH and ensure that, if the named file
+;;;       or directory exists, then the choice of returning
+;;;       a file or directory is based on what the actual target
+;;;       is, rather than on what the text of PATH suggests?
+
 (defun basename (path)
   (let* ((dir (pathname-directory path))
          (name (pathname-name path))
@@ -118,7 +128,9 @@
           (main-nib-name)
           "The main-nib-name must be a string or NIL, not ~S" main-nib-name)
   (with-autorelease-pool
-    (let* ((type-key (%make-nsstring "CFBundlePackageType"))
+    (let* ((bundle-name-key (%make-nsstring "CFBundleName"))
+           (bundle-name-str (%make-nsstring name))
+           (type-key (%make-nsstring "CFBundlePackageType"))
            (type-str (%make-nsstring package-type))
            (sig-key (%make-nsstring "CFBundleSignature"))
            (sig-str (%make-nsstring bundle-signature))
@@ -134,6 +146,7 @@
            (app-name-key (%make-nsstring "CFBundleExecutable"))
            (app-name-str (%make-nsstring name))
            (app-plist-path-str (%make-nsstring (namestring path))))
+      (#/setValue:forKey: info-dict bundle-name-str bundle-name-key)
       (#/setValue:forKey: info-dict app-name-str app-name-key)
       (#/setValue:forKey: info-dict type-str type-key)
       (#/setValue:forKey: info-dict sig-str sig-key)
