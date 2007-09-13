@@ -1551,8 +1551,8 @@
    (movq (:@ offset (:%q base)) (:%q dest))))
 
 
-(define-x8664-vinsn start-mv-call (()
-                                   ((label :label)))
+(define-x8664-vinsn (vpush-label :push :node :vsp) (()
+                                                 ((label :label)))
   (leaq (:@ (:^ label) (:%q x8664::fn)) (:%q x8664::ra0))
   (pushq (:%q x8664::ra0)))
 
