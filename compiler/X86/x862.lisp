@@ -2745,8 +2745,7 @@
 (defun x862-arglist (seg args &optional mv-label)
   (with-x86-local-vinsn-macros (seg)
     (when mv-label
-      (! start-mv-call (aref *backend-labels* mv-label))
-      (setq *x862-vstack* (+  *x862-vstack* *x862-target-node-size*)))
+      (x862-vpush-label seg (aref *backend-labels* mv-label)))
     (when (car args)
       (! reserve-outgoing-frame)
       (setq *x862-vstack* (+  *x862-vstack* (* 2 *x862-target-node-size*))))
@@ -3494,6 +3493,13 @@
     (prog1
       (! vpush-register src)
       (x862-new-vstack-lcell (or why :node) *x862-target-lcell-size* (or attr 0) info)
+      (x862-adjust-vstack *x862-target-node-size*))))
+
+(defun x862-vpush-label (seg label)
+  (with-x86-local-vinsn-macros (seg)
+    (prog1
+      (! vpush-label label)
+      (x862-new-vstack-lcell :label *x862-target-lcell-size* 0 nil)
       (x862-adjust-vstack *x862-target-node-size*))))
 
 (defun x862-temp-push-node (seg reg)
@@ -4750,7 +4756,7 @@
           (x862-call-fn seg vreg xfer fn arglist nil)
           (let* ((label (when (or recursive-p (x862-mvpass-p xfer)) (backend-get-next-label))))
             (when label
-              (! start-mv-call (aref *backend-labels* label)))
+              (x862-vpush-label seg (aref *backend-labels* label)))
             (x862-temp-push-node seg (x862-one-untargeted-reg-form seg fn x8664::arg_z))
             (x862-multiple-value-body seg (pop arglist))
             (x862-open-undo $undostkblk)
