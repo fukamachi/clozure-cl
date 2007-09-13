@@ -3495,6 +3495,8 @@
       (x862-new-vstack-lcell (or why :node) *x862-target-lcell-size* (or attr 0) info)
       (x862-adjust-vstack *x862-target-node-size*))))
 
+
+;;; Need to track stack usage when pushing label for mv-call.
 (defun x862-vpush-label (seg label)
   (with-x86-local-vinsn-macros (seg)
     (prog1
