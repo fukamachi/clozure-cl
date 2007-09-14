@@ -5407,7 +5407,7 @@
       (if out-p
 	'fd-binary-io-stream
 	'fd-binary-input-stream)
-      'fd-character-output-stream)))
+      'fd-binary-output-stream)))
 
 (defstruct (input-selection (:include dll-node))
   (package nil :type (or null string package))

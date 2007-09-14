@@ -675,7 +675,7 @@ any EXTERNAL-ENTRY-POINTs known to be defined by it to become unresolved."
       (format stream ")"))))
 
 (defun get-descriptor-for (object proc close-in-parent close-on-error
-				  &rest keys &key direction
+				  &rest keys &key direction (element-type 'character)
 				  &allow-other-keys)
   (etypecase object
     ((eql t)
@@ -695,6 +695,7 @@ any EXTERNAL-ENTRY-POINTs known to be defined by it to become unresolved."
 	  (values read-pipe
 		  (make-fd-stream write-pipe
 				  :direction :output
+                                  :element-type element-type
 				  :interactive nil)
 		  (cons read-pipe close-in-parent)
 		  (cons write-pipe close-on-error)))
@@ -702,6 +703,7 @@ any EXTERNAL-ENTRY-POINTs known to be defined by it to become unresolved."
 	  (values write-pipe
 		  (make-fd-stream read-pipe
 				  :direction :input
+                                  :element-type element-type
 				  :interactive nil)
 		  (cons write-pipe close-in-parent)
 		  (cons read-pipe close-on-error)))
@@ -857,7 +859,7 @@ any EXTERNAL-ENTRY-POINTs known to be defined by it to become unresolved."
 			    input if-input-does-not-exist
 			    output (if-output-exists :error)
 			    (error :output) (if-error-exists :error)
-			    status-hook)
+			    status-hook (element-type 'character))
   "Invoke an external program as an OS subprocess of lisp."
   (declare (ignore pty))
   (unless (every #'(lambda (a) (typep a 'simple-string)) args)
@@ -886,17 +888,20 @@ any EXTERNAL-ENTRY-POINTs known to be defined by it to become unresolved."
 	 (progn
 	   (multiple-value-setq (in-fd in-stream close-in-parent close-on-error)
 	     (get-descriptor-for input proc  nil nil :direction :input
-				 :if-does-not-exist if-input-does-not-exist))
+				 :if-does-not-exist if-input-does-not-exist
+                                 :element-type element-type))
 	   (multiple-value-setq (out-fd out-stream close-in-parent close-on-error)
 	     (get-descriptor-for output proc close-in-parent close-on-error
 				 :direction :output
-				 :if-exists if-output-exists))
+				 :if-exists if-output-exists
+                                 :element-type element-type))
 	   (multiple-value-setq (error-fd error-stream close-in-parent close-on-error)
 	     (if (eq error :output)
 	       (values out-fd out-stream close-in-parent close-on-error)
 	       (get-descriptor-for error proc close-in-parent close-on-error
 				   :direction :output
-				   :if-exists if-error-exists)))
+				   :if-exists if-error-exists
+                                   :element-type element-type)))
 	   (setf (external-process-input proc) in-stream
                  (external-process-output proc) out-stream
                  (external-process-error proc) error-stream)
