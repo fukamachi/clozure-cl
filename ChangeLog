@@ -1,3 +1,8 @@
+2007-09-13 20:10  gb
+
+	* level-1/: l1-streams.lisp, linux-files.lisp: Add support for
+	:element-type to ccl:run-program to allow for binary streams
+
 2007-09-13 06:55  gb
 
 	* cocoa-ide/hemlock/: README, doc/scribe-converter/README,
