@@ -409,8 +409,8 @@ whose name or ID matches <p>, or to any process if <p> is null"
         (*print-array* nil)
         (*print-escape* t)
         (*print-gensym* t)
-        (*print-length* nil)  ; ?
-        (*print-level* nil)   ; ?
+        (*print-length* *backtrace-print-length*)  ; ?
+        (*print-level* *backtrace-print-level*)   ; ?
         (*print-lines* nil)
         (*print-miser-width* nil)
         (*print-readably* nil)
@@ -523,6 +523,8 @@ whose name or ID matches <p>, or to any process if <p> is null"
       (with-toplevel-commands :break
         (if *continuablep*
           (let* ((*print-circle* *error-print-circle*)
+                 (*print-level* *backtrace-print-level*)
+                 (*print-length* *backtrace-print-length*)
 					;(*print-pretty* nil)
                  (*print-array* nil))
             (format t "~&> Type :GO to continue, :POP to abort, :R for a list of available restarts.")
