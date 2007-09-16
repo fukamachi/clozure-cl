@@ -862,10 +862,7 @@
               (x862-init-regvar seg var reg (x862-vloc-ea vloc))
               (x862-bind-var seg var vloc lcell))
             (setq vloc (+ vloc *x862-target-node-size*)))))))
-  (when keys
-    (apply #'x862-init-keys seg vloc lcells keys)
-    (setq vloc (+ vloc (* 2 *x862-target-node-size* nkeys))
-          lcells (nthcdr (+ nkeys nkeys) lcells)))
+
   (when rest
     (if lexpr
       (progn
@@ -877,12 +874,14 @@
               (x862-vpush-register seg x8664::arg_z :reserved)
               (x862-note-top-cell rest)
               (x862-bind-var seg rest loc *x862-top-vstack-lcell*))))
-      (progn
+      (let* ((rvloc (+ vloc (* 2 *x862-target-node-size* nkeys))))
         (if (setq reg (x862-assign-register-var rest))
-          (x862-init-regvar seg rest reg (x862-vloc-ea vloc))
-          (x862-bind-var seg rest vloc (pop lcells)))
-        (setq vloc (+ vloc *x862-target-node-size*)))))
+          (x862-init-regvar seg rest reg (x862-vloc-ea rvloc))
+          (x862-bind-var seg rest rvloc (pop lcells))))))
+    (when keys
+      (apply #'x862-init-keys seg vloc lcells keys))
   (x862-seq-bind seg (%car auxen) (%cadr auxen)))
+
 
 (defun x862-initopt (seg vloc spvloc lcells splcells vars inits spvars)
   (with-x86-local-vinsn-macros (seg)
