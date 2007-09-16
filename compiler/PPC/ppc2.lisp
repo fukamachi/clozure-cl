@@ -763,10 +763,6 @@
               (ppc2-init-regvar seg var reg (ppc2-vloc-ea vloc))
               (ppc2-bind-var seg var vloc lcell))
             (setq vloc (+ vloc *ppc2-target-node-size*)))))))
-  (when keys
-    (apply #'ppc2-init-keys seg vloc lcells keys)
-    (setq vloc (+ vloc (* 2 *ppc2-target-node-size* nkeys))
-          lcells (nthcdr (+ nkeys nkeys) lcells)))
   (when rest
     (if lexpr
       (progn
@@ -780,11 +776,12 @@
               (ppc2-vpush-register seg nargs-cell :reserved)
               (ppc2-note-top-cell rest)
               (ppc2-bind-var seg rest loc *ppc2-top-vstack-lcell*)))))
-      (progn
+      (let* ((rvloc (+ vloc (* 2 *ppc2-target-node-size* nkeys))))
         (if (setq reg (ppc2-assign-register-var rest))
-          (ppc2-init-regvar seg rest reg (ppc2-vloc-ea vloc))
-          (ppc2-bind-var seg rest vloc (pop lcells)))
-        (setq vloc (+ vloc *ppc2-target-node-size*)))))
+          (ppc2-init-regvar seg rest reg (ppc2-vloc-ea rvloc))
+          (ppc2-bind-var seg rest rvloc (pop lcells))))))
+  (when keys
+    (apply #'ppc2-init-keys seg vloc lcells keys))  
   (ppc2-seq-bind seg (%car auxen) (%cadr auxen)))
 
 (defun ppc2-initopt (seg vloc spvloc lcells splcells vars inits spvars)
