@@ -1,3 +1,9 @@
+2007-09-16 17:10  gb
+
+	* compiler/PPC/ppc2.lisp: PPC2-BIND-LAMBDA: rest arg is in scope
+	before key arg(s), so assign it an address before processing &key
+	initforms.
+
 2007-09-15 17:10  gb
 
 	* level-1/l1-readloop-lds.lisp: Observe *BACKTRACE-PRINT-LEVEL*,
