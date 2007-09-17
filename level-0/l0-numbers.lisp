@@ -1780,21 +1780,27 @@ What we do is use 2b and 2^n so we can do arithemetic mod 2^32 instead of
 
 #+64-bit-target
 (defun %next-random-pair (high low)
-  (let* ((n (nth-value
-             1
-             (%multiply 48271 (dpb (ldb (byte 15 0) high)
-                                      (byte 16 16)
-                                      (ldb (byte 16 0) low ))))))
-    (values (ldb (byte 16 16) n)
+  (declare (type (unsigned-byte 16) high low))
+  (let* ((n0
+          (%i* 42871
+             (the  (unsigned-byte 31)
+               (logior (the (unsigned-byte 31)
+                         (ash (ldb (byte 15 0) high) 16))
+                       (the (unsigned-byte 16)
+                         (ldb (byte 16 0) low))))))
+         (n (fast-mod n0 (1- (expt 2 31)))))
+    (declare (fixnum n))
+    (values (ldb (byte 15 16) n)
             (ldb (byte 16 0) n))))
 
 (defun %next-random-seed (state)
   (multiple-value-bind (high low) (%next-random-pair (%svref state 1)
                                                      (%svref state 2))
-    (setf (%svref state 1) (ldb (byte 15 0) high)
+    (declare (type (unsigned-byte 15) high)
+             (type (unsigned-byte 16) low))
+    (setf (%svref state 1) high
           (%svref state 2) low)
-    high
-    ))
+    (logior high (the fixnum (logand low (ash 1 15))))))
 
 
 (defun %bignum-random (number state)
