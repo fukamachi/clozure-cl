@@ -1,3 +1,8 @@
+2007-09-16 18:10  gb
+
+	* compiler/X86/x862.lisp: X862-BIND-LAMBDA: bind &rest before &key
+	...
+
 2007-09-16 17:10  gb
 
 	* compiler/PPC/ppc2.lisp: PPC2-BIND-LAMBDA: rest arg is in scope
