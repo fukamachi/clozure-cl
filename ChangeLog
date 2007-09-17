@@ -1,3 +1,13 @@
+2007-09-17 06:10  gb
+
+	* level-0/l0-numbers.lisp: Simply clearing the top bit of the
+	intermediate result from %NEXT-RANDOM-PAIR had the effect of using
+	doing (mod result (expt 2 31)), not (mod result (1- (expt 2 31))). 
+	Do a real MOD to obtain the next item in the series and update the
+	state with that value.	(This means that the high bit of the high
+	half of the result is always clear; or in the sign bit from the low
+	half.)
+
 2007-09-16 18:10  gb
 
 	* compiler/X86/x862.lisp: X862-BIND-LAMBDA: bind &rest before &key
