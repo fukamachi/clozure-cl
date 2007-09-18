@@ -1782,7 +1782,7 @@ What we do is use 2b and 2^n so we can do arithemetic mod 2^32 instead of
 (defun %next-random-pair (high low)
   (declare (type (unsigned-byte 16) high low))
   (let* ((n0
-          (%i* 42871
+          (%i* 48271
              (the  (unsigned-byte 31)
                (logior (the (unsigned-byte 31)
                          (ash (ldb (byte 15 0) high) 16))
