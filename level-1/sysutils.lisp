@@ -539,7 +539,7 @@
                              (assq wfname defs))))
               (multiple-value-setq (harsh any file) (signal-compiler-warning w init file harsh any))
               (setq init nil))))))
-    (values (values any harsh parent))))
+    (values any harsh parent)))
 
 (defun print-nested-name (name-list stream)
   (if (null name-list)
