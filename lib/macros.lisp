@@ -2677,7 +2677,9 @@ setq can be used to set the value of the slot."
                       slot-entry)))
       (push `(,var (slot-value ,instance ',slot-name)) bindings))
     `(let ((,instance ,instance-form))
-       ,@(unless bindings (list `(declare (ignore ,instance))))
+       ,@(if bindings 
+             (list `(declare (ignorable ,instance)))
+             (list `(declare (ignore ,instance))))
        (symbol-macrolet ,(nreverse bindings)
          ,@body))))
 
