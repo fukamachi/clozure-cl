@@ -1,3 +1,9 @@
+2007-09-18 21:10  gb
+
+	* lib/macros.lisp: In WITH-SLOTS, if there are bindings, declare
+	the gensym'ed instance symbol IGNORABLE just in case none of the
+	symbol macros are actuall used.
+
 2007-09-18 05:10  gb
 
 	* level-0/l0-numbers.lisp: Typo in constant again.
