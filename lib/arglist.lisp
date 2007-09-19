@@ -165,36 +165,36 @@
       (function-args lfun)
     (declare (ignore optinit))
     (if lexprp
-      (values nil nil)
-      (let ((map (car (function-symbol-map lfun))))
-        (if map
-          (let ((total (+ nreq nopt (if restp 1 0) (or nkeys 0)))
-                (idx (- (length map) nclosed))
-                (res nil))
-            (if (%izerop total)
-              (values nil t)
-              (progn
-                (dotimes (x nreq)
-                  (declare (fixnum x))
-                  (push (if (> idx 0) (elt map (decf idx)) (make-arg "ARG" x)) res))
-                (when (neq nopt 0)
-                  (push '&optional res)
-                  (dotimes (x (the fixnum nopt))
-                    (push (if (> idx 0) (elt map (decf idx)) (make-arg "OPT" x)) res)))
+      (setq restp t))
+    (let ((map (car (function-symbol-map lfun))))
+      (if map
+        (let ((total (+ nreq nopt (if restp 1 0) (or nkeys 0)))
+              (idx (- (length map) nclosed))
+              (res nil))
+          (if (%izerop total)
+            (values nil t)
+            (progn
+              (dotimes (x nreq)
+                (declare (fixnum x))
+                (push (if (> idx 0) (elt map (decf idx)) (make-arg "ARG" x)) res))
+              (when (neq nopt 0)
+                (push '&optional res)
+                (dotimes (x (the fixnum nopt))
+                  (push (if (> idx 0) (elt map (decf idx)) (make-arg "OPT" x)) res)))
 
-                (when restp
-                  (push '&rest res)
-                  (when nkeys
-                    (when (> idx nkeys) (decf idx nkeys)))
-                  (push (if (> idx 0) (elt map (decf idx)) 'the-rest) res))                  (when nkeys
-                  (push '&key res)
-                  (let ((keyvect (lfun-keyvect lfun)))
-                    (dotimes (i (length keyvect))
-                      (push (elt keyvect i) res))))
-                (when allow-other-keys
-                  (push '&allow-other-keys res))))
-            (values (nreverse res) t))
-          (values nil (zerop ncells)))))))
+              (when restp
+                (push (if lexprp '&lexpr '&rest) res)
+                (when nkeys
+                  (when (> idx nkeys) (decf idx nkeys)))
+                (push (if (> idx 0) (elt map (decf idx)) 'the-rest) res))                  (when nkeys
+                (push '&key res)
+                (let ((keyvect (lfun-keyvect lfun)))
+                  (dotimes (i (length keyvect))
+                    (push (elt keyvect i) res))))
+              (when allow-other-keys
+                (push '&allow-other-keys res))))
+          (values (nreverse res) t))
+        (values nil (zerop ncells))))))
 
 (defun arg-names-from-map (lfun pc)
   (multiple-value-bind (nreq nopt restp nkeys allow-other-keys
@@ -218,11 +218,10 @@
                 (when (neq nopt 0)
                   (dotimes (x (the fixnum nopt))
                     (opt (if (> idx 0) (elt map (decf idx)) (make-arg "OPT" x)))))
-                (when nkeys
-                  (dotimes (i (the fixnum nkeys))
-                    (keys (if (> idx 0) (elt map (decf idx)) (make-arg "KEY" i)))))
                 (when (or restp lexprp)
-                  (setq rest (if (> idx 0) (elt map (decf idx)) 'the-rest)))))))
+                  (setq rest (if (> idx 0) (elt map (decf idx)) 'the-rest)))                (when nkeys
+                                                                                              (dotimes (i (the fixnum nkeys))
+                    (keys (if (> idx 0) (elt map (decf idx)) (make-arg "KEY" i)))))))))
         (values (not (null map)) (req) (opt) rest (keys))))))
               
               
