@@ -1,3 +1,8 @@
+2007-09-19 15:10  gb
+
+	* lib/macros.lisp: Prevent unused gensym warnings in
+	with-accessors.  Same fix that Gary Palter did to with-slots.
+
 2007-09-19 02:11  gb
 
 	* lib/backtrace-lds.lisp: FRAME-REQUIRED-ARGS: try to make better. 
