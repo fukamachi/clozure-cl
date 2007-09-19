@@ -1,3 +1,14 @@
+2007-09-19 02:11  gb
+
+	* lib/backtrace-lds.lisp: FRAME-REQUIRED-ARGS: try to make better. 
+	This is only used by SLIME; it was once used for frame restarting. 
+	Try to make the result reasonable in the SLIME case.
+
+2007-09-19 02:10  gb
+
+	* lib/arglist.lisp: ARGLIST-FROM-MAP: don't be afraid to say
+	&LEXPR.  ARG-NAMES-FROM-MAP: &rest in map before &keys now.
+
 2007-09-18 21:10  gb
 
 	* lib/macros.lisp: In WITH-SLOTS, if there are bindings, declare
