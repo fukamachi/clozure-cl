@@ -360,7 +360,7 @@
     ((string :foreign-type :id)
      (hemlock-string :foreign-type :id)
      (edit-count :foreign-type :int)
-     (cache :foreign-type :id)
+     (mirror :foreign-type :id)
      (styles :foreign-type :id)
      (selection-set-by-search :foreign-type :<BOOL>))
   (:metaclass ns:+ns-object))
@@ -398,7 +398,7 @@
                                                                   (n :<NSI>nteger)
                                                                   (extra :<NSI>nteger))
   (declare (ignorable extra))
-  (let* ((cache (#/cache self))
+  (let* ((mirror (#/mirror self))
          (hemlock-string (#/hemlockString self))
          (display (hemlock-buffer-string-cache hemlock-string))
          (buffer (buffer-cache-buffer display))
@@ -407,15 +407,15 @@
          (document (#/document self)))
     #+debug 
     (#_NSLog #@"insert: pos = %ld, n = %ld" :long pos :long n)
-    ;; We need to update the hemlock string cache here so that #/substringWithRange:
+    ;; We need to update the hemlock string mirror here so that #/substringWithRange:
     ;; will work on the hemlock buffer string.
     (adjust-buffer-cache-for-insertion display pos n)
     (update-line-cache-for-index display pos)
     (let* ((replacestring (#/substringWithRange: hemlock-string (ns:make-ns-range pos n))))
       (ns:with-ns-range (replacerange pos 0)
         (#/replaceCharactersInRange:withString:
-         cache replacerange replacestring)))
-    (#/setAttributes:range: cache font (ns:make-ns-range pos n))    
+         mirror replacerange replacestring)))
+    (#/setAttributes:range: mirror font (ns:make-ns-range pos n))    
     (textstorage-note-insertion-at-position self pos n)
     ;; Arguably, changecount stuff should happen via the document's NSUndoManager.
     ;; At some point in time, we'll know whether or not we have and are using
@@ -430,12 +430,12 @@
   (declare (ignorable extra))
   (ns:with-ns-range (range pos n)
     ;; It seems to be necessary to call #/edited:range:changeInLength: before
-    ;; deleting from the cached attributed string.  It's not clear whether this
+    ;; deleting from the mirror attributed string.  It's not clear whether this
     ;; is also true of insertions and modifications.
     (#/edited:range:changeInLength: self (logior #$NSTextStorageEditedCharacters
                                                  #$NSTextStorageEditedAttributes)
                                     range (- n))
-    (#/deleteCharactersInRange: (#/cache self) range))
+    (#/deleteCharactersInRange: (#/mirror self) range))
   (let* ((display (hemlock-buffer-string-cache (#/hemlockString self))))
     (reset-buffer-cache display)
     (update-line-cache-for-index display pos))
@@ -451,10 +451,10 @@
                                                                      (extra :<NSI>nteger))
   (declare (ignorable extra))
   (let* ((hemlock-string (#/hemlockString self))
-         (cache (#/cache self)))
+         (mirror (#/mirror self)))
     (ns:with-ns-range (range pos n)
       (#/replaceCharactersInRange:withString:
-       cache range (#/substringWithRange: hemlock-string range))
+       mirror range (#/substringWithRange: hemlock-string range))
       (#/edited:range:changeInLength: self (logior #$NSTextStorageEditedCharacters
                                                    #$NSTextStorageEditedAttributes) range 0)))
   ;; Arguably, changecount stuff should happen via the document's NSUndoManager.
@@ -468,7 +468,7 @@
                                                                    (n :<NSI>nteger)
                                                                    (fontnum :<NSI>nteger))
   (ns:with-ns-range (range pos n)
-    (#/setAttributes:range: (#/cache self) (#/objectAtIndex: (#/styles self) fontnum) range)
+    (#/setAttributes:range: (#/mirror self) (#/objectAtIndex: (#/styles self) fontnum) range)
     (#/edited:range:changeInLength: self #$NSTextStorageEditedAttributes range 0)))
 
 (defloadvar *buffer-change-invocation*
@@ -513,8 +513,8 @@
 (objc:defmethod #/string ((self hemlock-text-storage))
   (slot-value self 'string))
 
-(objc:defmethod #/cache ((self hemlock-text-storage))
-  (slot-value self 'cache))
+(objc:defmethod #/mirror ((self hemlock-text-storage))
+  (slot-value self 'mirror))
 
 (objc:defmethod #/hemlockString ((self hemlock-text-storage))
   (slot-value self 'hemlock-string))
@@ -537,21 +537,21 @@
   (setq s (%inc-ptr s 0))
   (let* ((newself (#/init self))
          (styles (make-editor-style-map))
-         (cache (#/retain (make-instance ns:ns-mutable-attributed-string
+         (mirror (#/retain (make-instance ns:ns-mutable-attributed-string
                                    :with-string s
                                    :attributes (#/objectAtIndex: styles 0)))))
     (declare (type hemlock-text-storage newself))
     (setf (slot-value newself 'styles) styles)
     (setf (slot-value newself 'hemlock-string) s)
-    (setf (slot-value newself 'cache) cache)
-    (setf (slot-value newself 'string) (#/retain (#/string cache)))
+    (setf (slot-value newself 'mirror) mirror)
+    (setf (slot-value newself 'string) (#/retain (#/string mirror)))
     newself))
 
 ;;; Should generally only be called after open/revert.
-(objc:defmethod (#/updateCache :void) ((self hemlock-text-storage))
-  (with-slots (hemlock-string cache styles) self
-    (#/replaceCharactersInRange:withString: cache (ns:make-ns-range 0 (#/length cache)) hemlock-string)
-    (#/setAttributes:range: cache (#/objectAtIndex: styles 0) (ns:make-ns-range 0 (#/length cache)))))
+(objc:defmethod (#/updateMirror :void) ((self hemlock-text-storage))
+  (with-slots (hemlock-string mirror styles) self
+    (#/replaceCharactersInRange:withString: mirror (ns:make-ns-range 0 (#/length mirror)) hemlock-string)
+    (#/setAttributes:range: mirror (#/objectAtIndex: styles 0) (ns:make-ns-range 0 (#/length mirror)))))
 
 ;;; This is the only thing that's actually called to create a
 ;;; hemlock-text-storage object.  (It also creates the underlying
@@ -570,23 +570,23 @@
     ((self hemlock-text-storage) (index :<NSUI>nteger) (rangeptr (* :<NSR>ange)))
   #+debug
   (#_NSLog #@"Attributes at index: %lu storage %@" :<NSUI>nteger index :id self)
-  (with-slots (cache styles) self
-    (when (>= index (#/length cache))
-      (#_NSLog #@"Attributes at index: %lu  edit-count: %d cache: %@ layout: %@" :<NSUI>nteger index ::unsigned (slot-value self 'edit-count) :id cache :id (#/objectAtIndex: (#/layoutManagers self) 0))
+  (with-slots (mirror styles) self
+    (when (>= index (#/length mirror))
+      (#_NSLog #@"Attributes at index: %lu  edit-count: %d mirror: %@ layout: %@" :<NSUI>nteger index ::unsigned (slot-value self 'edit-count) :id mirror :id (#/objectAtIndex: (#/layoutManagers self) 0))
       (for-each-textview-using-storage self
                                        (lambda (tv)
                                          (let* ((w (#/window tv))
                                                 (proc (slot-value w 'command-thread)))
                                            (process-interrupt proc #'dbg))))
       (dbg))
-    (let* ((attrs (#/attributesAtIndex:effectiveRange: cache index rangeptr)))
+    (let* ((attrs (#/attributesAtIndex:effectiveRange: mirror index rangeptr)))
       (when (eql 0 (#/count attrs))
         (#_NSLog #@"No attributes ?")
         (ns:with-ns-range (r)
           (#/attributesAtIndex:longestEffectiveRange:inRange:
-           cache index r (ns:make-ns-range 0 (#/length cache)))
+           mirror index r (ns:make-ns-range 0 (#/length mirror)))
           (setq attrs (#/objectAtIndex: styles 0))
-          (#/setAttributes:range: cache attrs r)))
+          (#/setAttributes:range: mirror attrs r)))
       attrs)))
 
 000
@@ -628,10 +628,10 @@
                                                 (r :<NSR>ange))
   #+debug
   (#_NSLog #@"Set attributes: %@ at %d/%d" :id attributes :int (pref r :<NSR>ange.location) :int (pref r :<NSR>ange.length))
-  (with-slots (cache) self
-    (#/setAttributes:range: cache attributes r)
+  (with-slots (mirror) self
+    (#/setAttributes:range: mirror attributes r)
       #+debug
-      (#_NSLog #@"Assigned attributes = %@" :id (#/attributesAtIndex:effectiveRange: cache (pref r :<NSR>ange.location) +null-ptr+))))
+      (#_NSLog #@"Assigned attributes = %@" :id (#/attributesAtIndex:effectiveRange: mirror (pref r :<NSR>ange.location) +null-ptr+))))
 
 (defun for-each-textview-using-storage (textstorage f)
   (let* ((layouts (#/layoutManagers textstorage)))
@@ -2108,7 +2108,7 @@
         (move-hemlock-mark-to-absolute-position point
                                                 display
                                                 (min newlen pointpos))))
-    (#/updateCache textstorage)
+    (#/updateMirror textstorage)
     (#/endEditing textstorage)
     (hi::document-set-point-position self)
     (setf (hi::buffer-modified buffer) nil)
@@ -2173,7 +2173,7 @@
         (let* ((textstorage (slot-value self 'textstorage))
                (display (hemlock-buffer-string-cache (#/hemlockString textstorage))))
           (reset-buffer-cache display) 
-          (#/updateCache textstorage)
+          (#/updateMirror textstorage)
           (update-line-cache-for-index display 0)
           (textstorage-note-insertion-at-position
            textstorage
