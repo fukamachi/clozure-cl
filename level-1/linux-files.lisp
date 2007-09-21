@@ -696,7 +696,8 @@ any EXTERNAL-ENTRY-POINTs known to be defined by it to become unresolved."
 		  (make-fd-stream write-pipe
 				  :direction :output
                                   :element-type element-type
-				  :interactive nil)
+				  :interactive nil
+                                  :basic t)
 		  (cons read-pipe close-in-parent)
 		  (cons write-pipe close-on-error)))
 	 (:output
@@ -704,7 +705,8 @@ any EXTERNAL-ENTRY-POINTs known to be defined by it to become unresolved."
 		  (make-fd-stream read-pipe
 				  :direction :input
                                   :element-type element-type
-				  :interactive nil)
+				  :interactive nil
+                                  :basic t)
 		  (cons write-pipe close-in-parent)
 		  (cons read-pipe close-on-error)))
 	 (t
