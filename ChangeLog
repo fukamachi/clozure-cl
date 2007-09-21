@@ -1,3 +1,10 @@
+2007-09-21 12:10  gb
+
+	* cocoa-ide/cocoa-editor.lisp: Rename "cache" to "mirror" in
+	hemlock-text-storage.  This clarifies the purpose of the slot and
+	avoids confusion with buffer caches, which are completely
+	different.
+
 2007-09-20 21:10  gb
 
 	* level-1/linux-files.lisp: Make the pipe streams created by
