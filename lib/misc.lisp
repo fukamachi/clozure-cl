@@ -695,3 +695,24 @@ are running on, or NIL if we can't find any useful information."
     fun))
 
 (%fhave 'df #'disassemble)
+
+(defun local-svn-revision ()
+  (or
+   ;; svn2cvs uses a .svnrev file to sync CVS and SVN; if present,
+   ;; it contains the svn revision in decimal.
+   (with-open-file (f "ccl:\\.svnrev" :direction :input :if-does-not-exist nil)
+     (when f (read f)))
+   (with-output-to-string (s)
+    (multiple-value-bind (status exit-code)
+        (external-process-status
+         (run-program "svn"  (list "info" (native-translated-namestring "ccl:")):output s))
+      (when (and (eq :exited status) (zerop exit-code))
+        (with-input-from-string (output (get-output-stream-string s))
+          (do* ((line (read-line output nil nil)
+                      (read-line output nil nil))
+                (revstring "Revision:")
+                (revstringlen (length revstring)))
+               ((null line))
+            (when (string= line revstring :end1 revstringlen)
+              (return-from local-svn-revision
+                (values (parse-integer line :start revstringlen)))))))))))
