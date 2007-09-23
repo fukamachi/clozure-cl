@@ -456,11 +456,9 @@
 	 (pos (position #\. pstr :from-end t))
 	 (type (and pos (%substr pstr (%i+ pos 1) end)))
 	 (name (unless (eq (or pos end) 0) (if pos (%substr pstr 0 pos) pstr))))
-    (and (cond ((eq name-pat :unspecific) (null name))
-	       ((null name-pat) T)
+    (and (cond ((or (eq name-pat :unspecific) (null name-pat)) (null name))
 	       (t (%path-pstr*= name-pat (or name ""))))
-	 (cond ((eq type-pat :unspecific) (null type))
-	       ((null type-pat) T)
+	 (cond ((or (null type-pat) (eq type-pat :unspecific)) (null type))
 	       (t (%path-pstr*= type-pat (or type "")))))))
 
 (provide "PATHNAMES")
