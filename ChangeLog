@@ -1,3 +1,13 @@
+2007-09-23 09:12  gb
+
+	* xdump/xfasload.lisp: Handle saving svn revision as string or
+	fixnum.
+
+2007-09-23 09:11  gb
+
+	* lib/misc.lisp: Try to use "svnversion" to get svn version info in
+	LOCAL-SVN-REVISION.
+
 2007-09-22 23:13  gb
 
 	* xdump/xfasload.lisp: Set *openmcl-svn-revision* to the value of
