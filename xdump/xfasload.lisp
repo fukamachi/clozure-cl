@@ -1063,8 +1063,12 @@
     (setf (xload-symbol-value (xload-copy-symbol '*xload-cold-load-functions*))
           (xload-save-list (setq *xload-cold-load-functions*
                                  (nreverse *xload-cold-load-functions*))))
-    (setf (xload-symbol-value (xload-copy-symbol '*openmcl-svn-revision*))
-          (ash (local-svn-revision) *xload-target-fixnumshift*))
+    (let* ((svnrev (local-svn-revision)))
+      (setf (xload-symbol-value (xload-copy-symbol '*openmcl-svn-revision*))
+            (typecase svnrev
+              (fixnum (ash svnrev *xload-target-fixnumshift*))
+              (string (xload-save-string svnrev))
+              (t *xload-target-nil*))))
                               
     (when *xload-show-cold-load-functions*
       (format t "~&cold-load-functions list:")
