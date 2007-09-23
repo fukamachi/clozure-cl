@@ -19,16 +19,19 @@
 (defparameter *openmcl-major-version* 1)
 (defparameter *openmcl-minor-version* 1)
 (defparameter *openmcl-revision* 0)
-(defparameter *openmcl-suffix* "pre-070722")
+;;; May be set by xload-level-0
+(defvar *openmcl-svn-revision* nil)
 (defparameter *openmcl-dev-level* nil)
 
-(defparameter *openmcl-version* (format nil "~d.~d~@[.~d~]~@[-~a~] (~@[~A: ~]~~A)"
+(defparameter *openmcl-version* (format nil "~d.~d~@[.~d~]~@[-r~a~] (~@[~A: ~]~~A)"
 					*openmcl-major-version*
 					*openmcl-minor-version*
 					(unless (zerop *openmcl-revision*)
 					  *openmcl-revision*)
-					*openmcl-suffix*
+					*openmcl-svn-revision*
                                         *openmcl-dev-level*))
+
+
 
 
 ;;; end
