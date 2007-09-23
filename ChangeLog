@@ -1,3 +1,29 @@
+2007-09-22 23:13  gb
+
+	* xdump/xfasload.lisp: Set *openmcl-svn-revision* to the value of
+	(LOCAL-SVN-REVISION) when writing the bootstrapping image; this
+	will show up in the Welcome banner and LISP-IMPLEMENTATION-VERSION.
+	  May want to tweak this some more, but it may make it easier to
+	determine what you're running relative to what's in SVN/CVS.
+
+2007-09-22 23:12  gb
+
+	* level-1/version.lisp: Replace *OPENMCL-SUFFIX* (the thing which
+	had the date in it) with *OPENMCL-SVN-REVISION*, which is defvar'ed
+	to NIL here.  (It may be set early in the cold load or via the
+	xloader.)
+
+2007-09-22 23:11  gb
+
+	* lib/pathnames.lisp: Treat NIL and :UNSPECIFIC name/type
+	components in the pattern consistently in %FILE*=.
+
+2007-09-22 23:10  gb
+
+	* lib/misc.lisp: LOCAL-SVN-REVISION tries to determine the (local)
+	svn revision, by looking for a .svnrev file (used in the svn->cvs
+	synching process) or by parsing "svn info" output.
+
 2007-09-21 12:10  gb
 
 	* cocoa-ide/cocoa-editor.lisp: Rename "cache" to "mirror" in
