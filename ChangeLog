@@ -1,3 +1,8 @@
+2007-09-24 06:10  gb
+
+	* lisp-kernel/x86-exceptions.c: Missing #ifdef DARWIN in
+	arbstack_signal_handler; not used on Darwin.
+
 2007-09-23 21:11  gb
 
 	* lisp-kernel/: lisp-debug.c, lisp-exceptions.h, x86-exceptions.c,
