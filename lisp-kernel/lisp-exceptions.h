@@ -111,6 +111,7 @@ void
 non_fatal_error( char * );
 
 void Bug(ExceptionInformation *, const char *format_string, ...);
+void FBug(ExceptionInformation *, const char *format_string, ...);
 int gc_from_xp(ExceptionInformation *, signed_natural);
 int purify_from_xp(ExceptionInformation *, signed_natural);
 int impurify_from_xp(ExceptionInformation *, signed_natural);
@@ -144,6 +145,7 @@ exception_fn_name( ExceptionInformation *, int, char *, size_t );
 void suspend_other_threads(Boolean);
 void resume_other_threads(Boolean);
 
+#define debug_foreign_exception 0x80
 
 #endif /* __lisp_exceptions_h__ */
 

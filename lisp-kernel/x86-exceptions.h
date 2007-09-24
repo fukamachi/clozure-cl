@@ -145,7 +145,8 @@ extern void set_gs_address(void *);
 #ifdef DARWIN
 #undef USE_SIGALTSTACK
 #else
-#define USE_SIGALTSTACK 1
+/* #define USE_SIGALTSTACK 1 */
+#undef USE_SIGALTSTACK
 #endif
 
 #ifdef USE_SIGALTSTACK

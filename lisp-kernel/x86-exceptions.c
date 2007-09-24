@@ -962,10 +962,11 @@ signal_handler(int signum, siginfo_t *info, ExceptionInformation  *context, TCR 
 
   if (! handle_exception(signum, info, context, tcr, old_valence)) {
     char msg[512];
+    int foreign = (old_valence == TCR_STATE_LISP) ? 0 : debug_foreign_exception;
 
     snprintf(msg, sizeof(msg), "Unhandled exception %d at 0x%lx, context->regs at #x%lx", signum, xpPC(context), (natural)xpGPRvector(context));
     
-    if (lisp_Debugger(context, info, signum, msg)) {
+    if (lisp_Debugger(context, info, signum | foreign, msg)) {
       SET_TCR_FLAG(tcr,TCR_FLAG_BIT_PROPAGATE_EXCEPTION);
     }
   }
@@ -1133,13 +1134,36 @@ handle_signal_on_foreign_stack(TCR *tcr,
 }
 
 
+#ifndef USE_SIGALTSTACK
+void
+arbstack_signal_handler(int signum, siginfo_t *info, ExceptionInformation *context)
+{
+  TCR *tcr = get_interrupt_tcr(false);
+  area *vs = tcr->vs_area;
+  BytePtr current_sp = (BytePtr) current_stack_pointer();
+
+  if ((current_sp >= vs->low) &&
+      (current_sp < vs->high)) {
+    handle_signal_on_foreign_stack(tcr,
+                                   signal_handler,
+                                   signum,
+                                   info,
+                                   context,
+                                   (LispObj)__builtin_return_address(0)
+                                   );
+  } else {
+    signal_handler(signum, info, context, tcr, 0);
+  }
+}
+
+#else
 void
 altstack_signal_handler(int signum, siginfo_t *info, ExceptionInformation  *context)
 {
   TCR* tcr = get_tcr(true);
 #if 1
   if (tcr->valence != TCR_STATE_LISP) {
-    Bug(context, "exception in foreign context");
+    FBug(context, "exception in foreign context");
   }
 #endif
   handle_signal_on_foreign_stack(tcr,signal_handler,signum,info,context,(LispObj)__builtin_return_address(0)
@@ -1148,6 +1172,7 @@ altstack_signal_handler(int signum, siginfo_t *info, ExceptionInformation  *cont
 #endif
 );
 }
+#endif
 
 void
 interrupt_handler (int signum, siginfo_t *info, ExceptionInformation *context)
@@ -1302,11 +1327,18 @@ void
 install_pmcl_exception_handlers()
 {
 #ifndef DARWIN  
-  install_signal_handler(SIGILL, altstack_signal_handler);
+  void *handler = (void *)
+#ifdef USE_SIGALTSTACK
+    altstack_signal_handler
+#else
+    arbstack_signal_handler;
+#endif
+  ;
+  install_signal_handler(SIGILL, handler);
   
-  install_signal_handler(SIGBUS, altstack_signal_handler);
-  install_signal_handler(SIGSEGV,altstack_signal_handler);
-  install_signal_handler(SIGFPE, altstack_signal_handler);
+  install_signal_handler(SIGBUS, handler);
+  install_signal_handler(SIGSEGV,handler);
+  install_signal_handler(SIGFPE, handler);
 #else
   install_signal_handler(SIGTRAP,bogus_signal_handler);
   install_signal_handler(SIGILL, bogus_signal_handler);
@@ -1550,8 +1582,8 @@ setup_sigaltstack(area *a)
 {
   stack_t stack;
   stack.ss_sp = a->low;
-  a->low += 8192;
-  stack.ss_size = 8192;
+  a->low += SIGSTKSZ*8;
+  stack.ss_size = SIGSTKSZ*8;
   stack.ss_flags = 0;
   mmap(stack.ss_sp,stack.ss_size, PROT_READ|PROT_WRITE|PROT_EXEC,MAP_FIXED|MAP_ANON|MAP_PRIVATE,-1,0);
   if (sigaltstack(&stack, NULL) != 0) {
@@ -2100,7 +2132,7 @@ do_pseudo_sigreturn(mach_port_t thread, TCR *tcr)
     restore_mach_thread_state(thread, xp);
     raise_pending_interrupt(tcr);
   } else {
-    Bug(NULL, "no xp here!\n");
+    FBug(NULL, "no xp here!\n");
   }
 #ifdef DEBUG_MACH_EXCEPTIONS
   fprintf(stderr, "did pseudo_sigreturn for 0x%x\n",tcr);

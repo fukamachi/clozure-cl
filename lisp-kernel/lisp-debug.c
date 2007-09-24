@@ -38,6 +38,8 @@ typedef enum {
   debug_kill
 } debug_command_return;
 
+
+
 typedef debug_command_return (*debug_command) (ExceptionInformation *,
 					       siginfo_t *,
 					       int);
@@ -684,13 +686,13 @@ debug_command_entry debug_command_entries[] =
    DEBUG_COMMAND_FLAG_REQUIRE_XP | DEBUG_COMMAND_FLAG_EXCEPTION_ENTRY_ONLY,
    NULL,
    'A'},
-#endif
   {debug_identify_exception,
    "Describe the current exception in greater detail",
    DEBUG_COMMAND_FLAG_REQUIRE_XP | DEBUG_COMMAND_FLAG_EXCEPTION_ENTRY_ONLY |
    DEBUG_COMMAND_FLAG_EXCEPTION_REASON_ARG,
    NULL,
    'D'},
+#endif
   {debug_show_registers, 
    "Show raw GPR/SPR register values", 
    DEBUG_COMMAND_FLAG_REQUIRE_XP,
@@ -819,6 +821,7 @@ lisp_Debugger(ExceptionInformation *xp,
 {
   va_list args;
   debug_command_return state = debug_continue;
+  int in_foreign_code = (why & debug_foreign_exception);
 
   if (threads_initialized) {
     suspend_other_threads(false);
@@ -828,6 +831,11 @@ lisp_Debugger(ExceptionInformation *xp,
   vfprintf(stderr, message, args);
   fprintf(stderr, "\n");
   va_end(args);
+  if (in_foreign_code) {
+    fprintf(stderr, "Exception occurred while executing foreign code\n");
+    why = (why & ~debug_foreign_exception);
+  }
+
   if (lisp_global(BATCH_FLAG)) {
     abort();
   }
@@ -870,6 +878,20 @@ Bug(ExceptionInformation *xp, const char *format, ...)
   lisp_Debugger(xp, NULL, debug_entry_bug, s);
 
 }
+
+void
+FBug(ExceptionInformation *xp, const char *format, ...)
+{
+  va_list args;
+  char s[512];
+ 
+  va_start(args, format);
+  vsnprintf(s, sizeof(s),format, args);
+  va_end(args);
+  lisp_Debugger(xp, NULL, debug_entry_bug | debug_foreign_exception , s);
+
+}
+
 void
 lisp_bug(char *string)
 {
