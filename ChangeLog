@@ -1,3 +1,22 @@
+2007-09-23 21:11  gb
+
+	* lisp-kernel/: lisp-debug.c, lisp-exceptions.h, x86-exceptions.c,
+	x86-exceptions.h: Don't use sigaltstack on any x86-64 platform:
+	even if it works, it makes it harder to deal with exceptions in
+	foreign code (we've often gotten segfaults from running out of
+	space on the alt stack, the mechanism isn't reentrant, etc.)
+	
+	Try to report cases where the kernel debugger is entered due to an
+	exception in foreign code.  Todo: make it less tempting to use (L)
+	in that case, maybe try to make backtrace find saved_rbp from tcr
+	on x86-64, etc.
+
+2007-09-23 21:10  gb
+
+	* level-1/l1-application.lisp: APPLICATION-VERSION-STRING (which
+	probably was used to support "get info", back in the day) is just
+	LISP-IMPLEMENTATION-VERSION.
+
 2007-09-23 09:12  gb
 
 	* xdump/xfasload.lisp: Handle saving svn revision as string or
