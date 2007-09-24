@@ -182,12 +182,7 @@
 (defmethod application-version-string ((a application))
   "Return a string which (arbitrarily) represents the application version.
 Default version returns OpenMCL version info."
-  (format nil "~&~d.~d~@[.~d~]~@[-~a~]~&"
-	  *openmcl-major-version*
-	  *openmcl-minor-version*
-	  (unless (zerop *openmcl-revision*)
-	    *openmcl-revision*)
-	  *openmcl-suffix*))
+  (lisp-implementation-version))
 
 (defmethod application-ui-operation ((a application) operation &rest args)
   (let* ((ui-object (application-ui-object a)))
