@@ -1150,6 +1150,10 @@ arbstack_signal_handler(int signum, siginfo_t *info, ExceptionInformation *conte
                                    info,
                                    context,
                                    (LispObj)__builtin_return_address(0)
+#ifdef DARWIN_GS_HACK
+                                 , false
+#endif
+
                                    );
   } else {
     signal_handler(signum, info, context, tcr, 0);
