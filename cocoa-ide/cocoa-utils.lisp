@@ -88,3 +88,10 @@
                                               (float green +cgfloat-zero+)
                                               (float blue +cgfloat-zero+)
                                               (float alpha +cgfloat-zero+)))
+
+(defun windows ()
+  (let* ((win-arr (#/orderedWindows *NSApp*))
+	 (ret nil))
+    (dotimes (i (#/count win-arr))
+      (push (#/objectAtIndex: win-arr i) ret))
+    (nreverse ret)))
