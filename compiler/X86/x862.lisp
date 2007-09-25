@@ -2747,6 +2747,8 @@
       (x862-vpush-label seg (aref *backend-labels* mv-label)))
     (when (car args)
       (! reserve-outgoing-frame)
+      (x862-new-vstack-lcell :reserverd *x862-target-lcell-size* 0 nil)
+      (x862-new-vstack-lcell :reserverd *x862-target-lcell-size* 0 nil)
       (setq *x862-vstack* (+  *x862-vstack* (* 2 *x862-target-node-size*))))
     (x862-formlist seg (car args) (cadr args))))
 
