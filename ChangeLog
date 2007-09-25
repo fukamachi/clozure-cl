@@ -1,3 +1,8 @@
+2007-09-25 13:10  gb
+
+	* cocoa-ide/cocoa-utils.lisp: Add function windows that returns an
+	ordered list of the windows that are open.
+
 2007-09-25 00:11  gb
 
 	* lisp-kernel/x86-spentry64.s: In .SPdestructuring_bind, don't
