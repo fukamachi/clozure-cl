@@ -2793,6 +2793,7 @@ _startfn(C(destbind1))
 	__(movd %rsp,%mm0)
 	/* Extract required arg count.   */
 	__(movzbl %nargs_b,%imm0_l)
+        __(testl %imm0_l,%imm0_l)
 	__(je local_label(opt))		/* skip if no required args   */
 local_label(req_loop):	
 	__(compare_reg_to_nil(%arg_reg))
