@@ -1,3 +1,15 @@
+2007-09-25 00:11  gb
+
+	* lisp-kernel/x86-spentry64.s: In .SPdestructuring_bind, don't
+	assume that a "movzbl" sets the flags.	(It doesn't, and this meant
+	that there was a 50-50 chance of required arguments not being
+	processed correctly.)
+
+2007-09-25 00:10  gb
+
+	* compiler/X86/x862.lisp: Reserve lcells when reserving outgoing
+	frame, in case it matters someday.
+
 2007-09-24 06:10  gb
 
 	* lisp-kernel/x86-exceptions.c: Missing #ifdef DARWIN in
