@@ -1,3 +1,15 @@
+2007-09-26 14:11  gb
+
+	* level-1/linux-files.lisp: run-program and run-external-process
+	take an additional "env" parameter, a list of pairs. For each pair
+	the environment variable (string (car pair)) is set to (cdr pair)
+	in the external program's environment before it is exec'd.
+
+2007-09-26 14:10  gb
+
+	* level-1/l1-unicode.lisp: Allow CCL::DECODE-STRING-FROM-OCTETS to
+	work on non-simple vectors
+
 2007-09-26 13:10  gb
 
 	* level-1/l1-unicode.lisp: Fix vector-decode-function for :US-ASCII
