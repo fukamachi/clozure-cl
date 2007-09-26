@@ -1,3 +1,61 @@
+2007-09-25 22:11  gb
+
+	* level-1/l1-clos-boot.lisp, objc-bridge/bridge.lisp,
+	objc-bridge/objc-clos.lisp, objc-bridge/objc-runtime.lisp: Try to
+	be more paranoid about null pointers (even if they have their type
+	asserted.)
+	
+	ENCODE-OBJC-TYPE: try to get record field types right (being
+	careful about recursion); need to do this to help NSInvocation deal
+	with record types on some platforms that'll remain nameless.
+
+2007-09-25 22:10  gb
+
+	* cocoa-ide/hemlock/: README, TODO, doc/scribe-converter/NOTES,
+	doc/scribe-converter/README, maint/publish, src/bindings.lisp,
+	src/buffer.lisp, src/charmacs.lisp, src/command.lisp,
+	src/comments.lisp, src/completion.lisp, src/cursor.lisp,
+	src/defsyn.lisp, src/doccoms.lisp, src/echo.lisp,
+	src/echocoms.lisp, src/edit-defs.lisp, src/filecoms.lisp,
+	src/files.lisp, src/fill.lisp, src/font.lisp, src/htext1.lisp,
+	src/htext2.lisp, src/htext3.lisp, src/htext4.lisp, src/icom.lisp,
+	src/indent.lisp, src/interp.lisp, src/kbdmac.lisp,
+	src/key-event.lisp, src/keysym-defs.lisp, src/killcoms.lisp,
+	src/line.lisp, src/linimage.lisp, src/lispmode.lisp,
+	src/macros.lisp, src/main.lisp, src/morecoms.lisp,
+	src/package.lisp, src/pop-up-stream.lisp, src/register.lisp,
+	src/ring.lisp, src/rompsite.lisp, src/search1.lisp,
+	src/search2.lisp, src/searchcoms.lisp, src/srccom.lisp,
+	src/streams.lisp, src/struct.lisp, src/syntax.lisp, src/table.lisp,
+	src/text.lisp, src/undo.lisp, src/vars.lisp,
+	src/archive/abbrev.lisp, src/archive/auto-save.lisp,
+	src/archive/bit-display.lisp, src/archive/bit-screen.lisp,
+	src/archive/bufed.lisp, src/archive/debug.lisp,
+	src/archive/dired.lisp, src/archive/diredcoms.lisp,
+	src/archive/display.lisp, src/archive/dylan.lisp,
+	src/archive/eval-server.lisp, src/archive/group.lisp,
+	src/archive/highlight.lisp, src/archive/hunk-draw.lisp,
+	src/archive/input.lisp, src/archive/lisp-lib.lisp,
+	src/archive/lispbuf.lisp, src/archive/lispeval.lisp,
+	src/archive/mh.lisp, src/archive/netnews.lisp,
+	src/archive/overwrite.lisp, src/archive/pascal.lisp,
+	src/archive/rcs.lisp, src/archive/screen.lisp,
+	src/archive/scribe.lisp, src/archive/shell.lisp,
+	src/archive/spell-aug.lisp, src/archive/spell-corr.lisp,
+	src/archive/spell-rt.lisp, src/archive/spellcoms.lisp,
+	src/archive/srccom.lisp, src/archive/ts-buf.lisp,
+	src/archive/ts-stream.lisp, src/archive/unixcoms.lisp,
+	src/archive/window.lisp, src/archive/winimage.lisp,
+	src/archive/xcoms.lisp, src/spell/spellcoms.lisp,
+	src/tty/termcap.lisp, src/tty/tty-disp-rt.lisp,
+	src/tty/tty-display.lisp, src/tty/tty-screen.lisp,
+	src/wire/remote.lisp, src/wire/wire.lisp, unused/bit-stream.lisp,
+	unused/clx-ext.lisp, unused/ed-integrity.lisp, unused/gosmacs.lisp,
+	unused/hemcom.lisp, unused/hi-integrity.lisp, unused/keytran.lisp,
+	unused/keytrandefs.lisp, unused/spell-build.lisp,
+	unused/struct-ed.lisp, unused/tty-stream.lisp,
+	website/index.html.in: ignore property set
+
 2007-09-25 13:10  gb
 
 	* cocoa-ide/cocoa-utils.lisp: Add function windows that returns an
