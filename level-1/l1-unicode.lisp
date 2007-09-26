@@ -317,7 +317,7 @@ codes map to their Unicode equivalents. "
          (declare (type (unsigned-byte 8) code))
          (when (>= code 128)
            (setq code (char-code #\Sub)))
-         (setf (schar string i) code)))))
+         (setf (schar string i) (code-char code))))))
   :memory-encode-function
   (nfunction
    ascii-memory-encode
