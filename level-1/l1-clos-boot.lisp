@@ -1988,7 +1988,8 @@ to replace that class with ~s" name old-class new-class)
 
   (defun %ordinal-type-class-for-macptr (p)
     (with-lock-grabbed (ordinal-type-class-alist-lock)
-      (or (cdr (assoc (%macptr-type p) ordinal-type-class-alist :key #'foreign-type-ordinal))
+      (or (unless (%null-ptr-p p)
+            (cdr (assoc (%macptr-type p) ordinal-type-class-alist :key #'foreign-type-ordinal)))
           *macptr-class*)))
                   
 

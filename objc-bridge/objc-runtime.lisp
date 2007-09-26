@@ -1876,7 +1876,8 @@ argument lisp string."
 (defvar *objc-sel-type* (parse-foreign-type :<SEL>))
 (defvar *objc-char-type* (parse-foreign-type :char))
 
-(defun encode-objc-type (type &optional for-ivar)
+
+(defun encode-objc-type (type &optional for-ivar recursive)
   (if (or (eq type *objc-id-type*)
 	  (foreign-type-= type *objc-id-type*))
     "@"
@@ -1891,7 +1892,7 @@ argument lisp string."
 	     (if (or (eq target *objc-char-type*)
 		     (foreign-type-= target *objc-char-type*))
 	       "*"
-	       (format nil "^~a" (encode-objc-type target)))))
+	       (format nil "^~a" (encode-objc-type target nil t)))))
 	  (foreign-double-float-type "d")
 	  (foreign-single-float-type "f")
 	  (foreign-integer-type
@@ -1920,20 +1921,21 @@ argument lisp string."
 				      (when for-ivar
 					(format s "\"~a\""
 						(unescape-foreign-name
-						 (or (foreign-record-field-name f) "")))
-					(format s "~a" (encode-objc-type
-							(foreign-record-field-type f))))))))
-	  (foreign-array-type
+						 (or (foreign-record-field-name f) ""))))
+                                      (unless recursive
+                                        (format s "~a" (encode-objc-type
+                                                        (foreign-record-field-type f) nil nil)))))))
+        (foreign-array-type
 	   (ensure-foreign-type-bits type)
 	   (let* ((dims (foreign-array-type-dimensions type))
 		  (element-type (foreign-array-type-element-type type)))
 	     (if dims (format nil "[~d~a]"
 			      (car dims)
-			      (encode-objc-type element-type))
+			      (encode-objc-type element-type nil t))
 	       (if (or (eq element-type *objc-char-type*)
 		       (foreign-type-= element-type *objc-char-type*))
 		 "*"
-		 (format nil "^~a" (encode-objc-type element-type))))))
+		 (format nil "^~a" (encode-objc-type element-type nil t))))))
 	  (t (break "type = ~s" type)))))))
 
 #+ppc-target
