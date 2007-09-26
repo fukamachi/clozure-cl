@@ -4590,9 +4590,15 @@ or prepended to output."
                                          end
                                          external-format
                                          (string nil string-p))
-  (unless (= (typecode vector) target::subtag-u8-vector)
-    (report-bad-arg vector '(simple-array (unsgigned-byte 8) (*))))
   (setq end (check-sequence-bounds vector start end))
+  (unless (= (typecode vector) target::subtag-u8-vector)
+    (multiple-value-bind (array offset)
+        (array-data-and-offset vector)
+      (unless (= (typecode array) target::subtag-u8-vector)
+        (report-bad-arg vector '(array (unsgigned-byte 8) (*))))
+      (setq vector array
+            start (+ start offset)
+            end (+ end offset))))
   (let* ((encoding (get-character-encoding
                     (external-format-character-encoding
                      (normalize-external-format t external-format)))))
