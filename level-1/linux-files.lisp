@@ -837,13 +837,20 @@ any EXTERNAL-ENTRY-POINTs known to be defined by it to become unresolved."
                    (remove-external-process p)
                    (setq terminated t)))))))))
       
-(defun run-external-process (proc in-fd out-fd error-fd)
+(defun run-external-process (proc in-fd out-fd error-fd &optional env)
+  ;; type-check the env variable
+  (dolist (pair env)
+    (destructuring-bind (var . val) pair
+      (assert (typep var '(or string symbol character)))
+      (assert (typep val 'string)))) 
   (call-with-string-vector
    #'(lambda (argv)
        (let* ((child-pid (#_fork)))
 	 (declare (fixnum child-pid))
 	 (cond ((zerop child-pid)
 		;; Running in the child; do an exec
+                (dolist (pair env)
+                  (setenv (string (car pair)) (cdr pair)))
 		(without-interrupts
 		 (exec-with-io-redirection
 		  in-fd out-fd error-fd argv)))
@@ -861,7 +868,8 @@ any EXTERNAL-ENTRY-POINTs known to be defined by it to become unresolved."
 			    input if-input-does-not-exist
 			    output (if-output-exists :error)
 			    (error :output) (if-error-exists :error)
-			    status-hook (element-type 'character))
+			    status-hook (element-type 'character)
+                            env)
   "Invoke an external program as an OS subprocess of lisp."
   (declare (ignore pty))
   (unless (every #'(lambda (a) (typep a 'simple-string)) args)
@@ -910,7 +918,7 @@ any EXTERNAL-ENTRY-POINTs known to be defined by it to become unresolved."
            (process-run-function
             (format nil "Monitor thread for external process ~a" args)
                     
-            #'run-external-process proc in-fd out-fd error-fd)
+            #'run-external-process proc in-fd out-fd error-fd env)
            (wait-on-semaphore (external-process-signal proc))
            )
       (dolist (fd close-in-parent) (fd-close fd))
