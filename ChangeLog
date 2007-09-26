@@ -1,3 +1,8 @@
+2007-09-26 13:10  gb
+
+	* level-1/l1-unicode.lisp: Fix vector-decode-function for :US-ASCII
+	encoding
+
 2007-09-25 22:11  gb
 
 	* level-1/l1-clos-boot.lisp, objc-bridge/bridge.lisp,
