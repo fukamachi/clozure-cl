@@ -1,3 +1,10 @@
+2007-09-28 11:10  gb
+
+	* level-1/l1-streams.lisp: Try to make (SETF
+	STREAM-EXTERNAL-FORMAT) work.  Whether there should be a SETF
+	inverse on a CL-package symbol that's not supposed to be SETFable
+	is another question, as is whether/how well this works.
+
 2007-09-27 19:10  gb
 
 	* level-0/X86/x86-misc.lisp: When unlocking a read-write lock on
