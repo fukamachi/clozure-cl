@@ -2636,6 +2636,10 @@
   (setf (ioblock-sharing ioblock) sharing)
   (when character-p
     (setf (ioblock-unread-char-function ioblock) '%ioblock-untyi)
+    (setf (ioblock-decode-literal-code-unit-limit ioblock)
+          (if encoding
+            (character-encoding-decode-literal-code-unit-limit encoding)
+            256))    
     (if encoding
       (let* ((unit-size (character-encoding-code-unit-size encoding)))
         (setf (ioblock-peek-char-function ioblock) '%encoded-ioblock-peek-char)
@@ -2823,6 +2827,10 @@
   (or (ioblock-sharing ioblock)
       (setf (ioblock-sharing ioblock) sharing))
   (when character-p
+    (setf (ioblock-encode-literal-char-code-limit ioblock)
+          (if encoding
+            (character-encoding-encode-literal-char-code-limit encoding)
+            256))    
     (if encoding
       (let* ((unit-size (character-encoding-code-unit-size encoding)))
         (setf (ioblock-encode-output-function ioblock)
@@ -2899,64 +2907,64 @@
       (declare (type (unsigned-byte 8) subtag))
       (setf (ioblock-write-byte-function ioblock)
             (cond ((= subtag target::subtag-u8-vector)
-                    (progn
-                       (setf (ioblock-write-byte-when-locked-function ioblock)
-                             '%ioblock-write-u8-byte)
-                       (case sharing
-                         (:private '%private-ioblock-write-u8-byte)
-                         (:lock '%locked-ioblock-write-u8-byte)
-                         (t '%ioblock-write-u8-byte))))
+                   (progn
+                     (setf (ioblock-write-byte-when-locked-function ioblock)
+                           '%ioblock-write-u8-byte)
+                     (case sharing
+                       (:private '%private-ioblock-write-u8-byte)
+                       (:lock '%locked-ioblock-write-u8-byte)
+                       (t '%ioblock-write-u8-byte))))
                   ((= subtag target::subtag-s8-vector)
                    (setf (ioblock-write-byte-when-locked-function ioblock)
                          '%ioblock-write-s8-byte)                   
-                     (case sharing
-                       (:private '%private-ioblock-write-s8-byte)
-                       (:lock '%locked-ioblock-write-s8-byte)
-                       (t '%ioblock-write-s8-byte)))
+                   (case sharing
+                     (:private '%private-ioblock-write-s8-byte)
+                     (:lock '%locked-ioblock-write-s8-byte)
+                     (t '%ioblock-write-s8-byte)))
                   ((= subtag target::subtag-u16-vector)
                    (setf (ioblock-write-byte-when-locked-function ioblock)
                          '%ioblock-write-u16-byte)                   
-                     (case sharing
-                       (:private '%private-ioblock-write-u16-byte)
-                       (:lock '%locked-ioblock-write-u16-byte)
-                       (t '%ioblock-write-u16-byte)))
+                   (case sharing
+                     (:private '%private-ioblock-write-u16-byte)
+                     (:lock '%locked-ioblock-write-u16-byte)
+                     (t '%ioblock-write-u16-byte)))
                   ((= subtag target::subtag-s16-vector)
                    (setf (ioblock-write-byte-when-locked-function ioblock)
                          '%ioblock-write-s16-byte)                                      
-                     (case sharing
-                       (:private '%private-ioblock-write-s16-byte)
-                       (:lock '%locked-ioblock-write-s16-byte)
-                       (t '%ioblock-write-s16-byte)))
+                   (case sharing
+                     (:private '%private-ioblock-write-s16-byte)
+                     (:lock '%locked-ioblock-write-s16-byte)
+                     (t '%ioblock-write-s16-byte)))
                   ((= subtag target::subtag-u32-vector)
                    (setf (ioblock-write-byte-when-locked-function ioblock)
                          '%ioblock-write-u32-byte)                                      
-                     (case sharing
-                       (:private '%private-ioblock-write-u32-byte)
-                       (:lock '%locked-ioblock-write-u32-byte)
-                       (t '%ioblock-write-u32-byte)))
+                   (case sharing
+                     (:private '%private-ioblock-write-u32-byte)
+                     (:lock '%locked-ioblock-write-u32-byte)
+                     (t '%ioblock-write-u32-byte)))
                   ((= subtag target::subtag-s32-vector)
                    (setf (ioblock-write-byte-when-locked-function ioblock)
                          '%ioblock-write-s32-byte)
                    (case sharing
-                       (:private '%private-ioblock-write-s32-byte)
-                       (:lock '%locked-ioblock-write-s32-byte)
-                       (t '%ioblock-write-s32-byte)))
+                     (:private '%private-ioblock-write-s32-byte)
+                     (:lock '%locked-ioblock-write-s32-byte)
+                     (t '%ioblock-write-s32-byte)))
                   #+64-bit-target
                   ((= subtag target::subtag-u64-vector)
                    (setf (ioblock-write-byte-when-locked-function ioblock)
                          '%ioblock-write-u64-byte)
                    (case sharing
-                       (:private '%private-ioblock-write-u64-byte)
-                       (:lock '%locked-ioblock-write-u64-byte)
-                       (t '%ioblock-write-u64-byte)))
+                     (:private '%private-ioblock-write-u64-byte)
+                     (:lock '%locked-ioblock-write-u64-byte)
+                     (t '%ioblock-write-u64-byte)))
                   #+64-bit-target
                   ((= subtag target::subtag-s64-vector)
                    (setf (ioblock-write-byte-when-locked-function ioblock)
                          '%ioblock-write-u64-byte)
                    (case sharing
-                       (:private '%private-ioblock-write-s64-byte)
-                       (:lock '%locked-ioblock-write-s64-byte)
-                       (t '%ioblock-write-s64-byte)))
+                     (:private '%private-ioblock-write-s64-byte)
+                     (:lock '%locked-ioblock-write-s64-byte)
+                     (t '%ioblock-write-s64-byte)))
                   (t
                    (setf (ioblock-write-byte-when-locked-function ioblock)
                          '%general-ioblock-write-byte)                   
@@ -3052,14 +3060,6 @@
     (when (eq sharing :private)
       (setf (ioblock-owner ioblock) *current-process*))
     (setf (ioblock-encoding ioblock) encoding)
-    (setf (ioblock-decode-literal-code-unit-limit ioblock)
-          (if encoding
-            (character-encoding-decode-literal-code-unit-limit encoding)
-            256))
-    (setf (ioblock-encode-literal-char-code-limit ioblock)
-          (if encoding
-            (character-encoding-encode-literal-char-code-limit encoding)
-            256))
     (when insize
       (unless (ioblock-inbuf ioblock)
         (multiple-value-bind (buffer ptr in-size-in-octets)
