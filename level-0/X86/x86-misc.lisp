@@ -425,10 +425,11 @@
   (movq (@ x8664::lock.writer (% lock)) (% imm0))
   (cmpq (% imm0) (@ (% :rcontext) x8664::tcr.linear))
   (jne @fail)
-  (addq ($ '1) (@ x8664::lock._value (% lock)))
-  (jne @home)
+  (cmpq ($ '-1) (@ x8664::lock._value (% lock)))
+  (jne @still-owner)
   (movsd (% fpzero) (@ x8664::lock.writer (% lock)))
-  @home
+  @still-owner
+  (addq ($ '1) (@ x8664::lock._value (% lock)))
   (single-value-return)
   @fail
   (movl ($ x8664::nil-value) (%l arg_z))
