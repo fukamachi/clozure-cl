@@ -311,9 +311,6 @@
   (normalize-external-format (stream-domain s) new)
   (report-bad-arg s 'stream))
 
-(defmethod (setf stream-external-format) (new (s t))
-  (normalize-external-format (stream-domain s) new)
-  (stream-external-format s))
 
 
     
@@ -5698,6 +5695,9 @@ are printed.")
          (line-termination (external-format-line-termination ef)))
     (when (eq encoding (get-character-encoding nil))
       (setq encoding nil))
+    (setq line-termination (cdr (assoc line-termination
+                                       *canonical-line-termination-conventions*)))
+    (setf (ioblock-encoding ioblock) encoding)
     (when (ioblock-inbuf ioblock)
       (setup-ioblock-input ioblock t (ioblock-element-type ioblock) (ioblock-sharing ioblock) encoding line-termination))
     (when (ioblock-outbuf ioblock)
@@ -5713,6 +5713,10 @@ are printed.")
 
 (defmethod stream-external-format ((s buffered-stream-mixin))
   (%ioblock-external-format (stream-ioblock s t)))
+
+(defmethod (setf stream-external-format) (new (s buffered-stream-mixin))
+  (setf (%ioblock-external-format (stream-ioblock s t))
+        (normalize-external-format (stream-domain s) new)))
 
 
 ; end of L1-streams.lisp
