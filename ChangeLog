@@ -1,3 +1,12 @@
+2007-09-27 19:10  gb
+
+	* level-0/X86/x86-misc.lisp: When unlocking a read-write lock on
+	x86-64, clear the owner field before incrementing the value field
+	if the value field is currently -1.  (The PPC was already doing so;
+	doing it in the order that x86-64 had been doing it caused the lock
+	to become free, and zeroing the owner after the incf could cause
+	the lock to be locked for writing with no owner set ...
+
 2007-09-26 14:11  gb
 
 	* level-1/linux-files.lisp: run-program and run-external-process
