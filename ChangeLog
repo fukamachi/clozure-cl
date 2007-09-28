@@ -1,3 +1,9 @@
+2007-09-28 14:10  gb
+
+	* level-1/l1-streams.lisp: Set ioblock encode/decode "literal
+	limits" in SETUP-IOBLOCK-OUTPUT/INPUT, so that they're set if the
+	encoding is changed on-the-fly.
+
 2007-09-28 11:10  gb
 
 	* level-1/l1-streams.lisp: Try to make (SETF
