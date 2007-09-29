@@ -1,3 +1,8 @@
+2007-09-29 16:10  gb
+
+	* cocoa-ide/hemlock/src/killcoms.lisp: Make c-x c-x activate region
+	(first part of Ticket #86)
+
 2007-09-28 22:13  gb
 
 	* level-1/l1-dcode.lisp: Fix an obscure method combination bug in
