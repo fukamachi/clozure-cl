@@ -1096,7 +1096,7 @@ congruent with lambda lists of existing methods." lambda-list gf)))
                                                        keywords
                                                        (ok-if-no-primaries
                                                         (null methods)))
-  (let ((method-list (and methods (compute-method-list methods))))
+  (let ((method-list (and methods (compute-method-list methods nil))))
     (if method-list                 ; no applicable primary methods
       (if (atom method-list)
         (%method.function method-list)    ; can jump right to the method-function
@@ -1165,7 +1165,7 @@ congruent with lambda lists of existing methods." lambda-list gf)))
 ;;; the method-list expected by
 ;;; %%before-and-after-combined-method-dcode or a single method, or
 ;;; NIL if there are no applicable primaries
-(defun compute-method-list (methods)
+(defun compute-method-list (methods &optional (sub-dispatch? t))
   (let (arounds befores primaries afters qs)
     (dolist (m methods)
       (setq qs (%method.qualifiers m))
@@ -1181,14 +1181,19 @@ congruent with lambda lists of existing methods." lambda-list gf)))
             (t (%invalid-method-error m "~s is not one of ~s, ~s, and ~s."
                                       (car qs) :before :after :around))))
         (push m primaries)))
-    (setq primaries (nremove-uncallable-next-methods (nreverse primaries))
-          arounds (nremove-uncallable-next-methods (nreverse arounds))
-          befores (nreverse befores))      
+    (setq primaries (nreverse primaries)
+          arounds (nreverse arounds)
+          befores (nreverse befores))
+    (unless sub-dispatch?
+      (setq primaries (nremove-uncallable-next-methods primaries)
+            arounds (nremove-uncallable-next-methods arounds)))
     (flet ((next-method-bit-p (method)
                               (logbitp $lfbits-nextmeth-bit 
                                        (lfun-bits (%method.function method)))))
       (unless (null primaries)            ; return NIL if no applicable primary methods
-        (when (and arounds (not (next-method-bit-p (car (last arounds)))))
+        (when (and arounds
+                   (not sub-dispatch?)
+                   (not (next-method-bit-p (car (last arounds)))))
           ;; Arounds don't call-next-method, can't get to befores,
           ;; afters, or primaries
           (setq primaries arounds
@@ -1198,9 +1203,10 @@ congruent with lambda lists of existing methods." lambda-list gf)))
         (if (and (null befores) (null afters)
                  (progn
                    (when arounds
-                     (setq primaries (nremove-uncallable-next-methods
-                                      (nconc arounds primaries))
-                           arounds nil))
+                     (setq primaries (nconc arounds primaries)
+                           arounds nil)
+                     (unless sub-dispatch?
+                       (setq primaries (nremove-uncallable-next-methods primaries))))
                    t)
                  (null (cdr primaries))
                  (not (next-method-bit-p (car primaries))))
@@ -1371,7 +1377,7 @@ congruent with lambda lists of existing methods." lambda-list gf)))
                                        (copy-list methods))
                               cpls
                               precedence-list))
-               (method-list (and standard-mc? (compute-method-list sorted-methods))))
+               (method-list (and standard-mc? (compute-method-list sorted-methods sub-dispatch?))))
           (when (or (not standard-mc?)
                     (memq method-list this-element-methods)
                     (and (consp method-list)
