@@ -1,3 +1,23 @@
+2007-09-28 22:13  gb
+
+	* level-1/l1-dcode.lisp: Fix an obscure method combination bug in
+	l1-dcode.lisp that's been there since Gail and I first implemented
+	CLOS for MCL in 1990 or thereabouts.
+	
+	compute-method-list takes a list of possibly applicable methods,
+	separates it up into before, after, around, and primary methods,
+	and trims the tail of the around/primary methods at the point where
+	there's no more call-next-method. Thing is, unless we're computing
+	the methods for the last specialized argument, those methods are
+	only POSSIBLY applicable. Some of them might not be. Hence, except
+	for the final specialized argument, when sub-dispatch? is false,
+	only if no around method does call-next-method will it be
+	impossible to reach the primary methods, and we can't trim the
+	primary methods at all.
+	
+	This fixes Gary Palter's no-applicable-method bug in the
+	application conversion he's working on.
+
 2007-09-28 14:10  gb
 
 	* level-1/l1-streams.lisp: Set ioblock encode/decode "literal
