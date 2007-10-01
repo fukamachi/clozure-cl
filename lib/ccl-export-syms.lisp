@@ -432,6 +432,7 @@
      process-allocation-quantum
      default-allocation-quantum
      current-process-allocation-quantum
+     join-process
 
      *HOST-PAGE-SIZE*
      

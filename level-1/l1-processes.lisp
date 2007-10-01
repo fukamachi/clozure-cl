@@ -136,7 +136,9 @@
                          :reader process-allocation-quantum
                          :type (satisfies valid-allocation-quantum-p))
      (dribble-stream :initform nil)
-     (dribble-saved-terminal-io :initform nil))
+     (dribble-saved-terminal-io :initform nil)
+     (result :initform (cons nil nil)
+             :reader process-result))
   (:primary-p t))
 
 (defmethod print-object ((p process) s)
@@ -332,8 +334,13 @@ a given process."
   (let* ((exited nil)
 	 (kill (handler-case
 		   (restart-case
-		    (progn
-		      (apply (car initial-form) (cdr (the list initial-form)))
+		    (let ((values
+                           (multiple-value-list
+                            (apply (car initial-form)
+                                   (cdr (the list initial-form)))))
+                          (result (process-result process)))
+                      (setf (cdr result) values
+                            (car result) t)
 		      (setq exited t)
 		      nil)
                     (abort-break () :report "Reset this process")
@@ -661,3 +668,10 @@ had invoked abort."
                               (make-echo-stream in f)
                               (make-broadcast-stream out f)))))
       path)))
+
+(defmethod join-process ((p process) &key (default nil defaultp))
+  (wait-on-semaphore (process-termination-semaphore p) nil "join-process")
+  (let ((result (process-result p)))
+    (cond ((car result) (values-list (cdr result)))
+          (defaultp default)
+          (t (error "Failed to join ~s" p)))))
