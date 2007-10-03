@@ -1183,7 +1183,7 @@
             ((eql (decf n) 0)
              (values nclosed "Closed over values" :comment #'prin1-comment))
             ((< (decf n) nclosed)
-             (let* ((value (ccl::%svref o (1+ (- nclosed n))))
+             (let* ((value (ccl::nth-immediate o (1+ (- nclosed n))))
                     (map (car (ccl::function-symbol-map (ccl::closure-function o))))
                     (label (or (and map (svref map (+ n (- (length map) nclosed))))
                                n))
@@ -1216,7 +1216,7 @@
       (cond ((<= (decf n 2) 0)          ; inner-lfun or "Closed over values"
              (setf-line-n-out-of-range f en))
             ((< (decf n) nclosed)       ; closed-over variable
-             (let* ((value (ccl::%svref o (1+ (- nclosed n))))
+             (let* ((value (ccl::nth-immediate o (1+ (- nclosed n))))
                     (cellp (ccl::closed-over-value-p value)))
                (unless cellp (setf-line-n-out-of-range f en))
                (ccl::set-closed-over-value value new-value)))
