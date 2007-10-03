@@ -1010,26 +1010,7 @@
   (str imm0 target::macptr.address dest)
   (blr))
 
-;;; Work around buggy #_nanosleep implementations.
-(defppclapfunction %valid-remaining-timespec-time-p ((seconds arg_y) (ptr arg_z))
-  (unbox-fixnum imm4 seconds)
-  (lis imm1 (ash 1000000000 -16))
-  (macptr-ptr imm0 ptr)
-  (ori imm1 imm1 (logand #xffff 1000000000))
-  (li arg_z nil)
-  (ldr imm3 0 imm0)
-  (cmplr cr2 imm0 imm4)
-  (cmpr cr1 imm3 rzero)
-  (ldr imm2 target::node-size imm0)
-  (cmplr imm2 imm1)
-  (bgt cr4 @done)
-  (blt cr1 @done)
-  (bge @done)
-  (or. imm3 imm3 imm2)
-  (beq @done)
-  (li arg_z t)
-  @done
-  (blr))
+
 
 ;;; r13 contains thread context on Linux/Darwin PPC64.
 ;;; That's maintained in r2 on LinuxPPC32, and not maintained

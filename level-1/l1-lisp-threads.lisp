@@ -50,8 +50,7 @@
                                :signed-fullword)))
           (declare (type (signed-byte 32) result))
           (if (and (< result 0)
-                   (eql (%get-errno) (- #$EINTR))
-                   (%valid-remaining-timespec-time-p seconds bptr))
+                   (eql (%get-errno) (- #$EINTR)))
             (psetq aptr bptr bptr aptr)
             (return)))))))
 
