@@ -1714,8 +1714,12 @@
 
 
 (defun init-random-state-seeds ()
-  (let* ((ticks (ldb (byte 32 0) (get-internal-real-time)))
-	 (high (ldb (byte 16 16) ticks)) 
+  (let* ((ticks (ldb (byte 32 0) (+ (mixup-hash-code (%current-tcr))
+                                    (primary-ip-interface-address)
+                                    (mixup-hash-code
+                                     (logand (get-internal-real-time)
+                                             most-positive-fixnum)))))
+	 (high (ldb (byte 16 16) (if (zerop ticks) 1 ticks)))
 	 (low (ldb (byte 16 0) ticks)))
     (declare (fixnum high low))
     (values high low)))
