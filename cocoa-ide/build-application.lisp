@@ -66,6 +66,7 @@
          (app-bundle (make-application-bundle name type-string creator-string directory
                                               :main-nib-name main-nib-name))
          (image-path (namestring (path app-bundle "Contents" "MacOS" name))))
+
     ;; copy IDE resources into the application bundle
     (recursive-copy-directory (path ide-bundle-path "Contents" "Resources/")
                               (path app-bundle  "Contents" "Resources/"))

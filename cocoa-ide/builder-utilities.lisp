@@ -82,8 +82,10 @@
 ;;;         in DEST-PATH
 (defun recursive-copy-directory (source-path dest-path)
   (ensure-directories-exist (ensure-directory-pathname dest-path))
-  (let ((files (directory (path source-path "*") :directories nil :files t))
-        (subdirs (directory (path source-path "*") :directories t :files nil)))
+  (let ((files (directory (path source-path "*.*") :directories nil :files t))
+        (subdirs (directory (path source-path "*.*") :directories t :files nil)))
+;    (format t "~%files = ~S" files)
+;    (format t "~%subdirs = ~S~%" subdirs)
     (dolist (f files)
       (let* ((src-name (file-namestring f))
              (dest-file (path dest-path src-name)))
@@ -94,7 +96,8 @@
       (let* ((subdir-name (first (last (pathname-directory d))))
              (dest-dir (ensure-directory-pathname (path dest-path subdir-name))))
         (recursive-copy-directory d dest-dir)))
-    dest-path))
+    dest-path
+    ))
 
 ;;; WRITE-PKGINFO path package-type bundle-signature
 ;;; Writes a PkgInfo file of the sort used by Cocoa applications
