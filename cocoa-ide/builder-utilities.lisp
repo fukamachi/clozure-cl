@@ -17,6 +17,17 @@
 ;;; application-building tools for building and copying bundles,
 ;;; resource directories, and magic files used by OSX applications.
 
+(defun load-nibfile (nib-path)
+  (let* ((appclass (#_NSClassFromString (%make-nsstring "NSApplication")))
+	 (app (#/sharedApplication appclass))
+	 (main-nib-name (%make-nsstring (namestring nib-path))))
+	 ;; ----------------------------------------
+	 ;; load the application nib
+	 (#/loadNibNamed:owner: (@class ns-bundle)
+		   main-nib-name
+		   app)
+	 app))
+
 ;;; PATHNAME-SEPARATOR
 ;;; returns the character used to separate elements of a pathname
 ;;; on this platform. 
