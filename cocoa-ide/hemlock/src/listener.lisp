@@ -101,8 +101,9 @@
         :value nil)
       )
     (let* ((input-mark (variable-value 'buffer-input-mark :buffer buffer)))
-      (setf (hi::buffer-protected-region buffer)
-            (region (buffer-start-mark buffer) input-mark))
+      (when ccl::*read-only-listener*
+	(setf (hi::buffer-protected-region buffer)
+	      (region (buffer-start-mark buffer) input-mark)))
       (move-mark input-mark point)
       (append-font-regions buffer))))
 

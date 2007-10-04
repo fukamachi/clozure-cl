@@ -15,6 +15,8 @@
 
 (def-cocoa-default *listener-background-color* :color '(1.0 1.0 1.0 1.0) "Listener default background color")
 
+(def-cocoa-default *read-only-listener* :bool t "Do not allow editing old listener output")
+
 ;;; Setup the server end of a pty pair.
 (defun setup-server-pty (pty)
   (set-tty-raw pty)
