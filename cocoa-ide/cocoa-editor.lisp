@@ -382,7 +382,14 @@
 
 ;;; Return true iff we're inside a "beginEditing/endEditing" pair
 (objc:defmethod (#/editingInProgress :<BOOL>) ((self hemlock-text-storage))
+  ;; This is meaningless outside the event thread, since you can't tell what
+  ;; other edit-count changes have already been queued up for execution on
+  ;; the event thread before it gets to whatever you might queue up next.
+  (assume-cocoa-thread)
   (> (slot-value self 'edit-count) 0))
+
+(defmethod assume-not-editing ((ts hemlock-text-storage))
+  #+debug (assert (eql (slot-value ts 'edit-count) 0)))
 
 (defun textstorage-note-insertion-at-position (self pos n)
   (ns:with-ns-range (r pos 0)
@@ -398,6 +405,7 @@
                                                                   (n :<NSI>nteger)
                                                                   (extra :<NSI>nteger))
   (declare (ignorable extra))
+  (assume-cocoa-thread)
   (let* ((mirror (#/mirror self))
          (hemlock-string (#/hemlockString self))
          (display (hemlock-buffer-string-cache hemlock-string))
@@ -484,6 +492,7 @@
          
          
 (objc:defmethod (#/beginEditing :void) ((self hemlock-text-storage))
+  (assume-cocoa-thread)
   (with-slots (edit-count) self
     #+debug
     (#_NSLog #@"begin-editing")
@@ -493,10 +502,12 @@
     (call-next-method)))
 
 (objc:defmethod (#/endEditing :void) ((self hemlock-text-storage))
+  (assume-cocoa-thread)
   (with-slots (edit-count) self
     #+debug
     (#_NSLog #@"end-editing")
     (call-next-method)
+    (assert (> edit-count 0))
     (decf edit-count)
     #+debug
     (#_NSLog #@"after endEditing on %@, edit-count now = %d" :id self :int edit-count)))
@@ -605,7 +616,10 @@
     (let* ((lisp-string (if (> (#/length string) 0) (lisp-string-from-nsstring string)))
            (document (if buffer (hi::buffer-document buffer)))
            (textstorage (if document (slot-value document 'textstorage))))
-      (when textstorage (#/beginEditing textstorage))
+      #+gz (unless (eql textstorage self) (break "why is self.ne.textstorage?"))
+      (when textstorage
+	(assume-cocoa-thread)
+	(#/beginEditing textstorage))
       (setf (hi::buffer-region-active buffer) nil)
       (hi::with-mark ((start point :right-inserting))
         (move-hemlock-mark-to-absolute-position start cache location)
@@ -651,9 +665,11 @@
 
 ;;; This needs to happen on the main thread.
 (objc:defmethod (#/ensureSelectionVisible :void) ((self hemlock-text-storage))
+  (assume-cocoa-thread)
   (for-each-textview-using-storage
    self
    #'(lambda (tv)
+       (assume-not-editing tv)
        (#/scrollRangeToVisible: tv (#/selectedRange tv)))))
 
 
@@ -708,6 +724,10 @@
      (blink-enabled :foreign-type :<BOOL> :accessor text-view-blink-enabled)
      (peer :foreign-type :id))
   (:metaclass ns:+ns-object))
+
+
+(defmethod assume-not-editing ((tv hemlock-textstorage-text-view))
+  (assume-not-editing (#/textStorage tv)))
 
 (objc:defmethod (#/changeColor: :void) ((self hemlock-textstorage-text-view)
                                         sender)
@@ -824,6 +844,7 @@
 		 (pos :int)
 		 (length :int)
 		 (affinity :<NSS>election<A>ffinity))
+  (assume-cocoa-thread)
   (when (eql length 0)
     (update-blink self))
   (rlet ((range :ns-range :location pos :length length))
@@ -834,6 +855,7 @@
 				range
 				affinity
 				nil)
+	(assume-not-editing self)
 	(#/scrollRangeToVisible: self range)
 	(when (> length 0)
 	  (let* ((ts (#/textStorage self)))
@@ -1432,6 +1454,7 @@
   (:metaclass ns:+ns-object))
 
 (objc:defmethod (#/activateHemlockView :void) ((self echo-area-view))
+  (assume-cocoa-thread)
   (let* ((the-hemlock-frame (#/window self)))
     #+debug
     (#_NSLog #@"Activating echo area")
@@ -1448,6 +1471,7 @@
    t))
 
 (defmethod deactivate-hemlock-view ((self echo-area-view))
+  (assume-cocoa-thread)
   #+debug (#_NSLog #@"deactivating echo area")
   (let* ((ts (#/textStorage self)))
     #+debug 0
@@ -1773,6 +1797,7 @@
 
 ;;; This function must run in the main event thread.
 (defun %hemlock-frame-for-textstorage (class ts ncols nrows container-tracks-text-view-width color style)
+  (assume-cocoa-thread)
   (let* ((pane (textpane-for-textstorage class ts ncols nrows container-tracks-text-view-width color style))
          (frame (#/window pane))
          (buffer (text-view-buffer (text-pane-text-view pane)))
@@ -1814,7 +1839,7 @@
 
 (defun hi::unlock-buffer (b)
   (release-lock (hi::buffer-gap-context-lock (hi::buffer-gap-context b)))) 
-  
+
 (defun hi::document-begin-editing (document)
   (#/performSelectorOnMainThread:withObject:waitUntilDone:
    (slot-value document 'textstorage)
@@ -1823,6 +1848,7 @@
    t))
 
 (defun document-edit-level (document)
+  (assume-cocoa-thread) ;; see comment in #/editingInProgress
   (slot-value (slot-value document 'textstorage) 'edit-count))
 
 (defun hi::document-end-editing (document)
@@ -2017,6 +2043,8 @@
 (objc:defmethod (#/documentChangeCleared :void) ((self hemlock-editor-document))
   (#/updateChangeCount: self #$NSChangeCleared))
 
+(defmethod assume-not-editing ((doc hemlock-editor-document))
+  (assume-not-editing (slot-value doc 'textstorage)))
 
 (defmethod update-buffer-package ((doc hemlock-editor-document) buffer)
   (let* ((name (hemlock::package-at-mark (hi::buffer-point buffer))))
@@ -2080,6 +2108,7 @@
 (objc:defmethod (#/revertToSavedFromFile:ofType: :<BOOL>)
     ((self hemlock-editor-document) filename filetype)
   (declare (ignore filetype))
+  (assume-cocoa-thread)
   #+debug
   (#_NSLog #@"revert to saved from file %@ of type %@"
            :id filename :id filetype)
@@ -2545,6 +2574,7 @@
 
 ;;; This needs to run on the main thread.
 (objc:defmethod (#/updateHemlockSelection :void) ((self hemlock-text-storage))
+  (assume-cocoa-thread)
   (let* ((string (#/hemlockString self))
          (buffer (buffer-cache-buffer (hemlock-buffer-string-cache string)))
          (hi::*buffer-gap-context* (hi::buffer-gap-context buffer))
@@ -2721,6 +2751,7 @@
 		((self hemlock-document-controller)
 		 title
 		 string)
+  (assume-cocoa-thread)
   (let* ((doc (#/makeUntitledDocumentOfType:error: self #@"html" +null-ptr+)))
     (unless (%null-ptr-p doc)
       (#/addDocument: self doc)

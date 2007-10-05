@@ -95,3 +95,9 @@
     (dotimes (i (#/count win-arr))
       (push (#/objectAtIndex: win-arr i) ret))
     (nreverse ret)))
+
+(defun assume-cocoa-thread ()
+  #+debug (assert (eq *current-process* *initial-process*)))
+
+(defmethod assume-not-editing ((whatever t)))
+
