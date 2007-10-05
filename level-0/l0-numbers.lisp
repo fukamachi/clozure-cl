@@ -1718,8 +1718,8 @@
                                     (primary-ip-interface-address)
                                     (mixup-hash-code
                                      (logand (get-internal-real-time)
-                                             most-positive-fixnum)))))
-	 (high (ldb (byte 16 16) (if (zerop ticks) 1 ticks)))
+                                             (1- most-positive-fixnum))))))
+	 (high (ldb (byte 16 16) (if (zerop ticks) #x10000 ticks)))
 	 (low (ldb (byte 16 0) ticks)))
     (declare (fixnum high low))
     (values high low)))
