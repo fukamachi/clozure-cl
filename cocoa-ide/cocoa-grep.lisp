@@ -45,7 +45,7 @@
     (unless (hi::line-offset point line-num)
       (hi::buffer-end point))))
 
-(defun request-edit-grep-line (line)
+(defun parse-grep-line (line)
   (let* ((pos1 (position #\: line))
 	 (pos2 (and pos1 (position #\: line :start (1+ pos1))))
 	 (num (and pos2 (ignore-errors
@@ -53,14 +53,38 @@
 					:junk-allowed nil))))
 	 (file (and num (subseq line 0 pos1))))
     (when file
+      (values file (1- num)))))
+  
+(defun request-edit-grep-line (line)
+  (multiple-value-bind (file line-num) (parse-grep-line line)
+    (when file
       (let* ((request (make-instance 'cocoa-edit-grep-line-request
 				     :with-file (assign-id-map-id *edit-definition-id-map* file)
-				     :line num)))
+				     :line line-num)))
 	(#/performSelectorOnMainThread:withObject:waitUntilDone:
 	 (#/sharedDocumentController ns:ns-document-controller)
 	 (@selector #/editGrepLine:)
 	 request
 	 t)))))
+
+(defun grep-comment-line-p (line)
+  (multiple-value-bind (file line-num) (parse-grep-line line)
+    (with-open-file (stream file)
+      (loop while (> line-num 0)
+	for ch = (read-char stream nil nil)
+	when (null ch) do (return nil)
+	do (when (member ch '(#\Return #\Linefeed))
+	     (decf line-num)
+	     (when (and (eql ch #\Return)
+			(eql (peek-char nil stream nil nil) #\Linefeed))
+	       (read-char stream))))
+      (when (eql line-num 0)
+	(loop as ch = (read-char stream nil nil)
+	  while (and ch (whitespacep ch) (not (member ch '(#\Return #\Linefeed))))
+	  finally (return (eql ch #\;)))))))
+
+(defun grep-remove-comment-lines (lines)
+  (remove-if #'grep-comment-line-p lines))
 
 (defun split-grep-lines (output)
   (loop with end = (length output)
@@ -68,6 +92,7 @@
     as pos = (or (position #\Newline output :start start :end end) end)
     when (< start pos) collect (subseq output start pos)
     while (< pos end)))
+
 
 (defun grep (pattern directory &key ignore-case (include "*.lisp") (exclude "*~.lisp"))
   (with-output-to-string (stream)
@@ -86,17 +111,25 @@
       (multiple-value-bind (status exit-code) (external-process-status proc)
 	(let ((output (get-output-stream-string stream)))
 	  (if (and (eq :exited status) (or (= exit-code 0) (= exit-code 2)))
-	      (make-instance 'sequence-window-controller
-			     :sequence (split-grep-lines output)
-			     :result-callback #'request-edit-grep-line
-			     :display #'princ
-			     :title (format nil "~a in ~a" pattern directory))
+	      (let ((lines (split-grep-lines output)))
+		(unless (hi:value hemlock::grep-search-comments)
+		  (setq lines (grep-remove-comment-lines lines)))
+		(make-instance 'sequence-window-controller
+			       :sequence lines
+			       :result-callback #'request-edit-grep-line
+			       :display #'princ
+			       :title (format nil "~a in ~a" pattern directory)))
 	      (hi:editor-error "Error in grep status ~s code ~s: ~a" status exit-code output)))))))
 
 
 (hi:defhvar "Grep Directory"
   "The directory searched by \"Grep\".  NIL means to use the directory of the buffer."
   :value nil)
+
+(hi:defhvar "Grep Search Comments"
+  "If true (the default) grep will find results anywhere.  NIL means to ignore results
+   within comments.  For now only recognizes as comments lines which start with semi-colon."
+  :value t)
 
 (hi:defcommand "Grep" (p)
   "Prompts for a pattern and invokes grep, searching recursively through .lisp
