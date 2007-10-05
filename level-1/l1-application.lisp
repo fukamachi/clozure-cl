@@ -292,8 +292,8 @@ Default version returns OpenMCL version info."
 
 
 (defmethod application-init-file ((app lisp-development-system))
-  "home:openmcl-init")
-
+  #+clozure-common-lisp "home:ccl-init"  ;; This is the init file loaded before cocoa.
+  #-clozure-common-lisp "home:openmcl-init")
 
 (defmethod application-error ((a application) condition error-pointer)
   (declare (ignore condition error-pointer))

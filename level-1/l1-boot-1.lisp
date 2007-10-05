@@ -29,7 +29,9 @@
 (defparameter *machine-instance* nil)
 |#
 
-(defun lisp-implementation-type () "OpenMCL")
+(defun lisp-implementation-type ()
+  #+clozure-common-lisp "Clozure Common Lisp"
+  #-clozure-common-lisp "OpenMCL")
 
 
 (defparameter *platform-os-names*
