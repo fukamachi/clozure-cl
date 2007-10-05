@@ -158,7 +158,7 @@
              (#/setInitialValues: sdc initial-values)
              (let* ((controller (make-instance lisp-preferences-window-controller
                                              :with-window-nib-name #@"preferences"))
-                  (window (#/window controller)))
+		    (window (#/window controller)))
                (unless (%null-ptr-p window)
                  (#/setFloatingPanel: window t)
                  (#/addObserver:selector:name:object:

@@ -12,8 +12,17 @@
 
 (defun fake-cfbundle-path (bundle-root info-plist-proto-path)
   (let* ((kernel-name (standard-kernel-name))
-         (needle "OPENMCL-KERNEL")
          (translated-root (translate-logical-pathname bundle-root))
+	 (bundle-name (let* ((name (if (directory-pathname-p translated-root)
+				       (car (last (pathname-directory translated-root)))
+				       (file-namestring translated-root)))
+			     (len (length name)))
+			(if (and (> len 4)
+				 (string-equal name ".app" :start1 (- len 4)))
+			    (subseq name 0 (- len 4))
+			    name)))
+         (needles `(("OPENMCL-KERNEL" . ,kernel-name)
+		    ("OPENMCL-NAME" . ,bundle-name)))
          (executable-path (merge-pathnames
                            (make-pathname :directory "Contents/MacOS/"
                                           :name kernel-name)
@@ -34,13 +43,14 @@
                            :external-format :utf-8)
         (do* ((line (read-line in nil nil) (read-line in nil nil)))
              ((null line))
-          (let* ((pos (search needle line)))
-            (when pos
-              (setq line
-                    (concatenate 'string
-                                 (subseq line 0 pos)
-                                 kernel-name
-                                 (subseq line (+ pos (length needle)))))))
+	  (dolist (needle needles)
+	    (let* ((pos (search (car needle) line)))
+	      (when pos
+		(setq line
+		      (concatenate 'string
+				   (subseq line 0 pos)
+				   (cdr needle)
+				   (subseq line (+ pos (length (car needle)))))))))
           (write-line line out))))
     (touch executable-path)
     (setenv "CFProcessPath" (native-translated-namestring executable-path))))

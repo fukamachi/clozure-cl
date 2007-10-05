@@ -73,11 +73,11 @@
 ;;; here is an attempt to force LaunchServices to discard that
 ;;; cached information.
 
-(touch "ccl:cocoa-ide;openmcl.app;")
+(touch *fake-cfbundle-path*)
 
 (save-application
  (make-pathname
-  :directory (pathname-directory (translate-logical-pathname "ccl:cocoa-ide;OpenMCL.app;Contents;MacOS;"))
+  :directory (pathname-directory (translate-logical-pathname (merge-pathnames ";Contents;MacOS;" *fake-cfbundle-path*)))
   :name (standard-kernel-name))
  :prepend-kernel t
  :application-class 'cocoa-application)

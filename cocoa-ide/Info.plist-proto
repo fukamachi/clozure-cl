@@ -64,7 +64,7 @@
 	<key>NSPrincipalClass</key>
 	<string>LispApplication</string>
 	<key>CFBundleName</key>
-	<string>OpenMCL</string>
+	<string>OPENMCL-NAME</string>
 	<key>CFBundleIdentifier</key>
 	<string>com.clozure.OpenMCL</string>
 	<key>CFBundleIconFile</key>

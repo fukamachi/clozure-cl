@@ -8,7 +8,10 @@
 #+darwin-target
 (progn
   (require "FAKE-CFBUNDLE-PATH")
-  (fake-cfbundle-path "ccl:cocoa-ide;OpenMCL.app;" "ccl:cocoa-ide;Info.plist-proto"))
+  (defparameter *fake-cfbundle-path*
+    #+clozure-common-lisp "ccl:cocoa-ide;Clozure CL.app;"
+    #-clozure-common-lisp "ccl:cocoa-ide;OpenMCL.app;")
+  (fake-cfbundle-path *fake-cfbundle-path* "ccl:cocoa-ide;Info.plist-proto"))
 
 
 (require "OBJC-SUPPORT")
