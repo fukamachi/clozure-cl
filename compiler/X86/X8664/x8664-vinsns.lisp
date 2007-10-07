@@ -1912,8 +1912,7 @@
      ((sym (:lisp (:ne val))))
      ((entry (:label 1))))
   (:talign 4)
-  (jmp (:@ .SPspecref))
-  :back
+  (call (:@ .SPspecref))
   (leaq (:@ (:^ entry) (:% x8664::rip)) (:%q x8664::fn)))
 
 (define-x8664-vinsn %ref-symbol-value-inline (((dest :lisp))
