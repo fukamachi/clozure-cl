@@ -62,24 +62,25 @@
   (terpri))
 
 (defun %show-args-and-locals (p context lfun pc)
-  (multiple-value-bind (args locals) (arguments-and-locals context p lfun pc)
-    (format t "~&  ~s" (arglist-from-map lfun))
-    (let* ((*print-length* *backtrace-print-length*)
-           (*print-level* *backtrace-print-level*))
-      (flet ((show-pair (pair prefix)
-               (destructuring-bind (name . val) pair
-                 (format t "~&~a~s: " prefix name)
-                 (if (eq val (%unbound-marker))
-                   (format t "#<Unavailable>")
-                   (format t "~s" val)))))
-        (dolist (arg args)
-          (show-pair arg "   "))
-        (terpri)
-        (terpri)
-        (dolist (loc locals)
-          (show-pair loc "  "))
-        (terpri)
-        (terpri)))))
+  (let* ((unavailable (cons nil nil)))
+    (multiple-value-bind (args locals) (arguments-and-locals context p lfun pc unavailable)
+      (format t "~&  ~s" (arglist-from-map lfun))
+      (let* ((*print-length* *backtrace-print-length*)
+             (*print-level* *backtrace-print-level*))
+        (flet ((show-pair (pair prefix)
+                 (destructuring-bind (name . val) pair
+                   (format t "~&~a~s: " prefix name)
+                   (if (eq val unavailable)
+                     (format t "#<Unavailable>")
+                     (format t "~s" val)))))
+          (dolist (arg args)
+            (show-pair arg "   "))
+          (terpri)
+          (terpri)
+          (dolist (loc locals)
+            (show-pair loc "  "))
+          (terpri)
+          (terpri))))))
 
 
 (defun backtrace-call-arguments (context cfp lfun pc)
@@ -210,6 +211,28 @@
                                "rest"
                                "opt-supplied-p")))))))))
              (match-local-name cellno (function-symbol-map lfun) pc))))))))
+
+(defun map-entry-value (context cfp lfun pc idx unavailable)
+  (declare (fixnum pc idx))
+  (let* ((info (function-symbol-map lfun)))
+    (if (null info)
+      unavailable
+      (let* ((addrs (cdr info))
+             (i (* 3 idx))
+             (addr (svref addrs i))
+             (startpc (svref addrs (the fixnum (+ i 1))))
+             (endpc (svref addrs (the fixnum (+ i 2)))))
+        (declare (fixnum i addr startpc endpc))
+        (if (or (< pc startpc)
+                (>= pc endpc))
+          unavailable
+          (let* ((value (if (= #o77 (ldb (byte 6 0) addr))
+                          (raw-frame-ref cfp context (ash addr (- (+ target::word-shift 6)))
+                                         unavailable)
+                          (find-register-argument-value context cfp addr unavailable))))
+            (if (typep value 'value-cell)
+              (uvref value 0)
+              value)))))))
 
 (defun argument-value (context cfp lfun pc name &optional (quote t))
   (declare (fixnum pc))
@@ -345,47 +368,58 @@
   ;; Return a list of all symbol names "in scope" in the function lfun
   ;; at relative program counter PC, using the function's symbol map.
   ;; The list will be ordered so that least-recent bindings appear first.
+  ;; Return a list of the matching symbol map entries as a second value
   (when pc
     (locally (declare (fixnum pc))
       (let* ((map (function-symbol-map lfun))
              (names (car map))
              (info (cdr map)))
         (when map
-          (let* ((vars ()))
-            (dotimes (i (length names) vars)
+          (let* ((vars ())
+                 (indices ()))
+            (dotimes (i (length names) (values vars indices))
               (let* ((start-pc (aref info (1+ (* 3 i))))
                      (end-pc (aref info (+ 2 (* 3 i)))))
                 (declare (fixnum start-pc end-pc))
                 (when (and (>= pc start-pc)
                            (< pc end-pc))
+                  (push i indices)
                   (push (svref names i) vars))))))))))
 
-(defun arguments-and-locals (context cfp lfun pc)
-  (let* ((vars (variables-in-scope lfun pc)))
+(defun arguments-and-locals (context cfp lfun pc unavailable)
+  (multiple-value-bind (vars map-indices) (variables-in-scope lfun pc)
     (collect ((args)
               (locals))
-    (multiple-value-bind (valid req opt rest keys)
-        (arg-names-from-map lfun pc)
-      (when valid
-        (flet ((get-arg-value (name)
-                 (let* ((avail (member name vars :test #'eq)))
-                   (if avail
-                     (setf (car (member name vars :test #'eq)) nil))
-                   (args (cons name (argument-value context cfp lfun pc name nil)))))
-               (get-local-value (name)
-                 (when name
-                   (locals (cons name (argument-value context cfp lfun pc name nil))))))
-          (dolist (name req)
-            (get-arg-value name))
-          (dolist (name opt)
-            (get-arg-value name))
-          (when rest
-            (get-arg-value rest))
-          (dolist (name keys)
-            (get-arg-value name))
-          (dolist (name vars)
-            (get-local-value name))))
-      (values (args) (locals))))))
+      (multiple-value-bind (valid req opt rest keys)
+          (arg-names-from-map lfun pc)
+        (when valid
+          (let* ((nargs (+ (length req) (length opt) (if rest 1 0) (length keys)))
+                 (nlocals (- (length vars) nargs))
+                 (local-vars (nthcdr nargs vars))
+                 (local-indices (nthcdr nargs map-indices))
+                 (arg-vars (nbutlast vars nlocals))
+                 (arg-indices (nbutlast map-indices nlocals)))
+            (flet ((get-arg-value (name)
+                     (let* ((pos (position name arg-vars :test #'eq)))
+                       (when pos
+                         (args (cons name (map-entry-value context cfp lfun pc (nth pos arg-indices) unavailable))))))
+                   (get-local-value (name)
+                     (when name
+                       (locals (cons name (map-entry-value context cfp lfun pc (pop local-indices) unavailable))))))
+              (dolist (name req)
+                (get-arg-value name))
+              (dolist (name opt)
+                (get-arg-value name))
+              (when rest
+                (get-arg-value rest))
+              (dolist (name keys)
+                (get-arg-value name))
+              #+no
+              (setq local-vars (nreverse local-vars)
+                    local-indices (nreverse local-indices))
+              (dolist (name local-vars)
+                (get-local-value name)))))
+        (values (args) (locals))))))
                    
             
 
