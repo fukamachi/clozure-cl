@@ -386,7 +386,7 @@
                   (push i indices)
                   (push (svref names i) vars))))))))))
 
-(defun arguments-and-locals (context cfp lfun pc unavailable)
+(defun arguments-and-locals (context cfp lfun pc &optional unavailable)
   (multiple-value-bind (vars map-indices) (variables-in-scope lfun pc)
     (collect ((args)
               (locals))
