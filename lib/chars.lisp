@@ -80,14 +80,20 @@
 
 
 
+(defun %non-standard-lower-case-equivalent (char)
+  (gethash char *non-standard-upper-to-lower*))
+
+
 
 (defun upper-case-p (c)
   "The argument must be a character object; UPPER-CASE-P returns T if the
    argument is an upper-case character, NIL otherwise."
   (let* ((code (char-code c)))
     (declare (type (mod #x110000) code))
-    (and (>= code (char-code #\A))
-         (<= code (char-code #\Z)))))
+    (or (and (>= code (char-code #\A))
+             (<= code (char-code #\Z)))
+        (and (>= code #x80)
+             (not (null (%non-standard-lower-case-equivalent c)))))))
 
 
 
@@ -114,7 +120,10 @@
      (and (>= code (char-code #\a))
           (<= code (char-code #\z)))
      (and (>= code (char-code #\A))
-          (<= code (char-code #\Z))))))
+          (<= code (char-code #\Z)))
+     (and (> code #x80)
+          (or (not (null (%non-standard-upper-case-equivalent c)))
+              (not (null (%non-standard-lower-case-equivalent c))))))))
 
 (defun char= (ch &rest others)
   "Return T if all of the arguments are the same character."
@@ -296,15 +305,28 @@
   (if (not end)(setq end (length string))(require-type end 'fixnum))
   (%strdown string start end))
 
+
 (defun %strdown (string start end)
-  (declare (fixnum start end))
-  (loop 
-    (when (>= start end)(return string))
-    (let ((code (%scharcode string start)))
-      (when (and (%i>= code (char-code #\A))(%i<= code (char-code #\Z)))
-        (setq code (%i+ code #.(- (char-code #\a)(char-code #\A))))
-        (setf (%scharcode string start) code))
-      (setq start (%i+ 1 start)))))
+  (declare (fixnum start end)
+           (optimize (speed 3) (safety 0)))
+  (unless (typep string 'simple-string)
+    (check-type string simple-string))
+  (do* ((i start (1+ i)))
+       ((>= i end) string)
+    (declare (fixnum i))
+    (let* ((ch (schar string i))
+           (code (char-code ch))
+           (lower (if (and (char<= ch #\Z)
+                           (char>= ch #\A))
+                    (%code-char (the (unsigned-byte 8)
+                                  (+ code (- (char-code #\a)(char-code #\A)))))
+                    (if (>= code #x80)
+                      (%non-standard-lower-case-equivalent ch)))))
+      (declare (character ch) (type (mod #x11000) code))
+      (when lower
+        (setf (schar string i) lower)))))
+
+
 
 
 (defun copy-string-arg (string &aux (org 0) len)
@@ -327,14 +349,24 @@
   (%strup string start end))
 
 (defun %strup (string start end)
-  (declare (fixnum start end))
-  (loop 
-    (when (>= start end)(return string))
-    (let ((code (%scharcode string start)))
-      (when (and (%i>= code (char-code #\a))(%i<= code (char-code #\z)))
-        (setq code (%i- code #.(- (char-code #\a)(char-code #\A))))
-        (setf (%scharcode string start) code))
-      (setq start (%i+ 1 start)))))
+  (declare (fixnum start end)
+           (optimize (speed 3) (safety 0)))
+  (unless (typep string 'simple-string)
+    (check-type string simple-string))
+  (do* ((i start (1+ i)))
+       ((>= i end) string)
+    (declare (fixnum i))
+    (let* ((ch (schar string i))
+           (code (char-code ch))
+           (upper (if (and (char<= ch #\z)
+                           (char>= ch #\a))
+                    (%code-char (the (unsigned-byte 8)
+                                  (- code (- (char-code #\a)(char-code #\A)))))
+                    (if (>= code #x80)
+                      (%non-standard-upper-case-equivalent ch)))))
+      (declare (character ch) (type (mod #x11000) code))
+      (when upper
+        (setf (schar string i) upper)))))
 
 
 
