@@ -503,6 +503,7 @@
                                           ,fp-args-ptr
                                           ,(* 8 (1- fp-arg-num)))))))))))))
                 (lets (list name (next-scalar-arg argtype))))
+              #+nil
               (when (or (typep argtype 'foreign-pointer-type)
                         (typep argtype 'foreign-array-type))
                 (dynamic-extent-names name))

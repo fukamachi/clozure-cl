@@ -216,6 +216,7 @@
                   (progn (setq delta (* (ceiling (foreign-record-type-bits argtype) 32) 4))
                     (lets (list name `(%inc-ptr ,stack-ptr ,offset ))))))
               (lets (list name (next-scalar-arg argtype))))
+            #+nil
             (when (or (typep argtype 'foreign-pointer-type)
                       (typep argtype 'foreign-array-type))
               (dynamic-extent-names name))
