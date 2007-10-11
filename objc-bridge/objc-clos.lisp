@@ -600,7 +600,8 @@
   (ensure-foreign-type-bits foreign-type)
   (let* ((bits (foreign-type-bits foreign-type)))
     (if (or (= bits 1)
-            (not (= bits (foreign-type-alignment foreign-type))))
+            (and (not (typep foreign-type 'foreign-mem-block-type))
+                 (not (= bits (foreign-type-alignment foreign-type)))))
       bit-offset
       (ash bit-offset -3))))
 
