@@ -1363,3 +1363,36 @@ created with :WAIT NIL.) Return T if successful; signal an error otherwise."
       (mapped-vector-data-address-and-size v)
     (percentage-of-resident-pages address nbytes)))
   
+#+x86-target
+(progn
+(defloadvar *last-rdtsc-time* 0)
+
+(defstatic *rdtsc-estimated-increment* 1 "Should be positive ...")
+
+(defun rdtsc-monotonic ()
+  "Return monotonically increasing values, partly compensating for
+   OSes that don't keep the TSCs of all processorsin synch."
+  (loop
+    (let* ((old *last-rdtsc-time*)
+           (new (rdtsc)))
+      (when (< new old)
+        ;; We're running on a CPU whose TSC is behind the one
+        ;; on the last CPU we were scheduled on.
+        (setq new (+ old *rdtsc-estimated-increment*)))
+      (when (%store-node-conditional target::symbol.vcell *last-rdtsc-time* old new)
+        (return new)))))
+
+(defun estimate-rdtsc-skew (&optional (niter 1000000))
+  (do* ((i 0 (1+ i))
+        (last (rdtsc) next)
+        (next (rdtsc) (rdtsc))
+        (skew 1))
+       ((>= i niter) (setq *rdtsc-estimated-increment* skew))
+    (declare (fixnum last next skew))
+    (when (> last next)
+      (let* ((s (- last next)))
+        (declare (fixnum s))
+        (when (> s skew) (setq skew s))))))
+)
+
+
