@@ -81,7 +81,7 @@
 (define-syscall (logior platform-os-freebsd platform-cpu-x86 platform-word-size-64)  syscalls::utime 132 (:address :address) :signed-fullword )
 (define-syscall (logior platform-os-freebsd platform-cpu-x86 platform-word-size-64)  syscalls::access 33 (:address :unsigned-fullword) :signed-fullword)
 
-(define-syscall (logior platform-os-freebsd platform-cpu-x86 platform-word-size-64)  syscalls::sync 162 () :unsigned-fullword )
+(define-syscall (logior platform-os-freebsd platform-cpu-x86 platform-word-size-64)  syscalls::sync 36 () :signed-fullword )
 (define-syscall (logior platform-os-freebsd platform-cpu-x86 platform-word-size-64)  syscalls::kill 37 (:signed-fullword :unsigned-fullword) :signed-fullword )
 (define-syscall (logior platform-os-freebsd platform-cpu-x86 platform-word-size-64)  syscalls::rename 128 (:address :address) :signed-fullword )
 (define-syscall (logior platform-os-freebsd platform-cpu-x86 platform-word-size-64)  syscalls::mkdir 136 (:address :unsigned-fullword) :signed-fullword )
@@ -125,7 +125,7 @@
 		:signed-fullword )
 (define-syscall (logior platform-os-freebsd platform-cpu-x86 platform-word-size-64)  syscalls::connect 98 (:signed-fullword :address :signed-fullword)
 		:signed-fullword )
-(define-syscall (logior platform-os-freebsd platform-cpu-x86 platform-word-size-64)  syscalls::accept 43 (:signed-fullword :address :address)
+(define-syscall (logior platform-os-freebsd platform-cpu-x86 platform-word-size-64)  syscalls::accept 30 (:signed-fullword :address :address)
 		:signed-fullword )
 (define-syscall (logior platform-os-freebsd platform-cpu-x86 platform-word-size-64)  syscalls::sendto 133 (:unsigned-fullword :address :unsigned-fullword :unsigned-fullword :address :unsigned-fullword)
 		:signed-fullword )
@@ -173,7 +173,7 @@
 (define-syscall (logior platform-os-freebsd platform-cpu-x86 platform-word-size-64)  syscalls::setgroups 81 () )
 (define-syscall (logior platform-os-freebsd platform-cpu-x86 platform-word-size-64)  syscalls::symlink 83 () )
 (define-syscall (logior platform-os-freebsd platform-cpu-x86 platform-word-size-64)  syscalls::oldlstat 84 () )
-(define-syscall (logior platform-os-freebsd platform-cpu-x86 platform-word-size-64)  syscalls::readlink 85 () )
+(define-syscall (logior platform-os-freebsd platform-cpu-x86 platform-word-size-64)  syscalls::readlink 58 () )
 (define-syscall (logior platform-os-freebsd platform-cpu-x86 platform-word-size-64)  syscalls::uselib 86 () )
 (define-syscall (logior platform-os-freebsd platform-cpu-x86 platform-word-size-64)  syscalls::swapon 87 () )
 (define-syscall (logior platform-os-freebsd platform-cpu-x86 platform-word-size-64)  syscalls::reboot 88 () )
@@ -194,7 +194,7 @@
 (define-syscall (logior platform-os-freebsd platform-cpu-x86 platform-word-size-64)  syscalls::vhangup 111 () )
 (define-syscall (logior platform-os-freebsd platform-cpu-x86 platform-word-size-64)  syscalls::idle 112 () )
 (define-syscall (logior platform-os-freebsd platform-cpu-x86 platform-word-size-64)  syscalls::vm86 113 () )
-(define-syscall (logior platform-os-freebsd platform-cpu-x86 platform-word-size-64)  syscalls::wait4 114 () )
+(define-syscall (logior platform-os-freebsd platform-cpu-x86 platform-word-size-64)  syscalls::wait4 7 () )
 (define-syscall (logior platform-os-freebsd platform-cpu-x86 platform-word-size-64)  syscalls::swapoff 115 () )
 (define-syscall (logior platform-os-freebsd platform-cpu-x86 platform-word-size-64)  syscalls::sysinfo 116 () )
 (define-syscall (logior platform-os-freebsd platform-cpu-x86 platform-word-size-64)  syscalls::ipc 117 () )
@@ -267,6 +267,6 @@
 (define-syscall (logior platform-os-freebsd platform-cpu-x86 platform-word-size-64)  syscalls::vfork 189 () )
 
 (define-syscall (logior platform-os-freebsd platform-cpu-x86 platform-word-size-64)  syscalls::mmap 9 () )
-(define-syscall (logior platform-os-freebsd platform-cpu-x86 platform-word-size-64)  syscalls::munmap 11 () )
+(define-syscall (logior platform-os-freebsd platform-cpu-x86 platform-word-size-64)  syscalls::munmap 73 () )
 
 )
