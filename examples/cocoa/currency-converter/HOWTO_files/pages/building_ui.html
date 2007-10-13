@@ -1,0 +1,80 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+          "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <title>CurrencyConverter HOWTO</title>
+    <link rel="stylesheet" type="text/css" href="../stylesheets/styles.css" />
+  </head>
+
+  <body>
+
+    <div class="title">
+      <h1>Building the User Interface</h1>
+    </div>
+
+    <div class="body-text">
+      <p>The next step in creating a Lisp version of the currency
+      converter application is to construct the user
+      interface. Apple's
+      tutorial <a href="http://developer.apple.com/documentation/Cocoa/Conceptual/ObjCTutorial/chapter03/chapter_3_section_1.html">
+      describes in detail</a> how to do this.</p>
+
+<p>Apple's tutorial explains how to use InterfaceBuilder to create the
+  user interface, and how to use XCode to create project files and
+  write Objective-C code. Our project uses Lisp instead of
+  Objective-C, and does not use XCode project files, so you can skip
+  the part of the tutorial that explains how to use XCode.</p>
+
+<p>Begin by launching InterfaceBuilder, which you will find in the
+  "/Developer/Applications/" folder. Create a new nibfile by using
+  InterfaceBuilder's "Starting Point" dialog. If the "Starting Point"
+  dialog doesn't appear when you launch InterfaceBuilder, you can
+  display it by choosing "New" from the File menu. Choose "Cocoa
+  Application", and click the "New" button to create the
+  nibfile.</p> 
+
+    <div class="subtitle">
+      <img src="../images/ibwin1.jpg"alt="" 
+           border='0'/>
+    </div>
+
+
+<p>Save the nibfile in your "currency-converter" folder. Name it
+  "CurrencyConverter.nib". Apple's tutorial names it "MainMenu.nib",
+  but we won't use that name. When building an application with
+  OpenMCL, we gradually change the behavior of the OpenMCL application
+  until it behaves the way we want for our application. OpenMCL's IDE
+  already has a nibfile built into it with the name "MainMenu.nib",
+  and if we wanted to use that name for the CurrencyConverter
+  application, we would have to replace OpenMCL's "MainMenu.nib". It's
+  generally a good idea to avoid destroying or replacing things unless
+  you really have to, so, in order to preserve the OpenMCL nibfile,
+  give yours the name "CurrencyConverter.nib".</p>
+
+<p>Now you can use this nibfile to create your application's user
+  interface. When Apple's tutorial tells you to find and open the main
+  nibfile created by XCode, use your "CurrencyConverter.nib"
+  instead.</p>
+
+<p>Skip straight to the part of Apple's tutorial
+called <a href="http://developer.apple.com/documentation/Cocoa/Conceptual/ObjCTutorial/chapter03/chapter_3_section_3.html">Creating
+the Currency Converter Interface</a>. Read the introduction to
+nibfiles, and follow the instructions to create the Currency Converter
+interface. (Remember that when the tutorial tells you to open and edit
+"MainMenu.nib", you will instead open and edit your
+"CurrencyConverter.nib".) When you reach the end of the section
+called <a href="http://developer.apple.com/documentation/Cocoa/Conceptual/ObjCTutorial/chapter03/chapter_3_section_6.html">Defining
+the Converter Class</a>, you are done creating the interface for your
+application. Save your nibfile and continue with the next section of
+this HOWTO, on writing the Lisp code that provides the application's
+behavior.</p>
+
+<p></p>
+      
+    <div class="nav">
+      <p><a href="../../HOWTO.html">start</a>|<a href="building_ui.html">previous</a>|<a href="create_lisp.html">next</a></p>
+    </div>
+
+  </body>
+</html>
+
