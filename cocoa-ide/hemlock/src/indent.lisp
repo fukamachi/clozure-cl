@@ -90,7 +90,8 @@
     (with-mark ((mark point :left-inserting))
       (cond ((or (not p) (zerop p))
 	     (funcall (value indent-function) mark)
-             (move-mark point mark))
+             (when (mark< point mark)
+               (move-mark point mark)))
 	    (t
 	     (if (plusp p)
 		 (unless (line-offset point (1- p))
