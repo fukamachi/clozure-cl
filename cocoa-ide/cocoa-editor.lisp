@@ -603,7 +603,7 @@
 000
 (objc:defmethod (#/replaceCharactersInRange:withString: :void)
     ((self hemlock-text-storage) (r :<NSR>ange) string)
-  #+debug 0 (#_NSLog #@"Replace in range %ld/%ld with %@"
+  #+debug (#_NSLog #@"Replace in range %ld/%ld with %@"
                     :<NSI>nteger (pref r :<NSR>ange.location)
                     :<NSI>nteger (pref r :<NSR>ange.length)
                     :id string)
