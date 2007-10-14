@@ -75,6 +75,18 @@
 
 (touch *fake-cfbundle-path*)
 
+(maybe-map-objc-classes t)
+
+(let* ((missing ()))
+  (do-interface-dirs (d)
+    (cdb-enumerate-keys
+     (db-objc-classes d)
+     (lambda (name)
+       (let* ((class (lookup-objc-class name nil))) (unless (objc-class-id  class) (push name missing))))))
+  (when missing
+    (break "ObjC classes ~{~&~a~} are declared but not defined.")))
+
+
 (save-application
  (make-pathname
   :directory (pathname-directory (translate-logical-pathname (merge-pathnames ";Contents;MacOS;" *fake-cfbundle-path*)))
