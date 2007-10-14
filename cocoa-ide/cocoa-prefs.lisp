@@ -132,12 +132,10 @@
             +null-ptr+
             +null-ptr+)
            #$NSOKButton)
-      (let* ((filename (#/pathWithComponents: ns:ns-string
-                                              (#/arrayWithObjects:
-                                               ns:ns-array
-                                               (#/objectAtIndex: (#/filenames panel) 0)
-                                               #@""
-                                               +null-ptr+))))
+      ;; #/stringByStandardizingPath seems to strip trailing slashes
+      (let* ((filename (#/stringByAppendingString:
+                        (#/stringByStandardizingPath (#/objectAtIndex: (#/filenames panel) 0))
+                         #@"/")))
         (#/setValue:forKey: values filename #@"cclDirectory")))))
 
 
