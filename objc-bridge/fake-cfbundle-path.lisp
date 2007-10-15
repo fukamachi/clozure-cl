@@ -24,7 +24,7 @@
          (bundle-id (concatenate 'string bundle-prefix "." bundle-name))
          (needles `(("OPENMCL-KERNEL" . ,kernel-name)
 		    ("OPENMCL-NAME" . ,bundle-name)
-                    ("OPENMCL-IDENTIFIER" . ,bundle-id))
+                    ("OPENMCL-IDENTIFIER" . ,bundle-id)))
          (executable-path (merge-pathnames
                            (make-pathname :directory "Contents/MacOS/"
                                           :name kernel-name)
