@@ -10,7 +10,7 @@
 ;;; already "inside a bundle".  If it is necessary, it has to happen
 ;;; before the CoreFoundation library's initialized.
 
-(defun fake-cfbundle-path (bundle-root info-plist-proto-path)
+(defun fake-cfbundle-path (bundle-root info-plist-proto-path bundle-prefix)
   (let* ((kernel-name (standard-kernel-name))
          (translated-root (translate-logical-pathname bundle-root))
 	 (bundle-name (let* ((name (if (directory-pathname-p translated-root)
@@ -21,8 +21,10 @@
 				 (string-equal name ".app" :start1 (- len 4)))
 			    (subseq name 0 (- len 4))
 			    name)))
+         (bundle-id (concatenate 'string bundle-prefix "." bundle-name))
          (needles `(("OPENMCL-KERNEL" . ,kernel-name)
-		    ("OPENMCL-NAME" . ,bundle-name)))
+		    ("OPENMCL-NAME" . ,bundle-name)
+                    ("OPENMCL-IDENTIFIER" . ,bundle-id))
          (executable-path (merge-pathnames
                            (make-pathname :directory "Contents/MacOS/"
                                           :name kernel-name)

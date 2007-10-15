@@ -66,7 +66,7 @@
 	<key>CFBundleName</key>
 	<string>OPENMCL-NAME</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.clozure.OpenMCL</string>
+	<string>OPENMCL-IDENTIFIER</string>
 	<key>CFBundleIconFile</key>
 	<string>openmcl-icon.icns</string>
 </dict>
