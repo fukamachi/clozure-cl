@@ -3185,7 +3185,7 @@ element-type is numeric."
           (push `(,name (&rest args)
                         (collect-normal-expander ',n-value ',kind args))
                 macros))))
-    `(macrolet ,macros (let* ,(nreverse binds) ,@body))))
+    `(macrolet ,macros (let* ,(nreverse binds) (declare (ignorable ,@binds)) ,@body))))
 
 
 ;;; DEFENUM -- Internal Interface.
