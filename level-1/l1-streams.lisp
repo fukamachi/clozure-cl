@@ -61,7 +61,10 @@
 ;;; Try to return a string containing characters that're near the
 ;;; stream's current position, if that makes sense.  Return NIL
 ;;; if it doesn't make sense.
-(defmethod stream-surrounding-characters ((s stream))
+;;; Catch cases where this is used when STREAM-ERRORs (SOCKET-ERRORs)
+;;; are signaled on non-STREAMs.
+(defmethod stream-surrounding-characters ((s t))
+  (declare (ignore s))
   nil)
 
 
