@@ -11,7 +11,7 @@
   (defparameter *fake-cfbundle-path*
     #+clozure-common-lisp "ccl:cocoa-ide;Clozure CL.app;"
     #-clozure-common-lisp "ccl:cocoa-ide;OpenMCL.app;")
-  (fake-cfbundle-path *fake-cfbundle-path* "ccl:cocoa-ide;Info.plist-proto"))
+  (fake-cfbundle-path *fake-cfbundle-path* "ccl:cocoa-ide;Info.plist-proto" "com.clozure"))
 
 
 (require "OBJC-SUPPORT")
