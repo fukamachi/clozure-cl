@@ -3285,7 +3285,7 @@
               (if (zerop constant)
                 (! compare-reg-to-zero reg)
                 (! compare-s32-constant reg (or js32 is32)))
-              (unless (or (and js32 (not is32)) (eq cr-bit x86::x86-e-bits))
+              (unless (or js32 (eq cr-bit x86::x86-e-bits))
                 (setq cr-bit (x862-reverse-cr-bit cr-bit)))
               (^ cr-bit true-p))
             (if (and (eq cr-bit x86::x86-e-bits) 
