@@ -762,7 +762,7 @@
 
 
 
-(defvar *objc-message-info* (make-hash-table :test #'equal :size 500))
+(defvar *objc-message-info* (make-hash-table :test #'equal :size 800))
 
 (defun result-type-requires-structure-return (result-type)
   ;; Use objc-msg-send-stret for all methods that return
@@ -781,7 +781,10 @@
 (defun objc-method-signature-info (sig)
   (or (gethash sig *objc-method-signatures*)
       (setf (gethash sig *objc-method-signatures*)
-            (make-objc-method-signature-info :type-signature sig))))
+            (make-objc-method-signature-info
+             :type-signature sig
+             :function (compile-send-function-for-signature  sig)
+             :super-function (%compile-send-function-for-signature  sig t)))))
 
 (defun concise-foreign-type (ftype)
   (if (typep ftype 'foreign-record-type)
@@ -939,8 +942,8 @@
 (defun postprocess-objc-message-info (message-info)
   (let* ((objc-name (objc-message-info-message-name message-info))
          (lisp-name (or (objc-message-info-lisp-name message-info)
-                            (setf (objc-message-info-lisp-name message-info)
-                                  (compute-objc-to-lisp-function-name  objc-name))))
+                        (setf (objc-message-info-lisp-name message-info)
+                              (compute-objc-to-lisp-function-name  objc-name))))
          (gf (or (fboundp lisp-name)
                  (setf (fdefinition lisp-name)
                        (make-instance 'objc-dispatch-function :name lisp-name)))))
@@ -949,97 +952,97 @@
       (setf (objc-message-info-selector message-info)
             (ensure-objc-selector (objc-message-info-message-name message-info))))
     
-  (flet ((reduce-to-ffi-type (ftype)
-           (concise-foreign-type ftype)))
-    (flet ((ensure-method-signature (m)
-             (or (objc-method-info-signature m)
-                 (setf (objc-method-info-signature m)
-                       (let* ((sig 
-                               (cons (reduce-to-ffi-type
-                                      (objc-method-info-result-type m))
-                                     (mapcar #'reduce-to-ffi-type
-                                             (objc-method-info-arglist m)))))
-                         (setf (objc-method-info-signature-info m)
-                               (objc-method-signature-info sig))
-                         sig)))))
-      (let* ((methods (objc-message-info-methods message-info))
-             (signatures ())
-             (protocol-methods)
-             (signature-alist ()))
-        (labels ((signatures-equal (xs ys)
-                   (and xs
-                        ys
-                        (do* ((xs xs (cdr xs))
-                              (ys ys (cdr ys)))
-                             ((null xs) (null ys))
-                          (unless (foreign-type-= (ensure-foreign-type (car xs))
-                                                  (ensure-foreign-type (car ys)))
-                            (return nil))))))
+    (flet ((reduce-to-ffi-type (ftype)
+             (concise-foreign-type ftype)))
+      (flet ((ensure-method-signature (m)
+               (or (objc-method-info-signature m)
+                   (setf (objc-method-info-signature m)
+                         (let* ((sig 
+                                 (cons (reduce-to-ffi-type
+                                        (objc-method-info-result-type m))
+                                       (mapcar #'reduce-to-ffi-type
+                                               (objc-method-info-arglist m)))))
+                           (setf (objc-method-info-signature-info m)
+                                 (objc-method-signature-info sig))
+                           sig)))))
+        (let* ((methods (objc-message-info-methods message-info))
+               (signatures ())
+               (protocol-methods)
+               (signature-alist ()))
+          (labels ((signatures-equal (xs ys)
+                     (and xs
+                          ys
+                          (do* ((xs xs (cdr xs))
+                                (ys ys (cdr ys)))
+                               ((null xs) (null ys))
+                            (unless (foreign-type-= (ensure-foreign-type (car xs))
+                                                    (ensure-foreign-type (car ys)))
+                              (return nil))))))
             (dolist (m methods)
               (let* ((signature (ensure-method-signature m)))
                 (pushnew signature signatures :test #'signatures-equal)
-            (if (getf (objc-method-info-flags m) :protocol)
-              (push m protocol-methods)
-              (let* ((pair (assoc signature signature-alist :test #'signatures-equal)))
-                (if pair
-                  (push m (cdr pair))
-                  (push (cons signature (list m)) signature-alist)))))))
-        (setf (objc-message-info-ambiguous-methods message-info)
-              (mapcar #'cdr
-                      (sort signature-alist
-                            #'(lambda (x y)
-                                (< (length (cdr x))
-                                   (length (cdr y)))))))
-        (setf (objc-message-info-flags message-info) nil)
-        (setf (objc-message-info-protocol-methods message-info)
-              protocol-methods)
-        (when (cdr signatures)
-          (setf (getf (objc-message-info-flags message-info) :ambiguous) t))
-        (let* ((first-method (car methods))
-               (first-sig (objc-method-info-signature first-method))
-               (first-sig-len (length first-sig)))
-          (setf (objc-message-info-req-args message-info)
-                (1- first-sig-len))
-          ;; Whether some arg/result types vary or not, we want to insist
-          ;; on (a) either no methods take a variable number of arguments,
-          ;; or all do, and (b) either no method uses structure-return
-          ;; conventions, or all do. (It's not clear that these restrictions
-          ;; are entirely reasonable in the long run; in the short term,
-          ;; they'll help get things working.)
-          (flet ((method-returns-structure (m)
-                   (result-type-requires-structure-return
-                    (objc-method-info-result-type m)))
-                 (method-accepts-varargs (m)
-                   (eq (car (last (objc-method-info-arglist m)))
-                       *void-foreign-type*))
-                 (method-has-structure-arg (m)
-                   (dolist (arg (objc-method-info-arglist m))
-                     (when (typep (ensure-foreign-type arg) 'foreign-record-type)
-                       (return t)))))
-            (when (dolist (method methods)
-                    (when (method-has-structure-arg method)
-                      (return t)))
-              (setf (compiler-macro-function lisp-name)
-                    'hoist-struct-constructors))
-            (let* ((first-result-is-structure (method-returns-structure first-method))
-                   (first-accepts-varargs (method-accepts-varargs first-method)))
-              (if (dolist (m (cdr methods) t)
-                    (unless (eq (method-returns-structure m)
-                                first-result-is-structure)
-                      (return nil)))
-                (if first-result-is-structure
-                  (setf (getf (objc-message-info-flags message-info)
-                              :returns-structure) t)))
-              (if (dolist (m (cdr methods) t)
-                    (unless (eq (method-accepts-varargs m)
-                                first-accepts-varargs)
-                      (return nil)))
-                (if first-accepts-varargs
-                  (progn
+                (if (getf (objc-method-info-flags m) :protocol)
+                  (push m protocol-methods)
+                  (let* ((pair (assoc signature signature-alist :test #'signatures-equal)))
+                    (if pair
+                      (push m (cdr pair))
+                      (push (cons signature (list m)) signature-alist)))))))
+          (setf (objc-message-info-ambiguous-methods message-info)
+                (mapcar #'cdr
+                        (sort signature-alist
+                              #'(lambda (x y)
+                                  (< (length (cdr x))
+                                     (length (cdr y)))))))
+          (setf (objc-message-info-flags message-info) nil)
+          (setf (objc-message-info-protocol-methods message-info)
+                protocol-methods)
+          (when (cdr signatures)
+            (setf (getf (objc-message-info-flags message-info) :ambiguous) t))
+          (let* ((first-method (car methods))
+                 (first-sig (objc-method-info-signature first-method))
+                 (first-sig-len (length first-sig)))
+            (setf (objc-message-info-req-args message-info)
+                  (1- first-sig-len))
+            ;; Whether some arg/result types vary or not, we want to insist
+            ;; on (a) either no methods take a variable number of arguments,
+            ;; or all do, and (b) either no method uses structure-return
+            ;; conventions, or all do. (It's not clear that these restrictions
+            ;; are entirely reasonable in the long run; in the short term,
+            ;; they'll help get things working.)
+            (flet ((method-returns-structure (m)
+                     (result-type-requires-structure-return
+                      (objc-method-info-result-type m)))
+                   (method-accepts-varargs (m)
+                     (eq (car (last (objc-method-info-arglist m)))
+                         *void-foreign-type*))
+                   (method-has-structure-arg (m)
+                     (dolist (arg (objc-method-info-arglist m))
+                       (when (typep (ensure-foreign-type arg) 'foreign-record-type)
+                         (return t)))))
+              (when (dolist (method methods)
+                      (when (method-has-structure-arg method)
+                        (return t)))
+                (setf (compiler-macro-function lisp-name)
+                      'hoist-struct-constructors))
+              (let* ((first-result-is-structure (method-returns-structure first-method))
+                     (first-accepts-varargs (method-accepts-varargs first-method)))
+                (if (dolist (m (cdr methods) t)
+                      (unless (eq (method-returns-structure m)
+                                  first-result-is-structure)
+                        (return nil)))
+                  (if first-result-is-structure
                     (setf (getf (objc-message-info-flags message-info)
-                                :accepts-varargs) t)
-                    (decf (objc-message-info-req-args message-info)))))))))
-      (reinitialize-instance gf :message-info message-info)))))
+                                :returns-structure) t)))
+                (if (dolist (m (cdr methods) t)
+                      (unless (eq (method-accepts-varargs m)
+                                  first-accepts-varargs)
+                        (return nil)))
+                  (if first-accepts-varargs
+                    (progn
+                      (setf (getf (objc-message-info-flags message-info)
+                                  :accepts-varargs) t)
+                      (decf (objc-message-info-req-args message-info)))))))))
+        (reinitialize-instance gf :message-info message-info)))))
           
 ;;; -may- need to invalidate cached info whenever new interface files
 ;;; are made accessible.  Probably the right thing to do is to insist
@@ -1437,6 +1440,10 @@
                     (symbol (find-class cname))
                     (class cname))))
       (send-objc-init-message (#/alloc class) ks vs))))
+
+
+
+
 
 ;;; Provide the BRIDGE module
 
