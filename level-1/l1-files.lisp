@@ -1285,8 +1285,19 @@ Each function receives a module name as a single argument; if the function knows
   "Returns the file or list of files making up the module"
   (let ((mod-path (make-pathname :name (string-downcase module) :defaults nil)) path)
         (dolist (path-cand *module-search-path* nil)
-          (when (setq path (find-load-file (merge-pathnames mod-path path-cand)))
-            (return path)))))
+	  (let ((mod-cand (merge-pathnames mod-path path-cand)))
+	    (if (wild-pathname-p path-cand)
+		(let* ((untyped-p (member (pathname-type mod-cand) '(nil :unspecific)))
+		       (matches (if untyped-p
+				    (or (directory (merge-pathnames mod-cand *.lisp-pathname*))
+					(directory (merge-pathnames mod-cand *.fasl-pathname*)))
+				    (directory mod-cand))))
+		  (when (and matches (null (cdr matches)))
+		    (return (if untyped-p
+				(make-pathname :type nil :defaults (car matches))
+				(car matches)))))
+		(when (setq path (find-load-file (merge-pathnames mod-path path-cand)))
+		  (return path)))))))
 
 (defun wild-pathname-p (pathname &optional field-key)
   "Predicate for determining whether pathname contains any wildcards."

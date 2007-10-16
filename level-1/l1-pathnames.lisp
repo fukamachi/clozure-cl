@@ -699,11 +699,10 @@
 
 (defparameter *module-search-path* (list
                                     (cons-pathname '(:absolute "bin") nil nil "ccl")
-                                    (cons-pathname  '(:absolute "openmcl" "modules") nil nil "home")
-				    (cons-pathname '(:absolute "ccl" "modules") nil nil "home")
+                                    (cons-pathname '(:absolute "openmcl" "modules") nil nil "home")
                                     (cons-pathname '(:absolute "lib") nil nil "ccl")
 				    (cons-pathname '(:absolute "library") nil nil "ccl")
-				    (cons-pathname '(:absolute "examples") nil nil "ccl")
+				    (cons-pathname '(:absolute "examples" :wild-inferiors) nil nil "ccl")
 				    (cons-pathname '(:absolute "tools") nil nil "ccl")
                                     (cons-pathname '(:absolute "objc-bridge") nil nil "ccl")
                                     (cons-pathname '(:absolute "cocoa-ide") nil nil "ccl"))
