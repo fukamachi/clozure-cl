@@ -55,7 +55,10 @@
 ;;; Wait until we're sure that the Cocoa event loop has started.
 (wait-on-semaphore *cocoa-application-finished-launching*)
 
- 
+
+;;; If easygui is a feature, make it so.
+#+easygui (require :easygui)
+
 ;;; The saved image will be an instance of COCOA-APPLICATION (mostly
 ;;; so that it'll ignore its argument list.)  When it starts up, it'll
 ;;; run the Cocoa event loop in the cocoa event process.

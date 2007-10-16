@@ -4,3 +4,5 @@
   (load (merge-pathnames ";easygui;easygui.asd" path)))
 
 (asdf:operate 'asdf:load-op 'easygui)
+
+(push :easygui *features*)
