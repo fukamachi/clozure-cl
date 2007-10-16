@@ -1,0 +1,31 @@
+;;; -*- lisp -*-
+
+#+openmcl
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (require :asdf))
+
+#-openmcl
+(error "Requires OpenMCL")
+
+
+(cl:defpackage :easygui-system (:use :cl :asdf))
+
+(in-package :easygui-system)
+
+(defsystem cocoa.asd)
+
+(defmethod perform :after ((o compile-op) (sys (eql (find-system :cocoa.asd))))
+  (require :cocoa))
+
+(defmethod operation-done-p ((o compile-op) (sys (eql (find-system :cocoa.asd))))
+  nil)
+
+(defsystem easygui
+    :depends-on (cocoa.asd)
+    :components ((:file "package")
+                 (:file "new-cocoa-bindings" :depends-on ("package"))
+                 (:file "views" :depends-on ("new-cocoa-bindings"))
+                 (:file "action-targets" :depends-on ("views"))
+                 ;;; example:
+                 (:file "tiny" :depends-on ("action-targets"))
+                 (:file "currency-converter" :depends-on ("action-targets"))))
