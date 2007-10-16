@@ -1138,25 +1138,32 @@ handle_signal_on_foreign_stack(TCR *tcr,
 void
 arbstack_signal_handler(int signum, siginfo_t *info, ExceptionInformation *context)
 {
-  TCR *tcr = get_interrupt_tcr(false);
-  area *vs = tcr->vs_area;
-  BytePtr current_sp = (BytePtr) current_stack_pointer();
+  TCR *tcr = get_interrupt_tcr(false); 
+#if 1
+  if (tcr->valence != TCR_STATE_LISP) {
+    FBug(context, "exception in foreign context");
+  }
+#endif
+  {
+    area *vs = tcr->vs_area;
+    BytePtr current_sp = (BytePtr) current_stack_pointer();
 
-  if ((current_sp >= vs->low) &&
-      (current_sp < vs->high)) {
-    handle_signal_on_foreign_stack(tcr,
-                                   signal_handler,
-                                   signum,
-                                   info,
-                                   context,
-                                   (LispObj)__builtin_return_address(0)
+    if ((current_sp >= vs->low) &&
+        (current_sp < vs->high)) {
+      handle_signal_on_foreign_stack(tcr,
+                                     signal_handler,
+                                     signum,
+                                     info,
+                                     context,
+                                     (LispObj)__builtin_return_address(0)
 #ifdef DARWIN_GS_HACK
-                                 , false
+                                     , false
 #endif
 
-                                   );
-  } else {
-    signal_handler(signum, info, context, tcr, 0);
+                                     );
+    } else {
+      signal_handler(signum, info, context, tcr, 0);
+    }
   }
 }
 
