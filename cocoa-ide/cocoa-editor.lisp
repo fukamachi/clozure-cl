@@ -1372,7 +1372,7 @@
                       (make-instance
                        'modeline-scroll-view
                        :with-frame (ns:make-ns-rect x y width height)))))
-    (#/setBorderType: scrollview #$NSBezelBorder)
+    (#/setBorderType: scrollview #$NSNoBorder)
     (#/setHasVerticalScroller: scrollview t)
     (#/setHasHorizontalScroller: scrollview t)
     (#/setRulersVisible: scrollview nil)
