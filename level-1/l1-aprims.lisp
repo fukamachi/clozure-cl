@@ -183,6 +183,7 @@ terminate the list"
 
 (defun nthcdr (index list)
   "Performs the cdr function n times on a list."
+  (setq list (require-type list 'list))
   (if (and (typep index 'fixnum)
 	   (>= (the fixnum index) 0))
       (locally (declare (fixnum index))
@@ -1093,9 +1094,9 @@ generation, and the oldest ephemeral generation."
          (g2 (%fixnum-ref ta target::area.younger))
          (g1 (%fixnum-ref g2 target::area.younger))
          (g0 (%fixnum-ref g1 target::area.younger)))
-    (values (ash (the fixnum (%fixnum-ref g0 target::area.threshold)) -8)
-            (ash (the fixnum (%fixnum-ref g1 target::area.threshold)) -8)
-            (ash (the fixnum (%fixnum-ref g2 target::area.threshold)) -8))))
+    (values (ash (the fixnum (%fixnum-ref g0 target::area.threshold)) (- (- 10 target::fixnum-shift)))
+            (ash (the fixnum (%fixnum-ref g1 target::area.threshold)) (- (- 10 target::fixnum-shift)))
+            (ash (the fixnum (%fixnum-ref g2 target::area.threshold)) (- (- 10 target::fixnum-shift))))))
 
 
 (defun configure-egc (e0size e1size e2size)
@@ -1103,11 +1104,15 @@ generation, and the oldest ephemeral generation."
 effect and returns T, otherwise, returns NIL. (The provided threshold sizes
 are rounded up to a multiple of 64Kbytes in OpenMCL 0.14 and to a multiple
 of 32KBytes in earlier versions.)"
-  (unless (egc-active-p)
-    (setq e2size (logand (lognot #xffff) (+ #xffff (ash (require-type e2size '(unsigned-byte 18)) 10)))
-          e1size (logand (lognot #xffff) (+ #xffff (ash (require-type e1size '(unsigned-byte 18)) 10)))
-          e0size (logand (lognot #xffff) (+ #xffff (ash (require-type e0size '(integer 1 #.(ash 1 18))) 10))))
-    (%configure-egc e0size e1size e2size)))
+  (let* ((was-enabled (egc-active-p)))
+    (unwind-protect
+         (progn
+           (egc nil)
+           (setq e2size (logand (lognot #xffff) (+ #xffff (ash (require-type e2size '(unsigned-byte 18)) 10)))
+                 e1size (logand (lognot #xffff) (+ #xffff (ash (require-type e1size '(unsigned-byte 18)) 10)))
+                 e0size (logand (lognot #xffff) (+ #xffff (ash (require-type e0size '(integer 1 #.(ash 1 18))) 10))))
+           (%configure-egc e0size e1size e2size))
+      (egc was-enabled))))
 
 
 
