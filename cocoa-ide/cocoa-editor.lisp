@@ -412,7 +412,8 @@
          (buffer (buffer-cache-buffer display))
          (hi::*buffer-gap-context* (hi::buffer-gap-context buffer))
          (font (buffer-active-font buffer))
-         (document (#/document self)))
+         (document (#/document self))
+	 (undo-mgr (and document (#/undoManager document))))
     #+debug 
     (#_NSLog #@"insert: pos = %ld, n = %ld" :long pos :long n)
     ;; We need to update the hemlock string mirror here so that #/substringWithRange:
@@ -422,54 +423,62 @@
     (let* ((replacestring (#/substringWithRange: hemlock-string (ns:make-ns-range pos n))))
       (ns:with-ns-range (replacerange pos 0)
         (#/replaceCharactersInRange:withString:
-         mirror replacerange replacestring)))
+         mirror replacerange replacestring))
+      (when (and undo-mgr (not (#/isUndoing undo-mgr)))
+        (#/replaceCharactersAtPosition:length:withString:
+	 (#/prepareWithInvocationTarget: undo-mgr self)
+	 pos n #@"")))
     (#/setAttributes:range: mirror font (ns:make-ns-range pos n))    
-    (textstorage-note-insertion-at-position self pos n)
-    ;; Arguably, changecount stuff should happen via the document's NSUndoManager.
-    ;; At some point in time, we'll know whether or not we have and are using
-    ;; an NSUndoManager; while we're in limbo about that, do it here.
-    (#/updateChangeCount: document #$NSChangeDone)))
-
+    (textstorage-note-insertion-at-position self pos n)))
 
 (objc:defmethod (#/noteHemlockDeletionAtPosition:length: :void) ((self hemlock-text-storage)
                                                                  (pos :<NSI>nteger)
                                                                  (n :<NSI>nteger)
                                                                  (extra :<NSI>nteger))
   (declare (ignorable extra))
+  #+debug
+  (#_NSLog #@"delete: pos = %ld, n = %ld" :long pos :long n)
   (ns:with-ns-range (range pos n)
-    ;; It seems to be necessary to call #/edited:range:changeInLength: before
-    ;; deleting from the mirror attributed string.  It's not clear whether this
-    ;; is also true of insertions and modifications.
-    (#/edited:range:changeInLength: self (logior #$NSTextStorageEditedCharacters
-                                                 #$NSTextStorageEditedAttributes)
-                                    range (- n))
-    (#/deleteCharactersInRange: (#/mirror self) range))
-  (let* ((display (hemlock-buffer-string-cache (#/hemlockString self))))
-    (reset-buffer-cache display)
-    (update-line-cache-for-index display pos))
-  ;; Arguably, changecount stuff should happen via the document's NSUndoManager.
-  ;; At some point in time, we'll know whether or not we have and are using
-  ;; an NSUndoManager; while we're in limbo about that, do it here.
-  (#/updateChangeCount: (#/document self) #$NSChangeDone))
-  
+    (let* ((mirror (#/mirror self))
+	   (deleted-string (#/substringWithRange: (#/string mirror) range))
+	   (document (#/document self))
+	   (undo-mgr (and document (#/undoManager document)))
+	   (display (hemlock-buffer-string-cache (#/hemlockString self))))
+      ;; It seems to be necessary to call #/edited:range:changeInLength: before
+      ;; deleting from the mirror attributed string.  It's not clear whether this
+      ;; is also true of insertions and modifications.
+      (#/edited:range:changeInLength: self (logior #$NSTextStorageEditedCharacters
+						   #$NSTextStorageEditedAttributes)
+				      range (- n))
+      (#/deleteCharactersInRange: mirror range)
+      (when (and undo-mgr (not (#/isUndoing undo-mgr)))
+        (#/replaceCharactersAtPosition:length:withString:
+	 (#/prepareWithInvocationTarget: undo-mgr self)
+	 pos 0 deleted-string))
+      (reset-buffer-cache display)
+      (update-line-cache-for-index display pos))))
 
 (objc:defmethod (#/noteHemlockModificationAtPosition:length: :void) ((self hemlock-text-storage)
                                                                      (pos :<NSI>nteger)
                                                                      (n :<NSI>nteger)
                                                                      (extra :<NSI>nteger))
   (declare (ignorable extra))
-  (let* ((hemlock-string (#/hemlockString self))
-         (mirror (#/mirror self)))
-    (ns:with-ns-range (range pos n)
+  #+debug
+  (#_NSLog #@"modify: pos = %ld, n = %ld" :long pos :long n)
+  (ns:with-ns-range (range pos n)
+    (let* ((hemlock-string (#/hemlockString self))
+	   (mirror (#/mirror self))
+	   (deleted-string (#/substringWithRange: (#/string mirror) range))
+	   (document (#/document self))
+	   (undo-mgr (and document (#/undoManager document))))
       (#/replaceCharactersInRange:withString:
        mirror range (#/substringWithRange: hemlock-string range))
       (#/edited:range:changeInLength: self (logior #$NSTextStorageEditedCharacters
-                                                   #$NSTextStorageEditedAttributes) range 0)))
-  ;; Arguably, changecount stuff should happen via the document's NSUndoManager.
-  ;; At some point in time, we'll know whether or not we have and are using
-  ;; an NSUndoManager; while we're in limbo about that, do it here.
-  (#/updateChangeCount: (#/document self) #$NSChangeDone))
-
+                                                   #$NSTextStorageEditedAttributes) range 0)
+      (when (and undo-mgr (not (#/isUndoing undo-mgr)))
+        (#/replaceCharactersAtPosition:length:withString:
+	 (#/prepareWithInvocationTarget: undo-mgr self)
+	 pos n deleted-string)))))
 
 (objc:defmethod (#/noteHemlockAttrChangeAtPosition:length: :void) ((self hemlock-text-storage)
                                                                    (pos :<NSI>nteger)
@@ -600,7 +609,11 @@
           (#/setAttributes:range: mirror attrs r)))
       attrs)))
 
-000
+(objc:defmethod (#/replaceCharactersAtPosition:length:withString: :void)
+    ((self hemlock-text-storage) (pos <NSUI>nteger) (len <NSUI>nteger) string)
+  (ns:with-ns-range (r pos len)
+    (#/replaceCharactersInRange:withString: self r string)))
+
 (objc:defmethod (#/replaceCharactersInRange:withString: :void)
     ((self hemlock-text-storage) (r :<NSR>ange) string)
   #+debug (#_NSLog #@"Replace in range %ld/%ld with %@"
@@ -1491,6 +1504,9 @@
 (defclass echo-area-document (ns:ns-object)
     ((textstorage :foreign-type :id))
   (:metaclass ns:+ns-object))
+
+(objc:defmethod (#/undoManager :<BOOL>) ((self echo-area-document))
+  nil) ;For now, undo is not supported for echo-areas
 
 (defmethod update-buffer-package ((doc echo-area-document) buffer)
   (declare (ignore buffer)))
