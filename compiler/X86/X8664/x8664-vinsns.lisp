@@ -812,7 +812,7 @@
   (subq (:$b (- x8664::cons.size x8664::fulltag-cons)) (:@ (:%seg :rcontext) x8664::tcr.save-allocptr))
   (movq (:@ (:%seg :rcontext) x8664::tcr.save-allocptr) (:%q x8664::allocptr))
   (rcmpq (:%q x8664::allocptr) (:@ (:%seg :rcontext) x8664::tcr.save-allocbase))
-  (jg :no-trap)
+  (:byte #x7f) (:byte #x02) ;(jg :no-trap)
   (uuo-alloc)
   :no-trap
   (andb (:$b (lognot x8664::fulltagmask)) (:@ (:%seg :rcontext) x8664::tcr.save-allocptr))
@@ -1138,7 +1138,7 @@
   (subq (:%q x8664::imm1) (:@ (:%seg :rcontext) x8664::tcr.save-allocptr))
   (movq (:@ (:%seg :rcontext) x8664::tcr.save-allocptr) (:%q freeptr))
   (rcmpq (:%q freeptr) (:@ (:%seg :rcontext) x8664::tcr.save-allocbase))
-  (jg :no-trap)
+  (:byte #x7f) (:byte #x02) ;(jg :no-trap)
   (uuo-alloc)
   :no-trap
   (movq (:%q header) (:@ x8664::misc-header-offset (:%q freeptr)))
