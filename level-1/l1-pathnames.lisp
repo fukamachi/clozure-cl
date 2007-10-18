@@ -23,10 +23,12 @@
 
 (in-package "CCL")
 
-(defloadvar *heap-image-name*
-    (let* ((p (%null-ptr)))
-      (declare (dynamic-extent p))
-      (%get-cstring (%get-kernel-global-ptr 'image-name p))))
+(defun heap-image-name ()
+  (let* ((p (%null-ptr)))
+    (declare (dynamic-extent p))
+    (%get-cstring (%get-kernel-global-ptr 'image-name p))))
+
+(defloadvar *heap-image-name* (heap-image-name))
 
 (defloadvar *command-line-argument-list*
   (let* ((argv (%null-ptr))
@@ -627,7 +629,7 @@
     (if dirpath
       (native-to-directory-pathname dirpath)
       (let* ((directory-containing-heap-image
-              (make-pathname :directory (pathname-directory (%realpath *heap-image-name*))))
+              (make-pathname :directory (pathname-directory (%realpath (heap-image-name)))))
              (rpath (merge-pathnames
 		     #+darwinppc-target "../Resources/ccl/"
 		     #+linux-target "Resources/ccl/"
