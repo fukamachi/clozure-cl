@@ -375,6 +375,25 @@
   (with-lock-grabbed ((cdb-lock cdb))
     (%cdb-get (cdb-fid cdb) key value)))
 
+(defun cdb-subdirectory-path (&optional (ftd *target-ftd*))
+  (let* ((ftd-name (ftd-interface-db-directory ftd))
+	 (ftd-dir (pathname-directory ftd-name)))
+    (assert (equalp (pathname-host ftd-name) "ccl"))
+    (assert (eq (car ftd-dir) :absolute))
+    (cdr ftd-dir)))
+
+(defvar *interfaces-root* "ccl:")
+
+(defun open-interface-db-pathname (name d)
+  (let* ((db-path (make-pathname :host (pathname-host *interfaces-root*)
+				 :directory (append
+					     (or (pathname-directory *interfaces-root*)
+						 '(:absolute))
+					     (cdb-subdirectory-path *target-ftd*))))
+	 (path (merge-pathnames name
+				(merge-pathnames (interface-dir-subdir d) db-path))))
+    (cdb-open path)))
+
 (defun cdb-open (pathname)
   (if (probe-file pathname)
     (let* ((cdb (make-cdb :fid (fid-open-input (cdb-native-namestring pathname))
@@ -743,37 +762,37 @@ satisfy the optional predicate PREDICATE."
 (defun db-constants (dir)
   (or (interface-dir-constants-interface-db-file dir)
       (setf (interface-dir-constants-interface-db-file dir)
-	    (cdb-open (interface-db-pathname "constants.cdb" dir)))))
+	    (open-interface-db-pathname "constants.cdb" dir))))
 
 (defun db-objc-classes (dir)
   (or (interface-dir-objc-classes-interface-db-file dir)
       (setf (interface-dir-objc-classes-interface-db-file dir)
-            (cdb-open (interface-db-pathname "objc-classes.cdb" dir)))))
+            (open-interface-db-pathname "objc-classes.cdb" dir))))
 
 (defun db-objc-methods (dir)
   (or (interface-dir-objc-methods-interface-db-file dir)
       (setf (interface-dir-objc-methods-interface-db-file dir)
-            (cdb-open (interface-db-pathname "objc-methods.cdb" dir)))))
+            (open-interface-db-pathname "objc-methods.cdb" dir))))
 
 (defun db-vars (dir)
   (or (interface-dir-vars-interface-db-file dir)
       (setf (interface-dir-vars-interface-db-file dir)
-	    (cdb-open (interface-db-pathname "vars.cdb" dir)))))
+	    (open-interface-db-pathname "vars.cdb" dir))))
 
 (defun db-types (dir)
   (or (interface-dir-types-interface-db-file dir)
       (setf (interface-dir-types-interface-db-file dir)
-	    (cdb-open (interface-db-pathname "types.cdb" dir)))))
+	    (open-interface-db-pathname "types.cdb" dir))))
 
 (defun db-records (dir)
   (or (interface-dir-records-interface-db-file dir)
       (setf (interface-dir-records-interface-db-file dir)
-	    (cdb-open (interface-db-pathname "records.cdb" dir)))))
+	    (open-interface-db-pathname "records.cdb" dir))))
 
 (defun db-functions (dir)
   (or (interface-dir-functions-interface-db-file dir)
       (setf (interface-dir-functions-interface-db-file dir)
-	    (cdb-open (interface-db-pathname "functions.cdb" dir)))))
+	    (open-interface-db-pathname "functions.cdb" dir))))
 
 (defun load-os-constant (sym &optional query)
   (let* ((val (do-interface-dirs (d)
