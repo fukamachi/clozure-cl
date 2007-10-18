@@ -96,6 +96,9 @@
       (push (#/objectAtIndex: win-arr i) ret))
     (nreverse ret)))
 
+(defun log-debug (format-string &rest args)
+  (#_NSLog (ccl::%make-nsstring (apply #'format nil format-string args))))
+
 (defun assume-cocoa-thread ()
   #+debug (assert (eq *current-process* *initial-process*)))
 

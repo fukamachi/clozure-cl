@@ -40,6 +40,7 @@
 (bind-key "Beginning of Line" #k"control-a")
 (bind-key "Select to Beginning of Line" #k"control-A")
 (bind-key "Delete Next Character" #k"control-d")
+(bind-key "Delete Next Character" #k"del")
 (bind-key "End of Line" #k"control-e")
 (bind-key "Select to End of Line" #k"control-E")
 (bind-key "Forward Character" #k"control-f")
@@ -930,3 +931,4 @@
 (setf (logical-key-event-p #k"return" :confirm) t)
 (setf (logical-key-event-p #k"control-q" :quote) t)
 (setf (logical-key-event-p #k"k" :keep) t)
+(setf (logical-key-event-p #k"control-w" :extend-search-word) t)

@@ -53,6 +53,7 @@
   (let* ((pattern (get-search-pattern string :forward))
 	 (point (current-point))
 	 (mark (copy-mark point))
+	 ;; find-pattern moves point to start of match, and returns is # chars matched
 	 (won (find-pattern point pattern)))
     (cond (won (move-mark mark point)
 	       (character-offset point won)
@@ -110,12 +111,13 @@
   next character typed.  Backspace cancels the last character typed.  ^S
   repeats forward, and ^R repeats backward.  ^R or ^S with empty string
   either changes the direction or yanks the previous search string.
-  Altmode exits the search unless the string is empty.  Altmode with 
+  Escape exits the search unless the string is empty.  Escape with 
   an empty search string calls the non-incremental search command.  
   Other control characters cause exit and execution of the appropriate 
   command.  If the search fails at some point, ^G and backspace may be 
   used to backup to a non-failing point; also, ^S and ^R may be used to
-  look the other way.  ^G during a successful search aborts and returns
+  look the other way.  ^W extends the search string to include the the word 
+  after the point. ^G during a successful search aborts and returns
   point to where it started."
   "Search for input string as characters are typed in.
   It sets up for the recursive searching and checks return values."
@@ -180,24 +182,27 @@
   (do* ((curr-point (copy-mark point :temporary))
         (curr-trailer (copy-mark trailer :temporary)))
        (nil)
-    (let ((next-key-event (recursive-get-key-event *editor-input* t)))
-      (case (%i-search-char-eval next-key-event string point trailer
-                                 direction failure)
+    (let* ((next-key-event (recursive-get-key-event *editor-input* t))
+	   (val (%i-search-char-eval next-key-event string point trailer
+                                 direction failure))
+	   (empty-string-p (zerop (length string))))
+      (case val	
         (:mouse-exit
          (clear-echo-area)
          (throw 'exit-i-search nil))
         (:cancel
          (%i-search-echo-refresh string direction failure)
-         (unless (zerop (length string))
-           (i-search-pattern string direction)))
-        (:return-cancel
-         (unless (zerop (length string)) (return :cancel))
-         (beep))
+         (unless empty-string-p
+           (i-search-pattern string direction))) ;sets *last-search-pattern*
+        (:return-cancel ;backspace was typed
+	 (if empty-string-p
+	     (beep)
+	     (return :cancel)))
         (:control-g
          (when failure (return :control-g))
          (%i-search-echo-refresh string direction nil)
-         (unless (zerop (length string))
-           (i-search-pattern string direction))))
+         (unless empty-string-p
+           (i-search-pattern string direction)))) ;*last-search-pattern*
       (move-mark point curr-point)
       (move-mark trailer curr-trailer))))
 
@@ -215,6 +220,11 @@
 	 (%i-search-control-s-or-r key-event string point trailer
 				   direction failure))
 	((logical-key-event-p key-event :cancel) :return-cancel)
+	((logical-key-event-p key-event :extend-search-word)
+	 (with-mark ((end point))
+	   (word-offset end 1)
+	   (let ((extension (region-to-string (region point end))))
+	     (%i-search-extend-string string extension point trailer direction failure))))	     
 	((logical-key-event-p key-event :abort)
 	 (unless failure
 	   (clear-echo-area)
@@ -256,7 +266,7 @@
 	  (t
 	   (let ((new-direction (if forward-character-p :forward :backward)))
 	     (%i-search-echo-refresh string new-direction nil)
-	     (i-search-pattern string new-direction)
+	     (i-search-pattern string new-direction) ;sets *last-search-pattern*
 	     (%i-search-find-pattern string point (move-mark trailer point)
 				     new-direction))))))
 
@@ -274,7 +284,7 @@
 	   (%i-search "" point trailer direction nil)))
 	(*last-search-string*
 	 (%i-search-echo-refresh *last-search-string* direction nil)
-	 (i-search-pattern *last-search-string* direction)
+	 (i-search-pattern *last-search-string* direction) ;sets *last-search-pattern*
 	 (%i-search-find-pattern *last-search-string* point trailer direction))
 	(t (beep))))
 
@@ -292,13 +302,26 @@
       (insert-character (buffer-point *echo-area-buffer*) tchar)
       (force-output *echo-area-stream*))
     (let ((new-string (concatenate 'simple-string string (string tchar))))
-      (i-search-pattern new-string direction)
+      (i-search-pattern new-string direction) ;sets *last-search-pattern*
       (cond (failure (%i-search new-string point trailer direction failure))
 	    ((and (eq direction :backward) (next-character trailer))
 	     (%i-search-find-pattern new-string point (mark-after trailer)
 				     direction))
 	    (t
 	     (%i-search-find-pattern new-string point trailer direction))))))
+
+(defun %i-search-extend-string (string extension point trailer direction failure)
+  (when (interactive)
+    (insert-string (buffer-point *echo-area-buffer*) string)
+    (force-output *echo-area-stream*))
+  (let ((new-string (concatenate 'simple-string string extension)))
+    (i-search-pattern new-string direction) ;sets *last-search-pattern*
+    (cond (failure (%i-search new-string point trailer direction failure))
+	  ((and (eq direction :backward) (next-character trailer))
+	   (%i-search-find-pattern new-string point (mark-after trailer)
+				   direction))
+	  (t
+	   (%i-search-find-pattern new-string point trailer direction)))))
 
 
 ;;;      %I-SEARCH-FIND-PATTERN takes a pattern for a string and direction

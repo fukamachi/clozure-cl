@@ -706,6 +706,8 @@
   "This key-event means exit but keep something around.")
 (define-logical-key-event "Mouse Exit"
   "This key-event means exit completely.")
+(define-logical-key-event "Extend Search Word"
+  "This key-event means to extend the incremental search string by the word after the point")
 
 
 ;;;; COMMAND-CASE help message printing.
