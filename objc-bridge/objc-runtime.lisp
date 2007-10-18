@@ -57,6 +57,35 @@
   (require "NAME-TRANSLATION")
   (require "OBJC-CLOS"))
 
+;;; NSInteger and NSUInteger probably belong here.
+;;; CGFloat not so much.
+
+#-apple-objc-2.0
+(progn
+  (def-foreign-type :<CGF>loat :float)
+  (def-foreign-type :<NSUI>nteger :unsigned)
+  (def-foreign-type :<NSI>nteger :signed)
+  )
+
+(defconstant +cgfloat-zero+
+  #+(and apple-objc-2.0 64-bit-target) 0.0d0
+  #-(and apple-objc-2.0 64-bit-target) 0.0f0)
+
+(deftype cgfloat ()
+  #+(and apple-objc-2.0 64-bit-target) 'double-float
+  #-(and apple-objc-2.0 64-bit-target) 'single-float)
+
+(deftype cg-float () 'cgfloat)
+
+(deftype nsuinteger ()
+  #+(and apple-objc-2.0 64-bit-target) '(unsigned-byte 64)
+  #-(and apple-objc-2.0 64-bit-target) '(unsigned-byte 32))
+
+(deftype nsinteger ()
+  #+(and apple-objc-2.0 64-bit-target) '(signed-byte 64)
+  #-(and apple-objc-2.0 64-bit-target) '(signed-byte 32))
+
+
 (defloadvar *NSApp* nil )
 
 ;;; Apple ObjC 2.0 provides (#_objc_getProtocol name).  In other
@@ -1826,6 +1855,7 @@ argument lisp string."
                  (case spec
                    (:<BOOL> (call `(%coerce-to-bool ,arg)))
                    (:id (call `(%coerce-to-address ,arg)))
+		   (:<CGF>loat (call `(float ,arg +cgfloat-zero+)))
                    (t
                     (call arg)))))
             (let* ((call (call))

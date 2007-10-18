@@ -23,31 +23,6 @@
 (require "OBJC-RUNTIME")
 (require "NAME-TRANSLATION")
 
-#-apple-objc-2.0
-(progn
-  (def-foreign-type :<CGF>loat :float)
-  (def-foreign-type :<NSUI>nteger :unsigned)
-  (def-foreign-type :<NSI>nteger :signed)
-  )
-
-(defconstant +cgfloat-zero+
-  #+(and apple-objc-2.0 64-bit-target) 0.0d0
-  #-(and apple-objc-2.0 64-bit-target) 0.0f0)
-
-(deftype cgfloat ()
-  #+(and apple-objc-2.0 64-bit-target) 'double-float
-  #-(and apple-objc-2.0 64-bit-target) 'single-float)
-
-(deftype cg-float () 'cgfloat)
-
-(deftype nsuinteger ()
-  #+(and apple-objc-2.0 64-bit-target) '(unsigned-byte 64)
-  #-(and apple-objc-2.0 64-bit-target) '(unsigned-byte 32))
-
-(deftype nsinteger ()
-  #+(and apple-objc-2.0 64-bit-target) '(signed-byte 64)
-  #-(and apple-objc-2.0 64-bit-target) '(signed-byte 32))
-
 ;;; Used in PRINT-OBJECT methods.
 
 (defun describe-macptr-allocation-and-address (p stream)
