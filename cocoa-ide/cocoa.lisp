@@ -54,7 +54,7 @@
   (let* ((path (ccl-directory))
 	 (dir (pathname-directory path)))
     (if (equalp (last dir 2) '("Contents" "MacOS"))
-	(make-pathname :directory (butlast dir 2))
+	(make-pathname :directory (butlast dir 3))
 	path)))
 
 
