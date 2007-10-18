@@ -30,7 +30,33 @@
 (require "COCOA-BACKTRACE")
 (require "COCOA-INSPECTOR")
 
-(def-cocoa-default *ccl-directory* :string (ensure-directory-namestring (namestring (ccl-directory))) nil #'(lambda (old new) (unless (equal old new) (replace-base-translation "ccl:" new))))
+(def-cocoa-default *ccl-directory* :string "" nil #'(lambda (old new)
+						      (when (equal new "") (setq new nil))
+						      (unless (and new (equal old new))
+							(init-interfaces-root)
+							(replace-base-translation "ccl:"
+										  (or new (find-ccl-directory))))))
+
+;; If there are interfaces inside the bundle, use those rather than the ones
+;; in CCL:, since they're more likely to be valid.  CCL: could be some random
+;; sources we're just using just for meta-.
+(defun init-interfaces-root ()
+  (let* ((subpath (cdb-subdirectory-path))
+	 (path (pathname-directory (ccl-directory))))
+    (when (and *standalone-cocoa-ide*
+	       (equalp (last path 2) '("Contents" "MacOS")))
+      (setq path (butlast path))
+      (when (or (probe-file (make-pathname :directory (append path subpath)))
+		(probe-file (make-pathname :directory (append (setq path `(,@path "Resources")) subpath))))
+	(setq *interfaces-root* (make-pathname :directory path))))))
+
+(defun find-ccl-directory ()
+  (let* ((path (ccl-directory))
+	 (dir (pathname-directory path)))
+    (if (equalp (last dir 2) '("Contents" "MacOS"))
+	(make-pathname :directory (butlast dir 2))
+	path)))
+
 
 
 ;;; The application delegate gets notified of state changes in the
