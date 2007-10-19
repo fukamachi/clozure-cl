@@ -29,6 +29,7 @@
 (require "COCOA-GREP")
 (require "COCOA-BACKTRACE")
 (require "COCOA-INSPECTOR")
+(require "PROCESSES-WINDOW")
 
 (def-cocoa-default *ccl-directory* :string "" nil #'(lambda (old new)
 						      (when (equal new "") (setq new nil))
@@ -84,6 +85,15 @@
    (#/sharedDocumentController ns:ns-document-controller)
    #@"Listener"
    t))
+
+(defvar *processes-window-controller* nil)
+
+(objc:defmethod (#/showProcessesWindow: :void) ((self lisp-application-delegate)
+						sender)
+  (declare (ignore sender))
+  (when (null *processes-window-controller*)
+    (setf *processes-window-controller* (make-instance 'processes-window-controller)))
+  (#/showWindow: *processes-window-controller* self))
 
 (defvar *cocoa-application-finished-launching* (make-semaphore)
   "Semaphore that's signaled when the application's finished launching ...")
