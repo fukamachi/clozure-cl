@@ -1,6 +1,6 @@
 (in-package "CCL")
 
-(def-cocoa-default *hyperspec-http-url-string* :string "http://www.lisp.org/HyperSpec/" "HTTP URL for HyperSpec lookup")
+(def-cocoa-default *hyperspec-http-url-string* :string "http://www.lispworks.com/documentation/HyperSpec/" "HTTP URL for HyperSpec lookup")
 
 (def-cocoa-default *hyperspec-file-url-string* :string "/" "filesystem path for HyperSpec lookup")
 
