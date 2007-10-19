@@ -7,40 +7,24 @@
 		<dict>
 			<key>ACTIONS</key>
 			<dict>
-				<key>showPreferences</key>
+				<key>killSelectedProcess</key>
 				<string>id</string>
-				<key>toggleTypeout</key>
+				<key>refresh</key>
 				<string>id</string>
 			</dict>
 			<key>CLASS</key>
-			<string>NSApplication</string>
+			<string>ProcessesWindowController</string>
 			<key>LANGUAGE</key>
 			<string>ObjC</string>
+			<key>OUTLETS</key>
+			<dict>
+				<key>tableView</key>
+				<string>NSTableView</string>
+			</dict>
 			<key>SUPERCLASS</key>
-			<string>NSResponder</string>
+			<string>NSWindowController</string>
 		</dict>
 		<dict>
-			<key>ACTIONS</key>
-			<dict>
-				<key>backtrace</key>
-				<string>id</string>
-				<key>continue</key>
-				<string>id</string>
-				<key>exitBreak</key>
-				<string>id</string>
-				<key>hyperSpecLookUp</key>
-				<string>id</string>
-				<key>inspect</key>
-				<string>id</string>
-				<key>interrupt</key>
-				<string>id</string>
-				<key>newListener</key>
-				<string>id</string>
-				<key>restarts</key>
-				<string>id</string>
-				<key>showProcessesWindow</key>
-				<string>id</string>
-			</dict>
 			<key>CLASS</key>
 			<string>FirstResponder</string>
 			<key>LANGUAGE</key>
