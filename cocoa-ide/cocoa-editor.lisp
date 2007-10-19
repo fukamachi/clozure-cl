@@ -2085,7 +2085,7 @@
     #+debug (#_NSLog #@"action = %s" :address action)
     (cond ((eql action (@selector #/hyperSpecLookUp:))
            ;; For now, demand a selection.
-           (and *hyperspec-root-url*
+           (and (hyperspec-root-url)
                 (not (eql 0 (ns:ns-range-length (#/selectedRange self))))))
           ((eql action (@selector #/cut:))
            (let* ((selection (#/selectedRange self)))
@@ -2783,9 +2783,8 @@
 	   (ns:make-ns-range 0 (#/length ts))
 	   string)
 	  (#/endEditing ts))
-	(#/makeKeyAndOrderFront:
-	 window
-	 self)))))
+	(#/makeKeyAndOrderFront: window self)))
+    doc))
 
 (defun hi::revert-document (doc)
   (#/performSelectorOnMainThread:withObject:waitUntilDone:
