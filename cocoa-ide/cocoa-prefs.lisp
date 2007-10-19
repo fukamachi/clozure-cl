@@ -88,7 +88,7 @@
 					:size *modeline-font-size*))))
     (when (is-fixed-pitch-font f)
       (let* ((values (#/values (#/sharedUserDefaultsController ns:ns-user-defaults-controller))))
-        (#/setValue:forKey: values (#/fontName f) #@"modelineFontName:")
+        (#/setValue:forKey: values (#/fontName f) #@"modelineFontName")
         (#/setValue:forKey: values (#/stringWithFormat: ns:ns-string #@"%u" (round (#/pointSize f))) #@"modelineFontSize")))))
 
 

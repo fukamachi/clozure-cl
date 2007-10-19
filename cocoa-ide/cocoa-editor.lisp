@@ -1204,7 +1204,8 @@
 ;;; the current values of the buffer's modeline fields.
 
 (defclass modeline-view (ns:ns-view)
-    ((pane :foreign-type :id :accessor modeline-view-pane))
+    ((pane :foreign-type :id :accessor modeline-view-pane)
+     (text-attributes :foreign-type :id :accessor modeline-text-attributes))
   (:metaclass ns:+ns-object))
 
 
@@ -1214,7 +1215,6 @@
 ;;; small, but allows us to see more of the modeline fields (like the
 ;;; full pathname) in more cases.
 
-(defloadvar *modeline-text-attributes* nil)
 
 (def-cocoa-default *modeline-font-name* :string "Courier New Bold Italic"
                    "Name of font to use in modelines")
@@ -1234,26 +1234,26 @@
 ;;; early in the loading sequence confuses some Carbon libraries that're
 ;;; used in the event dispatch mechanism,
 (defun draw-modeline-string (the-modeline-view)
-  (let* ((pane (modeline-view-pane the-modeline-view))
-         (buffer (buffer-for-modeline-view the-modeline-view)))
-    (when buffer
-      ;; You don't want to know why this is done this way.
-      (unless *modeline-text-attributes*
-	(setq *modeline-text-attributes*
-	      (create-text-attributes :color (#/blackColor ns:ns-color)
-				      :font (default-font
-                                                :name *modeline-font-name*
-					      :size *modeline-font-size*))))
-      (let* ((string
-              (apply #'concatenate 'string
-                     (mapcar
-                      #'(lambda (field)
-                          (funcall (hi::modeline-field-function field)
-                                   buffer pane))
-                      (hi::buffer-modeline-fields buffer)))))
-        (#/drawAtPoint:withAttributes: (%make-nsstring string)
-                                       (ns:make-ns-point 0 0)
-                                       *modeline-text-attributes*)))))
+  (with-slots (pane text-attributes) the-modeline-view
+    (let* ((buffer (buffer-for-modeline-view the-modeline-view)))
+      (when buffer
+        ;; You donn't want to know why this is done this way.
+        (when (%null-ptr-p text-attributes)
+          (setq text-attributes
+                (create-text-attributes :color (#/blackColor ns:ns-color)
+                                        :font (default-font
+                                                  :name *modeline-font-name*
+                                                :size *modeline-font-size*))))
+        (let* ((string
+                (apply #'concatenate 'string
+                       (mapcar
+                        #'(lambda (field)
+                            (funcall (hi::modeline-field-function field)
+                                     buffer pane))
+                        (hi::buffer-modeline-fields buffer)))))
+          (#/drawAtPoint:withAttributes: (%make-nsstring string)
+                                         (ns:make-ns-point 0 0)
+                                         text-attributes))))))
 
 ;;; Draw the underlying buffer's modeline string on a white background
 ;;; with a bezeled border around it.
