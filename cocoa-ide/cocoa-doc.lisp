@@ -98,7 +98,7 @@
 
 (defun hyperspec-root-url ()
   (or *hyperspec-root-url*
-      (set *hyperspec-root-url* (setup-hyperspec-root-url))))
+      (setq *hyperspec-root-url* (setup-hyperspec-root-url))))
 
 (defun setup-hyperspec-root-url ()
   (make-instance 'ns:ns-url
