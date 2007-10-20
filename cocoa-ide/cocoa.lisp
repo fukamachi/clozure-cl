@@ -86,7 +86,7 @@
    #@"Listener"
    t))
 
-(defvar *processes-window-controller* nil)
+(defloadvar *processes-window-controller* nil)
 
 (objc:defmethod (#/showProcessesWindow: :void) ((self lisp-application-delegate)
 						sender)
