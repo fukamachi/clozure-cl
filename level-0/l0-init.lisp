@@ -26,6 +26,7 @@
   '(:common-lisp
     :openmcl
     :clozure
+    :clozure-common-lisp
     :ansi-cl
     :unix
     :openmcl-unicode-strings

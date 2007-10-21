@@ -28,9 +28,14 @@
 
 (defun startup-ccl (&optional init-file)
   (with-simple-restart (abort "Abort startup.")
-    (when init-file
-      (with-simple-restart (continue "Skip loading init file.")
-	(load init-file :if-does-not-exist nil :verbose nil)))
+    (let ((init-files (if (listp init-file) init-file (list init-file))))
+      (dolist (init-file init-files)
+	(with-simple-restart (continue "Skip loading init file.")
+	  (when (load init-file :if-does-not-exist nil :verbose nil)
+	    #+clozure-common-lisp ;; Kludge to help people transition
+	    (when (equalp (pathname-name init-file) "openmcl-init")
+	      (warn ">>>>>> The use of openmcl-init.lisp is deprecated.  Please rename your init file to ccl-init.lisp"))
+	    (return)))))
     (flet ((eval-string (s)
 	     (with-simple-restart (continue "Skip evaluation of ~a" s)
 	       (eval (read-from-string s))))
