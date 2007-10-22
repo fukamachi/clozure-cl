@@ -1226,9 +1226,9 @@
 ;;; full pathname) in more cases.
 
 
-(def-cocoa-default *modeline-font-name* :string "Courier New Bold Italic"
+(def-cocoa-default *modeline-font-name* :string "Monaco"
                    "Name of font to use in modelines")
-(def-cocoa-default  *modeline-font-size* :float 10.0 "Size of font to use in modelines")
+(def-cocoa-default  *modeline-font-size* :float 9.0 "Size of font to use in modelines")
 
 
 ;;; Find the underlying buffer.
@@ -1248,30 +1248,49 @@
     (let* ((buffer (buffer-for-modeline-view the-modeline-view)))
       (when buffer
         ;; You donn't want to know why this is done this way.
+	;; Sure I do.  Let's see what happens.
+	#+nil
         (when (%null-ptr-p text-attributes)
           (setq text-attributes
-                (create-text-attributes :color (#/blackColor ns:ns-color)
+                (create-text-attributes :color (#/whiteColor ns:ns-color)
                                         :font (default-font
-                                                  :name *modeline-font-name*
+						:name *modeline-font-name*
                                                 :size *modeline-font-size*))))
+	(unless (%null-ptr-p text-attributes)
+	  (#/release text-attributes))
+	(setq text-attributes
+	      (create-text-attributes :color (#/whiteColor ns:ns-color)
+				      :font (default-font
+					      :name *modeline-font-name*
+					      :size *modeline-font-size*)))
         (let* ((string
                 (apply #'concatenate 'string
                        (mapcar
                         #'(lambda (field)
                             (funcall (hi::modeline-field-function field)
                                      buffer pane))
-                        (hi::buffer-modeline-fields buffer)))))
+                        (hi::buffer-modeline-fields buffer))))
+	       (s (%make-nsstring string))
+	       (view-height (ns:ns-rect-height (#/frame the-modeline-view)))
+	       (size (#/sizeWithAttributes: s text-attributes))
+	       (string-height (ns:ns-size-height size)) 
+	       (y (- view-height string-height)))
+	  (if (minusp y)
+	    (setq y 0.0)
+	    (setq y (/ y 2.0)))
           (#/drawAtPoint:withAttributes: (%make-nsstring string)
-                                         (ns:make-ns-point 0 0)
+                                         (ns:make-ns-point 2 y)
                                          text-attributes))))))
 
 ;;; Draw the underlying buffer's modeline string on a white background
 ;;; with a bezeled border around it.
 (objc:defmethod (#/drawRect: :void) ((self modeline-view) (rect :<NSR>ect))
   (declare (ignorable rect))
-  (let* ((frame (#/bounds self)))
-     (#_NSDrawWhiteBezel frame frame)
-     (draw-modeline-string self)))
+  (let* ((frame (#/bounds self))
+	 (path (#/bezierPath ns:ns-bezier-path)))
+    (#/set (#/blackColor ns:ns-color))
+    (#_NSRectFill frame)
+    (draw-modeline-string self)))
 
 ;;; Hook things up so that the modeline is updated whenever certain buffer
 ;;; attributes change.
@@ -1542,7 +1561,9 @@
 (defloadvar *hemlock-frame-count* 0)
 
 (defun make-echo-area (the-hemlock-frame x y width height gap-context color)
-  (let* ((box (make-instance 'ns:ns-view :with-frame (ns:make-ns-rect x y width height))))
+  (let* ((color-list (#/colorListNamed: ns:ns-color-list #@"System"))
+	 (color (#/colorWithKey: color-list #@"windowBackgroundColor"))
+	 (box (make-instance 'ns:ns-view :with-frame (ns:make-ns-rect x y width height))))
     (#/setAutoresizingMask: box #$NSViewWidthSizable)
     (let* ((box-frame (#/bounds box))
            (containersize (ns:make-ns-size large-number-for-text (ns:ns-rect-height box-frame)))
