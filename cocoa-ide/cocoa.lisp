@@ -86,6 +86,33 @@
    #@"Listener"
    t))
 
+(objc:defmethod (#/showListener: :void) ((self lisp-application-delegate)
+                                        sender)
+  (declare (ignore sender))
+  (let* ((all-windows (#/orderedWindows *NSApp*))
+	 (key-window (#/keyWindow *NSApp*))
+	 (listener-windows ())
+	 (top-listener nil))
+    (dotimes (i (#/count all-windows))
+      (let* ((w (#/objectAtIndex: all-windows i))
+	     (wc (#/windowController w)))
+	(when (eql (#/class wc) hemlock-listener-window-controller)
+	  (push w listener-windows))))
+    (setq listener-windows (nreverse listener-windows))
+    (setq top-listener (car listener-windows))
+    (cond 
+     ((null listener-windows)
+      (#/newListener: self +null-ptr+))
+     ((eql key-window top-listener)
+      ;; The current window is a listener.  If there is more than
+      ;; one listener, bring the rear-most forward.
+      (let* ((w (car (last listener-windows))))
+	(if (eql top-listener w)
+	  (#_NSBeep)
+	  (#/makeKeyAndOrderFront: w +null-ptr+))))
+     (t
+      (#/makeKeyAndOrderFront: (car listener-windows) +null-ptr+)))))
+  
 (defloadvar *processes-window-controller* nil)
 
 (objc:defmethod (#/showProcessesWindow: :void) ((self lisp-application-delegate)

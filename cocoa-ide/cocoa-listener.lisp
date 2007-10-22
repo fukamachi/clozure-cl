@@ -449,15 +449,6 @@
         (cond
           ((eql action (@selector #/revertDocumentToSaved:))
            (values t nil))
-          ((eql action (@selector #/makeKeyAndOrderFront:))
-           (let* ((target (#/target item))
-                  (window (cocoa-listener-process-window process)))
-             (if (eql target window)
-               (progn
-                 (#/setKeyEquivalent: item #@"L")
-                 (#/setKeyEquivalentModifierMask: item #$NSCommandKeyMask))
-               (#/setKeyEquivalent: item #@""))
-             (values t t)))
           ((eql action (@selector #/interrupt:)) (values t t))
           ((eql action (@selector #/continue:))
            (let* ((context (listener-backtrace-context process)))
@@ -550,26 +541,6 @@
     (if (typep target-listener 'cocoa-listener-process)
       (destructuring-bind (package path string) selection
         (hi::send-string-to-listener-process target-listener string :package package :path path)))))
-
-;;; Give the windows menu item for the top listener a command-key
-;;; equivalent of cmd-L.  Remove command-key equivalents from other windows.
-;;; (There are probably other ways of doing this.)
-(objc:defmethod (#/validateMenuItem: :<BOOL>) ((self hemlock-listener-frame)
-                                               item)
-  (let* ((action (#/action item)))
-    (when (eql action (@selector #/makeKeyAndOrderFront:))
-      (let* ((target (#/target item)))
-        (when (eql target self)
-          (let* ((top-doc (#/topListener hemlock-listener-document))
-                 (our-doc (#/document (#/windowController self))))
-            (if (eql our-doc top-doc)
-              (progn
-                (#/setKeyEquivalent: item #@"l")
-                (#/setKeyEquivalentModifierMask: item #$NSCommandKeyMask))
-              (#/setKeyEquivalent: item #@"")))))))
-  (call-next-method item))
-
-
 
 
        
