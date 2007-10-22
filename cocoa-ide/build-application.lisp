@@ -69,7 +69,8 @@
 
     ;; copy IDE resources into the application bundle
     (recursive-copy-directory (path ide-bundle-path "Contents" "Resources/")
-                              (path app-bundle  "Contents" "Resources/"))
+                              (path app-bundle  "Contents" "Resources/")
+			      :if-exists :overwrite)
     ;; copy user-supplied nibfiles into the bundle
     (when nibfiles
       (let ((nib-paths (mapcar #'pathname nibfiles)))
@@ -85,7 +86,7 @@
           (let ((dest (path app-bundle  "Contents" "Resources" "English.lproj/" (namestring (basename n)))))
             (if (probe-file dest)
                 (error "The destination nibfile '~A' already exists" dest)
-                (recursive-copy-directory n dest))))))
+                (recursive-copy-directory n dest :if-exists :overwrite))))))
     ;; save the application image
     (save-application image-path
                       :application-class application-class

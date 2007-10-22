@@ -311,11 +311,25 @@
 			      (neq (pathname-host path) :unspecific)))
 
 (defun ensure-directory-namestring (string)
-  (let* ((len (length string)))
-    (if (and (> len 1)
-             (not (eql (char string (1- len)) #\/)))
-      (concatenate 'string string "/")
-      string)))
+  (namestring (ensure-directory-pathname string)))
+
+(defun ensure-directory-pathname (pathname)
+  (let ((path (pathname pathname)))
+    (if (directory-pathname-p path)
+	path
+	(cons-pathname (append (or (pathname-directory path)
+				   ;; This makes sure "ccl:foo" maps to "ccl:foo;" (not
+				   ;; "ccl:;foo;"), but "foo" maps to "foo/" (not "/foo/").
+				   (if (eq (pathname-host path) :unspecific)
+				       '(:relative)
+				       '(:absolute)))
+			       ;; Don't use file-namestring, because that
+			       ;; includes the version for logical names.
+			       (list (file-namestring-from-parts
+				      (pathname-name path)
+				      (pathname-type path)
+				      nil)))
+		       nil nil (pathname-host path)))))
 
 (defun %directory-list-namestring (list &optional logical-p)
   (if (null list)

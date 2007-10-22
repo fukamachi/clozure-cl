@@ -28,26 +28,6 @@
 		   app)
 	 app))
 
-;;; PATHNAME-SEPARATOR
-;;; returns the character used to separate elements of a pathname
-;;; on this platform. 
-;;; TODO: add conditional compiles to support platforms where
-;;;       the path separator is not "/" (if we ever care about that) 
-(defun pathname-separator () #\/)
-
-;;; ENSURE-DIRECTORY-PATHNAME p
-;;; Returns the input pathname P, but ensures that it ends with a
-;;; path separator, so that it will be parsed as a directory
-(defmethod ensure-directory-pathname ((p string))
-  (let ((pstr (namestring p)))
-    (if (char= (pathname-separator)
-               (elt pstr (1- (length pstr))))
-        p
-        (pathname (concatenate 'string p (string (pathname-separator)))))))
-
-(defmethod ensure-directory-pathname ((p pathname)) 
-  (ensure-directory-pathname (namestring p)))
-
 ;;; BASENAME path
 ;;; returns the final component of a pathname--that is, the
 ;;; filename (with type extension) if it names a file, or the
@@ -81,34 +61,6 @@
           (merge-pathnames (apply #'path (cdr components))
                            (ensure-directory-pathname (car components))))))
 
-
-;;; RECURSIVE-COPY-DIRECTORY source-path dest-path
-;;; Copies the contents of the SOURCE-PATH to the DEST-PATH.
-;;;
-;;; TODO: - add an ignore-list ability, so I can prevent
-;;;         this function from copying CVS and .svn directories
-;;;       - add some flags to control what do do if the dest
-;;;         already exists, and that sort of thing. Currently,
-;;;         this function just clobbers naything that is already
-;;;         in DEST-PATH
-(defun recursive-copy-directory (source-path dest-path)
-  (ensure-directories-exist (ensure-directory-pathname dest-path))
-  (let ((files (directory (path source-path "*.*") :directories nil :files t))
-        (subdirs (directory (path source-path "*.*") :directories t :files nil)))
-;    (format t "~%files = ~S" files)
-;    (format t "~%subdirs = ~S~%" subdirs)
-    (dolist (f files)
-      (let* ((src-name (file-namestring f))
-             (dest-file (path dest-path src-name)))
-        (ccl:copy-file f dest-file
-                       :if-exists :supersede
-                       :preserve-attributes t)))
-    (dolist (d subdirs)
-      (let* ((subdir-name (first (last (pathname-directory d))))
-             (dest-dir (ensure-directory-pathname (path dest-path subdir-name))))
-        (recursive-copy-directory d dest-dir)))
-    dest-path
-    ))
 
 ;;; WRITE-PKGINFO path package-type bundle-signature
 ;;; Writes a PkgInfo file of the sort used by Cocoa applications
@@ -150,9 +102,8 @@
            (sig-str (%make-nsstring bundle-signature))
            (ide-bundle (#/mainBundle ns:ns-bundle))
            (ide-bundle-path-nsstring (#/bundlePath ide-bundle))
-           (ide-bundle-path (pathname 
-                             (ensure-directory-pathname 
-                              (lisp-string-from-nsstring ide-bundle-path-nsstring))))
+           (ide-bundle-path (ensure-directory-pathname 
+			     (lisp-string-from-nsstring ide-bundle-path-nsstring)))
            (ide-plist-path-str (namestring (path ide-bundle-path 
                                                  "Contents" "Info.plist")))
            (info-dict (#/dictionaryWithContentsOfFile: ns:ns-mutable-dictionary 

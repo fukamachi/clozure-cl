@@ -130,6 +130,31 @@
 		 source-path dest-path (%strerror exit-code)))
 	(values new-name original (truename new-name))))))
 
+(defun recursive-copy-directory (source-path dest-path &key test (if-exists :error))
+  ;; TODO: Support :if-exists :supersede to blow away any files not in source dir
+  (setq if-exists (require-type if-exists '(member :overwrite :error)))
+  (setq dest-path (ensure-directory-pathname dest-path))
+  (when (eq if-exists :error)
+    (when (probe-file dest-path)
+      (if-exists if-exists dest-path))
+    ;; Skip the probe-file in recursive calls, already know ok.
+    (setq if-exists :overwrite))
+  (let* ((source-dir (ensure-directory-pathname source-path))
+	 (pattern (make-pathname :name :wild :type :wild :defaults source-dir))
+	 (source-files (directory pattern :test test :directories t :files t)))
+    (ensure-directories-exist dest-path)
+    (dolist (f source-files)
+      (when (or (null test) (funcall test f))
+	(if (directory-pathname-p f)
+	    (let ((dest-file (make-pathname :name (first (last (pathname-directory f)))
+					    :defaults dest-path)))
+	      (recursive-copy-directory f dest-file :test test :if-exists if-exists))
+	    (let* ((dest-file (make-pathname :name (pathname-name f)
+					     :type (pathname-type f)
+					     :defaults dest-path)))
+	      (copy-file f dest-file :if-exists :supersede :preserve-attributes t)))))))
+
+
 
 ;;; It's not clear that we can support anything stronger than
 ;;; "advisory" ("you pretend the file's locked & I will too") file
