@@ -111,8 +111,23 @@
 	  (#_NSBeep)
 	  (#/makeKeyAndOrderFront: w +null-ptr+))))
      (t
-      (#/makeKeyAndOrderFront: (car listener-windows) +null-ptr+)))))
-  
+      (#/makeKeyAndOrderFront: top-listener +null-ptr+)))))
+
+(objc:defmethod (#/ensureListener: :void) ((self lisp-application-delegate)
+					   sender)
+  "If no listener exists, create one and bring it to the front without making it the key or main window."
+  (declare (ignore sender))
+  (let ((top-listener-document (#/topListener hemlock-listener-document)))
+    (when (eql top-listener-document +null-ptr+)
+      (let* ((dc (#/sharedDocumentController ns:ns-document-controller))
+	     (wc nil))
+	(setq top-listener-document
+	      (#/makeUntitledDocumentOfType:error: dc #@"Listener" +null-ptr+))
+	(#/addDocument: dc top-listener-document)
+	(#/makeWindowControllers top-listener-document)
+	(setq wc (#/lastObject (#/windowControllers top-listener-document)))
+	(#/orderFront: (#/window wc) +null-ptr+)))))
+
 (defloadvar *processes-window-controller* nil)
 
 (objc:defmethod (#/showProcessesWindow: :void) ((self lisp-application-delegate)

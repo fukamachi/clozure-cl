@@ -522,10 +522,12 @@
 
 (defun hemlock::evaluate-input-selection (selection)
   (application-ui-operation *application* :eval-selection selection))
-			    
+  
 (defmethod ui-object-choose-listener-for-selection ((app ns:ns-application)
 						    selection)
   (declare (ignore selection))
+  (#/performSelectorOnMainThread:withObject:waitUntilDone:
+   (#/delegate *NSApp*) (@selector #/ensureListener:) +null-ptr+ #$YES)
   (let* ((top-listener-document (#/topListener hemlock-listener-document)))
     (if top-listener-document
       (let* ((buffer (hemlock-document-buffer top-listener-document)))

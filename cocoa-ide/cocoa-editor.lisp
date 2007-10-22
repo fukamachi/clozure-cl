@@ -896,10 +896,20 @@
      (char-height :foreign-type :<CGF>loat :accessor text-view-char-height))
   (:metaclass ns:+ns-object))
 
-
-
-
-
+(objc:defmethod (#/evalSelection: :void) ((self hemlock-text-view) sender)
+  (declare (ignore sender))
+  (let* ((dc (#/sharedDocumentController ns:ns-document-controller))
+	 (doc (#/documentForWindow: dc (#/window self)))
+	 (buffer (hemlock-document-buffer doc))
+	 (package-name (hi::variable-value 'hemlock::current-package :buffer buffer))
+	 (pathname (hi::buffer-pathname buffer))
+	 (ranges (#/selectedRanges self))
+	 (text (#/string self)))
+    (dotimes (i (#/count ranges))
+      (let* ((r (#/rangeValue (#/objectAtIndex: ranges i)))
+	     (s (#/substringWithRange: text r)))
+	(setq s (lisp-string-from-nsstring s))
+	(ui-object-eval-selection *NSApp* (list package-name pathname s))))))
 
 (defloadvar *text-view-context-menu* ())
 
@@ -2091,7 +2101,9 @@
            (let* ((selection (#/selectedRange self)))
              (and (> (ns:ns-range-length selection))
                   (#/shouldChangeTextInRange:replacementString: self selection #@""))))
-          (t (call-next-method item)))))
+          ((eql action (@selector #/evalSelection:))
+	   (not (eql 0 (ns:ns-range-length (#/selectedRange self)))))
+	  (t (call-next-method item)))))
 
 (defmethod user-input-style ((doc hemlock-editor-document))
   0)
