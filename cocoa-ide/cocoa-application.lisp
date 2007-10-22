@@ -20,13 +20,11 @@
 (eval-when (:compile-toplevel :execute)
   (use-interface-dir :cocoa))
 
+;;; loading cocoa.lisp creates an IDE bundle in *cocoa-application-path*,
+;;; perhaps copying headers as per *cocoa-application-copy-headers-p*
+(defvar *cocoa-application-path* "ccl:Clozure CL.app;")
+(defvar *cocoa-application-copy-headers-p* t)
 (require "COCOA")
-;;; Alternately, one could
-;;; (require "COCOA-INSPECTOR").  I haven't tried this yet, but think
-;;; that it -should- work.
-
-
-
 
 (defclass cocoa-application (application)
     ())
@@ -49,56 +47,53 @@
     (#_NSLog #@"This application requires features introduced in OSX 10.4.")
     (#_ _exit -1))
   (setq *standalone-cocoa-ide* t)
+  ;; TODO: to avoid confusion, should now reset *cocoa-application-path* to
+  ;; actual bundle path where started up.
   (start-cocoa-application))
 
 
-;;; Wait until we're sure that the Cocoa event loop has started.
-(wait-on-semaphore *cocoa-application-finished-launching*)
+  ;;; The saved image will be an instance of COCOA-APPLICATION (mostly
+  ;;; so that it'll ignore its argument list.)  When it starts up, it'll
+  ;;; run the Cocoa event loop in the cocoa event process.
+  ;;; If you use an init file ("home:ccl-init"), it'll be loaded
+  ;;; in an environment in which *STANDARD-INPUT* always generates EOF
+  ;;; and where output and error streams are directed to the OSX console
+  ;;; (see below).  If that causes problems, you may want to suppress
+  ;;; the loading of your init file (via an :INIT-FILE nil arg to
+  ;;; the call to SAVE-APPLICATION, below.)
 
+(defun build-ide (bundle-path)
+  (setq bundle-path (ensure-directory-pathname bundle-path))
 
-;;; If easygui is a feature, make it so.
-#+easygui (require :easygui)
+  ;; The bundle is expected to exists, we'll just add the executable into it.
+  (assert (probe-file bundle-path))
 
-;;; The saved image will be an instance of COCOA-APPLICATION (mostly
-;;; so that it'll ignore its argument list.)  When it starts up, it'll
-;;; run the Cocoa event loop in the cocoa event process.
-;;; If you use an init file ("home:openmcl-init"), it'll be loaded
-;;; in an environment in which *STANDARD-INPUT* always generates EOF
-;;; and where output and error streams are directed to the OSX console
-;;; (see below).  If that causes problems, you may want to suppress
-;;; the loading of your init file (via an :INIT-FILE nil arg to
-;;; the call to SAVE-APPLICATION, below.)
+  ;; Wait until we're sure that the Cocoa event loop has started.
+  (wait-on-semaphore *cocoa-application-finished-launching*)
 
-;;; As things are distributed, the file "dppccl" in the application
-;;; bundle is just a placeholder.  LaunchServices may have already
-;;; decided that the application isn't really executable and may
-;;; have cached that fact; touching the bundle directory
-;;; here is an attempt to force LaunchServices to discard that
-;;; cached information.
+  (require :easygui)
 
-(touch *fake-cfbundle-path*)
+  (maybe-map-objc-classes t)
+  (let* ((missing ()))
+    (do-interface-dirs (d)
+      (cdb-enumerate-keys
+       (db-objc-classes d)
+       (lambda (name)
+	 (let* ((class (lookup-objc-class name nil))) (unless (objc-class-id  class) (push name missing))))))
+    (when missing
+      (break "ObjC classes ~{~&~a~} are declared but not defined.")))
 
-(maybe-map-objc-classes t)
+  (touch bundle-path)
 
-(let* ((missing ()))
-  (do-interface-dirs (d)
-    (cdb-enumerate-keys
-     (db-objc-classes d)
-     (lambda (name)
-       (let* ((class (lookup-objc-class name nil))) (unless (objc-class-id  class) (push name missing))))))
-  (when missing
-    (break "ObjC classes ~{~&~a~} are declared but not defined.")))
-
-
-(save-application
- (make-pathname
-  :directory (pathname-directory (translate-logical-pathname (merge-pathnames ";Contents;MacOS;" *fake-cfbundle-path*)))
-  :name (standard-kernel-name))
- :prepend-kernel t
- :application-class 'cocoa-application)
+  (let ((image-file (make-pathname :name (standard-kernel-name) :type nil :version nil
+				   :defaults (merge-pathnames ";Contents;MacOS;" bundle-path))))
+    (ensure-directories-exist image-file)
+    (save-application image-file
+		      :prepend-kernel t
+		      :application-class 'cocoa-application)))
 
 ;;; If things go wrong, you might see some debugging information via
 ;;; the OSX console (/Applications/Utilities/Console.app.)  Standard
 ;;; and error output for the initial lisp process will be directed
 ;;; there.
-
+(build-ide *cocoa-application-path*)
