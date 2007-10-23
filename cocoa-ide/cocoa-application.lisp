@@ -81,7 +81,7 @@
        (lambda (name)
 	 (let* ((class (lookup-objc-class name nil))) (unless (objc-class-id  class) (push name missing))))))
     (when missing
-      (break "ObjC classes ~{~&~a~} are declared but not defined.")))
+      (break "ObjC classes ~{~&~a~} are declared but not defined." missing)))
 
   (touch bundle-path)
 
