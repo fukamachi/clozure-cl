@@ -326,6 +326,12 @@
 (bind-key "POP Or Delete Forward" #k"control-d" :mode "Listener")
 (bind-key "Reenter Interactive Input" #k"control-return" :mode "Listener")
 
+;;; Make the user use C-x C-w to save the file, and take care
+;;; not to associate the Listener document with any particular
+;;; file or type.
+(bind-key "Illegal" #k"control-x control-s" :mode "Listener")
+(bind-key "Save To File" #k"control-x control-w" :mode "Listener")
+
 (bind-key "Editor Evaluate Expression" #k"control-meta-escape")
 (bind-key "Editor Evaluate Expression" #k"meta-escape"  :mode "Editor")
 (bind-key "Editor Evaluate Defun" #k"control-x control-e" :mode "Editor")

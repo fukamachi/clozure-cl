@@ -2616,6 +2616,10 @@
   (#/performSelectorOnMainThread:withObject:waitUntilDone:
    self (@selector #/saveDocumentAs:) +null-ptr+ t))
 
+(defmethod hi::save-hemlock-document-to ((self hemlock-editor-document))
+  (#/performSelectorOnMainThread:withObject:waitUntilDone:
+   self (@selector #/saveDocumentTo:) +null-ptr+ t))
+
 (defun initialize-user-interface ()
   (#/sharedDocumentController hemlock-document-controller)
   (#/sharedPanel lisp-preferences-panel)

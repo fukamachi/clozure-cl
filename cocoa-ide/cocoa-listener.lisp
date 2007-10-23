@@ -447,7 +447,9 @@
     (if (typep process 'cocoa-listener-process)
       (let* ((action (#/action item)))
         (cond
-          ((eql action (@selector #/revertDocumentToSaved:))
+          ((or (eql action (@selector #/revertDocumentToSaved:))
+	       (eql action (@selector #/saveDocument:))
+	       (eql action (@selector #/saveDocumentAs:)))
            (values t nil))
           ((eql action (@selector #/interrupt:)) (values t t))
           ((eql action (@selector #/continue:))

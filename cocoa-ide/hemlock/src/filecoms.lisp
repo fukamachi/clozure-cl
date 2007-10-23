@@ -613,6 +613,16 @@
     (when document
       (hi::save-hemlock-document-as document))))
 
+(defcommand "Save To File" (p &optional (buffer (current-buffer)))
+  "Writes the contents of Buffer, which defaults to the current buffer to
+  the file named by Pathname.  The prefix argument is ignored."
+  "Prompts for a file to write the contents of the current Buffer to.
+  The prefix argument is ignored."
+  (declare (ignore p))
+  (let* ((document (hi::buffer-document buffer)))
+    (when document
+      (hi::save-hemlock-document-to document))))
+
 (defcommand "Save File" (p &optional (buffer (current-buffer)))
   "Writes the contents of the current buffer to the associated file.  If there
   is no associated file, one is prompted for."
