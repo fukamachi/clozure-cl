@@ -4,14 +4,14 @@
 
 (in-package :easygui-user)
 
-(defclass tiny-demo-drawing-view (drawing-view) ())
+(defclass tiny-demo-drawing-view (drawing-view) ()
+  (:default-initargs :accept-key-events-p t))
 
 (defconstant short-pi (coerce pi 'short-float))
-(defconstant numsides 12)
+(defparameter numsides 12)
 
 (defmethod draw-view-rectangle ((view tiny-demo-drawing-view) rectangle)
   (declare (ignore rectangle))
-  (format *trace-output* "hallo test!~%")
   (let* ((view (cocoa-ref view))
          (bounds (#/bounds view))
          (width (ns:ns-rect-width bounds))
@@ -34,12 +34,29 @@
 
 (defclass tiny-demo-window (window) ()
   (:default-initargs :size (point 400 400)
-     :position (point 100 350)
-     :title "Tiny rectangle drawing demo"
-     :resizable-p nil
-     :minimizable-p t))
+    :position (point 100 350)
+    :title "Tiny rectangle drawing demo"
+    :resizable-p nil
+    :minimizable-p t))
 
 (defmethod initialize-view :after ((window tiny-demo-window))
   (let ((draw-view (make-instance 'tiny-demo-drawing-view)))
     (setf (content-view window) draw-view)
     (window-show window)))
+
+;;; Mouse handling:
+;;; (Drag up to increase number of points, down to decrease)
+(defvar *original-point* nil)
+
+(defmethod mouse-down ((view tiny-demo-drawing-view) &key location
+                       &allow-other-keys)
+  (setf *original-point* location))
+
+(defmethod mouse-up ((view tiny-demo-drawing-view) &key location
+                     &allow-other-keys)
+  (when *original-point*
+    (cond ((> (point-y location) (point-y *original-point*))
+           (incf numsides))
+          ((< (point-y location) (point-y *original-point*))
+           (decf numsides)))
+    (redisplay view)))

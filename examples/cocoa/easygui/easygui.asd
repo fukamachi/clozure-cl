@@ -24,7 +24,8 @@
     :depends-on (cocoa.asd)
     :components ((:file "package")
                  (:file "new-cocoa-bindings" :depends-on ("package"))
-                 (:file "views" :depends-on ("new-cocoa-bindings"))
+                 (:file "events" :depends-on ("new-cocoa-bindings"))
+                 (:file "views" :depends-on ("events"))
                  (:file "action-targets" :depends-on ("views"))
                  ;;; example:
                  (:file "tiny" :depends-on ("action-targets"))

@@ -2,6 +2,7 @@
 
 ;;; Helper types:
 
+;;; point:
 (defclass eg-point ()
      ((x :initarg :x :reader point-x)
       (y :initarg :y :reader point-y)))
@@ -11,6 +12,11 @@
   (assert (>= y 0))
   (make-instance 'eg-point :x x :y y))
 
+(defmethod print-object ((o eg-point) s)
+  (print-unreadable-object (o s :identity nil :type t)
+    (format s "(~,2,F/~,2,F)" (point-x o) (point-y o))))
+
+;;; range:
 (defclass eg-range ()
      ((start :initarg :start :reader range-start)
       (end :initarg :end :reader range-end)))
@@ -106,3 +112,7 @@
 
 (defmacro running-on-main-thread ((&key (waitp t)) &body body)
   `(run-on-main-thread ,waitp (lambda () ,@body)))
+
+;;; Getting views from objc objects:
+
+(defgeneric easygui-view-of (cocoa-view))

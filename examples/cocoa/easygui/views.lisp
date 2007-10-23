@@ -119,7 +119,11 @@ according to initargs."))
 
 (defclass box-view (content-view-mixin view) ())
 
-(defclass drawing-view (view) ())
+(defclass drawing-view (view)
+     (
+      ;; TODO: make this a mixin
+      (accept-key-events-p :initform nil :initarg :accept-key-events-p
+                           :accessor accept-key-events-p)))
 
 (defparameter *view-class-to-ns-class-map*
               '((static-text-view . ns:ns-text-field)
@@ -290,7 +294,19 @@ according to initargs."))
                                      (rect :<NSR>ect))
   (draw-view-rectangle (easygui-view-of self) (nsrect-rectangle rect)))
 
+(objc:defmethod (#/acceptsFirstReponder: :boolean) ((view cocoa-drawing-view))
+  (accept-key-events-p (easygui-view-of view)))
+
 (defgeneric draw-view-rectangle (view rectangle)
   (:method ((view drawing-view) rectangle)
     (declare (ignore view rectangle))
     nil))
+
+(defmethod redisplay ((view drawing-view)
+                      &key rect)
+  (setf rect (if rect
+                 (rectangle-nsrect rect)
+                 (#/bounds (cocoa-ref view))))
+  (#/setNeedsDisplayInRect: (cocoa-ref view) rect))
+
+(define-useful-mouse-event-handling-routines cocoa-drawing-view)
