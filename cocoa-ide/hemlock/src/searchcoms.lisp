@@ -1,4 +1,4 @@
-;;; -*- Log: hemlock.log; Package: Hemlock -*-
+;; -*- Log: hemlock.log; Package: Hemlock -*-
 ;;;
 ;;; **********************************************************************
 ;;; This code was written as part of the CMU Common Lisp project at
@@ -22,6 +22,7 @@
 (defvar *last-search-pattern*
   (new-search-pattern :string-insensitive :forward "Foo")
   "Search pattern we keep around so we don't cons them all the time.")
+(defvar *search-wrapped-p* nil "True if search wrapped")
 
 (defhvar "String Search Ignore Case"
   "When set, string searching commands use case insensitive."
@@ -102,8 +103,8 @@
   (when (interactive)
     (clear-echo-area)
     (format *echo-area-stream* 
-	    "~:[~;Failing ~]~:[Reverse I-Search~;I-Search~]: ~A"
-	    failure (eq direction :forward) string)))
+	    "~:[~;Failing ~]~:[~;Overwrapped ~]~:[Reverse I-Search~;I-Search~]: ~A"
+	    failure *search-wrapped-p* (eq direction :forward) string)))
 
 (defcommand "Incremental Search" (p)
   "Searches for input string as characters are provided.
@@ -124,7 +125,8 @@
   (declare (ignore p))
   (setf (last-command-type) nil)
   (%i-search-echo-refresh "" :forward nil)
-  (let* ((point (current-point))
+  (let* ((*search-wrapped-p* nil)
+	 (point (current-point))
 	 (save-start (copy-mark point :temporary)))
     (with-mark ((here point))
       (when (eq (catch 'exit-i-search
@@ -156,7 +158,8 @@
   (declare (ignore p))
   (setf (last-command-type) nil)
   (%i-search-echo-refresh "" :backward nil)
-  (let* ((point (current-point))
+  (let* ((*search-wrapped-p* nil)
+	 (point (current-point))
 	 (save-start (copy-mark point :temporary)))
     (with-mark ((here point))
       (when (eq (catch 'exit-i-search
@@ -258,11 +261,24 @@
     (cond ((zerop (length string))
 	   (%i-search-empty-string point trailer direction forward-direction-p
 				   forward-character-p))
-	  ((eq forward-direction-p forward-character-p)
-	   (if failure
-	       (%i-search string point trailer direction failure)
-	       (%i-search-find-pattern string point (move-mark trailer point)
-				       direction)))
+	  ((eq forward-direction-p forward-character-p) ;keep searching in the same direction
+	   (cond ((eq failure :first-failure)
+		  (cond (forward-direction-p
+			 (buffer-start point)
+			 (buffer-start trailer)
+			 (character-offset trailer (length string)))
+			(t
+			 (buffer-end point)
+			 (buffer-end trailer)))
+		  (push-buffer-mark point nil)
+		  (let ((*search-wrapped-p* t))
+		    (%i-search-echo-refresh string direction nil)
+		    (%i-search-find-pattern string point trailer direction)))
+		  (failure
+		   (%i-search string point trailer direction t))
+		  (t
+		   (%i-search-find-pattern string point (move-mark trailer point)
+					   direction))))
 	  (t
 	   (let ((new-direction (if forward-character-p :forward :backward)))
 	     (%i-search-echo-refresh string new-direction nil)
@@ -344,7 +360,7 @@
 	   (if (interactive)
 	       (beep)
 	       (editor-error "I-Search failed."))
-	   (%i-search string point trailer direction t)))))
+	   (%i-search string point trailer direction :first-failure)))))
 
 
 
