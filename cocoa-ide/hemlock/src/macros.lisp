@@ -156,7 +156,7 @@
 ;;;
 (defmacro defcommand (name lambda-list command-doc function-doc
 			   &body forms)
-  "Defcommand Name Lambda-List Command-Doc Function-Doc {Declaration}* {Form}*
+  "Defcommand Name Lambda-List Command-Doc [Function-Doc] {Declaration}* {Form}*
 
   Define a new Hemlock command named Name.  Lambda-List becomes the
   lambda-list, Function-Doc the documentation, and the Forms the
@@ -177,8 +177,8 @@
         (editor-error)))"
 
   (unless (stringp function-doc)
-    (error "Command function documentation is not a string: ~S."
-		  function-doc))
+    (setq forms (cons function-doc forms))
+    (setq function-doc command-doc))
   (when (atom lambda-list)
     (error "Command argument list is not a list: ~S." lambda-list))
   (let (command-name function-name)
