@@ -40,7 +40,7 @@
 				<string>*</string>
 			</array>
 			<key>CFBundleTypeName</key>
-			<string>public.text</string>
+			<string>NSStringPboardType</string>
 			<key>CFBundleTypeOSTypes</key>
 			<array>
 				<string>****</string>
