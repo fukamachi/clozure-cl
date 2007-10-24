@@ -22,9 +22,11 @@
 			    (subseq name 0 (- len 4))
 			    name)))
          (bundle-id (concatenate 'string bundle-prefix "." bundle-name))
+         (bundle-version (format nil "~d" *openmcl-svn-revision*))
          (needles `(("OPENMCL-KERNEL" . ,kernel-name)
 		    ("OPENMCL-NAME" . ,bundle-name)
-                    ("OPENMCL-IDENTIFIER" . ,bundle-id)))
+                    ("OPENMCL-IDENTIFIER" . ,bundle-id)
+		    ("OPENMCL-VERSION" . ,bundle-version)))
          (executable-path (merge-pathnames
                            (make-pathname :directory "Contents/MacOS/"
                                           :name kernel-name)

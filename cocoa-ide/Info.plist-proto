@@ -78,7 +78,7 @@
 	<key>CFBundleSignature</key>
 	<string>OMCL</string>
 	<key>CFBundleVersion</key>
-	<string>0.2</string>
+	<string>OPENMCL-VERSION</string>
 	<key>NSMainNibFile</key>
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
