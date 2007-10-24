@@ -2332,6 +2332,7 @@
       (#/setAccessoryView: panel popup)))
   (#/setExtensionHidden: panel nil)
   (#/setCanSelectHiddenExtension: panel nil)
+  (#/setAllowedFileTypes: panel +null-ptr+)
   (call-next-method panel))
 
 
