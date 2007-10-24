@@ -87,6 +87,8 @@
 
   (let ((image-file (make-pathname :name (standard-kernel-name) :type nil :version nil
 				   :defaults (merge-pathnames ";Contents;MacOS;" bundle-path))))
+    (format *error-output* "~2%Saving application to ~a~2%" (truename bundle-path))
+    (force-output *error-output*)
     (ensure-directories-exist image-file)
     (save-application image-file
 		      :prepend-kernel t
