@@ -14,7 +14,7 @@
 			<key>CFBundleTypeIconFile</key>
 			<string>openmcl-icon.icns</string>
 			<key>CFBundleTypeName</key>
-			<string>org.lisp.lisp-source</string>
+			<string>Lisp source code</string>
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
 			<key>LSIsAppleDefaultForType</key>
