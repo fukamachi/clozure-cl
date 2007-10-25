@@ -79,6 +79,9 @@
 #+gnu-objc
 (define-special-objc-word "GS")
 
+;;; prefix for IDE classes
+(define-special-objc-word "CCL")
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;                              Utilities                                 ;;;;
