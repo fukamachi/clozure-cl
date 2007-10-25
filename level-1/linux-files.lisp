@@ -186,6 +186,14 @@ it has been changed, this is the directory OpenMCL was started in."
 	(setf (%get-byte name last) 0))
     (syscall syscalls::mkdir name mode))))
 
+(defun %rmdir (name)
+  (let* ((last (1- (length name))))
+    (with-cstrs ((name name))
+      (when (and (>= last 0)
+		 (eql (%get-byte name last) (char-code #\/)))
+	(setf (%get-byte name last) 0))
+    (syscall syscalls::rmdir name))))
+
 (defun getenv (key)
   "Look up the value of the environment variable named by name, in the
 OS environment."
