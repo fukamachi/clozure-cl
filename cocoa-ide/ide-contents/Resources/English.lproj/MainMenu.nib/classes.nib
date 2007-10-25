@@ -24,6 +24,10 @@
 			<dict>
 				<key>backtrace</key>
 				<string>id</string>
+				<key>compileAndLoadBuffer</key>
+				<string>id</string>
+				<key>compileBuffer</key>
+				<string>id</string>
 				<key>continue</key>
 				<string>id</string>
 				<key>evalSelection</key>
@@ -35,6 +39,8 @@
 				<key>inspect</key>
 				<string>id</string>
 				<key>interrupt</key>
+				<string>id</string>
+				<key>loadBuffer</key>
 				<string>id</string>
 				<key>newListener</key>
 				<string>id</string>
