@@ -154,7 +154,28 @@
 					     :defaults dest-path)))
 	      (copy-file f dest-file :if-exists :supersede :preserve-attributes t)))))))
 
-
+;;; use with caution!
+;;; blows away a directory and all its contents
+(defun recursive-delete-directory (path &key (if-does-not-exist :error))
+  (setq path (ensure-directory-pathname path))
+  (setq if-does-not-exist (require-type if-does-not-exist '(member :error nil)))
+  (when (eq if-does-not-exist :error)
+    (unless (probe-file path)
+      (if-does-not-exist if-does-not-exist path)))
+  (when (probe-file path)
+      (if (directoryp path)
+	  ;; it's a directory: blow it away
+	  (let* ((pattern (make-pathname :name :wild :type :wild :defaults path))
+		 (files (directory pattern :directories nil :files t))
+		 (subdirs (directory pattern :directories t :files nil))
+		 (target-pathname (native-translated-namestring path)))
+	    (dolist (f files)
+	      (delete-file f))
+	    (dolist (d subdirs)
+	      (recursive-delete-directory d :if-does-not-exist if-does-not-exist))
+	    (%rmdir target-pathname))
+	  ;; it's not a directory: for safety's sake, signal an error
+	  (error "Pathname '~A' is not a directory" path))))
 
 ;;; It's not clear that we can support anything stronger than
 ;;; "advisory" ("you pretend the file's locked & I will too") file
