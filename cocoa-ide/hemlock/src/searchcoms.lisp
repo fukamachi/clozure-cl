@@ -270,7 +270,7 @@
 			(t
 			 (buffer-end point)
 			 (buffer-end trailer)))
-		  (push-buffer-mark point nil)
+		  (push-buffer-mark (copy-mark point))
 		  (let ((*search-wrapped-p* t))
 		    (%i-search-echo-refresh string direction nil)
 		    (%i-search-find-pattern string point trailer direction)))
