@@ -1122,8 +1122,9 @@
       (call-next-method event)))
 
 (objc:defmethod (#/mouseDown: :void) ((self hemlock-text-view) event)
-  (let* ((q (hemlock-frame-event-queue (#/window self))))
-    (hi::enqueue-key-event q #k"leftdown"))
+  (unless (logtest #$NSCommandKeyMask (#/modifierFlags event))
+    (let* ((q (hemlock-frame-event-queue (#/window self))))
+      (hi::enqueue-key-event q #k"leftdown")))
   (call-next-method event))
 
 ;;; Update the underlying buffer's point (and "active region", if appropriate.
@@ -2304,6 +2305,24 @@
     (unless (%null-ptr-p string)
       (let* ((cache (hemlock-buffer-string-cache string)))
 	(when cache (buffer-cache-buffer cache))))))
+
+(defmethod hi:window-buffer ((frame hemlock-frame))
+  (let* ((dc (#/sharedDocumentController ns:ns-document-controller))
+	 (doc (#/documentForWindow: dc frame)))
+    ;; Sometimes doc is null.  Why?  What would cause a hemlock frame to
+    ;; not have a document?  (When it happened, there seemed to be a hemlock
+    ;; frame in (windows) that didn't correspond to any visible window).
+    (unless (%null-ptr-p doc)
+      (hemlock-document-buffer doc))))
+
+(defmethod hi:window-buffer ((pane text-pane))
+  (hi:window-buffer (#/window pane)))
+
+(defun ordered-hemlock-windows ()
+  (delete-if-not #'(lambda (win)
+		     (and (typep win 'hemlock-frame)
+			  (hi:window-buffer win)))
+		   (windows)))
 
 (defmethod hi::document-panes ((document hemlock-editor-document))
   (let* ((ts (slot-value document 'textstorage))

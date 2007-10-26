@@ -179,7 +179,9 @@
    #:shadow-attribute
    #:unshadow-attribute
    #:find-attribute
+   #:find-not-attribute
    #:reverse-find-attribute
+   #:reverse-find-not-attribute
    #:character-attribute-hooks
    #:current-window
    #:make-window

@@ -501,7 +501,10 @@
 	 (t
 	  (when (normal-find-attribute line 0 charpos vector mask)
 	    (return (move-to-position mark charpos line))))))))))
-
+
+(defun find-not-attribute (mark attribute)
+  (find-attribute mark attribute #'zerop))
+
 
 ;;; REVERSE-FIND-ATTRIBUTE  --  Public
 ;;;
@@ -568,3 +571,6 @@
 	 (t
 	  (when (rev-normal-find-attribute line nil charpos vector mask)
 	    (return (move-to-position mark (1+ charpos) line))))))))))
+
+(defun reverse-find-not-attribute (mark attribute)
+  (reverse-find-attribute mark attribute #'zerop))

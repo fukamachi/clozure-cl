@@ -22,11 +22,14 @@
     
 	 
 
-(defun region-to-string (region)
+(defun region-to-string (region &optional output-string)
   "Returns a string containing the characters in the given Region."
   (close-line)
   (let* ((dst-length (count-characters region))
-	 (string (make-string dst-length))
+	 (string (if (and output-string
+			  (<= dst-length (length output-string)))
+		     output-string
+		     (make-string dst-length)))
 	 (start-mark (region-start region))
 	 (end-mark (region-end region))
 	 (start-line (mark-line start-mark))
@@ -52,7 +55,7 @@
 			  (incf index (length chars)))
 	    (setf (char string index) #\newline)
 	    (setq index (1+ index)))))
-    string))
+    (values string dst-length)))
 
 (defun string-to-region (string)
   "Returns a region containing the characters in the given String."
@@ -370,57 +373,63 @@
   (delete #\linefeed (the simple-string string)))
 
 (defun %print-whole-line (structure stream)
-  (cond ((eq structure *open-line*)
-	 (write-string *open-chars* stream :end *left-open-pos*)
-	 (write-string *open-chars* stream :start *right-open-pos*
-		       :end *line-cache-length*))
-	(t
-	 (write-string (line-chars structure) stream))))
+  (let* ((hi::*current-buffer* (line-buffer structure))
+	 (hi::*buffer-gap-context* (hi::buffer-gap-context hi::*current-buffer*)))
+    (cond ((eq structure *open-line*)
+	   (write-string *open-chars* stream :end *left-open-pos*)
+	   (write-string *open-chars* stream :start *right-open-pos*
+			 :end *line-cache-length*))
+	  (t
+	   (write-string (line-chars structure) stream)))))
 
 (defun %print-before-mark (mark stream)
-  (if (mark-line mark)
-      (let* ((line (mark-line mark))
-	     (chars (line-chars line))
-	     (charpos (mark-charpos mark))
-	     (length (line-length line)))
-	(declare (simple-string chars))
-	(cond ((or (> charpos length) (< charpos 0))
-	       (write-string "{bad mark}" stream))
-	      ((eq line *open-line*)
-	       (cond ((< charpos *left-open-pos*)
-		      (write-string *open-chars* stream :end charpos))
-		     (t
-		      (write-string *open-chars* stream :end *left-open-pos*)
-		      (let ((p (+ charpos (- *right-open-pos* *left-open-pos*))))
-			(write-string *open-chars* stream  :start *right-open-pos*
-				      :end p)))))
-	      (t
-	       (write-string chars stream :end charpos))))
-      (write-string "{deleted mark}" stream)))
+  (let* ((hi::*current-buffer* (line-buffer (mark-line mark)))
+	 (hi::*buffer-gap-context* (hi::buffer-gap-context hi::*current-buffer*)))
+    (if (mark-line mark)
+	(let* ((line (mark-line mark))
+	       (chars (line-chars line))
+	       (charpos (mark-charpos mark))
+	       (length (line-length line)))
+	  (declare (simple-string chars))
+	  (cond ((or (> charpos length) (< charpos 0))
+		 (write-string "{bad mark}" stream))
+		((eq line *open-line*)
+		 (cond ((< charpos *left-open-pos*)
+			(write-string *open-chars* stream :end charpos))
+		       (t
+			(write-string *open-chars* stream :end *left-open-pos*)
+			(let ((p (+ charpos (- *right-open-pos* *left-open-pos*))))
+			  (write-string *open-chars* stream  :start *right-open-pos*
+					:end p)))))
+		(t
+		 (write-string chars stream :end charpos))))
+	(write-string "{deleted mark}" stream))))
 
 
 (defun %print-after-mark (mark stream)
-  (if (mark-line mark)
-      (let* ((line (mark-line mark))
-	     (chars (line-chars line))
-	     (charpos (mark-charpos mark))
-	     (length (line-length line)))
-	(declare (simple-string chars))
-	(cond ((or (> charpos length) (< charpos 0))
-	       (write-string "{bad mark}" stream))
-	      ((eq line *open-line*)
-	       (cond ((< charpos *left-open-pos*)
-		      (write-string *open-chars* stream  :start charpos
-				    :end *left-open-pos*)
-		      (write-string *open-chars* stream  :start *right-open-pos*
-				    :end *line-cache-length*))
-		     (t
-		      (let ((p (+ charpos (- *right-open-pos* *left-open-pos*))))
-			(write-string *open-chars* stream :start p
-				      :end *line-cache-length*)))))
-	      (t
-	       (write-string chars stream  :start charpos  :end length))))
-      (write-string "{deleted mark}" stream)))
+  (let* ((hi::*current-buffer* (line-buffer (mark-line mark)))
+	 (hi::*buffer-gap-context* (hi::buffer-gap-context hi::*current-buffer*)))
+    (if (mark-line mark)
+	(let* ((line (mark-line mark))
+	       (chars (line-chars line))
+	       (charpos (mark-charpos mark))
+	       (length (line-length line)))
+	  (declare (simple-string chars))
+	  (cond ((or (> charpos length) (< charpos 0))
+		 (write-string "{bad mark}" stream))
+		((eq line *open-line*)
+		 (cond ((< charpos *left-open-pos*)
+			(write-string *open-chars* stream  :start charpos
+				      :end *left-open-pos*)
+			(write-string *open-chars* stream  :start *right-open-pos*
+				      :end *line-cache-length*))
+		       (t
+			(let ((p (+ charpos (- *right-open-pos* *left-open-pos*))))
+			  (write-string *open-chars* stream :start p
+					:end *line-cache-length*)))))
+		(t
+		 (write-string chars stream  :start charpos  :end length))))
+	(write-string "{deleted mark}" stream))))
 
 (defun %print-hline (structure stream d)
   (declare (ignore d))
@@ -430,11 +439,13 @@
 
 (defun %print-hmark (structure stream d)
   (declare (ignore d))
-  (write-string "#<Hemlock Mark \"" stream)
-  (%print-before-mark structure stream)
-  (write-string "^" stream)
-  (%print-after-mark structure stream)
-  (write-string "\">" stream))  
+  (let ((hi::*current-buffer* (line-buffer (mark-line structure)))
+	(hi::*buffer-gap-context* (hi::buffer-gap-context hi::*current-buffer*)))
+    (write-string "#<Hemlock Mark \"" stream)
+    (%print-before-mark structure stream)
+    (write-string "^" stream)
+    (%print-after-mark structure stream)
+    (write-string "\">" stream)))
 
 (defvar *print-region* 10
   "The number of lines to print out of a region, or NIL if none.")
@@ -444,6 +455,8 @@
   (write-string "#<Hemlock Region \"" stream)
   (let* ((start (region-start region))
 	 (end (region-end region))
+	 (hi::*current-buffer* (line-buffer (mark-line start)))
+	 (hi::*buffer-gap-context* (hi::buffer-gap-context hi::*current-buffer*))
 	 (first-line (mark-line start))
 	 (last-line (mark-line end)))
     (cond
