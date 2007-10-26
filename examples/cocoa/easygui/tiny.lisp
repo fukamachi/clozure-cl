@@ -2,7 +2,7 @@
 ;;; This one creates a full-window view and draws in it.
 ;;; This is the easygui equivalent of examples/cocoa/tiny.lisp.
 
-(in-package :easygui-user)
+(in-package :easygui-demo)   ; In user code, this might be easygui-user
 
 (defclass tiny-demo-drawing-view (drawing-view) ()
   (:default-initargs :accept-key-events-p t))

@@ -7,7 +7,7 @@
            ;; view classes
            #:view #:static-text-view #:text-input-view #:password-input-view
            #:push-button-view
-           #:form-view #:form-cell-view #:box-view #:drawing-view
+           #:form-view #:form-cell-view #:box-view #:drawing-view #:slider-view
            ;; event methods
            #:mouse-down #:mouse-dragged #:mouse-up
            ;; operators
@@ -17,7 +17,13 @@
            #:initialize-view #:action #:view-text
            #:add-entry #:add-entries #:editable-p
            #:draw-view-rectangle
-           #:entry-text #:nth-cell #:selection #:redisplay))
+           #:entry-text #:nth-cell #:selection #:redisplay
+           #:string-value-of #:integer-value-of #:float-value-of
+           #:double-value-of))
+
+(cl:defpackage :easygui-demo
+  (:use :cl :easygui)
+  (:export #:converter-window #:tiny-demo-window))
 
 (cl:defpackage :easygui-user
   (:use :cl :easygui))

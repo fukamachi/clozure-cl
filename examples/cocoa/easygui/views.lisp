@@ -14,20 +14,49 @@ according to initargs."))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; mixins
 
+(defclass value-mixin () ())
+(defclass string-value-mixin (value-mixin) ())
+(defclass numeric-value-mixin (value-mixin) ())
+
+(macrolet ((def-type-accessor (class lisp-type cocoa-reader cocoa-writer
+                                     &key new-value-form return-value-converter)
+               (let ((name (intern (format nil "~A-VALUE-OF" lisp-type))))
+                 `(progn
+                    (defmethod ,name ((o ,class))
+                      ,(if return-value-converter
+                           `(,return-value-converter
+                             (dcc (,cocoa-reader (cocoa-ref o))))
+                           `(dcc (,cocoa-reader (cocoa-ref o)))))
+                    (defmethod (setf ,name) (new-value (o ,class))
+                      (dcc (,cocoa-writer (cocoa-ref o)
+                                          ,(or new-value-form
+                                               'new-value))))))))
+  (def-type-accessor string-value-mixin string #/stringValue #/setStringValue:
+                     :return-value-converter lisp-string-from-nsstring )
+
+  (def-type-accessor numeric-value-mixin integer #/intValue #/setIntValue:)
+  (def-type-accessor numeric-value-mixin float
+    #/floatValue #/setFloatValue:
+    :new-value-form (coerce new-value 'single-float))
+  (def-type-accessor numeric-value-mixin double
+    #/doubleValue #/setDoubleValue:
+    :new-value-form (coerce new-value 'double-float)))
+
 (defclass view-text-mixin ()
      ((text :initarg :text)))
-(defclass view-text-via-stringvalue-mixin (view-text-mixin) ())
+(defclass view-text-via-stringvalue-mixin (view-text-mixin string-value-mixin)
+     ())
 (defclass view-text-via-title-mixin (view-text-mixin)
      ((text :initarg :title)))
 
 (defmethod view-text ((view view-text-via-stringvalue-mixin))
-  (lisp-string-from-nsstring (dcc (#/stringValue (cocoa-ref view)))))
+  (string-value-of view))
 
 (defmethod view-text ((view view-text-via-title-mixin))
   (lisp-string-from-nsstring (dcc (#/title (cocoa-ref view)))))
 
 (defmethod (setf view-text) (new-text (view view-text-via-stringvalue-mixin))
-  (dcc (#/setStringValue: (cocoa-ref view) new-text)))
+  (setf (string-value-of view) new-text))
 
 (defmethod (setf view-text) (new-text (view view-text-via-title-mixin))
   (dcc (#/setTitle: (cocoa-ref view) new-text)))
@@ -125,6 +154,12 @@ according to initargs."))
       (accept-key-events-p :initform nil :initarg :accept-key-events-p
                            :accessor accept-key-events-p)))
 
+(defclass slider-view (view numeric-value-mixin)
+     ((max-value :initarg :max-value)
+      (min-value :initarg :min-value)
+      (tick-mark-count :initarg :tick-mark-count)
+      (discrete-tick-marks-p :initarg :discrete-tick-marks-p)))
+
 (defparameter *view-class-to-ns-class-map*
               '((static-text-view . ns:ns-text-field)
                 (text-input-view . ns:ns-text-field)
@@ -133,7 +168,8 @@ according to initargs."))
                 (form-view . ns:ns-form)
                 (form-cell-view . ns:ns-form-cell)
                 (box-view . ns:ns-box)
-                (drawing-view . cocoa-drawing-view)))
+                (drawing-view . cocoa-drawing-view)
+                (slider-view . ns:ns-slider)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; view initialization:
@@ -220,6 +256,23 @@ according to initargs."))
     (dcc (#/setInterlineSpacing: (cocoa-ref view)
                              (coerce (slot-value view 'interline-spacing)
                                      'double-float)))))
+
+(defmethod initialize-view :after ((view slider-view))
+  (with-slots (discrete-tick-marks-p tick-mark-count min-value max-value) view
+     (cond ((and (not (slot-boundp view 'tick-mark-count))
+                 (slot-boundp view 'discrete-tick-marks-p)
+                 (/= (length tick-mark-values) tick-mark-count))
+            (error "Incompatible tick mark specification: ~A doesn't match ~
+                     count of ~A" tick-mark-values tick-mark-values))
+           ((or (not (slot-boundp view 'max-value))
+                (not (slot-boundp view 'min-value)))
+            (error "A slider view needs both :min-value and :max-value set.")))
+     (dcc (#/setMinValue: (cocoa-ref view) (float min-value ns:+cgfloat-zero+)))
+     (dcc (#/setMaxValue: (cocoa-ref view) (float max-value ns:+cgfloat-zero+)))
+     (when (slot-boundp view 'tick-mark-count)
+       (dcc (#/setNumberOfTickMarks: (cocoa-ref view) tick-mark-count))
+       (dcc (#/setAllowsTickMarkValuesOnly:
+             (cocoa-ref view) (not (not discrete-tick-marks-p)))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; view hierarchies:

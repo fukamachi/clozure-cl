@@ -1,4 +1,4 @@
-(in-package :easygui-user)
+(in-package :easygui-demo)
 
 (defclass converter-window (window)
    ()
