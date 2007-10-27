@@ -543,8 +543,15 @@
   (let* ((target-listener (ui-object-choose-listener-for-selection
 			   app selection)))
     (if (typep target-listener 'cocoa-listener-process)
-      (destructuring-bind (package path string) selection
+        (destructuring-bind (package path string) selection
         (hi::send-string-to-listener-process target-listener string :package package :path path)))))
+
+(defmethod ui-object-load-buffer ((app ns:ns-application) selection)
+  (let* ((target-listener (ui-object-choose-listener-for-selection app nil)))
+    (if (typep target-listener 'cocoa-listener-process)
+        (destructuring-bind (package path) selection
+          (let ((string (format nil "(load ~S)" path)))
+            (hi::send-string-to-listener-process target-listener string :package package :path path))))))
 
 
        
