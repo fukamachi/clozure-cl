@@ -553,6 +553,23 @@
           (let ((string (format nil "(load ~S)" path)))
             (hi::send-string-to-listener-process target-listener string :package package :path path))))))
 
+(defmethod ui-object-compile-buffer ((app ns:ns-application) selection)
+  (let* ((target-listener (ui-object-choose-listener-for-selection app nil)))
+    (if (typep target-listener 'cocoa-listener-process)
+        (destructuring-bind (package path) selection
+          (let ((string (format nil "(compile-file ~S)" path)))
+            (hi::send-string-to-listener-process target-listener string :package package :path path))))))
+
+(defmethod ui-object-compile-and-load-buffer ((app ns:ns-application) selection)
+  (let* ((target-listener (ui-object-choose-listener-for-selection app nil)))
+    (if (typep target-listener 'cocoa-listener-process)
+        (destructuring-bind (package path) selection
+          (let ((string (format nil "(progn (compile-file ~S)(load ~S))" 
+                                path
+                                (make-pathname :directory (pathname-directory path)
+                                               :name (pathname-name path)
+                                               :type (pathname-type path)))))
+            (hi::send-string-to-listener-process target-listener string :package package :path path))))))
 
        
   

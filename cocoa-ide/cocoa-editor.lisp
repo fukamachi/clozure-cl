@@ -920,6 +920,24 @@
          (pathname (hi::buffer-pathname buffer)))
     (ui-object-load-buffer *NSApp* (list package-name pathname))))
 
+(objc:defmethod (#/compileBuffer: :void) ((self hemlock-text-view) sender)
+  (declare (ignore sender))
+  (let* ((dc (#/sharedDocumentController ns:ns-document-controller))
+         (doc (#/documentForWindow: dc (#/window self)))
+         (buffer (hemlock-document-buffer doc))
+         (package-name (hi::variable-value 'hemlock::current-package :buffer buffer))
+         (pathname (hi::buffer-pathname buffer)))
+    (ui-object-compile-buffer *NSApp* (list package-name pathname))))
+
+(objc:defmethod (#/compileAndLoadBuffer: :void) ((self hemlock-text-view) sender)
+  (declare (ignore sender))
+  (let* ((dc (#/sharedDocumentController ns:ns-document-controller))
+         (doc (#/documentForWindow: dc (#/window self)))
+         (buffer (hemlock-document-buffer doc))
+         (package-name (hi::variable-value 'hemlock::current-package :buffer buffer))
+         (pathname (hi::buffer-pathname buffer)))
+    (ui-object-compile-and-load-buffer *NSApp* (list package-name pathname))))
+
 (defloadvar *text-view-context-menu* ())
 
 (defun text-view-context-menu ()
@@ -2136,7 +2154,9 @@
            (not (eql 0 (ns:ns-range-length (#/selectedRange self)))))
           ;; if this hemlock-text-view is in an editor windowm and its buffer has
           ;; an associated pathname, then activate the Load Buffer item
-          ((eql action (@selector #/loadBuffer:)) 
+          ((or (eql action (@selector #/loadBuffer:))
+               (eql action (@selector #/compileBuffer:))
+               (eql action (@selector #/compileAndLoadBuffer:))) 
            (let* ((d (hemlock-buffer-string-cache (#/hemlockString (#/textStorage self))))
                   (buffer (buffer-cache-buffer d))
                   (pathname (hi::buffer-pathname buffer)))
