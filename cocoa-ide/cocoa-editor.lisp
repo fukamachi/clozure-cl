@@ -1615,8 +1615,7 @@
 (defloadvar *hemlock-frame-count* 0)
 
 (defun make-echo-area (the-hemlock-frame x y width height gap-context color)
-  (let* ((color (#/whiteColor ns:ns-color))
-	 (box (make-instance 'ns:ns-view :with-frame (ns:make-ns-rect x y width height))))
+  (let* ((box (make-instance 'ns:ns-view :with-frame (ns:make-ns-rect x y width height))))
     (#/setAutoresizingMask: box #$NSViewWidthSizable)
     (let* ((box-frame (#/bounds box))
            (containersize (ns:make-ns-size large-number-for-text (ns:ns-rect-height box-frame)))
