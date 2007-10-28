@@ -1872,9 +1872,11 @@
       (setf (variable-value 'current-package :buffer buffer)
             (buffer-first-in-package-form buffer))))
 
+(defun buffer-package (buffer)
+  (when (hemlock-bound-p 'current-package :buffer buffer)
+    (let ((package-name (variable-value 'current-package :buffer buffer)))
+      (find-package package-name))))
 
-
-    
 (defun setup-lisp-mode (buffer)
   (unless (hemlock-bound-p 'current-package :buffer buffer)
     (defhvar "Current Package"
