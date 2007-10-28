@@ -387,6 +387,7 @@
             accepts-mouse-moved-events
             (get-cocoa-window-flag w :auto-display)
             auto-display)
+      (#/setBackgroundColor: w (#/whiteColor ns:ns-color))
       (when activate (activate-window w))
       (when title (set-window-title w title))
       w)))
