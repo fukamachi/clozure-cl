@@ -868,6 +868,7 @@
 (defindent "etypecase" 1)
 (defindent "eval-when" 1)
 (defindent "flet" 1)
+(defindent "if" 1)
 (defindent "labels" 1)
 (defindent "lambda" 1)
 (defindent "let" 1)
@@ -956,6 +957,7 @@
 (defindent "defclass" 2)
 (defindent "print-unreadable-object" 1)
 (defindent "defmethod" 2)
+(defindent "make-instance" 1)
 
 ;;; System forms.
 ;;;
