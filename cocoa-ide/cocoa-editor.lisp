@@ -1241,11 +1241,49 @@
 ;;; the view's invalidated, its drawRect: method draws a string containing
 ;;; the current values of the buffer's modeline fields.
 
+(defparameter *modeline-grays* #(255 255 253 247 242 236 231
+				 224 229 234 239 245 252 255))
+
+(defloadvar *modeline-pattern-image* nil)
+
+(defun create-modeline-pattern-image ()
+  (let* ((n (length *modeline-grays*)))
+    (multiple-value-bind (samples-array samples-macptr)
+	(make-heap-ivector n '(unsigned-byte 8))
+      (dotimes (i n)
+	(setf (aref samples-array i) (aref *modeline-grays* i)))
+      (rlet ((p :address samples-macptr))
+	(let* ((rep (make-instance 'ns:ns-bitmap-image-rep
+				   :with-bitmap-data-planes p
+				   :pixels-wide 1
+				   :pixels-high n
+				   :bits-per-sample 8
+				   :samples-per-pixel 1
+				   :has-alpha #$NO
+				   :is-planar #$NO
+				   :color-space-name #&NSDeviceWhiteColorSpace
+				   :bytes-per-row 1
+				   :bits-per-pixel 8))
+	       (image (make-instance 'ns:ns-image
+				     :with-size (ns:make-ns-size 1 n))))
+	  (#/addRepresentation: image rep)
+	  (#/release rep)
+	  (setf *modeline-pattern-image* image))))))
+
 (defclass modeline-view (ns:ns-view)
     ((pane :foreign-type :id :accessor modeline-view-pane)
      (text-attributes :foreign-type :id :accessor modeline-text-attributes))
   (:metaclass ns:+ns-object))
 
+(objc:defmethod #/initWithFrame: ((self modeline-view) (frame :<NSR>ect))
+  (call-next-method frame)
+  (unless *modeline-pattern-image*
+    (create-modeline-pattern-image))
+  (let* ((size (#/smallSystemFontSize ns:ns-font))
+	 (font (#/systemFontOfSize: ns:ns-font size))
+	 (dict (#/dictionaryWithObject:forKey: ns:ns-dictionary font #&NSFontAttributeName)))
+    (setf (modeline-text-attributes self) (#/retain dict)))
+  self)
 
 ;;; Attributes to use when drawing the modeline fields.  There's no
 ;;; simple way to make the "placard" taller, so using fonts larger than
@@ -1275,50 +1313,38 @@
   (with-slots (pane text-attributes) the-modeline-view
     (let* ((buffer (buffer-for-modeline-view the-modeline-view)))
       (when buffer
-        ;; You donn't want to know why this is done this way.
-	;; Sure I do.  Let's see what happens.
-	#+nil
-        (when (%null-ptr-p text-attributes)
-          (setq text-attributes
-                (create-text-attributes :color (#/whiteColor ns:ns-color)
-                                        :font (default-font
-						:name *modeline-font-name*
-                                                :size *modeline-font-size*))))
-	(unless (%null-ptr-p text-attributes)
-	  (#/release text-attributes))
-	(setq text-attributes
-	      (create-text-attributes :color (#/whiteColor ns:ns-color)
-				      :font (default-font
-					      :name *modeline-font-name*
-					      :size *modeline-font-size*)))
-        (let* ((string
+	(let* ((string
                 (apply #'concatenate 'string
                        (mapcar
                         #'(lambda (field)
                             (funcall (hi::modeline-field-function field)
                                      buffer pane))
-                        (hi::buffer-modeline-fields buffer))))
-	       (s (%make-nsstring string))
-	       (view-height (ns:ns-rect-height (#/frame the-modeline-view)))
-	       (size (#/sizeWithAttributes: s text-attributes))
-	       (string-height (ns:ns-size-height size)) 
-	       (y (- view-height string-height)))
-	  (if (minusp y)
-	    (setq y 0.0)
-	    (setq y (/ y 2.0)))
-          (#/drawAtPoint:withAttributes: (%make-nsstring string)
-                                         (ns:make-ns-point 2 y)
+                        (hi::buffer-modeline-fields buffer)))))
+	  (#/drawAtPoint:withAttributes: (%make-nsstring string)
+                                         (ns:make-ns-point 5 1)
                                          text-attributes))))))
 
 ;;; Draw the underlying buffer's modeline string on a white background
 ;;; with a bezeled border around it.
 (objc:defmethod (#/drawRect: :void) ((self modeline-view) (rect :<NSR>ect))
   (declare (ignorable rect))
-  (let* ((frame (#/bounds self))
-	 (path (#/bezierPath ns:ns-bezier-path)))
+  (let* ((bounds (#/bounds self))
+	 (context (#/currentContext ns:ns-graphics-context)))
+    (#/saveGraphicsState context)
+    (ns:with-ns-point (p0 0 (ns:ns-rect-height bounds))
+      (let ((p1 (#/convertPoint:toView: self p0 +null-ptr+)))
+	(#/setPatternPhase: context p1)))
+    (#/set (#/colorWithPatternImage: ns:ns-color *modeline-pattern-image*))
+    (#_NSRectFill bounds)
+    (#/set (#/colorWithCalibratedWhite:alpha: ns:ns-color 0.3333 1.0))
+    (ns:with-ns-rect (r 0 0.5 (ns:ns-rect-width bounds) 0.5)
+      (#_NSRectFill r))
+    (ns:with-ns-rect (r 0 (- (ns:ns-rect-height bounds) 0.5)
+			(ns:ns-rect-width bounds) (- (ns:ns-rect-height bounds) 0.5))
+      (#_NSRectFill r))
     (#/set (#/blackColor ns:ns-color))
-    (#_NSRectFill frame)
-    (draw-modeline-string self)))
+    (draw-modeline-string self)
+    (#/restoreGraphicsState context)))
 
 ;;; Hook things up so that the modeline is updated whenever certain buffer
 ;;; attributes change.
