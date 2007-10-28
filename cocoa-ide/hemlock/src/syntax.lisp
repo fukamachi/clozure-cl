@@ -537,6 +537,7 @@
 
 ); eval-when (:compile-toplevel :execute)
 ;;;
+;;; This moves the mark so that previous-character satisfies the test.
 (defun reverse-find-attribute (mark attribute &optional (test #'not-zerop))
   "Find the previous character whose attribute value satisfies test."
   (let* ((charpos (mark-charpos mark))
