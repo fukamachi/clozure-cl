@@ -89,6 +89,7 @@
     "edit-defs"
     "register"
     "completion"
+    "symbol-completion"
     "bindings"
     "bindings-gb"                       ;Gilbert's bindings
     ))  

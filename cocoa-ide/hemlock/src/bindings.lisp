@@ -183,6 +183,8 @@
 ;(bind-key "Mark Page" #k"control-x control-p")
 ;(bind-key "Count Lines Page" #k"control-x l")
 
+(bind-key "Expand Dynamic Abbreviation" #k"meta-/") ;; Aquamacs and LW binding
+(bind-key "Expand Dynamic Abbreviation" #k"meta-`") ;; MCL binding
 
 
 ;;;; Argument Digit and Negative Argument.
@@ -285,7 +287,7 @@
 
 ;;; Rebind some standard commands to behave better.
 ;;; 
-(bind-key "Kill Parse" #k"control-u" :mode "Echo Area")
+;;(bind-key "Kill Parse" #k"control-u" :mode "Echo Area")
 (bind-key "Insert Parse Default" #k"control-i" :mode "Echo Area")
 (bind-key "Insert Parse Default" #k"tab" :mode "Echo Area")
 (bind-key "Echo Area Delete Previous Character" #k"delete" :mode "Echo Area")

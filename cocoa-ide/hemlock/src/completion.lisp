@@ -63,7 +63,7 @@
 ;;; mode.
 ;;;
 (defvar default-lisp-wordchars
-  '(#\~ #\! #\@ #\$ #\% #\^ #\& #\+ #\= #\: #\< #\> #\. #\/ #\?))
+  '(#\~ #\! #\@ #\$ #\% #\^ #\& #\+ #\= #\< #\> #\. #\/ #\?))
 
 (dolist (char default-lisp-wordchars)
   (shadow-attribute :completion-wordchar char 1 "Lisp"))
