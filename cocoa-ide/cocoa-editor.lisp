@@ -2803,10 +2803,27 @@
 
 (defun hi::edit-definition (name)
   (let* ((info (get-source-files-with-types&classes name)))
+    (when (null info)
+      (let* ((seen (list name))
+	     (found ())
+	     (pname (symbol-name name)))
+	(dolist (pkg (list-all-packages))
+	  (let ((sym (find-symbol pname pkg)))
+	    (when (and sym (not (member sym seen)))
+	      (let ((new (get-source-files-with-types&classes sym)))
+		(when new
+		  (setq info (append new info))
+		  (push sym found)))
+	      (push sym seen))))
+	(when found
+	  ;; Unfortunately, this puts the message in the wrong buffer (would be better in the destination buffer).
+	  (hi::loud-message "No definitions for ~s, using ~s instead"
+			    name (if (cdr found) found (car found))))))
     (if info
       (if (cdr info)
         (edit-definition-list name info)
-        (edit-single-definition name (car info))))))
+        (edit-single-definition name (car info)))
+      (hi::editor-error "No known definitions for ~s" name))))
 
 
 (defun find-definition-in-document (name indicator document)

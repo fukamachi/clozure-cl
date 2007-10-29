@@ -70,8 +70,7 @@
 	     (fun-name (symbol-at-point buffer point)))
 	(if fun-name
 	    (get-def-info-and-go-to-it fun-name (or
-						 (find-package
-						  (variable-value 'current-package :buffer (current-buffer)))
+						 (buffer-package (current-buffer))
 						 *package*))
 	    (beep)))))
 
