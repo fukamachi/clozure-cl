@@ -27,9 +27,9 @@
   (#/selectAll: self +null-ptr+)
   (#/delete: self +null-ptr+))
 
-(objc:defmethod (#/insertText: :void) ((self typeout-text-view) text)
+(objc:defmethod (#/insertString: :void) ((self typeout-text-view) text)
   (#/setEditable: self t)
-  (call-next-method text)
+  (#/insertText: self text)
   (#/setEditable: self nil))
 
 
@@ -174,7 +174,7 @@
          (text-view (slot-value the-typeout-view 'text-view)))
     (#/performSelectorOnMainThread:withObject:waitUntilDone:
      text-view
-     (@selector #/insertText:)
+     (@selector #/insertString:)
      (%make-nsstring (get-output-stream-string (slot-value stream 'string-stream))) 
      t)))
   
