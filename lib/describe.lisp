@@ -1151,17 +1151,23 @@
   (+ 1                                  ; the function
      1                                  ; name
      1                                  ; arglist
+     (let* ((doc (documentation (inspector-object f) t)))
+       (if doc 1 0))
      (compute-disassembly-lines f))) 
 
 (defmethod line-n ((f function-inspector) n)
-  (let ((o (inspector-object f)))
+  (let* ((o (inspector-object f))
+         (doc (documentation o t)))
     (case n
       (0 (values o ""))
       (1 (values (function-name o) "Name" :colon))
       (2 (multiple-value-bind (arglist type) (arglist o)
            (let ((label (if type (format nil "Arglist (~(~a~))" type) "Arglist unknown")))
              (values arglist label (if type :colon '(:comment (:plain)))))))
-      (t (disassembly-line-n f (- n 3))))))
+      (3 (if doc
+           (values (substitute #\space #\newline doc) "Documentation" :colon)
+           (disassembly-line-n f (- n 3))))
+      (t (disassembly-line-n f (- n (if doc 4 3)))))))
 
 (defmethod compute-line-count ((f closure-inspector))
   (let* ((o (inspector-object f))
