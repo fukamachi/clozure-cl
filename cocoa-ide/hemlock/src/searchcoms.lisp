@@ -1,4 +1,4 @@
-;; -*- Log: hemlock.log; Package: Hemlock -*-
+;;; -*- Log: hemlock.log; Package: Hemlock -*-
 ;;;
 ;;; **********************************************************************
 ;;; This code was written as part of the CMU Common Lisp project at
@@ -328,7 +328,7 @@
 
 (defun %i-search-extend-string (string extension point trailer direction failure)
   (when (interactive)
-    (insert-string (buffer-point *echo-area-buffer*) string)
+    (insert-string (buffer-point *echo-area-buffer*) extension)
     (force-output *echo-area-stream*))
   (let ((new-string (concatenate 'simple-string string extension)))
     (i-search-pattern new-string direction) ;sets *last-search-pattern*
