@@ -611,8 +611,15 @@
 
 (objc:defmethod (#/replaceCharactersAtPosition:length:withString: :void)
     ((self hemlock-text-storage) (pos <NSUI>nteger) (len <NSUI>nteger) string)
-  (ns:with-ns-range (r pos len)
-    (#/replaceCharactersInRange:withString: self r string)))
+  (let* ((document (#/document self))
+	 (undo-mgr (and document (#/undoManager document))))
+    (when (and undo-mgr (not (#/isRedoing undo-mgr)))
+      (let ((replaced-string (#/substringWithRange: (#/hemlockString self) (ns:make-ns-range pos len))))
+	(#/replaceCharactersAtPosition:length:withString:
+	 (#/prepareWithInvocationTarget: undo-mgr self)
+	 pos (#/length string) replaced-string)))
+    (ns:with-ns-range (r pos len)
+      (#/replaceCharactersInRange:withString: self r string))))
 
 (objc:defmethod (#/replaceCharactersInRange:withString: :void)
     ((self hemlock-text-storage) (r :<NSR>ange) string)
