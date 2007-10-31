@@ -203,7 +203,6 @@
       (setf item (make-instance 'ns:ns-toolbar-item
 				:with-item-identifier itemIdentifier))
       (#/setLabel: item #@"General")
-      (#/setImage: item (#/imageNamed: ns:ns-image #&NSImageNamePreferencesGeneral))
       (#/setTarget: item self)
       (#/setAction: item (@selector #/showGeneralPrefs:)))
      ((#/isEqualToString: itemIdentifier #@"appearance")
