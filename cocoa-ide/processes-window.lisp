@@ -13,10 +13,12 @@
 (objc:defmethod (#/awakeFromNib :void) ((self processes-window-controller))
   (with-slots (toolbar table-view) self
     (#/setDoubleAction: table-view (@selector #/inspectSelectedProcess:))
-    (setf toolbar (make-instance 'ns:ns-toolbar :with-identifier #@"toolbar"))
+    (setf toolbar (make-instance 'ns:ns-toolbar
+				 :with-identifier #@"processes-window-toolbar"))
     (#/setDisplayMode: toolbar #$NSToolbarDisplayModeLabelOnly)
     (#/setDelegate: toolbar self)
-    (#/setToolbar: (#/window self) toolbar)))
+    (#/setToolbar: (#/window self) toolbar)
+    (#/release toolbar)))
 
 
 
