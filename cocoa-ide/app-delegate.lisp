@@ -19,24 +19,6 @@
   (let* ((domain (#/standardUserDefaults ns:ns-user-defaults))
 	 (initial-values (cocoa-defaults-initial-values))
 	 (dict (#/mutableCopy initial-values)))
-    ;; The lispy def-cocoa-default macro doesn't work with
-    ;; Objective-C objects, so initialize them here by hand.
-    ;; This is not nice.  We have to do something better.
-    (#/setObject:forKey: dict
-			 (#/archivedDataWithRootObject:
-			  ns:ns-archiver
-			  (#/fontWithName:size: ns:ns-font #@"Monaco" 10.0))
-			 #@"editorFont")
-    (#/setObject:forKey: dict
-			 (#/archivedDataWithRootObject:
-			  ns:ns-archiver
-			  (#/fontWithName:size: ns:ns-font #@"Monaco" 10.0))
-			 #@"listenerInputFont")
-    (#/setObject:forKey: dict
-			 (#/archivedDataWithRootObject:
-			  ns:ns-archiver
-			  (#/fontWithName:size: ns:ns-font #@"Monaco" 10.0))
-			 #@"listenerOutputFont")
     (#/registerDefaults: domain dict)
     (#/release dict)
     (update-cocoa-defaults)))

@@ -17,8 +17,10 @@
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defconstant large-number-for-text (float 1.0f7 +cgfloat-zero+)))
 
-;;; XXX -- initialized in +[LispApplicationDelegate initialize]
-(def-cocoa-default *editor-font* :font "foo"
+(def-cocoa-default *editor-font* :font #'(lambda ()
+					   (#/fontWithName:size:
+					    ns:ns-font
+					    #@"Monaco" 10.0))
 		   "Default font for editor windows")
 
 (def-cocoa-default *editor-rows* :int 24 "Initial height of editor windows, in characters")

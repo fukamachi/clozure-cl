@@ -129,6 +129,9 @@
                                (:color (#/archivedDataWithRootObject:
                                         ns:ns-archiver
                                         (apply #'color-values-to-nscolor value)))
+			       (:font (#/archivedDataWithRootObject:
+				       ns:ns-archiver
+				       (funcall value)))
                                (:bool (if value #@"YES" #@"NO"))
                                (t
                                 (%make-nsstring (format nil "~a" (cocoa-default-value d)))))
