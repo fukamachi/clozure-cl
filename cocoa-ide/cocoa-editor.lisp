@@ -19,7 +19,7 @@
 
 
 (def-cocoa-default *editor-font* :font (#/fontWithName:size:
-					ns:ns-font #@"Monaco" 10)
+					ns:ns-font #@"Monaco" 10.0)
 		   "Default font for editor windows")
 
 (def-cocoa-default *editor-rows* :int 24 "Initial height of editor windows, in characters")
