@@ -7,8 +7,6 @@
 		<dict>
 			<key>ACTIONS</key>
 			<dict>
-				<key>showPreferences</key>
-				<string>id</string>
 				<key>toggleTypeout</key>
 				<string>id</string>
 			</dict>
@@ -47,6 +45,8 @@
 				<key>restarts</key>
 				<string>id</string>
 				<key>showListener</key>
+				<string>id</string>
+				<key>showPreferences</key>
 				<string>id</string>
 				<key>showProcessesWindow</key>
 				<string>id</string>
