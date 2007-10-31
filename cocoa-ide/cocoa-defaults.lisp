@@ -109,7 +109,7 @@
            (let* ((nsstring (#/stringForKey: domain key)))
              (unless (%null-ptr-p nsstring)
                (set name (lisp-string-from-nsstring nsstring)))))
-          (:color
+          ((:color :font)
            (let* ((data (#/dataForKey: domain key)))
              (unless (%null-ptr-p data)
                (set name (#/retain (#/unarchiveObjectWithData: ns:ns-unarchiver data)))))))
@@ -126,6 +126,9 @@
       (let* ((value (cocoa-default-value d)))
         (#/setObject:forKey: dict
                              (case (cocoa-default-type d)
+			       (:font (#/archivedDataWithRootObject:
+				       ns:ns-archiver
+				       value))
                                (:color (#/archivedDataWithRootObject:
                                         ns:ns-archiver
                                         (apply #'color-values-to-nscolor value)))
