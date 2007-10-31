@@ -104,6 +104,8 @@
       (#/setDelegate: toolbar self)
       (#/setSelectedItemIdentifier: toolbar #@"appearance")
       (#/setToolbar: window toolbar)
+      ;; for some reason, setting this in IB doesn't work on Tiger/PPC32
+      (#/setShowsToolbarButton: window nil)
       (#/release toolbar))
     (#/showAppearancePrefs: self +null-ptr+)))
   
