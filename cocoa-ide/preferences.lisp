@@ -275,19 +275,23 @@
 (objc:defmethod (#/showGeneralPrefs: :void) ((self preferences-window-controller)
 						sender)
   (declare (ignore sender))
+  (#/setTitle: (#/window self) #@"General")
   (switch-content-view (#/window self) (general-prefs self)))
 
 (objc:defmethod (#/showAppearancePrefs: :void) ((self preferences-window-controller)
 						sender)
   (declare (ignore sender))
+  (#/setTitle: (#/window self) #@"Appearance")
   (switch-content-view (#/window self) (appearance-prefs self)))
 
 (objc:defmethod (#/showDocumentationPrefs: :void) ((self preferences-window-controller)
 						sender)
   (declare (ignore sender))
+  (#/setTitle: (#/window self) #@"Documentation")
   (switch-content-view (#/window self) (documentation-prefs self)))
 
 (objc:defmethod (#/showEncodingsPrefs: :void) ((self preferences-window-controller)
 						sender)
   (declare (ignore sender))
+  (#/setTitle: (#/window self) #@"Encodings")
   (switch-content-view (#/window self) (encodings-prefs self)))
