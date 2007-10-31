@@ -217,6 +217,9 @@
 (defun macptrp (x)
   (= (the fixnum (typecode x)) target::subtag-macptr))
 
+(defun dead-macptr-p (x)
+  (= (the fixnum (typecode x)) target::subtag-dead-macptr))
+
 
 ;;; Note that this is true of symbols and functions and many other
 ;;; things that it wasn't true of on the 68K.
