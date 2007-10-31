@@ -167,7 +167,7 @@
     (funcall (appkit-interrupt-function (#/data1 e)))
     (call-next-method e)))
 
-
+#+nil
 (objc:defmethod (#/showPreferences: :void) ((self lisp-application) sender)
   (declare (ignore sender))
   (#/show (#/sharedPanel lisp-preferences-panel)))
@@ -263,7 +263,7 @@
                 (paref matrix (:* :<CGF>loat) 3) size)
           (let* ((fontname (#/stringWithCString: ns:ns-string name))
 		 (font (#/fontWithName:matrix: ns:ns-font fontname matrix))
-                   
+		 
 		 (implemented-attributes ()))
 	    (if (or (%null-ptr-p font)
 		    (and 
@@ -304,17 +304,18 @@
 				    (color nil)
                                     (obliqueness nil)
                                     (stroke-width nil))
-  (let* ((dict (#/retain (make-instance 'ns:ns-mutable-dictionary :with-capacity 5))))
-    (#/setObject:forKey: dict (create-paragraph-style font line-break-mode) #&NSParagraphStyleAttributeName)
+  (let* ((dict (make-instance 'ns:ns-mutable-dictionary :with-capacity 5)))
+    (#/setObject:forKey: dict (create-paragraph-style font line-break-mode)
+			 #&NSParagraphStyleAttributeName)
     (#/setObject:forKey: dict font #&NSFontAttributeName)
     (when color
       (#/setObject:forKey: dict color #&NSForegroundColorAttributeName))
     (when stroke-width
-      (#/setObject:forKey: dict (make-instance 'ns:ns-number
-                                               :with-float (float stroke-width)) #&NSStrokeWidthAttributeName))
+      (#/setObject:forKey: dict (#/numberWithFloat: ns:ns-number stroke-width)
+			   #&NSStrokeWidthAttributeName))
     (when obliqueness
-      (#/setObject:forKey:  dict (make-instance 'ns:ns-number
-                                                :with-float (float obliqueness)) #&NSObliquenessAttributeName))
+      (#/setObject:forKey: dict (#/numberWithFloat: ns:ns-number obliqueness)
+			   #&NSObliquenessAttributeName))
     dict))
 
 
