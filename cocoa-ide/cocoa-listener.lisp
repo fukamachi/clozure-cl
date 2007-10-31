@@ -6,6 +6,12 @@
   (require "COCOA-EDITOR")
   (require "PTY"))
 
+;;; XXX -- initialized in +[LispApplicationDelegate initialize]
+(def-cocoa-default *listener-input-font* :font "foo"
+		   "Default font for listener input")
+(def-cocoa-default *listener-output-font* :font "foo"
+		   "Default font for listener output")
+
 (def-cocoa-default *listener-rows* :int 16 "Initial height of listener windows, in characters")
 (def-cocoa-default *listener-columns* :int 80 "Initial height of listener windows, in characters")
 

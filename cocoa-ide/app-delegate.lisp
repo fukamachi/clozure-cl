@@ -16,21 +16,31 @@
 				  (make-instance 'font-to-name-transformer)
 				  #@"FontToName")
 
-  ;; These defaults are Obj-C objects, so they need to be
-  ;; initialized here.
-  (def-cocoa-default *editor-font* :font (#/fontWithName:size:
-					  ns:ns-font #@"Monaco" 10.0)
-		     "Default font for editor windows")
-  (def-cocoa-default *listener-input-font* :font (#/fontWithName:size:
-						  ns:ns-font #@"Monaco" 10.0)
-		     "Default font for listener input")
-  (def-cocoa-default *listener-output-font* :font (#/fontWithName:size:
-						   ns:ns-font #@"Monaco" 10.0)
-		     "Default font for listener output")
-
   (let* ((domain (#/standardUserDefaults ns:ns-user-defaults))
-	 (initial-values (cocoa-defaults-initial-values)))
-    (#/registerDefaults: domain initial-values)
+	 (initial-values (cocoa-defaults-initial-values))
+	 (dict (#/mutableCopy initial-values)))
+    (#_NSLog #@"initial-values = %@" :id initial-values)
+    ;; The lispy def-cocoa-default macro doesn't work with
+    ;; Objective-C objects, so initialize them here by hand.
+    ;; This is not nice.  We have to do something better.
+    (#/setObject:forKey: dict
+			 (#/archivedDataWithRootObject:
+			  ns:ns-archiver
+			  (#/fontWithName:size: ns:ns-font #@"Monaco" 10.0))
+			 #@"editorFont")
+    (#/setObject:forKey: dict
+			 (#/archivedDataWithRootObject:
+			  ns:ns-archiver
+			  (#/fontWithName:size: ns:ns-font #@"Monaco" 10.0))
+			 #@"listenerInputFont")
+    (#/setObject:forKey: dict
+			 (#/archivedDataWithRootObject:
+			  ns:ns-archiver
+			  (#/fontWithName:size: ns:ns-font #@"Monaco" 10.0))
+			 #@"listenerOutputFont")
+    (#_NSLog #@"dict = %@" :id dict)
+    (#/registerDefaults: domain dict)
+    (#/release dict)
     (update-cocoa-defaults)))
 
 (objc:defmethod (#/applicationWillFinishLaunching: :void)

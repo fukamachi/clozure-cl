@@ -126,9 +126,6 @@
       (let* ((value (cocoa-default-value d)))
         (#/setObject:forKey: dict
                              (case (cocoa-default-type d)
-			       (:font (#/archivedDataWithRootObject:
-				       ns:ns-archiver
-				       value))
                                (:color (#/archivedDataWithRootObject:
                                         ns:ns-archiver
                                         (apply #'color-values-to-nscolor value)))
