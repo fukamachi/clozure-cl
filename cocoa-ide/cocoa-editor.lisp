@@ -18,10 +18,6 @@
   (defconstant large-number-for-text (float 1.0f7 +cgfloat-zero+)))
 
 
-(def-cocoa-default *editor-font* :font (#/fontWithName:size:
-					ns:ns-font #@"Monaco" 10.0)
-		   "Default font for editor windows")
-
 (def-cocoa-default *editor-rows* :int 24 "Initial height of editor windows, in characters")
 (def-cocoa-default *editor-columns* :int 80 "Initial width of editor windows, in characters")
 

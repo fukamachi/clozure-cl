@@ -15,6 +15,19 @@
   (#/setValueTransformer:forName: ns:ns-value-transformer
 				  (make-instance 'font-to-name-transformer)
 				  #@"FontToName")
+
+  ;; These defaults are Obj-C objects, so they need to be
+  ;; initialized here.
+  (def-cocoa-default *editor-font* :font (#/fontWithName:size:
+					  ns:ns-font #@"Monaco" 10.0)
+		     "Default font for editor windows")
+  (def-cocoa-default *listener-input-font* :font (#/fontWithName:size:
+						  ns:ns-font #@"Monaco" 10.0)
+		     "Default font for listener input")
+  (def-cocoa-default *listener-output-font* :font (#/fontWithName:size:
+						   ns:ns-font #@"Monaco" 10.0)
+		     "Default font for listener output")
+
   (let* ((domain (#/standardUserDefaults ns:ns-user-defaults))
 	 (initial-values (cocoa-defaults-initial-values)))
     (#/registerDefaults: domain initial-values)
