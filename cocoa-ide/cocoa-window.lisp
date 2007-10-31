@@ -150,12 +150,13 @@
 (defloadvar *default-ns-application-proxy-class-name*
     "LispApplicationDelegate")
 
+
 #+apple-objc
 (defun enable-foreground ()
-  (%stack-block ((psn 8))
-    (external-call "_GetCurrentProcess" :address psn)
-    (external-call "_CPSEnableForegroundOperation" :address psn)
-    (eql 0 (external-call "_SetFrontProcess" :address psn :signed-halfword))))
+  (rlet ((psn :<P>rocess<S>erial<N>umber))
+    (#_GetCurrentProcess psn)
+    (#_TransformProcessType psn #$kProcessTransformToForegroundApplication)
+    (eql 0 (#_SetFrontProcess psn))))
 
 ;;; I'm not sure if there's another way to recognize events whose
 ;;; type is #$NSApplicationDefined.
