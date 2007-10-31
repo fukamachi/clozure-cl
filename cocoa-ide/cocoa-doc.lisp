@@ -1,17 +1,10 @@
 (in-package "CCL")
 
-(def-cocoa-default *hyperspec-http-url-string* :string "http://www.lispworks.com/documentation/HyperSpec/" "HTTP URL for HyperSpec lookup")
-
-(def-cocoa-default *hyperspec-file-url-string* :string "/" "filesystem path for HyperSpec lookup")
+(def-cocoa-default *hyperspec-url-string* :string "http://www.lispworks.com/documentation/HyperSpec/" "HTTP URL for HyperSpec lookup")
 
 (defloadvar *hyperspec-root-url* nil)
 (defloadvar *hyperspec-map-sym-hash* nil)
-
-
 (defloadvar *hyperspec-map-sym-url* nil)
-
-(def-cocoa-default *hyperspec-use-file-url* :bool nil "selects hyperspec url scheme")
-
 
 (def-cocoa-default *hyperspec-lookup-enabled* :bool nil "enables hyperspec lookup"
                    (lambda (old new)
@@ -103,13 +96,7 @@
 (defun setup-hyperspec-root-url ()
   (make-instance 'ns:ns-url
                  :with-string
-                 (%make-nsstring 
-                  (if *hyperspec-use-file-url*
-                    *hyperspec-file-url-string*
-                    *hyperspec-http-url-string*))))
-    
-                               
-                             
+                 (%make-nsstring *hyperspec-url-string*)))
 
 (defun hyperspec-map-hash (document)
   (or *hyperspec-map-sym-hash*
