@@ -66,8 +66,8 @@
 (objc:defmethod #/transformedValue: ((self font-to-name-transformer) value)
   (let* ((font (#/unarchiveObjectWithData: ns:ns-unarchiver value))
          (name (#/displayName font))
-         (size (#/pointSize font)))
-    (#/stringWithFormat: ns:ns-string #@"%@ %.0f" :id name :<CGF>loat size)))
+         (size (float (#/pointSize font) 0.0d0)))
+    (#/stringWithFormat: ns:ns-string #@"%@ %.0f" :id name :double-float size)))
 
 (defclass preferences-window-controller (ns:ns-window-controller)
   ((tab-view :foreign-type :id :accessor tab-view)
