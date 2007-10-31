@@ -17,10 +17,17 @@
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defconstant large-number-for-text (float 1.0f7 +cgfloat-zero+)))
 
+
+(def-cocoa-default *editor-font* :font (#/fontWithName:size:
+					ns:ns-font #@"Monaco" 10)
+		   "Default font for editor windows")
+
 (def-cocoa-default *editor-rows* :int 24 "Initial height of editor windows, in characters")
 (def-cocoa-default *editor-columns* :int 80 "Initial width of editor windows, in characters")
 
 (def-cocoa-default *editor-background-color* :color '(1.0 1.0 1.0 1.0) "Editor background color")
+(def-cocoa-default *wrap-lines-to-window* :bool nil
+		   "Soft wrap lines to window width")
 
 (defmacro nsstring-encoding-to-nsinteger (n)
   (target-word-size-case
@@ -32,6 +39,73 @@
    (32 `(s32->u32 ,n))
    (64 n)))
 
+;;; Create a paragraph style, mostly so that we can set tabs reasonably.
+(defun rme-create-paragraph-style (font line-break-mode)
+  (let* ((p (make-instance 'ns:ns-mutable-paragraph-style))
+	 (charwidth (fround (nth-value 1 (size-of-char-in-font font)))))
+    (#/setLineBreakMode: p
+                         (ecase line-break-mode
+                           (:char #$NSLineBreakByCharWrapping)
+                           (:word #$NSLineBreakByWordWrapping)
+                           ;; This doesn't seem to work too well.
+                           ((nil) #$NSLineBreakByClipping)))
+    ;; Clear existing tab stops.
+    (#/setTabStops: p (#/array ns:ns-array))
+    ;; And set the "default tab interval".
+    (#/setDefaultTabInterval: p (* *tab-width* charwidth))
+    p))
+
+(defun rme-create-text-attributes (&key (font *editor-font*)
+				   (line-break-mode :char)
+				   (color nil)
+				   (obliqueness nil)
+				   (stroke-width nil))
+  (let* ((dict (make-instance 'ns:ns-mutable-dictionary :with-capacity 5)))
+    (#/setObject:forKey: dict (rme-create-paragraph-style font line-break-mode)
+			 #&NSParagraphStyleAttributeName)
+    (#/setObject:forKey: dict font #&NSFontAttributeName)
+    (when color
+      (#/setObject:forKey: dict color #&NSForegroundColorAttributeName))
+    (when stroke-width
+      (#/setObject:forKey: dict (#/numberWithFloat: ns:ns-number stroke-width)
+			   #&NSStrokeWidthAttributeName))
+    (when obliqueness
+      (#/setObject:forKey: dict (#/numberWithFloat: ns:ns-number obliqueness)
+			   #&NSObliquenessAttributeName))
+    dict))
+
+(defun rme-make-editor-style-map ()
+  (let* ((font *editor-font*)
+	 (fm (#/sharedFontManager ns:ns-font-manager))
+	 (bold-font (#/convertFont:toHaveTrait: fm font #$NSBoldFontMask))
+	 (oblique-font (#/convertFont:toHaveTrait: fm font #$NSItalicFontMask))
+	 (bold-oblique-font (#/convertFont:toHaveTrait:
+			     fm font (logior #$NSItalicFontMask
+					     #$NSBoldFontMask)))
+	 (colors (vector (#/blackColor ns:ns-color)))
+	 (fonts (vector font bold-font oblique-font bold-oblique-font))
+	 (styles (make-instance 'ns:ns-mutable-array)))
+    (dotimes (c (length colors))
+      (dotimes (i 4)
+	(let* ((mask (logand i 3))
+	       (f (svref fonts mask)))
+	  (#/addObject: styles 
+			(rme-create-text-attributes :font f
+						    :color (svref colors c)
+						    :obliqueness
+						    (if (logbitp 1 i)
+						      (when (eql f font)
+							0.15f0))
+						    :stroke-width
+						    (if (logbitp 0 i)
+						      (when (eql f font)
+							-10.0f0)))))))
+    styles))
+
+(defun make-editor-style-map ()
+  (rme-make-editor-style-map))
+
+#+nil
 (defun make-editor-style-map ()
   (let* ((font-name *default-font-name*)
 	 (font-size *default-font-size*)
@@ -1292,18 +1366,6 @@
     (setf (modeline-text-attributes self) (#/retain dict)))
   self)
 
-;;; Attributes to use when drawing the modeline fields.  There's no
-;;; simple way to make the "placard" taller, so using fonts larger than
-;;; about 12pt probably wouldn't look too good.  10pt Courier's a little
-;;; small, but allows us to see more of the modeline fields (like the
-;;; full pathname) in more cases.
-
-
-(def-cocoa-default *modeline-font-name* :string "Monaco"
-                   "Name of font to use in modelines")
-(def-cocoa-default  *modeline-font-size* :float 9.0 "Size of font to use in modelines")
-
-
 ;;; Find the underlying buffer.
 (defun buffer-for-modeline-view (mv)
   (let* ((pane (modeline-view-pane mv)))
@@ -2175,7 +2237,8 @@
     #+debug (#_NSLog #@"action = %s" :address action)
     (cond ((eql action (@selector #/hyperSpecLookUp:))
            ;; For now, demand a selection.
-           (and (hyperspec-root-url)
+           (and *hyperspec-lookup-enabled*
+		(hyperspec-root-url)
                 (not (eql 0 (ns:ns-range-length (#/selectedRange self))))))
           ((eql action (@selector #/cut:))
            (let* ((selection (#/selectedRange self)))
@@ -2412,7 +2475,7 @@
 (objc:defmethod (#/prepareSavePanel: :<BOOL>) ((self hemlock-editor-document)
                                                panel)
   (with-slots (encoding) self
-    (let* ((popup (build-encodings-popup (#/sharedDocumentController ns:ns-document-controller) encoding)))
+    (let* ((popup (build-encodings-popup (#/sharedDocumentController hemlock-document-controller) encoding)))
       (#/setAction: popup (@selector #/noteEncodingChange:))
       (#/setTarget: popup self)
       (#/setAccessoryView: panel popup)))
@@ -2709,7 +2772,7 @@
 
 (defun initialize-user-interface ()
   (#/sharedDocumentController hemlock-document-controller)
-  (#/sharedPanel lisp-preferences-panel)
+  ;(#/sharedPanel lisp-preferences-panel)
   (make-editor-style-map))
 
 ;;; This needs to run on the main thread.
@@ -2937,7 +3000,7 @@
 
 ;;; Enable CL:ED
 (defun cocoa-edit (&optional arg)
-  (let* ((document-controller (#/sharedDocumentController ns:ns-document-controller)))
+  (let* ((document-controller (#/sharedDocumentController hemlock-document-controller)))
     (cond ((null arg)
            (#/performSelectorOnMainThread:withObject:waitUntilDone:
             document-controller
