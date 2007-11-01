@@ -961,6 +961,7 @@
 
 ;;; System forms.
 ;;;
+(defindent "rlet" 1)
 
 ;;; Multiprocessing forms.
 (defindent "with-lock-grabbed" 1)
