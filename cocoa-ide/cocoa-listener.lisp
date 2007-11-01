@@ -323,10 +323,23 @@
                   t
                   (textview-background-color self)
                   (user-input-style self)))
+	 (listener-styles (#/arrayWithObjects: ns:ns-mutable-array
+					       (rme-create-text-attributes
+						:font *listener-input-font*)
+					       (rme-create-text-attributes
+						:font *listener-output-font*)
+					       +null-ptr+))
 	 (controller (make-instance
 		      'hemlock-listener-window-controller
 		      :with-window window))
 	 (listener-name (hi::buffer-name (hemlock-document-buffer self))))
+    (with-slots (styles) textstorage
+      ;; We probably should be more disciplined about
+      ;; Cocoa memory management.  Having retain/release in
+      ;; random places all over the code is going to get
+      ;; unwieldy.
+      (#/release styles)
+      (setf styles (#/retain listener-styles)))
     ;; Disabling background layout on listeners is an attempt to work
     ;; around a bug.  The bug's probably gone ...
     (let* ((layout-managers (#/layoutManagers textstorage)))
