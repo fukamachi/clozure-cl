@@ -24,16 +24,16 @@
     (#/release dict)
     (update-cocoa-defaults)))
 
-(defloadvar *buffer-view-nib* nil)
+;;(defloadvar *buffer-view-nib* nil)
 
 (objc:defmethod (#/applicationWillFinishLaunching: :void)
     ((self lisp-application-delegate) notification)
   (declare (ignore notification))
-  (setq *buffer-view-nib*
-	  (make-instance 'ns:ns-nib
-	    :with-nib-named #@"buffer-view" :bundle +null-ptr+))
-  (when (null *buffer-view-nib*)
-    (error "Couldn't load buffer-view.nib"))
+;;   (setq *buffer-view-nib*
+;; 	  (make-instance 'ns:ns-nib
+;; 	    :with-nib-named #@"buffer-view" :bundle +null-ptr+))
+;;   (when (null *buffer-view-nib*)
+;;     (error "Couldn't load buffer-view.nib"))
 
   (initialize-user-interface))
 
