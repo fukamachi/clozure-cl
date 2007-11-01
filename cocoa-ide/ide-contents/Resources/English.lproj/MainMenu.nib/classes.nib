@@ -44,6 +44,8 @@
 				<string>id</string>
 				<key>restarts</key>
 				<string>id</string>
+				<key>showAproposWindow</key>
+				<string>id</string>
 				<key>showListener</key>
 				<string>id</string>
 				<key>showPreferences</key>

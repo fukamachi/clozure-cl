@@ -3,6 +3,7 @@
 (require "COCOA-DEFAULTS")
 (require "PREFERENCES")
 (require "PROCESSES-WINDOW")
+(require "APROPOS-WINDOW")
 
 (defclass lisp-application-delegate (ns:ns-object)
     ()
@@ -23,9 +24,17 @@
     (#/release dict)
     (update-cocoa-defaults)))
 
+(defloadvar *buffer-view-nib* nil)
+
 (objc:defmethod (#/applicationWillFinishLaunching: :void)
     ((self lisp-application-delegate) notification)
   (declare (ignore notification))
+  (setq *buffer-view-nib*
+	  (make-instance 'ns:ns-nib
+	    :with-nib-named #@"buffer-view" :bundle +null-ptr+))
+  (when (null *buffer-view-nib*)
+    (error "Couldn't load buffer-view.nib"))
+
   (initialize-user-interface))
 
 (objc:defmethod (#/applicationWillTerminate: :void)
@@ -53,6 +62,16 @@
     (setf *processes-window-controller*
 	  (make-instance 'processes-window-controller)))
   (#/showWindow: *processes-window-controller* self))
+
+(defloadvar *apropos-window-controller* nil)
+
+(objc:defmethod (#/showAproposWindow: :void) ((self lisp-application-delegate)
+						sender)
+  (declare (ignore sender))
+  (when (null *apropos-window-controller*)
+    (setf *apropos-window-controller*
+	  (make-instance 'apropos-window-controller)))
+  (#/showWindow: *apropos-window-controller* self))
 
 (objc:defmethod (#/newListener: :void) ((self lisp-application-delegate)
                                         sender)
