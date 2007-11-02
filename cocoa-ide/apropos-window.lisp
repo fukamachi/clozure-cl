@@ -6,8 +6,6 @@
 		  :documentation "Bound to NSArrayController in nib file")
    (array-controller :foreign-type :id :accessor array-controller)
    (table-view :foreign-type :id :accessor table-view)
-   (symbols :initform nil :accessor symbols
-	    :documentation "List of symbols being displayed")
    (previous-input :initform nil :accessor previous-input
 		   :documentation "Last string entered"))
   (:metaclass ns:+ns-object))
@@ -15,8 +13,15 @@
 (defmethod (setf apropos-array) (value (self apropos-window-controller))
   (with-slots (apropos-array) self
     (unless (eql value apropos-array)
-      (#/release apropos-array))
-    (setf apropos-array (#/retain value))))
+      (#/release apropos-array)
+      (setf apropos-array (#/retain value)))))
+
+;;; Diasable automatic KVO notifications, since having our class swizzled
+;;; out from underneath us confuses CLOS.  (Leopard doesn't hose us,
+;;; and we can use automatic KVO notifications there.)
+(objc:defmethod (#/automaticallyNotifiesObserversForKey: :<BOOL>) ((self +apropos-window-controller)
+                                                                  key)
+  nil)
 
 (objc:defmethod (#/awakeFromNib :void) ((self apropos-window-controller))
   (#/setDoubleAction: (slot-value self 'table-view) (@selector #/inspectSelectedSymbol:)))
@@ -34,11 +39,10 @@
 
 (objc:defmethod (#/apropos: :void) ((self apropos-window-controller) sender)
   (let* ((input (lisp-string-from-nsstring (#/stringValue sender)))
-	 (array (#/mutableArrayValueForKey: self #@"aproposArray")))
+	 (array (#/array ns:ns-mutable-array)))
     (when (and (plusp (length input))
 	       (not (string-equal input (previous-input self))))
       (setf (previous-input self) input)
-      (#/removeAllObjects array)
       (flet ((%make-nsstring-with-highlighted-range (s start len)
 	       (let* ((output (make-instance 'ns:ns-mutable-attributed-string
 					     :with-string (#/autorelease
@@ -46,25 +50,27 @@
 		      (range (ns:make-ns-range start len)))
 		 (#/applyFontTraits:range: output #$NSBoldFontMask range)
 		 output)))
-	(setf (symbols self)
-	      (mapc #'(lambda (x)
-			(let* ((pkg-name (package-name (symbol-package x)))
-			       (sym-name (symbol-name x))
-			       (pos (search input sym-name :test #'string-equal)))
-			  (#/addObject: array (#/dictionaryWithObjectsAndKeys:
-					       ns:ns-dictionary
-					       (#/autorelease
-						(%make-nsstring pkg-name))
-					       #@"package"
-					       (if (numberp pos)
-						 (#/autorelease
-						  (%make-nsstring-with-highlighted-range
-						   sym-name pos (length input)))
-						 (#/autorelease
-						  (%make-nsstring sym-name)))
-					       #@"symbol"
-					       +null-ptr+))))
-		    (apropos-list input)))))))
+	(mapc #'(lambda (x)
+		  (let* ((pkg-name (package-name (symbol-package x)))
+			 (sym-name (symbol-name x))
+			 (pos (search input sym-name :test #'string-equal)))
+		    (#/addObject: array (#/dictionaryWithObjectsAndKeys:
+					 ns:ns-dictionary
+					 (#/autorelease
+					  (%make-nsstring pkg-name))
+					 #@"package"
+					 (if (numberp pos)
+					     (#/autorelease
+					      (%make-nsstring-with-highlighted-range
+					       sym-name pos (length input)))
+					     (#/autorelease
+					      (%make-nsstring sym-name)))
+					 #@"symbol"
+					 +null-ptr+))))
+	      (apropos-list input)))
+      (#/willChangeValueForKey: self #@"aproposArray")
+      (setf (apropos-array self) array)
+      (#/didChangeValueForKey: self #@"aproposArray"))))
 
 (objc:defmethod (#/inspectSelectedSymbol: :void) ((self apropos-window-controller) sender)
   (let* ((row (#/clickedRow sender)))
