@@ -4,6 +4,7 @@
   ((apropos-array :foreign-type :id :initform +null-ptr+
 		  :reader apropos-array
 		  :documentation "Bound to NSArrayController in nib file")
+   (array-controller :foreign-type :id :accessor array-controller)
    (table-view :foreign-type :id :accessor table-view)
    (symbols :initform nil :accessor symbols
 	    :documentation "List of symbols being displayed")
@@ -18,7 +19,7 @@
     (setf apropos-array (#/retain value))))
 
 (objc:defmethod (#/awakeFromNib :void) ((self apropos-window-controller))
-  (#/setDoubleAction: (table-view self) (@selector #/inspectSelectedSymbol:)))
+  (#/setDoubleAction: (slot-value self 'table-view) (@selector #/inspectSelectedSymbol:)))
 
 (objc:defmethod #/init ((self apropos-window-controller))
   (prog1
@@ -66,7 +67,14 @@
 		    (apropos-list input)))))))
 
 (objc:defmethod (#/inspectSelectedSymbol: :void) ((self apropos-window-controller) sender)
-  (with-accessors ((symbols symbols)) self
-    (let* ((row (#/clickedRow sender)))
-      (unless (minusp row)
-	(cinspect (nth row symbols))))))
+  (let* ((row (#/clickedRow sender)))
+    (unless (minusp row)
+      (with-slots (array-controller) self
+	(let* ((pkg-name (lisp-string-from-nsstring
+			  (#/valueForKeyPath: array-controller
+					      #@"selection.package")))
+	       (sym-name (lisp-string-from-nsstring
+			  (#/string (#/valueForKeyPath: array-controller
+							#@"selection.symbol"))))
+	       (symbol (find-symbol sym-name pkg-name)))
+	  (cinspect symbol))))))

@@ -18,6 +18,8 @@
 			<string>ObjC</string>
 			<key>OUTLETS</key>
 			<dict>
+				<key>arrayController</key>
+				<string>id</string>
 				<key>tableView</key>
 				<string>id</string>
 				<key>window</key>
