@@ -136,11 +136,15 @@
   (with-macptrs ((dyn-strings)
 		 (dynamic-entries (pref map :link_map.l_ld)))
     (let* ((soname-offset nil))
-      ;;; Walk over the entries in the file's dynamic segment; the
-      ;;; last such entry will have a tag of #$DT_NULL.  Note the
-      ;;; (loaded,on Linux; relative to link_map.l_addr on FreeBSD)
-      ;;; address of the dynamic string table and the offset of the
-      ;;; #$DT_SONAME string in that string table.
+      ;; Walk over the entries in the file's dynamic segment; the
+      ;; last such entry will have a tag of #$DT_NULL.  Note the
+      ;; (loaded,on Linux; relative to link_map.l_addr on FreeBSD)
+      ;; address of the dynamic string table and the offset of the
+      ;; #$DT_SONAME string in that string table.
+      ;; Actually, the above isn't quite right; there seem to
+      ;; be cases (involving vDSO) where the address of a library's
+      ;; dynamic string table is expressed as an offset relative
+      ;; to link_map.l_addr as well.
       (loop
 	  (case #+32-bit-target (pref dynamic-entries :<E>lf32_<D>yn.d_tag)
                 #+64-bit-target (pref dynamic-entries :<E>lf64_<D>yn.d_tag)
@@ -153,16 +157,21 @@
                                            :<E>lf64_<D>yn.d_un.d_val)))
 	    (#. #$DT_STRTAB
 		(%setf-macptr dyn-strings
-                              #+32-bit-target
-			      (pref dynamic-entries
-				    :<E>lf32_<D>yn.d_un.d_ptr)
-			      #+(and 64-bit-target linux-target)
-                              (pref dynamic-entries
-				    :<E>lf64_<D>yn.d_un.d_ptr)
-			      #+(and 64-bit-target freebsd-target)
-			      (%inc-ptr (pref map :link_map.l_addr)
-					(pref dynamic-entries
-					      :<E>lf64_<D>yn.d_un.d_val)))))
+                              ;; Try to guess whether we're dealing
+                              ;; with a displacement or with an
+                              ;; absolute address.  There may be
+                              ;; a better way to determine this,
+                              ;; but for now we assume that absolute
+                              ;; addresses aren't negative and that
+                              ;; displacements are.
+                              (%int-to-ptr 
+                               (let* ((disp (%get-signed-natural
+                                             dynamic-entries
+                                             target::node-size)))
+                                 
+                                 (if (< disp 0)
+                                   (+ disp (pref map :link_map.l_addr))
+                                   disp))))))
 	  (%setf-macptr dynamic-entries
 			(%inc-ptr dynamic-entries
                                   #+32-bit-target
