@@ -164,14 +164,16 @@
                               ;; but for now we assume that absolute
                               ;; addresses aren't negative and that
                               ;; displacements are.
-                              (%int-to-ptr 
                                (let* ((disp (%get-signed-natural
                                              dynamic-entries
                                              target::node-size)))
-                                 
-                                 (if (< disp 0)
-                                   (+ disp (pref map :link_map.l_addr))
-                                   disp))))))
+                                 #+freebsd-target
+                                 (%inc-ptr (pref map :link_map.l_addr) disp)
+                                 #-freebsd-target
+                                 (%int-to-ptr 
+                                  (if (< disp 0) 
+                                    (+ disp (pref map :link_map.l_addr))
+                                    disp))))))
 	  (%setf-macptr dynamic-entries
 			(%inc-ptr dynamic-entries
                                   #+32-bit-target
