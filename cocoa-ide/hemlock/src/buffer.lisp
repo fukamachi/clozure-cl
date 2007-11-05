@@ -447,11 +447,12 @@
   (invoke-hook hemlock::enter-recursive-edit-hook)
   (multiple-value-bind (flag args)
 		       (let ((*in-a-recursive-edit* t)
-                             (doc (buffer-document *current-buffer*)))
+			     #+nil (doc (buffer-document *current-buffer*))
+			     )
 			 (catch 'leave-recursive-edit
                            (unwind-protect
                                 (progn
-                                  ;(when doc (document-end-editing doc))
+                                  #+nil (when doc (document-end-editing doc))
                                   (if handle-abort
                                     (loop (catch 'editor-top-level-catcher
                                             (%command-loop)))
@@ -487,7 +488,6 @@
     (error "Not in a recursive edit!"))
   (invoke-hook hemlock::abort-recursive-edit-hook args)
   (throw 'leave-recursive-edit (values :abort args)))
-
 
 
 ;;;; WITH-WRITABLE-BUFFER

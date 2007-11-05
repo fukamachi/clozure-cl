@@ -33,8 +33,7 @@
       (when (= (#/count (#/windowControllers document)) 0)
 	(#/makeWindowControllers document))
       (let* ((buffer (hemlock-document-buffer document))
-	     (hi::*current-buffer* buffer)
-	     (hi::*buffer-gap-context* (hi::buffer-gap-context buffer)))
+	     (hi::*current-buffer* buffer))
 	(edit-grep-line-in-buffer line-num))
       (#/updateHemlockSelection (slot-value document 'textstorage))
       (#/showWindows document))))
@@ -69,6 +68,8 @@
 
 (defun grep-comment-line-p (line)
   (multiple-value-bind (file line-num) (parse-grep-line line)
+    #+gz (when (member "archive" (pathname-directory file) :test #'equalp)
+	   (return-from grep-comment-line-p t))
     (with-open-file (stream file)
       (loop while (> line-num 0)
 	for ch = (read-char stream nil nil)
@@ -93,8 +94,13 @@
     when (< start pos) collect (subseq output start pos)
     while (< pos end)))
 
+(defvar *grep-ignore-case* t)
+(defvar *grep-include-pattern* "*.lisp")
+(defvar *grep-exclude-pattern* "*~.lisp")
 
-(defun grep (pattern directory &key ignore-case (include "*.lisp") (exclude "*~.lisp"))
+(defun grep (pattern directory &key (ignore-case *grep-ignore-case*)
+		                    (include *grep-include-pattern*)
+				    (exclude *grep-exclude-pattern*))
   (with-output-to-string (stream)
     (let* ((proc (run-program *grep-program*
 			      (nconc (and include (list "--include" include))

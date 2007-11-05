@@ -166,7 +166,6 @@
   (let* ((cache (variable-value 'dabbrev-cache :buffer buffer)))
     (unless (and cache (eql (car cache) (buffer-signature buffer)))
       (let* ((hi::*current-buffer* buffer)
-	     (hi::*buffer-gap-context* (hi::buffer-gap-context buffer))
 	     (start-mark (buffer-start-mark buffer))
 	     (symbols (make-array 100 :adjustable t :fill-pointer 0)))
 	(with-mark ((word-start start-mark)
@@ -319,7 +318,6 @@ of the individual words within the symbol (e.g. mvb => multiple-value-bind).
 ;; (time(hemlock::test-completions (cadr hi::*buffer-list*) "dabbrev"))
 (defun test-completions (buffer abbrev)
   (let* ((hi::*current-buffer* buffer)
-	 (hi::*buffer-gap-context* (hi::buffer-gap-context buffer))
 	 (point (buffer-point buffer))
 	 (context (make-dabbrev-context
 		   :buffer buffer

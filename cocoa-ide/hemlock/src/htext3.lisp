@@ -51,35 +51,36 @@
 		      (modifying-line line mark)
 		      (cond ((char= character #\newline)
 			     (let* ((next (line-next line))
-				    (new-chars (subseq (the simple-string *open-chars*)
-						       0 *left-open-pos*))
+				    (new-chars (subseq (the simple-string (current-open-chars))
+						       0 (current-left-open-pos)))
 				    (new-line (make-line :%buffer buffer
 							 :chars (decf *cache-modification-tick*)
 							 :previous line
 							 :next next)))
-			       (maybe-move-some-marks (charpos line new-line) *left-open-pos*
-						      (- charpos *left-open-pos*))
+			       (maybe-move-some-marks (charpos line new-line) (current-left-open-pos)
+						      (- charpos (current-left-open-pos)))
 			       (setf (line-%chars line) new-chars)
 			       (setf (line-next line) new-line)
 			       (if next (setf (line-previous next) new-line))
 			       (number-line new-line)
-			       (setq *open-line* new-line  *left-open-pos* 0)))
+			       (setf (current-open-line) new-line
+				     (current-left-open-pos) 0)))
 			    (t
-			     (if (= *right-open-pos* *left-open-pos*)
+			     (if (= (current-right-open-pos) (current-left-open-pos))
 			       (grow-open-chars))
 	     
-			     (maybe-move-some-marks (charpos line) *left-open-pos*
+			     (maybe-move-some-marks (charpos line) (current-left-open-pos)
 						    (1+ charpos))
 	     
 			     (cond
 			       ((eq (mark-%kind mark) :right-inserting)
-				(decf *right-open-pos*)
-				(setf (char (the simple-string *open-chars*) *right-open-pos*)
+				(decf (current-right-open-pos))
+				(setf (char (the simple-string (current-open-chars)) (current-right-open-pos))
 				      character))
 			       (t
-				(setf (char (the simple-string *open-chars*) *left-open-pos*)
+				(setf (char (the simple-string (current-open-chars)) (current-left-open-pos))
 				      character)
-				(incf *left-open-pos*)))))
+				(incf (current-left-open-pos))))))
                       (adjust-line-origins-forward line)
 		      (buffer-note-insertion buffer mark 1))))
 
@@ -99,19 +100,19 @@
          buffer
          (progn
            (modifying-line line mark)
-           (if (<= *right-open-pos* (+ *left-open-pos* len))
-             (grow-open-chars (* (+ *line-cache-length* len) 2)))
-           (maybe-move-some-marks (charpos line) *left-open-pos*
+           (if (<= (current-right-open-pos) (+ (current-left-open-pos) len))
+             (grow-open-chars (* (+ (current-line-cache-length) len) 2)))
+           (maybe-move-some-marks (charpos line) (current-left-open-pos)
                                   (+ charpos len))
            (cond
              ((eq (mark-%kind mark) :right-inserting)
-              (let ((new (- *right-open-pos* len)))
-                (%sp-byte-blt string 0 *open-chars* new *right-open-pos*)
-                (setq *right-open-pos* new)))
+              (let ((new (- (current-right-open-pos) len)))
+                (%sp-byte-blt string 0 (current-open-chars) new (current-right-open-pos))
+                (setf (current-right-open-pos) new)))
              (t
-              (let ((new (+ *left-open-pos* len)))
-                (%sp-byte-blt string 0 *open-chars* *left-open-pos* new)
-                (setq *left-open-pos* new)))))
+              (let ((new (+ (current-left-open-pos) len)))
+                (%sp-byte-blt string 0 (current-open-chars) (current-left-open-pos) new)
+                (setf (current-left-open-pos) new)))))
          (adjust-line-origins-forward line)
          (buffer-note-insertion buffer mark (length string)))))))
                         
@@ -133,7 +134,7 @@
     (cond
      ((eq first-line last-line)
       ;; simple case -- just BLT the characters in with insert-string
-      (if (eq first-line *open-line*) (close-line))
+      (if (current-open-line-p first-line) (close-line))
       (let* ((string (line-chars first-line)))
         (unless (and (eql first-charpos 0)
                      (eql last-charpos (length string)))
@@ -205,7 +206,7 @@
     (cond
      ((eq first-line last-line)
       ;; Simple case -- just BLT the characters in with insert-string.
-      (if (eq first-line *open-line*) (close-line))
+      (if (current-open-line-p first-line) (close-line))
       (let* ((string (line-chars first-line)))
         (unless (and (eq first-charpos 0)
                      (eql last-charpos (length string)))

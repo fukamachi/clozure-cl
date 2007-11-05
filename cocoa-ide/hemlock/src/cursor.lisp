@@ -142,14 +142,14 @@
 ;;;
 (defun cached-real-line-length (line width start end)
   (declare (fixnum width start end) (ignore line))
-  (let ((offset (- *right-open-pos* *left-open-pos*))
+  (let ((offset (- (current-right-open-pos) (current-left-open-pos)))
 	(bound 0))
     (declare (fixnum offset bound))
     (cond
-     ((>= start *left-open-pos*)
+     ((>= start (current-left-open-pos))
       (setq start (+ start offset)  bound (setq end (+ end offset))))
-     ((> end *left-open-pos*)
-      (setq bound *left-open-pos*  end (+ end offset)))
+     ((> end (current-left-open-pos))
+      (setq bound (current-left-open-pos)  end (+ end offset)))
      (t
       (setq bound end)))
     
@@ -162,17 +162,17 @@
 	       (type (or fixnum null) losing))
       (when (= start bound)
 	(when (= start end) (return (values xpos ypos)))
-	(setq start *right-open-pos*  bound end))
-      (setq losing (%fcwa *open-chars* start bound losing-char))
+	(setq start (current-right-open-pos)  bound end))
+      (setq losing (%fcwa (current-open-chars) start bound losing-char))
       (cond
        (losing
 	(multiple-value-setq (dy xpos)
 	  (truncate (+ xpos (- losing start)) width))
 	(setq ypos (+ ypos dy)  start losing)
-	(do ((last (or (%fcwa *open-chars* start bound winning-char) bound)) str)
+	(do ((last (or (%fcwa (current-open-chars) start bound winning-char) bound)) str)
 	    ((= start last))
 	  (declare (fixnum last))
-	  (setq str (get-rep (schar *open-chars* start)))
+	  (setq str (get-rep (schar (current-open-chars) start)))
 	  (incf start)
 	  (unless (simple-string-p str) (setq str (funcall str xpos)))
 	  (multiple-value-setq (dy xpos)
@@ -292,7 +292,7 @@
   characters."
   (let ((charpos (mark-charpos mark))
 	(line (mark-line mark)))
-    (if (eq line *open-line*)
+    (if (current-open-line-p line)
 	(values (cached-real-line-length line 10000 0 charpos))
 	(values (real-line-length line 10000 0 charpos)))))
 
@@ -303,7 +303,7 @@
 ;;; rutne NIL.
 ;;;
 (defun find-position (line position start end width)
-  (do* ((cached (eq line *open-line*))
+  (do* ((cached (current-open-line-p line))
 	(lo start)
 	(hi (1- end))
 	(probe (truncate (+ lo hi) 2) (truncate (+ lo hi) 2)))

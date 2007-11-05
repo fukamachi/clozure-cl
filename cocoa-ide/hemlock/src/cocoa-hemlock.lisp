@@ -126,7 +126,7 @@
 (defun enable-self-insert (q)
   (setf (frame-event-queue-quoted-insert q) t))
 
-(defun disable-self-insert (q)
+(defmethod disable-self-insert ((q frame-event-queue))
   (setf (frame-event-queue-quoted-insert q) nil))
 
 (defun remove-font-region (region)

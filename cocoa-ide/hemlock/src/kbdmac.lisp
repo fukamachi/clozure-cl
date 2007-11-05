@@ -65,7 +65,7 @@
 
 (defun trash-character ()
   "Throw away a character on *editor-input*."
-  (get-key-event *editor-input*))
+  (get-key-event hi::*editor-input*))
 
 ;;; Save-Kbdmac-Input  --  Internal
 ;;;
@@ -299,7 +299,7 @@
 	#'(lambda (p)
 	    (let* ((stream (or *kbdmac-stream* (make-kbdmac-stream)))
 		   (*kbdmac-stream* nil)
-		   (*editor-input* stream)
+		   (hi::*editor-input* stream)
 		   (*in-a-keyboard-macro* t)
 		   (*kbdmac-done* nil)
 		   (*kbdmac-dont-ask* nil))
@@ -442,7 +442,7 @@
   "Prompt for action during keyboard macro execution."
   (declare (ignore p))
   (unless (or (interactive) *kbdmac-dont-ask*)
-    (let ((*editor-input* *real-editor-input*))
+    (let ((hi::*editor-input* *real-editor-input*))
       (command-case (:prompt "Keyboard Macro Query: "
 		     :help "Type one of these characters to say what to do:"
 		     :change-window nil
@@ -466,5 +466,5 @@
 	 (do-recursive-edit)
 	 (reprompt))
 	(t
-	 (unget-key-event key-event *editor-input*)
+	 (unget-key-event key-event hi::*editor-input*)
 	 (throw 'exit-kbdmac nil))))))

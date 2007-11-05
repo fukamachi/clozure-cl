@@ -136,8 +136,8 @@
 
 (defmacro line-length* (line)
   "Returns the number of characters on the line, but it's a macro!"
-  `(cond ((eq ,line *open-line*)
-	  (+ *left-open-pos* (- *line-cache-length* *right-open-pos*)))
+  `(cond ((current-open-line-p ,line)
+	  (+ (current-left-open-pos) (- (current-line-cache-length) (current-right-open-pos))))
 	 (t
 	  (length (the simple-string (line-%chars ,line))))))
 

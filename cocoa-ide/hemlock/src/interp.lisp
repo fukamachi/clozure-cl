@@ -217,7 +217,7 @@
                       (format *error-output*
                               "~&Error while trying to bind key ~A: ~A~%"
                               key condition)
-                      (return-from bind-key nil))))
+		      (return-from bind-key nil))))
                 (let ((cmd (getstring name *command-names*))
                       (table (get-right-table kind where))
                       (key (copy-seq (translate-key (crunch-key key)))))

@@ -438,8 +438,8 @@
 
    ;; from input.lisp
    #:get-key-event #:unget-key-event #:clear-editor-input #:listen-editor-input
-   #:*last-key-event-typed* #:*key-event-history* #:*editor-input*
-   #:*real-editor-input* #:input-waiting #:last-key-event-cursorpos
+   #:*last-key-event-typed* #:*key-event-history*
+   #:input-waiting #:last-key-event-cursorpos
 
    ;; from macros.lisp
    #:invoke-hook #:value #:setv #:hlet #:string-to-variable #:add-hook #:remove-hook

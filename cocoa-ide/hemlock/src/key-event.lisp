@@ -682,10 +682,7 @@
   (define-key-event-modifier "Shift" "Shift")
   (define-key-event-modifier "Lock" "Lock")
 
-  #+clx (define-clx-modifier (xlib:make-state-mask :shift) "Shift")
-  #+clx (define-clx-modifier (xlib:make-state-mask :mod-1) "Meta")
-  #+clx (define-clx-modifier (xlib:make-state-mask :control) "Control")
-  #+clx (define-clx-modifier (xlib:make-state-mask :lock) "Lock"))
+)
 
 ;;; Initialize stuff if not already initialized.
 ;;;

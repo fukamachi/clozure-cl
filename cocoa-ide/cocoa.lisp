@@ -65,14 +65,36 @@
 (defparameter *standalone-cocoa-ide* nil)
 
   
-(require "COCOA-UTILS")
-(require "COCOA-WINDOW")
-(require "COCOA-DOC")
-(require "COCOA-LISTENER")
-(require "COCOA-GREP")
-(require "COCOA-BACKTRACE")
-(require "COCOA-INSPECTOR")
-(require "APP-DELEGATE")
+(defvar *ide-files*
+  '("cocoa-utils"
+    "cocoa-defaults"
+    "cocoa-prefs"
+    "cocoa-typeout"
+    "cocoa-window"
+    "cocoa-doc"
+    "cocoa-editor" ;; this loads hemlock
+    "cocoa-listener"
+    ;; tools
+    "cocoa-grep"
+    "cocoa-backtrace"
+    "cocoa-inspector"
+    "preferences"
+    "processes-window"
+    "apropos-window"
+    "app-delegate"
+    ))
+
+(defun load-ide (&optional force-compile)
+  (with-compilation-unit ()
+     (dolist (name *ide-files*)
+       (let* ((source (merge-pathnames *.lisp-pathname* (make-pathname :name name :defaults "ccl:cocoa-ide;")))
+	      (fasl (merge-pathnames *.fasl-pathname* source)))
+	 (if (needs-compile-p fasl (list source) force-compile)
+	   (compile-file source :output-file fasl :verbose t :load t)
+	   (load fasl :verbose t))
+	 (provide (string-upcase name))))))
+
+(load-ide t)
 
 
 (def-cocoa-default *ccl-directory* :string "" nil #'(lambda (old new)

@@ -62,7 +62,6 @@
 ;;; Some special variables are forward-referenced, and we don't even
 ;;; need to invent a new language to advise the compiler of that ...
 (declaim (special *mode-names* *current-buffer* *echo-area-buffer*
-		  *buffer-gap-context*
 		  *the-sentinel*
 		  *in-the-editor* *buffer-list* *things-to-do-once*
 		  *gc-notify-before* *gc-notify-after*))

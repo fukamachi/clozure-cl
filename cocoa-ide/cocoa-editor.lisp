@@ -145,15 +145,9 @@
 
 (defun make-hemlock-buffer (&rest args)
   (let* ((buf (apply #'hi::make-buffer args)))
-    (if buf
-      (progn
-	(setf (hi::buffer-gap-context buf) (hi::make-buffer-gap-context))
-	buf)
-      (progn
-	(format t "~& couldn't make hemlock buffer with args ~s" args)
-	;;(dbg)
-	nil))))
-	 
+    (assert buf)
+    buf))
+
 ;;; Define some key event modifiers.
 
 ;;; HEMLOCK-EXT::DEFINE-CLX-MODIFIER is kind of misnamed; we can use
@@ -234,7 +228,7 @@
 (defun reset-buffer-cache (d &optional (buffer (buffer-cache-buffer d)
 						buffer-p))
   (when buffer-p (setf (buffer-cache-buffer d) buffer))
-  (let* ((hi::*buffer-gap-context* (hi::buffer-gap-context buffer))
+  (let* ((hi::*current-buffer* buffer)
          (workline (hi::mark-line
 		    (hi::buffer-start-mark buffer))))
     (setf (buffer-cache-buflen d) (hemlock-buffer-length buffer)
@@ -247,7 +241,7 @@
 
 (defun adjust-buffer-cache-for-insertion (display pos n)
   (if (buffer-cache-workline display)
-    (let* ((hi::*buffer-gap-context* (hi::buffer-gap-context (buffer-cache-buffer display))))
+    (let* ((hi::*current-buffer* (buffer-cache-buffer display)))
       (if (> (buffer-cache-workline-offset display) pos)
         (incf (buffer-cache-workline-offset display) n)
         (when (>= (+ (buffer-cache-workline-offset display)
@@ -266,7 +260,7 @@
 
 (defun update-line-cache-for-index (cache index)
   (let* ((buffer (buffer-cache-buffer cache))
-         (hi::*buffer-gap-context* (hi::buffer-gap-context buffer))
+         (hi::*current-buffer* buffer)
          (line (or
 		(buffer-cache-workline cache)
 		(progn
@@ -295,15 +289,14 @@
 
 ;;; Ask Hemlock to count the characters in the buffer.
 (defun hemlock-buffer-length (buffer)
-  (let* ((hi::*buffer-gap-context* (hi::buffer-gap-context buffer)))
+  (let* ((hi::*current-buffer* buffer))
     (hemlock::count-characters (hemlock::buffer-region buffer))))
 
 ;;; Find the line containing (or immediately preceding) index, which is
 ;;; assumed to be less than the buffer's length.  Return the character
 ;;; in that line or the trailing #\newline, as appropriate.
 (defun hemlock-char-at-index (cache index)
-  (let* ((hi::*buffer-gap-context*
-          (hi::buffer-gap-context (buffer-cache-buffer cache))))
+  (let* ((hi::*current-buffer* (buffer-cache-buffer cache)))
     (multiple-value-bind (line idx) (update-line-cache-for-index cache index)
       (let* ((len (hemlock::line-length line)))
         (if (< idx len)
@@ -313,8 +306,7 @@
 ;;; Given an absolute position, move the specified mark to the appropriate
 ;;; offset on the appropriate line.
 (defun move-hemlock-mark-to-absolute-position (mark cache abspos)
-  (let* ((hi::*buffer-gap-context*
-          (hi::buffer-gap-context (buffer-cache-buffer cache))))
+  (let* ((hi::*current-buffer* (buffer-cache-buffer cache)))
     (multiple-value-bind (line idx) (update-line-cache-for-index cache abspos)
       #+debug
       (#_NSLog #@"Moving point from current pos %d to absolute position %d"
@@ -328,9 +320,8 @@
 ;;; This doesn't use the caching mechanism, so it's always linear in the
 ;;; number of preceding lines.
 (defun mark-absolute-position (mark)
-  (let* ((pos (hi::mark-charpos mark))
-         (hi::*buffer-gap-context*
-          (hi::buffer-gap-context (hi::line-%buffer (hi::mark-line mark)))))
+  (let* ((hi::*current-buffer* (hi::line-%buffer (hi::mark-line mark)))
+         (pos (hi::mark-charpos mark)))
     (+ (hi::get-line-origin (hi::mark-line mark)) pos)))
 
 ;;; Return the length of the abstract string, i.e., the number of
@@ -359,8 +350,7 @@
   (let* ((cache (hemlock-buffer-string-cache self))
          (index (ns:ns-range-location r))
          (length (ns:ns-range-length r))
-         (hi::*buffer-gap-context*
-          (hi::buffer-gap-context (buffer-cache-buffer cache))))
+         (hi::*current-buffer* (buffer-cache-buffer cache)))
     #+debug
     (#_NSLog #@"get characters: %d/%d"
              :<NSUI>nteger index
@@ -389,8 +379,7 @@
   (let* ((cache (hemlock-buffer-string-cache self))
          (index (pref r :<NSR>ange.location))
          (length (pref r :<NSR>ange.length))
-         (hi::*buffer-gap-context*
-	  (hi::buffer-gap-context (buffer-cache-buffer cache))))
+	 (hi::*current-buffer* (buffer-cache-buffer cache)))
     #+debug
     (#_NSLog #@"get line start: %d/%d"
              :unsigned index
@@ -485,7 +474,7 @@
          (hemlock-string (#/hemlockString self))
          (display (hemlock-buffer-string-cache hemlock-string))
          (buffer (buffer-cache-buffer display))
-         (hi::*buffer-gap-context* (hi::buffer-gap-context buffer))
+         (hi::*current-buffer* buffer)
          (font (buffer-active-font buffer))
          (document (#/document self))
 	 (undo-mgr (and document (#/undoManager document))))
@@ -704,7 +693,7 @@
                     :id string)
   (let* ((cache (hemlock-buffer-string-cache (#/hemlockString  self)))
 	 (buffer (if cache (buffer-cache-buffer cache)))
-         (hi::*buffer-gap-context* (hi::buffer-gap-context buffer))
+	 (hi::*current-buffer* buffer)
          (location (pref r :<NSR>ange.location))
 	 (length (pref r :<NSR>ange.length))
 	 (point (hi::buffer-point buffer)))
@@ -728,7 +717,7 @@
          textstorage
          (lambda (tv)
            (hi::disable-self-insert
-            (hemlock-frame-event-queue (#/window tv)))))
+	    (hemlock-frame-event-queue (#/window tv)))))
         (#/ensureSelectionVisible textstorage)))))
 
 
@@ -906,7 +895,7 @@
   (let* ((d (hemlock-buffer-string-cache (#/hemlockString (#/textStorage self))))
          (buffer (buffer-cache-buffer d)))
     (when (and buffer (string= (hi::buffer-major-mode buffer) "Lisp"))
-      (let* ((hi::*buffer-gap-context* (hi::buffer-gap-context buffer))
+      (let* ((hi::*current-buffer* buffer)
              (point (hi::buffer-point buffer)))
         #+debug (#_NSLog #@"Syntax check for blinking")
         (update-buffer-package (hi::buffer-document buffer) buffer)
@@ -1119,7 +1108,7 @@
 
 
 ;;; Access the underlying buffer in one swell foop.
-(defmethod text-view-buffer ((self hemlock-text-view))
+(defmethod text-view-buffer ((self hemlock-textstorage-text-view))
   (buffer-cache-buffer (hemlock-buffer-string-cache (#/hemlockString (#/textStorage self)))))
 
 
@@ -1141,7 +1130,7 @@
                   (cache (hemlock-buffer-string-cache (#/hemlockString textstorage)))
                   (buffer (if cache (buffer-cache-buffer cache))))
              (when (and buffer (string= (hi::buffer-major-mode buffer) "Lisp"))
-               (let* ((hi::*buffer-gap-context* (hi::buffer-gap-context buffer)))
+               (let* ((hi::*current-buffer* buffer))
                  (hi::with-mark ((m1 (hi::buffer-point buffer)))
                    (move-hemlock-mark-to-absolute-position m1 cache index)
                    (hemlock::pre-command-parse-check m1)
@@ -1210,7 +1199,8 @@
            (op (hi::make-buffer-operation :thunk thunk)))
       (hi::event-queue-insert q op))))
 
-  
+
+
 ;;; Process a key-down NSEvent in a Hemlock text view by translating it
 ;;; into a Hemlock key event and passing it into the Hemlock command
 ;;; interpreter. 
@@ -1258,7 +1248,7 @@
   (unless (#/editingInProgress (#/textStorage self))
     (let* ((d (hemlock-buffer-string-cache (#/hemlockString (#/textStorage self))))
            (buffer (buffer-cache-buffer d))
-           (hi::*buffer-gap-context* (hi::buffer-gap-context buffer))
+	   (hi::*current-buffer* buffer)
            (point (hi::buffer-point buffer))
            (location (pref r :<NSR>ange.location))
            (len (pref r :<NSR>ange.length)))
@@ -1650,9 +1640,6 @@
     (#/setSelectable: self nil)))
 
 
-(defmethod text-view-buffer ((self echo-area-view))
-  (buffer-cache-buffer (hemlock-buffer-string-cache (#/hemlockString (#/textStorage self)))))
-
 ;;; The "document" for an echo-area isn't a real NSDocument.
 (defclass echo-area-document (ns:ns-object)
     ((textstorage :foreign-type :id))
@@ -1684,7 +1671,7 @@
 
 (defloadvar *hemlock-frame-count* 0)
 
-(defun make-echo-area (the-hemlock-frame x y width height gap-context color)
+(defun make-echo-area (the-hemlock-frame x y width height main-buffer color)
   (let* ((box (make-instance 'ns:ns-view :with-frame (ns:make-ns-rect x y width height))))
     (#/setAutoresizingMask: box #$NSViewWidthSizable)
     (let* ((box-frame (#/bounds box))
@@ -1704,7 +1691,8 @@
                                      :modes '("Echo Area")))
              (textstorage
               (progn
-                (setf (hi::buffer-gap-context buffer) gap-context)
+		;; What's the reason for sharing this?  Is it just the lock?
+                (setf (hi::buffer-gap-context buffer) (hi::buffer-gap-context main-buffer))
                 (make-textstorage-for-hemlock-buffer buffer)))
              (doc (make-instance 'echo-area-document))
              (layout (make-instance 'ns:ns-layout-manager))
@@ -1737,7 +1725,7 @@
           (#/sizeToFit echo)
           (values echo box))))))
 		    
-(defun make-echo-area-for-window (w gap-context-for-echo-area-buffer color)
+(defun make-echo-area-for-window (w main-buffer color)
   (let* ((content-view (#/contentView w))
 	 (bounds (#/bounds content-view)))
     (multiple-value-bind (echo-area box)
@@ -1746,7 +1734,7 @@
 					 0.0f0
 					 (- (ns:ns-rect-width bounds) 16.0f0)
 					 20.0f0
-					 gap-context-for-echo-area-buffer
+					 main-buffer
 					 color)
       (#/addSubview: content-view box)
       echo-area)))
@@ -1821,9 +1809,11 @@
         (wait-on-semaphore semaphore)))))
 
 (defun hi::report-hemlock-error (condition)
-  (report-condition-in-hemlock-frame condition (#/window (hi::current-window))))
+  (let ((pane (hi::current-window)))
+    (when (and pane (not (%null-ptr-p pane)))
+      (report-condition-in-hemlock-frame condition (#/window pane)))))
                        
-                       
+
 (defun hemlock-thread-function (q buffer pane echo-buffer echo-window)
   (let* ((hi::*real-editor-input* q)
          (hi::*editor-input* q)
@@ -1846,17 +1836,11 @@
          (hi::*in-a-recursive-edit* nil)
          (hi::*last-key-event-typed* nil)
          (hi::*input-transcript* nil)
-         (hi::*buffer-gap-context* (hi::buffer-gap-context buffer))
          (hemlock::*target-column* 0)
          (hemlock::*last-comment-start* " ")
          (hi::*translate-key-temp* (make-array 10 :fill-pointer 0 :adjustable t))
          (hi::*current-command* (make-array 10 :fill-pointer 0 :adjustable t))
          (hi::*current-translation* (make-array 10 :fill-pointer 0 :adjustable t))
-         #+no
-         (hemlock::*last-search-string* ())
-         #+no
-         (hemlock::*last-search-pattern*
-            (hemlock::new-search-pattern :string-insensitive :forward ""))
          (hi::*prompt-key* (make-array 10 :adjustable t :fill-pointer 0))
          (hi::*command-key-event-buffer* buffer))
     
@@ -1941,7 +1925,7 @@
   
 (defun nsstring-to-buffer (nsstring buffer)
   (let* ((document (hi::buffer-document buffer))
-         (hi::*buffer-gap-context* (hi::buffer-gap-context buffer))
+	 (hi::*current-buffer* buffer)
          (region (hi::buffer-region buffer)))
     (setf (hi::buffer-document buffer) nil)
     (unwind-protect
@@ -1970,18 +1954,16 @@
   (let* ((pane (textpane-for-textstorage class ts ncols nrows container-tracks-text-view-width color style))
          (frame (#/window pane))
          (buffer (text-view-buffer (text-pane-text-view pane)))
-         (echo-area (make-echo-area-for-window frame (hi::buffer-gap-context buffer) color))
+         (echo-area (make-echo-area-for-window frame buffer color))
          (tv (text-pane-text-view pane)))
     (with-slots (peer) tv
       (setq peer echo-area))
     (with-slots (peer) echo-area
       (setq peer tv))
     (hi::activate-hemlock-view pane)
-    (setf (slot-value frame 'echo-area-view)
-          echo-area
-          (slot-value frame 'pane)
-          pane
-          (slot-value frame 'command-thread)
+    (setf (slot-value frame 'echo-area-view) echo-area
+          (slot-value frame 'pane) pane)
+    (setf (slot-value frame 'command-thread)
           (process-run-function (format nil "Hemlock window thread for ~s"
 					(hi::buffer-name buffer))
                                 #'(lambda ()
@@ -2004,10 +1986,10 @@
 
 
 (defun hi::lock-buffer (b)
-  (grab-lock (hi::buffer-gap-context-lock (hi::buffer-gap-context b))))
+  (grab-lock (hi::buffer-lock b)))
 
 (defun hi::unlock-buffer (b)
-  (release-lock (hi::buffer-gap-context-lock (hi::buffer-gap-context b)))) 
+  (release-lock (hi::buffer-lock b))) 
 
 (defun hi::document-begin-editing (document)
   (#/performSelectorOnMainThread:withObject:waitUntilDone:
@@ -2085,13 +2067,17 @@
         (setq style (hi::font-mark-font start))))
     (#/objectAtIndex: styles style)))
       
+;; Note that inserted a string of length n at mark.  Assumes this is called after
+;; buffer marks were updated.
 (defun hi::buffer-note-insertion (buffer mark n)
   (when (hi::bufferp buffer)
     (let* ((document (hi::buffer-document buffer))
 	   (textstorage (if document (slot-value document 'textstorage))))
       (when textstorage
         (let* ((pos (mark-absolute-position mark)))
-          (unless (eq (hi::mark-%kind mark) :right-inserting)
+          (when (eq (hi::mark-%kind mark) :left-inserting)
+	    ;; Make up for the fact that the mark moved forward with the insertion.
+	    ;; For :right-inserting and :temporary marks, they should be left back.
             (decf pos n))
           (perform-edit-change-notification textstorage
                                             (@selector #/noteHemlockInsertionAtPosition:length:)
@@ -2300,7 +2286,7 @@
                                   :error +null-ptr+))
          (buffer (hemlock-document-buffer self))
          (old-length (hemlock-buffer-length buffer))
-         (hi::*buffer-gap-context* (hi::buffer-gap-context buffer))
+	 (hi::*current-buffer* buffer)
          (textstorage (slot-value self 'textstorage))
          (point (hi::buffer-point buffer))
          (pointpos (mark-absolute-position point)))
@@ -2355,7 +2341,6 @@
                       (setf (slot-value self 'textstorage)
                             (make-textstorage-for-hemlock-buffer b))
                       b)))
-           (hi::*buffer-gap-context* (hi::buffer-gap-context buffer))
            (selected-encoding (slot-value (#/sharedDocumentController (find-class 'hemlock-document-controller)) 'last-encoding))
            (string
             (if (zerop selected-encoding)
@@ -2365,6 +2350,7 @@
                pused-encoding
                perror)
               +null-ptr+)))
+
       (if (%null-ptr-p string)
         (progn
           (if (zerop selected-encoding)
@@ -2379,17 +2365,24 @@
         (with-slots (encoding) self (setq encoding selected-encoding))
         (hi::queue-buffer-change buffer)
         (hi::document-begin-editing self)
-        (nsstring-to-buffer string buffer)
+	(nsstring-to-buffer string buffer)
+
         (let* ((textstorage (slot-value self 'textstorage))
                (display (hemlock-buffer-string-cache (#/hemlockString textstorage))))
+
           (reset-buffer-cache display) 
+
           (#/updateMirror textstorage)
+
           (update-line-cache-for-index display 0)
+
           (textstorage-note-insertion-at-position
            textstorage
            0
            (hemlock-buffer-length buffer)))
+
         (hi::document-end-editing self)
+
         (setf (hi::buffer-modified buffer) nil)
         (hi::process-file-options buffer pathname)
         t))))
@@ -2781,7 +2774,7 @@
   (assume-cocoa-thread)
   (let* ((string (#/hemlockString self))
          (buffer (buffer-cache-buffer (hemlock-buffer-string-cache string)))
-         (hi::*buffer-gap-context* (hi::buffer-gap-context buffer))
+	 (hi::*current-buffer* buffer)
          (point (hi::buffer-point buffer))
          (pointpos (mark-absolute-position point))
          (location pointpos)
@@ -2899,7 +2892,7 @@
 
 (defun find-definition-in-document (name indicator document)
   (let* ((buffer (hemlock-document-buffer document))
-         (hi::*buffer-gap-context* (hi::buffer-gap-context buffer)))
+	 (hi::*current-buffer* buffer))
     (hemlock::find-definition-in-buffer buffer name indicator)))
 
 

@@ -98,7 +98,7 @@
   (unmodified-tick -1)	      ; The last time the buffer was unmodified
   #+clx
   windows		      ; List of all windows into this buffer.
-  #-clx
+  #+clozure ;; should be #+Cocoa
   document		      ; NSDocument object associated with this buffer
   var-values		      ; the buffer's local variables
   variables		      ; string-table of local variables
@@ -680,9 +680,47 @@
   (open-chars (make-string 200))
 )
 
-(define-symbol-macro *line-cache-length* (buffer-gap-context-line-cache-length *buffer-gap-context*))
-(define-symbol-macro *open-line* (buffer-gap-context-open-line *buffer-gap-context*))
-(define-symbol-macro *open-chars* (buffer-gap-context-open-chars *buffer-gap-context*))
-(define-symbol-macro *left-open-pos* (buffer-gap-context-left-open-pos *buffer-gap-context*))
-(define-symbol-macro *right-open-pos* (buffer-gap-context-right-open-pos *buffer-gap-context*))
+(defun ensure-buffer-gap-context (buffer)
+  (or (buffer-gap-context buffer)
+      (setf (buffer-gap-context buffer) (make-buffer-gap-context))))
 
+(defun buffer-lock (buffer)
+  (buffer-gap-context-lock (ensure-buffer-gap-context buffer)))
+
+(defun current-gap-context ()
+  (unless (boundp '*current-buffer*)
+    (error "Gap context not bound"))
+  (ensure-buffer-gap-context *current-buffer*))
+
+(defun current-line-cache-length ()
+  (buffer-gap-context-line-cache-length (current-gap-context)))
+
+(defun (setf current-line-cache-length) (len)
+  (setf (buffer-gap-context-line-cache-length (current-gap-context)) len))
+
+(defun current-open-line ()
+  (buffer-gap-context-open-line (current-gap-context)))
+
+(defun current-open-line-p (line)
+  (eq line (current-open-line)))
+
+(defun (setf current-open-line) (value)
+  (setf (buffer-gap-context-open-line (current-gap-context)) value))
+
+(defun current-open-chars ()
+  (buffer-gap-context-open-chars (current-gap-context)))
+
+(defun (setf current-open-chars) (value)
+  (setf (buffer-gap-context-open-chars (current-gap-context)) value))
+  
+(defun current-left-open-pos ()
+  (buffer-gap-context-left-open-pos (current-gap-context)))
+
+(defun (setf current-left-open-pos) (value)
+  (setf (buffer-gap-context-left-open-pos (current-gap-context)) value))
+
+(defun current-right-open-pos ()
+  (buffer-gap-context-right-open-pos (current-gap-context)))
+
+(defun (setf current-right-open-pos) (value)
+  (setf (buffer-gap-context-right-open-pos (current-gap-context)) value))

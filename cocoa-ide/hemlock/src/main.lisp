@@ -254,67 +254,6 @@ GB
   `(push #'(lambda () ,@forms)
 	 *after-editor-initializations-funs*))
 
-#+clx
-(defun cl-user::hemlock (&optional x
-                         &key (init t)
-                              (display (hemlock-ext:getenv "DISPLAY")))
-  "Invokes the editor, Hemlock.  If X is supplied and is a symbol, the
-   definition of X is put into a buffer, and that buffer is selected.  If X is
-   a pathname, the file specified by X is visited in a new buffer.  If X is not
-   supplied or Nil, the editor is entered in the same state as when last
-   exited.  When :init is supplied as t (the default), the file
-   \"hemlock-init.lisp\", or \".hemlock-init.lisp\" is loaded from the home
-   directory, but the Lisp command line switch -hinit can be used to specify a
-   different name.  Any compiled version of the source is preferred when
-   choosing the file to load.  If the argument is non-nil and not t, then it
-   should be a pathname that will be merged with the home directory."
-  (when *in-the-editor* (error "You are already in the editor, you bogon!"))
-  (let ((*in-the-editor* t)
-	(display (unless *editor-has-been-entered*
-		   (maybe-load-hemlock-init init)
-		   ;; Device dependent initializaiton.
-		   (init-raw-io display))))
-    (catch 'editor-top-level-catcher
-      (site-wrapper-macro
-       (unless *editor-has-been-entered*
-	 ;; Make an initial window, and set up redisplay's internal
-	 ;; data structures.
-	 (%init-redisplay display)
-	 (setq *editor-has-been-entered* t)
-	 ;; Pick up user initializations to be done after initialization.
-	 (invoke-hook (reverse *after-editor-initializations-funs*)))
-       (catch 'hemlock-exit
-	 (catch 'editor-top-level-catcher
-	   (cond ((and x (symbolp x))
-		  (let* ((name (nstring-capitalize
-				(concatenate 'simple-string "Edit " (string x))))
-			 (buffer (or (getstring name *buffer-names*)
-				     (make-buffer name)))
-			 (*print-case* :downcase))
-		    (delete-region (buffer-region buffer))
-		    (with-output-to-mark
-			(*standard-output* (buffer-point buffer))
-		      (eval `(grindef ,x))	; hackish, I know...
-		      (terpri)
-		      (hemlock::change-to-buffer buffer)
-		      (buffer-start (buffer-point buffer)))))
-		 ((or (stringp x) (pathnamep x))
-		  (hemlock::find-file-command () x))
-		 (x
-		  (error
-		   "~S is not a symbol or pathname.  I can't edit it!" x))))
-	 
-	 (invoke-hook hemlock::entry-hook)
-	 (unwind-protect
-	   (loop
-	    (catch 'editor-top-level-catcher
-	      (handler-bind ((error #'(lambda (condition)
-					(lisp-error-error-handler condition
-								  :internal))))
-		(invoke-hook hemlock::abort-hook)
-		(%command-loop))))
-	   (invoke-hook hemlock::exit-hook)))))))
-
 (defun maybe-load-hemlock-init (init)
   (when init
     (let* ((switch #+NILGB (find "hinit" *command-line-switches*

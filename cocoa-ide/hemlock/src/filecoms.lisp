@@ -516,10 +516,7 @@
   (delete-region (buffer-region buffer))
   (let* ((pathname (pathname pathname))
 	 (probed-pathname (probe-file pathname))
-         (hi::*buffer-gap-context*
-          (or (hi::buffer-gap-context buffer)
-              (setf (hi::buffer-gap-context buffer)
-                    (hi::make-buffer-gap-context)))))
+         (hi::*current-buffer* buffer))
     (cond (probed-pathname
 	   (read-file probed-pathname (buffer-point buffer))
 	   (setf (buffer-write-date buffer) (file-write-date probed-pathname)))

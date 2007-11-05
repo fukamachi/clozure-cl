@@ -53,7 +53,7 @@
    buffer, even if would normally be interpreted as an editor command."
   "Reads a key-event from *editor-input* and inserts it at the point."
   (declare (ignore p))
-  (hi::enable-self-insert *editor-input*))
+  (hi::enable-self-insert hi::*editor-input*))
 
 (defcommand "Forward Character" (p)
   "Move the point forward one character, collapsing the selection.
@@ -460,16 +460,16 @@
   (declare (ignore p))
   (clear-echo-area)
   (write-string "C-U " *echo-area-stream*)
-  (let* ((key-event (get-key-event *editor-input*))
+  (let* ((key-event (get-key-event hi::*editor-input*))
 	 (char (hemlock-ext:key-event-char key-event)))
     (if char
 	(case char
 	  (#\-
 	   (write-char #\- *echo-area-stream*)
-	   (universal-argument-loop (get-key-event *editor-input*) -1))
+	   (universal-argument-loop (get-key-event hi::*editor-input*) -1))
 	  (#\+
 	   (write-char #\+ *echo-area-stream*)
-	   (universal-argument-loop (get-key-event *editor-input*) -1))
+	   (universal-argument-loop (get-key-event hi::*editor-input*) -1))
 	  (t
 	   (universal-argument-loop key-event 1)))
 	(universal-argument-loop key-event 1))))
@@ -482,7 +482,7 @@
   (when p (editor-error "Must type minus sign first."))
   (clear-echo-area)
   (write-string "C-U -" *echo-area-stream*)
-  (universal-argument-loop (get-key-event *editor-input*) -1))
+  (universal-argument-loop (get-key-event hi::*editor-input*) -1))
 
 (defcommand "Argument Digit" (p)
   "This command is equivalent to invoking \"Universal Argument\" and typing
@@ -512,7 +512,7 @@
 	       (setf read-some-digit-p t)
 	       (write-char char *echo-area-stream*)
 	       (setf result (+ digit (* 10 result)))
-	       (setf key-event (get-key-event *editor-input*))
+	       (setf key-event (get-key-event hi::*editor-input*))
 	       (setf stripped-key-event (if key-event
 					    (hemlock-ext:make-key-event key-event)))
 	       (setf char (hemlock-ext:key-event-char stripped-key-event))
@@ -520,11 +520,11 @@
 	      ((or (eq key-event #k"C-u") (eq key-event #k"C-U"))
 	       (write-string " C-U " *echo-area-stream*)
 	       (universal-argument-loop
-		(get-key-event *editor-input*) 1
+		(get-key-event hi::*editor-input*) 1
 		(prefix sign multiplier read-some-digit-p result))
 	       (return))
 	      (t
-	       (unget-key-event key-event *editor-input*)
+	       (unget-key-event key-event hi::*editor-input*)
 	       (setf (prefix-argument)
 		     (prefix sign multiplier read-some-digit-p result))
 	       (return))))))

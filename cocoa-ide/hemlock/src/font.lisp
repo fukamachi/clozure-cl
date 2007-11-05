@@ -98,36 +98,3 @@
   (declare (ignore mark line))
 )
 
-
-
-;;;; Referencing and setting font ids.
-
-#+clx
-(progn
-(defun window-font (window font)
-  "Returns a font id for window and font."
-  (svref (font-family-map (bitmap-hunk-font-family (window-hunk window))) font))
-
-(defun %set-window-font (window font font-object)
-  (unless (and (>= font 0) (< font font-map-size))
-    (error "Font number ~S out of range." font))
-  (setf (bitmap-hunk-trashed (window-hunk window)) :font-change)
-  (let ((family (bitmap-hunk-font-family (window-hunk window))))
-    (when (eq family *default-font-family*)
-      (setq family (copy-font-family family))
-      (setf (font-family-map family) (copy-seq (font-family-map family)))
-      (setf (bitmap-hunk-font-family (window-hunk window)) family))
-    (setf (svref (font-family-map family) font) font-object)))
-
-(defun default-font (font)
-  "Returns the font id for font out of the default font family."
-  (svref (font-family-map *default-font-family*) font))
-
-(defun %set-default-font (font font-object)
-  (unless (and (>= font 0) (< font font-map-size))
-    (error "Font number ~S out of range." font))
-  (dolist (w *window-list*)
-    (when (eq (bitmap-hunk-font-family (window-hunk w)) *default-font-family*)
-      (setf (bitmap-hunk-trashed (window-hunk w)) :font-change)))
-  (setf (svref (font-family-map *default-font-family*) font) font-object))
-)

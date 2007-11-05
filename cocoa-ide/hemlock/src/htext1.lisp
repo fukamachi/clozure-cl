@@ -36,10 +36,10 @@
 ;;;		      Left Pointer		     Right Pointer
 ;;;
 ;;; The open line is represented by 4 special variables:
-;;;	*Open-Line*: the line object that is opened
-;;;	*Open-Chars*: the vector of cached characters
-;;;	*Left-Open-Pos*: index of first free character in the gap
-;;;	*Right-Open-Pos*: index of first used character after the gap
+;;;	(current-open-line): the line object that is opened
+;;;	(current-open-chars): the vector of cached characters
+;;;	(current-left-open-pos): index of first free character in the gap
+;;;	(current-right-open-pos): index of first used character after the gap
 ;;;
 ;;; Note:
 ;;;    Any modificiation of the line cache must be protected by
@@ -76,28 +76,33 @@
 (defvar *right-open-pos* 0
   "Index to first used character to right of mark in *Open-Chars*.")
 
-(defun grow-open-chars (&optional (new-length (* *line-cache-length* 2)))
-  "Grows *Open-Chars* to twice its current length, or the New-Length if
+(defun grow-open-chars (&optional (new-length (* (current-line-cache-length) 2)))
+  "Grows (current-open-chars) to twice its current length, or the New-Length if
   specified."
-  (let ((new-chars (make-string new-length))
-	(new-right (- new-length (- *line-cache-length* *right-open-pos*))))
-    (%sp-byte-blt *open-chars* 0 new-chars 0 *left-open-pos*)
-    (%sp-byte-blt *open-chars* *right-open-pos* new-chars new-right new-length)
-    (setf *right-open-pos* new-right)
-    (setf *open-chars* new-chars)
-    (setf *line-cache-length* new-length)))
+  (let* ((old-chars (current-open-chars))
+	 (old-right (current-right-open-pos))
+	 (new-chars (make-string new-length))
+	 (new-right (- new-length (- (current-line-cache-length) old-right))))
+    (%sp-byte-blt old-chars 0 new-chars 0 (current-left-open-pos))
+    (%sp-byte-blt old-chars old-right new-chars new-right new-length)
+    (setf (current-right-open-pos) new-right)
+    (setf (current-open-chars) new-chars)
+    (setf (current-line-cache-length) new-length)))
 
 (defun close-line ()
   "Stuffs the characters in the currently open line back into the line they
-  came from, and sets *open-line* to Nil."
-  (when *open-line*
+  came from, and sets (current-open-line) to Nil."
+  (when (current-open-line)
     (hemlock-ext:without-interrupts
-      (let* ((length (+ *left-open-pos* (- *line-cache-length* *right-open-pos*)))
+      (let* ((open-chars (current-open-chars))
+	     (right-pos (current-right-open-pos))
+	     (left-pos (current-left-open-pos))
+	     (length (+ left-pos (- (current-line-cache-length) right-pos)))
 	     (string (make-string length)))
-	(%sp-byte-blt *open-chars* 0 string 0 *left-open-pos*)
-	(%sp-byte-blt *open-chars* *right-open-pos*  string *left-open-pos* length)
-	(setf (line-chars *open-line*) string)
-	(setf *open-line* nil)))))
+	(%sp-byte-blt open-chars 0 string 0 left-pos)
+	(%sp-byte-blt open-chars right-pos string left-pos length)
+	(setf (line-chars (current-open-line)) string)
+	(setf (current-open-line) nil)))))
 
 ;;; We stick decrementing fixnums in the line-chars slot of the open line
 ;;; so that whenever the cache is changed the chars are no longer eq.
@@ -108,62 +113,61 @@
   "The counter for the fixnums we stick in the chars of the cached line.")
 
 (defun open-line (line mark)
-  "Closes the current *Open-Line* and opens the given Line at the Mark.
+  "Closes the current open line and opens the given Line at the Mark.
   Don't call this, use modifying-line instead."
-  (cond ((eq line *open-line*)
-	   (let ((charpos (mark-charpos mark)))
-	     (cond ((< charpos *left-open-pos*) ; BLT 'em right!
-		    (let ((right-start (- *right-open-pos*
-					  (- *left-open-pos* charpos))))
-		      (%sp-byte-blt *open-chars*
+  (cond ((current-open-line-p line)
+	   (let ((charpos (mark-charpos mark))
+		 (open-chars (current-open-chars)))
+	     (cond ((< charpos (current-left-open-pos)) ; BLT 'em right!
+		    (let ((right-start (- (current-right-open-pos)
+					  (- (current-left-open-pos) charpos))))
+		      (%sp-byte-blt open-chars
 				    charpos
-				    *open-chars*
+				    open-chars
 				    right-start
-				    *right-open-pos*)
-		      (setf *left-open-pos* charpos)
-		      (setf *right-open-pos* right-start)))
-		   ((> charpos *left-open-pos*) ; BLT 'em left!
-		    (%sp-byte-blt *open-chars*
-				  *right-open-pos*
-				  *open-chars*
-				  *left-open-pos*
+				    (current-right-open-pos))
+		      (setf (current-left-open-pos) charpos)
+		      (setf (current-right-open-pos) right-start)))
+		   ((> charpos (current-left-open-pos)) ; BLT 'em left!
+		    (%sp-byte-blt open-chars
+				  (current-right-open-pos)
+				  open-chars
+				  (current-left-open-pos)
 				  charpos)
-		    (setf *right-open-pos*
-			  (+ *right-open-pos*
-			     (- charpos *left-open-pos*)))
-		    (setf *left-open-pos* charpos)))))
+		    (incf (current-right-open-pos) (- charpos (current-left-open-pos)))
+		    (setf (current-left-open-pos) charpos)))))
 
 	  (t
 	   (close-line)
 	   (let* ((chars (line-chars line))
 		  (len (length chars)))
 	     (declare (simple-string chars))
-	     (when (> len *line-cache-length*)
-	       (setf *line-cache-length* (* len 2))
-	       (setf *open-chars* (make-string *line-cache-length*)))
-	     (setf *open-line* line)
-	     (setf *left-open-pos* (mark-charpos mark))
-	     (setf *right-open-pos*
-		   (- *line-cache-length*
-		      (- (length chars) *left-open-pos*)))
-	     (%sp-byte-blt chars 0 *open-chars* 0
-			   *left-open-pos*)
-	     (%sp-byte-blt chars *left-open-pos*
-			   *open-chars*
-			   *right-open-pos*
-			   *line-cache-length*)))))
+	     (when (> len (current-line-cache-length))
+	       (setf (current-line-cache-length) (* len 2))
+	       (setf (current-open-chars) (make-string (current-line-cache-length))))
+	     (setf (current-open-line) line)
+	     (setf (current-left-open-pos) (mark-charpos mark))
+	     (setf (current-right-open-pos)
+		   (- (current-line-cache-length)
+		      (- (length chars) (current-left-open-pos))))
+	     (%sp-byte-blt chars 0 (current-open-chars) 0
+			   (current-left-open-pos))
+	     (%sp-byte-blt chars (current-left-open-pos)
+			   (current-open-chars)
+			   (current-right-open-pos)
+			   (current-line-cache-length))))))
 
 ;;;; Some macros for Text hacking:
 
 
 (defmacro modifying-line (line mark)
   "Checks to see if the Line is already opened at the Mark, and calls Open-Line
-  if not.  Sticks a tick in the *open-line*'s chars.  This must be called within
+  if not.  Sticks a tick in the current-open-line's chars.  This must be called within
   the body of a Modifying-Buffer form."
   `(progn
-    (unless (and (= (mark-charpos ,mark) *left-open-pos*) (eq ,line *open-line*))
+    (unless (and (= (mark-charpos ,mark) (current-left-open-pos)) (current-open-line-p ,line))
       (open-line ,line ,mark))
-    (setf (line-chars *open-line*) (decf *cache-modification-tick*))))
+    (setf (line-chars (current-open-line)) (decf *cache-modification-tick*))))
 
 ;;; Now-Tick tells us when now is and isn't.
 ;;;
@@ -350,7 +354,7 @@
 (defun line-string (line)
   "Returns the characters in the line as a string.  The resulting string
   must not be destructively modified.  This may be set with Setf."
-  (if (eq line *open-line*)
+  (if (current-open-line-p line)
     (close-line))
   (line-chars line))
 
@@ -359,7 +363,7 @@
     (modifying-buffer buffer
       (unless (simple-string-p string) 
 	(setq string (coerce string 'simple-string)))
-      (when (eq line *open-line*) (setq *open-line* nil))
+      (when (current-open-line-p line) (setf (current-open-line) nil))
       (let ((length (length (the simple-string string))))
 	(dolist (m (line-marks line))
 	  (if (eq (mark-%kind m) :left-inserting)
@@ -370,13 +374,13 @@
 (defun line-character (line index)
   "Return the Index'th character in Line.  If the index is the length of the
   line then #\newline is returned."
-  (if (eq line *open-line*)
-      (if (< index *left-open-pos*)
-	  (schar *open-chars* index)
-	  (let ((index (+ index (- *right-open-pos* *left-open-pos*))))
-	    (if (= index *line-cache-length*)
+  (if (current-open-line-p line)
+      (if (< index (current-left-open-pos))
+	  (schar (current-open-chars) index)
+	  (let ((index (+ index (- (current-right-open-pos) (current-left-open-pos)))))
+	    (if (= index (current-line-cache-length))
 		#\newline
-		(schar *open-chars* index))))
+		(schar (current-open-chars) index))))
       (let ((chars (line-chars line)))
 	(declare (simple-string chars))
 	(if (= index (length chars))
@@ -548,8 +552,8 @@
   "Returns T if the line pointer to by Mark contains no characters, Nil 
   or otherwise."
   (let ((line (mark-line mark)))
-    (if (eq line *open-line*)
-	(and (= *left-open-pos* 0) (= *right-open-pos* *line-cache-length*))
+    (if (current-open-line-p line)
+	(and (= (current-left-open-pos) 0) (= (current-right-open-pos) (current-line-cache-length)))
 	(= (length (line-chars line)) 0))))
 
 ;;; blank-between-positions  --  Internal
@@ -564,15 +568,15 @@
        (return nil)))))
 ;;;
 (defun blank-between-positions (line start end)
-  (if (eq line *open-line*)
-      (let ((gap (- *right-open-pos* *left-open-pos*)))
-	(cond ((>= start *left-open-pos*)
-	       (check-range *open-chars* (+ start gap) (+ end gap)))
-	      ((<= end *left-open-pos*)
-	       (check-range *open-chars* start end))
+  (if (current-open-line-p line)
+      (let ((gap (- (current-right-open-pos) (current-left-open-pos))))
+	(cond ((>= start (current-left-open-pos))
+	       (check-range (current-open-chars) (+ start gap) (+ end gap)))
+	      ((<= end (current-left-open-pos))
+	       (check-range (current-open-chars) start end))
 	      (t
-	       (and (check-range *open-chars* start *left-open-pos*)
-		    (check-range *open-chars* *right-open-pos* (+ end gap))))))
+	       (and (check-range (current-open-chars) start (current-left-open-pos))
+		    (check-range (current-open-chars) (current-right-open-pos) (+ end gap))))))
       (let ((chars (line-chars line)))
 	(check-range chars start end))))
 

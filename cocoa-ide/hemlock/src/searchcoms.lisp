@@ -185,7 +185,7 @@
   (do* ((curr-point (copy-mark point :temporary))
         (curr-trailer (copy-mark trailer :temporary)))
        (nil)
-    (let* ((next-key-event (recursive-get-key-event *editor-input* t))
+    (let* ((next-key-event (recursive-get-key-event hi::*editor-input* t))
 	   (val (%i-search-char-eval next-key-event string point trailer
                                  direction failure))
 	   (empty-string-p (zerop (length string))))
@@ -235,7 +235,7 @@
 	   (throw 'exit-i-search :control-g))
 	 :control-g)
 	((logical-key-event-p key-event :quote)
-	 (%i-search-printed-char (get-key-event *editor-input* t)
+	 (%i-search-printed-char (get-key-event hi::*editor-input* t)
 				 string point trailer direction failure))
 	((and (zerop (length string)) (logical-key-event-p key-event :exit))
 	 (if (eq direction :forward)
@@ -244,7 +244,7 @@
 	 (throw 'exit-i-search nil))
 	(t
 	 (unless (logical-key-event-p key-event :exit)
-	   (unget-key-event key-event *editor-input*))
+	   (unget-key-event key-event hi::*editor-input*))
 	 (unless (zerop (length string))
 	   (setf *last-search-string* string))
 	 (throw 'exit-i-search nil))))
@@ -546,7 +546,7 @@
 		  (get-search-pattern target :forward))
 		 (:exit "Exit immediately."
 			(return nil))
-		 (t (unget-key-event key-event *editor-input*)
+		 (t (unget-key-event key-event hi::*editor-input*)
 		    (return nil))))))
        (length (the list *query-replace-undo-data*))))))
 

@@ -586,69 +586,6 @@
   (report-hemlock-error condition)
   (throw 'editor-top-level-catcher nil))
 
-#+no
-(defun lisp-error-error-handler (condition &optional internalp)
-  (invoke-debugger condition)
-  (handler-bind ((editor-error #'(lambda (condx)
-				   (declare (ignore condx))
-				   (beep)
-				   (throw 'command-loop-catcher nil)))
-		 (error #'(lambda (condition)
-			    (declare (ignore condition))
-			    (let ((device (device-hunk-device
-					   (window-hunk (current-window)))))
-			      (funcall (device-exit device) device))
-			    (invoke-debugger
-			     (make-condition
-			      'simple-condition
-			      :format-control
-			      "Error in error handler; Hemlock broken.")))))
-    (princ condition)
-    (clear-echo-area)
-    (clear-editor-input *editor-input*)
-    (beep)
-    (if internalp (write-string "Internal error: " *echo-area-stream*))
-    (princ condition *echo-area-stream*)
-    (let* ((*editor-input* *real-editor-input*)
-	   (key-event (get-key-event *editor-input*)))
-      (if (eq key-event #k"?")
-	  (loop 
-	    (command-case (:prompt "Debug: "
-			   :help
-			   "Type one of the Hemlock debug command characters:")
-	      (#\d "Enter a break loop."
-	       (let ((device (device-hunk-device
-			      (window-hunk (current-window)))))
-		 (funcall (device-exit device) device)
-		 (unwind-protect
-		     (with-simple-restart
-			 (continue "Return to Hemlock's debug loop.")
-		       (invoke-debugger condition))
-		   (funcall (device-init device) device))))
-              #|| GB
-	      (#\b "Do a stack backtrace."
-		 (with-pop-up-display (*debug-io* :height 100)
-		 (debug:backtrace)))
-              ||#
-	      (#\e "Show the error."
-	       (with-pop-up-display (*standard-output*)
-		 (princ condition)))
-	      ((#\q :exit) "Throw back to Hemlock top-level."
-	       (throw 'editor-top-level-catcher nil))
-              #||
-	      (#\r "Try to restart from this error."
-	       (let ((cases (compute-restarts)))
-		 (declare (list cases))
-		 (with-pop-up-display (s :height (1+ (length cases)))
-		   (debug::show-restarts cases s))
-		 (invoke-restart-interactively
-		  (nth (prompt-for-integer :prompt "Restart number: ")
-		       cases))))
-              ||#
-              ))
-	  (unget-key-event key-event *editor-input*))
-      (throw 'editor-top-level-catcher nil))))
-
 (defmacro handle-lisp-errors (&body body)
   "Handle-Lisp-Errors {Form}*
   If a Lisp error happens during the evaluation of the body, then it is

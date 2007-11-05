@@ -447,20 +447,20 @@
 		   chars ,start (strlen chars) ,vector ,mask))))
 ;;;
 (defmacro cache-find-attribute (start result vector mask)
-  `(let ((gap (- *right-open-pos* *left-open-pos*)))
+  `(let ((gap (- (current-right-open-pos) (current-left-open-pos))))
      (declare (fixnum gap))
      (cond
-      ((>= ,start *left-open-pos*)
+      ((>= ,start (current-left-open-pos))
        (setq ,result
 	     (%sp-find-character-with-attribute
-	      *open-chars* (+ ,start gap) *line-cache-length* ,vector ,mask))
+	      (current-open-chars) (+ ,start gap) (current-line-cache-length) ,vector ,mask))
        (when ,result (decf ,result gap)))
       ((setq ,result (%sp-find-character-with-attribute
-		      *open-chars* ,start *left-open-pos* ,vector ,mask)))
+		      (current-open-chars) ,start (current-left-open-pos) ,vector ,mask)))
       (t
        (setq ,result
 	     (%sp-find-character-with-attribute
-	      *open-chars* *right-open-pos* *line-cache-length* ,vector ,mask))
+	      (current-open-chars) (current-right-open-pos) (current-line-cache-length) ,vector ,mask))
        (when ,result (decf ,result gap))))))
 ); eval-when (:compile-toplevel :execute)
 ;;;
@@ -475,7 +475,7 @@
     (cached-attribute-lookup attribute test vector mask end-wins)
     (cond
      ((cond
-       ((eq line *open-line*)
+       ((current-open-line-p line)
 	(when (cache-find-attribute charpos charpos vector mask)
 	  (setf (mark-charpos mark) charpos) mark))
        (t
@@ -495,7 +495,7 @@
 	  (if end-wins
 	      (return (line-end mark prev))
 	      (return nil)))
-	 ((eq line *open-line*)
+	 ((current-open-line-p line)
 	  (when (cache-find-attribute 0 charpos vector mask)
 	    (return (move-to-position mark charpos line))))
 	 (t
@@ -517,23 +517,23 @@
 		    chars 0 ,(or start '(strlen chars)) ,vector ,mask))))
 ;;;
 (defmacro rev-cache-find-attribute (start result vector mask)
-  `(let ((gap (- *right-open-pos* *left-open-pos*)))
+  `(let ((gap (- (current-right-open-pos) (current-left-open-pos))))
      (declare (fixnum gap))
      (cond
       ,@(when start
-	  `(((<= ,start *left-open-pos*)
+	  `(((<= ,start (current-left-open-pos))
 	     (setq ,result
 		   (%sp-reverse-find-character-with-attribute
-		    *open-chars* 0 ,start ,vector ,mask)))))
+		    (current-open-chars) 0 ,start ,vector ,mask)))))
       ((setq ,result (%sp-reverse-find-character-with-attribute
-		      *open-chars* *right-open-pos*
-		      ,(if start `(+ ,start gap) '*line-cache-length*)
+		      (current-open-chars) (current-right-open-pos)
+		      ,(if start `(+ ,start gap) '(current-line-cache-length))
 		      ,vector ,mask))
        (decf ,result gap))
       (t
        (setq ,result
 	     (%sp-reverse-find-character-with-attribute
-	      *open-chars* 0 *left-open-pos* ,vector ,mask))))))
+	      (current-open-chars) 0 (current-left-open-pos) ,vector ,mask))))))
 
 ); eval-when (:compile-toplevel :execute)
 ;;;
@@ -547,7 +547,7 @@
     (cached-attribute-lookup attribute test vector mask end-wins)
     (cond 
      ((cond
-       ((eq line *open-line*)
+       ((current-open-line-p line)
 	(when (rev-cache-find-attribute charpos charpos vector mask)
 	  (setf (mark-charpos mark) (1+ charpos)) mark))
        (t
@@ -566,7 +566,7 @@
 	  (if end-wins
 	      (return (line-start mark next))
 	      (return nil)))
-	 ((eq line *open-line*)
+	 ((current-open-line-p line)
 	  (when (rev-cache-find-attribute nil charpos vector mask)
 	    (return (move-to-position mark (1+ charpos) line))))
 	 (t

@@ -42,18 +42,18 @@
                          (modifying-line line mark)
                          (cond
                            ((minusp n)
-                            (setq *left-open-pos* (+ *left-open-pos* n))
+                            (setf (current-left-open-pos) (+ (current-left-open-pos) n))
                             (move-some-marks (pos line)
-                                             (if (> pos *left-open-pos*)
-                                               (if (<= pos charpos) *left-open-pos* (+ pos n))
+                                             (if (> pos (current-left-open-pos))
+                                               (if (<= pos charpos) (current-left-open-pos) (+ pos n))
                                                pos)))
 	 
                            (t
-                            (setq *right-open-pos* (+ *right-open-pos* n))
+                            (setf (current-right-open-pos) (+ (current-right-open-pos) n))
                             (let ((bound (+ charpos n)))
                               (move-some-marks (pos line)
                                                (if (> pos charpos)
-                                                 (if (<= pos bound) *left-open-pos* (- pos n))
+                                                 (if (<= pos bound) (current-left-open-pos) (- pos n))
                                                  pos)))))
                          (adjust-line-origins-forward line)
                          (buffer-note-deletion buffer mark n)
@@ -95,7 +95,7 @@
 	       ;; Simple case -- just skip over the characters:
 	       (modifying-line first-line start)
 	       (let ((num (- last-charpos first-charpos)))
-		 (setq *right-open-pos* (+ *right-open-pos* num))
+		 (setf (current-right-open-pos) (+ (current-right-open-pos) num))
 		 ;; and fix up any marks in there:
 		 (move-some-marks (charpos first-line)
 		   (if (> charpos first-charpos)
@@ -173,14 +173,14 @@
                    ;; simple case -- just skip over the characters:
                    (modifying-line first-line start)
                    (let* ((num (- last-charpos first-charpos))
-                          (new-right (+ *right-open-pos* num))
+                          (new-right (+ (current-right-open-pos) num))
                           (new-chars (make-string num))
                           (new-line (make-line
                                      :chars new-chars  :number 0
                                      :%buffer (incf *disembodied-buffer-counter*))))
                      (declare (simple-string new-chars))
-                     (%sp-byte-blt *open-chars* *right-open-pos* new-chars 0 num) 
-                     (setq *right-open-pos* new-right)
+                     (%sp-byte-blt (current-open-chars) (current-right-open-pos) new-chars 0 num) 
+                     (setf (current-right-open-pos) new-right)
                      ;; and fix up any marks in there:
                      (move-some-marks (charpos first-line)
                                       (if (> charpos first-charpos)
@@ -273,7 +273,7 @@
 	 (count (incf *disembodied-buffer-counter*)))
     (cond
      ((eq first-line last-line)
-      (when (eq first-line *open-line*) (close-line))
+      (when (current-open-line-p first-line) (close-line))
       (let* ((length (- last-charpos first-charpos))
 	     (chars (make-string length))
 	     (line (make-line :chars chars  :%buffer count  :number 0)))
@@ -349,14 +349,14 @@
     (modifying-buffer buffer
       (modifying-line end-line end)
       (cond ((eq start-line end-line)
-	     (let* ((res (fcs function (subseq *open-chars* first last)))
+	     (let* ((res (fcs function (subseq (current-open-chars) first last)))
 		    (rlen (length res))
 		    (new-left (+ first rlen))
-		    (delta (- new-left *left-open-pos*)))
+		    (delta (- new-left (current-left-open-pos))))
 	       (declare (simple-string res))
-	       (when (> new-left *right-open-pos*)
-		 (grow-open-chars (+ new-left *line-cache-length*)))
-	       (%sp-byte-blt res 0 *open-chars* first *left-open-pos*)
+	       (when (> new-left (current-right-open-pos))
+		 (grow-open-chars (+ new-left (current-line-cache-length))))
+	       (%sp-byte-blt res 0 (current-open-chars) first (current-left-open-pos))
 	       ;;
 	       ;; Move marks to start or end of region, depending on kind.
 	       (dolist (m (line-marks start-line))
@@ -367,7 +367,7 @@
 			       (if (eq (mark-%kind m) :left-inserting)
 				   new-left first)
 			       (+ charpos delta))))))
-	       (setq *left-open-pos* new-left)))
+	       (setf (current-left-open-pos) new-left)))
 	    (t
 	     ;;
 	     ;; Do the chars for the first line.
@@ -400,15 +400,15 @@
 	       (setf (line-%chars line) (fcs function (line-chars line))))
 	     ;;
 	     ;; Do the last line, which is cached.
-	     (let* ((res (fcs function (subseq (the simple-string *open-chars*)
+	     (let* ((res (fcs function (subseq (the simple-string (current-open-chars))
 					       0 last)))
 		    (rlen (length res))
 		    (delta (- rlen last)))
 	       (declare (simple-string res))
-	       (when (> rlen *right-open-pos*)
-		 (grow-open-chars (+ rlen *line-cache-length*)))
-	       (%sp-byte-blt res 0 *open-chars* 0 rlen)
-	       (setq *left-open-pos* rlen)
+	       (when (> rlen (current-right-open-pos))
+		 (grow-open-chars (+ rlen (current-line-cache-length))))
+	       (%sp-byte-blt res 0 (current-open-chars) 0 rlen)
+	       (setf (current-left-open-pos) rlen)
 	       ;;
 	       ;; Adjust marks after the end of the region and save ones in it.
 	       (let ((outside ()))

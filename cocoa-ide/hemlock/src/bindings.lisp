@@ -601,15 +601,6 @@
 )
 
 
-;;;; X commands:
-
-#+clx
-(progn
-(bind-key "Insert Cut Buffer" #k"insert")
-(bind-key "Region to Cut Buffer" #k"meta-insert")
-)
-
-
 ;;;; Mailer commands.
 #+mail-mode
 (progn

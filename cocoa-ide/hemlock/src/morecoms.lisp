@@ -456,7 +456,7 @@
     (unless y (editor-error))
     (cond ((< x 2)
 	   (loop
-	     (when (listen-editor-input *editor-input*) (return))
+	     (when (listen-editor-input hi::*editor-input*) (return))
 	     (scroll-window window -1)
 	     (redisplay)
 	     (editor-finish-output window)))
@@ -474,7 +474,7 @@
     (unless y (editor-error))
     (cond ((< x 2)
 	   (loop
-	     (when (listen-editor-input *editor-input*) (return))
+	     (when (listen-editor-input hi::*editor-input*) (return))
 	     (scroll-window window 1)
 	     (redisplay)
 	     (editor-finish-output window)))

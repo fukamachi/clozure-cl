@@ -104,26 +104,26 @@
 	(if (line-previous line)
 	    #\newline
 	    nil)
-	(if (eq line *open-line*)
-	    (char (the simple-string *open-chars*)
-		  (if (<= charpos *left-open-pos*)
+	(if (current-open-line-p line)
+	    (char (the simple-string (current-open-chars))
+		  (if (<= charpos (current-left-open-pos))
 		      (1- charpos)
-		      (1- (+ *right-open-pos* (- charpos *left-open-pos*)))))
+		      (1- (+ (current-right-open-pos) (- charpos (current-left-open-pos))))))
 	    (schar (line-chars line) (1- charpos))))))
 
 (defun next-character (mark)
   "Returns the character immediately after the given Mark."
   (let ((line (mark-line mark))
 	(charpos (mark-charpos mark)))
-    (if (eq line *open-line*)
-	(if (= charpos (- *line-cache-length* (- *right-open-pos* *left-open-pos*)))
+    (if (current-open-line-p line)
+	(if (= charpos (- (current-line-cache-length) (- (current-right-open-pos) (current-left-open-pos))))
 	    (if (line-next line)
 		#\newline
 		nil)
-	    (schar *open-chars*
-		   (if (< charpos *left-open-pos*)
+	    (schar (current-open-chars)
+		   (if (< charpos (current-left-open-pos))
 		       charpos
-		       (+ *right-open-pos* (- charpos *left-open-pos*)))))
+		       (+ (current-right-open-pos) (- charpos (current-left-open-pos))))))
 	(let ((chars (line-chars line)))
 	  (if (= charpos (strlen chars))
 	      (if (line-next line)
@@ -146,7 +146,7 @@
     (modifying-buffer buffer
       (modifying-line line mark)
       (cond ((= (mark-charpos mark)
-		(- *line-cache-length* (- *right-open-pos* *left-open-pos*)))
+		(- (current-line-cache-length) (- (current-right-open-pos) (current-left-open-pos))))
 	     ;; The mark is at the end of the line.
 	     (unless next
 	       (error "~S has no next character, so it cannot be set." mark))
@@ -155,34 +155,34 @@
 	       ;; lines together.
 	       (let ((chars (line-chars next)))
 		 (declare (simple-string chars))
-		 (setq *right-open-pos* (- *line-cache-length* (length chars)))
-		 (when (<= *right-open-pos* *left-open-pos*)
-		   (grow-open-chars (* (+ (length chars) *left-open-pos* 1) 2)))
-		 (%sp-byte-blt chars 0 *open-chars* *right-open-pos* 
-			       *line-cache-length*)
-		 (setf (schar *open-chars* *left-open-pos*) character)
-		 (incf *left-open-pos*))
+		 (setf (current-right-open-pos) (- (current-line-cache-length) (length chars)))
+		 (when (<= (current-right-open-pos) (current-left-open-pos))
+		   (grow-open-chars (* (+ (length chars) (current-left-open-pos) 1) 2)))
+		 (%sp-byte-blt chars 0 (current-open-chars) (current-right-open-pos) 
+			       (current-line-cache-length))
+		 (setf (schar (current-open-chars) (current-left-open-pos)) character)
+		 (incf (current-left-open-pos)))
 	       (move-some-marks (charpos next line) 
-				(+ charpos *left-open-pos*))
+				(+ charpos (current-left-open-pos)))
 	       (setq next (line-next next))
 	       (setf (line-next line) next)
 	       (when next (setf (line-previous next) line))))
 	    ((char= character #\newline)
 	     ;; The char is being changed to a newline, so we must split lines.
-	     (incf *right-open-pos*)
-	     (let* ((len (- *line-cache-length* *right-open-pos*))	   
+	     (incf (current-right-open-pos))
+	     (let* ((len (- (current-line-cache-length) (current-right-open-pos)))	   
 		    (chars (make-string len))
 		    (new (make-line :chars chars  :previous line 
 				    :next next  :%buffer buffer)))
-	       (%sp-byte-blt *open-chars* *right-open-pos* chars 0 len)
-	       (maybe-move-some-marks* (charpos line new) *left-open-pos*
-				       (- charpos *left-open-pos* 1))
+	       (%sp-byte-blt (current-open-chars) (current-right-open-pos) chars 0 len)
+	       (maybe-move-some-marks* (charpos line new) (current-left-open-pos)
+				       (- charpos (current-left-open-pos) 1))
 	       (setf (line-next line) new)
 	       (when next (setf (line-previous next) new))
-	       (setq *right-open-pos* *line-cache-length*)
+	       (setf (current-right-open-pos) (current-line-cache-length))
 	       (number-line new)))
 	    (t
-	     (setf (char (the simple-string *open-chars*) *right-open-pos*)
+	     (setf (char (the simple-string (current-open-chars)) (current-right-open-pos))
 		   character)
 	     (hi::buffer-note-modification buffer mark 1)))))
   character)
@@ -373,18 +373,16 @@
   (delete #\linefeed (the simple-string string)))
 
 (defun %print-whole-line (structure stream)
-  (let* ((hi::*current-buffer* (line-buffer structure))
-	 (hi::*buffer-gap-context* (hi::buffer-gap-context hi::*current-buffer*)))
-    (cond ((eq structure *open-line*)
-	   (write-string *open-chars* stream :end *left-open-pos*)
-	   (write-string *open-chars* stream :start *right-open-pos*
-			 :end *line-cache-length*))
+  (let* ((hi::*current-buffer* (line-buffer structure)))
+    (cond ((current-open-line-p structure)
+	   (write-string (current-open-chars) stream :end (current-left-open-pos))
+	   (write-string (current-open-chars) stream :start (current-right-open-pos)
+			 :end (current-line-cache-length)))
 	  (t
 	   (write-string (line-chars structure) stream)))))
 
 (defun %print-before-mark (mark stream)
-  (let* ((hi::*current-buffer* (line-buffer (mark-line mark)))
-	 (hi::*buffer-gap-context* (hi::buffer-gap-context hi::*current-buffer*)))
+  (let* ((hi::*current-buffer* (line-buffer (mark-line mark))))
     (if (mark-line mark)
 	(let* ((line (mark-line mark))
 	       (chars (line-chars line))
@@ -393,13 +391,13 @@
 	  (declare (simple-string chars))
 	  (cond ((or (> charpos length) (< charpos 0))
 		 (write-string "{bad mark}" stream))
-		((eq line *open-line*)
-		 (cond ((< charpos *left-open-pos*)
-			(write-string *open-chars* stream :end charpos))
+		((current-open-line-p line)
+		 (cond ((< charpos (current-left-open-pos))
+			(write-string (current-open-chars) stream :end charpos))
 		       (t
-			(write-string *open-chars* stream :end *left-open-pos*)
-			(let ((p (+ charpos (- *right-open-pos* *left-open-pos*))))
-			  (write-string *open-chars* stream  :start *right-open-pos*
+			(write-string (current-open-chars) stream :end (current-left-open-pos))
+			(let ((p (+ charpos (- (current-right-open-pos) (current-left-open-pos)))))
+			  (write-string (current-open-chars) stream  :start (current-right-open-pos)
 					:end p)))))
 		(t
 		 (write-string chars stream :end charpos))))
@@ -407,8 +405,7 @@
 
 
 (defun %print-after-mark (mark stream)
-  (let* ((hi::*current-buffer* (line-buffer (mark-line mark)))
-	 (hi::*buffer-gap-context* (hi::buffer-gap-context hi::*current-buffer*)))
+  (let* ((hi::*current-buffer* (line-buffer (mark-line mark))))
     (if (mark-line mark)
 	(let* ((line (mark-line mark))
 	       (chars (line-chars line))
@@ -417,16 +414,16 @@
 	  (declare (simple-string chars))
 	  (cond ((or (> charpos length) (< charpos 0))
 		 (write-string "{bad mark}" stream))
-		((eq line *open-line*)
-		 (cond ((< charpos *left-open-pos*)
-			(write-string *open-chars* stream  :start charpos
-				      :end *left-open-pos*)
-			(write-string *open-chars* stream  :start *right-open-pos*
-				      :end *line-cache-length*))
+		((current-open-line-p line)
+		 (cond ((< charpos (current-left-open-pos))
+			(write-string (current-open-chars) stream  :start charpos
+				      :end (current-left-open-pos))
+			(write-string (current-open-chars) stream  :start (current-right-open-pos)
+				      :end (current-line-cache-length)))
 		       (t
-			(let ((p (+ charpos (- *right-open-pos* *left-open-pos*))))
-			  (write-string *open-chars* stream :start p
-					:end *line-cache-length*)))))
+			(let ((p (+ charpos (- (current-right-open-pos) (current-left-open-pos)))))
+			  (write-string (current-open-chars) stream :start p
+					:end (current-line-cache-length))))))
 		(t
 		 (write-string chars stream  :start charpos  :end length))))
 	(write-string "{deleted mark}" stream))))
@@ -439,8 +436,7 @@
 
 (defun %print-hmark (structure stream d)
   (declare (ignore d))
-  (let ((hi::*current-buffer* (line-buffer (mark-line structure)))
-	(hi::*buffer-gap-context* (hi::buffer-gap-context hi::*current-buffer*)))
+  (let ((hi::*current-buffer* (line-buffer (mark-line structure))))
     (write-string "#<Hemlock Mark \"" stream)
     (%print-before-mark structure stream)
     (write-string "^" stream)
@@ -456,7 +452,6 @@
   (let* ((start (region-start region))
 	 (end (region-end region))
 	 (hi::*current-buffer* (line-buffer (mark-line start)))
-	 (hi::*buffer-gap-context* (hi::buffer-gap-context hi::*current-buffer*))
 	 (first-line (mark-line start))
 	 (last-line (mark-line end)))
     (cond
@@ -472,18 +467,18 @@
 	       (cond
 		((or (< cs 0) (> ce len))
 		 (write-string "{bad region}" stream))
-		((eq first-line *open-line*)
-		 (let ((gap (- *right-open-pos* *left-open-pos*)))
+		((current-open-line-p first-line)
+		 (let ((gap (- (current-right-open-pos) (current-left-open-pos))))
 		   (cond
-		    ((<= ce *left-open-pos*)
-		     (write-string *open-chars* stream  :start cs  :end ce))
-		    ((>= cs *left-open-pos*)
-		     (write-string *open-chars* stream  :start (+ cs gap)
+		    ((<= ce (current-left-open-pos))
+		     (write-string (current-open-chars) stream  :start cs  :end ce))
+		    ((>= cs (current-left-open-pos))
+		     (write-string (current-open-chars) stream  :start (+ cs gap)
 				   :end (+ ce gap)))
 		    (t
-		     (write-string *open-chars* stream :start cs
-				   :end *left-open-pos*)
-		     (write-string *open-chars* stream :start *right-open-pos*
+		     (write-string (current-open-chars) stream :start cs
+				   :end (current-left-open-pos))
+		     (write-string (current-open-chars) stream :start (current-right-open-pos)
 				   :end (+ gap ce))))))
 		(t
 		 (write-string (line-chars first-line) stream  :start cs

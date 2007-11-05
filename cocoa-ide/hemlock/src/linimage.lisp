@@ -290,9 +290,9 @@
 ;;;
 (defun compute-cached-line-image (index dis-line xpos width)
   (declare (fixnum index width) (type (or fixnum null) xpos))
-  (prog ((gap (- *right-open-pos* *left-open-pos*))
+  (prog ((gap (- (current-right-open-pos) (current-left-open-pos)))
 	 (dest (dis-line-chars dis-line))
-	 (done-p (= *right-open-pos* *line-cache-length*))
+	 (done-p (= (current-right-open-pos) (current-line-cache-length)))
 	 (losing 0)
 	 string underhang)
     (declare (fixnum gap) (simple-string dest)
@@ -303,20 +303,20 @@
       (update-and-punt dis-line width string underhang index))
      ((null xpos)
       (update-and-punt dis-line width nil 0 index))
-     ((>= index *left-open-pos*)
+     ((>= index (current-left-open-pos))
       (go RIGHT-START)))
-    (setq losing (%fcwa *open-chars* index *left-open-pos* losing-char))
+    (setq losing (%fcwa (current-open-chars) index (current-left-open-pos) losing-char))
     (cond
      (losing
-      (display-some-chars *open-chars* index losing dest xpos width nil)
+      (display-some-chars (current-open-chars) index losing dest xpos width nil)
       ;; If we we didn't wrap then display some losers...
       (if xpos
-	  (display-losing-chars *open-chars* index *left-open-pos* dest xpos
+	  (display-losing-chars (current-open-chars) index (current-left-open-pos) dest xpos
 				width string underhang string-get-rep
-				(and done-p (= index *left-open-pos*)))
+				(and done-p (= index (current-left-open-pos))))
 	  (update-and-punt dis-line width nil 0 index)))
      (t
-      (display-some-chars *open-chars* index *left-open-pos* dest xpos width done-p)))
+      (display-some-chars (current-open-chars) index (current-left-open-pos) dest xpos width done-p)))
     (go LEFT-LOOP)
 
    RIGHT-START
@@ -327,21 +327,21 @@
       (update-and-punt dis-line width string underhang (- index gap)))
      ((null xpos)
       (update-and-punt dis-line width nil 0 (- index gap)))
-     ((= index *line-cache-length*)
+     ((= index (current-line-cache-length))
       (update-and-punt dis-line xpos nil nil (- index gap))))
-    (setq losing (%fcwa *open-chars* index *line-cache-length* losing-char))
+    (setq losing (%fcwa (current-open-chars) index (current-line-cache-length) losing-char))
     (cond
      (losing
-      (display-some-chars *open-chars* index losing dest xpos width nil)
+      (display-some-chars (current-open-chars) index losing dest xpos width nil)
       (cond
        ;; Did we wrap?
        ((null xpos)
 	(update-and-punt dis-line width nil 0 (- index gap)))
        (t
-	(display-losing-chars *open-chars* index *line-cache-length* dest xpos
+	(display-losing-chars (current-open-chars) index (current-line-cache-length) dest xpos
 			      width string underhang string-get-rep))))
      (t
-      (display-some-chars *open-chars* index *line-cache-length* dest xpos width t)))
+      (display-some-chars (current-open-chars) index (current-line-cache-length) dest xpos width t)))
     (go RIGHT-LOOP))) 
 
 (defun make-some-font-changes ()
@@ -434,7 +434,7 @@
 		(when (and (> charpos bound) (< charpos min))
 		  (setq min charpos  min-mark m)))))
 	  (unless min-mark (return nil))
-	  (let ((len (if (eq line *open-line*)
+	  (let ((len (if (current-open-line-p line)
 			 (cached-real-line-length line 10000 offset min)
 			 (real-line-length line 10000 offset min))))
 	    (when (< len width)
@@ -461,11 +461,11 @@
       (cond
        ((null xpos)
 	(values string underhang offset))	   
-       ((eq line *open-line*)
+       ((current-open-line-p line)
 	(compute-cached-line-image offset dis-line xpos width))
        (t
  	(compute-normal-line-image line offset dis-line xpos width)))))
-   ((eq line *open-line*)
+   ((current-open-line-p line)
     (compute-cached-line-image offset dis-line 0 width))
    (t
     (compute-normal-line-image line offset dis-line 0 width))))
