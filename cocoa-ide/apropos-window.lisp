@@ -44,9 +44,17 @@
 	       (not (string-equal input (previous-input self))))
       (setf (previous-input self) input)
       (flet ((%make-nsstring-with-highlighted-range (s start len)
-	       (let* ((output (make-instance 'ns:ns-mutable-attributed-string
-					     :with-string (#/autorelease
-							   (%make-nsstring s))))
+	       (let* ((attrs (#/dictionaryWithObject:forKey: ns:ns-dictionary
+			      (#/systemFontOfSize:
+			       ns:ns-font
+			       (#/systemFontSizeForControlSize:
+				ns:ns-font
+				#$NSSmallControlSize))
+			      #&NSFontAttributeName))
+		      (output (make-instance 'ns:ns-mutable-attributed-string
+				:with-string (#/autorelease
+					      (%make-nsstring s))
+				:attributes attrs))
 		      (range (ns:make-ns-range start len)))
 		 (#/applyFontTraits:range: output #$NSBoldFontMask range)
 		 output)))
