@@ -223,6 +223,7 @@ printed using \"#:\" syntax.  NIL means no prefix is printed.")
 
 (defvar *current-length* nil) ; must be nil at top level
 
+(defvar *print-catch-errors* t)
 
 ;;;; ======================================================================
 
@@ -449,6 +450,12 @@ printed using \"#:\" syntax.  NIL means no prefix is printed.")
          (write-internal-1 stream (%cdr object) level (if (consp (%cdr object))
                                                           (%i- list-kludge 1)
                                                           list-kludge)))))
+
+(defmethod print-object :around ((object t) stream)
+  (if *print-catch-errors*
+    (handler-case (call-next-method)
+      (error () (write-string "#<error printing object>" stream)))
+    (call-next-method)))
 
 (defmethod print-object ((object t) stream)
   (let ((level (%current-write-level% stream))   ; what an abortion.  This should be an ARGUMENT!
