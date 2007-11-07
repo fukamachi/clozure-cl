@@ -1316,6 +1316,7 @@
 (defparameter *modeline-grays* #(255 255 253 247 242 236 231
 				 224 229 234 239 245 252 255))
 
+(defparameter *modeline-height* 14)
 (defloadvar *modeline-pattern-image* nil)
 
 (defun create-modeline-pattern-image ()
@@ -1545,8 +1546,6 @@
                 (#/setMinSize: tv (ns:make-ns-size 0 (ns:ns-size-height contentsize)))
                 (#/setMaxSize: tv (ns:make-ns-size large-number-for-text large-number-for-text))
                 (#/setRichText: tv nil)
-                (#/setHorizontallyResizable: tv t)
-                (#/setVerticallyResizable: tv t) 
                 (#/setAutoresizingMask: tv #$NSViewWidthSizable)
                 (#/setBackgroundColor: tv color)
                 (#/setTypingAttributes: tv (#/objectAtIndex: (#/styles textstorage) style))
@@ -1555,8 +1554,23 @@
                 (#/setUsesFindPanel: tv t)
                 (#/setUsesFontPanel: tv nil)
                 (#/setMenu: tv (text-view-context-menu))
-                (#/setWidthTracksTextView: container tracks-width)
-                (#/setHeightTracksTextView: container nil)
+
+		;;  The container tracking and the text view sizability along a
+		;;  particular axis must always be different, or else things can
+		;;  get really confused (possibly causing an infinite loop).
+
+		(if tracks-width
+		  (progn
+		    (#/setWidthTracksTextView: container t)
+		    (#/setHeightTracksTextView: container nil)
+		    (#/setHorizontallyResizable: tv nil)
+		    (#/setVerticallyResizable: tv t))
+		  (progn
+		    (#/setWidthTracksTextView: container nil)
+		    (#/setHeightTracksTextView: container nil)
+		    (#/setHorizontallyResizable: tv t)
+		    (#/setVerticallyResizable: tv t)))
+
                 (#/setDocumentView: scrollview tv)	      
                 (values tv scrollview)))))))))
 
