@@ -2682,20 +2682,10 @@
     ((last-encoding :foreign-type :<NSS>tring<E>ncoding))
   (:metaclass ns:+ns-object))
 
-(defloadvar *hemlock-document-controller* nil "Shared document controller")
-
-(objc:defmethod #/sharedDocumentController ((self +hemlock-document-controller))
-  (or *hemlock-document-controller*
-      (setq *hemlock-document-controller* (#/init (#/alloc self)))))
-
 (objc:defmethod #/init ((self hemlock-document-controller))
-  (if *hemlock-document-controller*
-    (progn
-      (#/release self)
-      *hemlock-document-controller*)
-    (prog1
-      (setq *hemlock-document-controller* (call-next-method))
-      (setf (slot-value *hemlock-document-controller* 'last-encoding) 0))))
+  (prog1
+      (call-next-method)
+    (setf (slot-value self 'last-encoding) 0)))
 
 (defun iana-charset-name-of-nsstringencoding (ns)
   (#_CFStringConvertEncodingToIANACharSetName
@@ -2779,7 +2769,11 @@
    self (@selector #/saveDocumentTo:) +null-ptr+ t))
 
 (defun initialize-user-interface ()
-  (#/sharedDocumentController hemlock-document-controller)
+  ;; The first created instance of an NSDocumentController (or
+  ;; subclass thereof) becomes the shared document controller.  So it
+  ;; may look like we're dropping this instance on the floor, but
+  ;; we're really not.
+  (make-instance 'hemlock-document-controller)
   ;(#/sharedPanel lisp-preferences-panel)
   (make-editor-style-map))
 
