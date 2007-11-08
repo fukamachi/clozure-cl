@@ -2177,7 +2177,6 @@
         (#/setContentSize: window sv-size)
         (setf (slot-value tv 'char-width) char-width
               (slot-value tv 'char-height) char-height)
-	#+nil
         (#/setResizeIncrements: window
                                 (ns:make-ns-size char-width char-height))))))
 				    
@@ -2654,7 +2653,6 @@
 	       +null-ptr+
 	       t))))
       ;; If point is not on screen, move it.
-      #+nil
       (let* ((point (hi::current-point))
 	     (point-pos (mark-absolute-position point)))
 	(multiple-value-bind (win-pos win-len) (window-visible-range tv)
@@ -2673,8 +2671,6 @@
 
 
 (defmethod hemlock::center-text-pane ((pane text-pane))
-  (format t "not doing center-text-pane")
-  #+nil
   (#/performSelectorOnMainThread:withObject:waitUntilDone:
    (text-pane-text-view pane)
    (@selector #/centerSelectionInVisibleArea:)
