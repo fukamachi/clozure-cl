@@ -122,7 +122,7 @@ GB
 (defun define-some-variables ()
   (defhvar "Default Modes"
     "This variable contains the default list of modes for new buffers."
-    :value '("Fundamental" "Save"))
+    :value '("Fundamental"))
   (defhvar "Echo Area Height"
     "Number of lines in the echo area window."
     :value 3)
