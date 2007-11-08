@@ -2704,28 +2704,33 @@ initially NIL.")
            (require-no-numarg subchar numarg)
            (list sharp-comma-token (read stream t nil t)))))))
 
+;;; Read a valid, non-numeric token string from stream; *READ-SUPPRESS*
+;;; is known to be false.
+(defun read-symbol-token (stream)
+  (multiple-value-bind (firstch attr) (%next-non-whitespace-char-and-attr-no-eof stream)
+    (declare (fixnum attr))
+    (with-token-buffer (tb)
+      (if (or (= attr $CHT_ILL)
+              (logbitp $cht_macbit attr)
+              (multiple-value-bind (escapes explicit-package nondots) (%collect-xtoken tb stream firstch)
+                (declare (ignore nondots))
+                (%casify-token tb (unless (atom escapes) escapes))
+                (or explicit-package
+                    (and (not escapes)
+                         (%token-to-number tb (%validate-radix *read-base*))))))
+        (%err-disp $XBADSYM)
+        (%string-from-token tb)))))
+
 (set-dispatch-macro-character
  #\#
  #\:
  #'(lambda (stream subchar numarg)
      (require-no-numarg subchar numarg)
      (if (not *read-suppress*)
-         (multiple-value-bind (firstch attr) (%next-non-whitespace-char-and-attr-no-eof stream)
-           (declare (fixnum attr))
-           (with-token-buffer (tb)
-             (if (or (= attr $CHT_ILL)
-                     (logbitp $cht_macbit attr)
-                     (multiple-value-bind (escapes explicit-package nondots) (%collect-xtoken tb stream firstch)
-                       (declare (ignore nondots))
-                       (%casify-token tb (unless (atom escapes) escapes))
-                       (or explicit-package
-                           (and (not escapes)
-                                (%token-to-number tb (%validate-radix *read-base*))))))
-               (%err-disp $XBADSYM)
-               (make-symbol (%string-from-token tb)))))
-         (progn
-           (%read-list-expression stream nil)
-           nil))))
+       (make-symbol (read-symbol-token stream))
+       (progn
+         (%read-list-expression stream nil)
+         nil))))
 
 (set-dispatch-macro-character 
  #\# 
