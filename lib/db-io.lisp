@@ -1053,6 +1053,30 @@ satisfy the optional predicate PREDICATE."
               sym
               (load-external-function sym nil))))))))
 
+(set-dispatch-macro-character
+ #\# #\>
+ (qlfun |#>-reader| (stream char arg)
+    (declare (ignore char arg))
+    (if *read-suppress*
+      (progn
+        (%read-list-expression stream nil)
+        nil)
+      (let* ((readtable *readtable*)
+             (case (readtable-case readtable))
+             (string nil)
+             (error nil))
+        (unwind-protect
+             (progn
+               (setf (readtable-case readtable) :preserve)
+               (multiple-value-setq (string error)
+                 (handler-case (read-symbol-token stream)
+                   (error (condition) (values nil condition)))))
+          (setf (readtable-case *readtable*) case))
+        (when error
+          (error error))
+        (escape-foreign-name string)))))
+             
+
 
 
 (eval-when (:compile-toplevel :execute)
