@@ -1965,6 +1965,21 @@
                 (mark-after mark3)
                 (return nil)))))))))
 
+;;; need to be able to mouse on the caller and go there
+;;; (or at least make the text in the pop-up selectable
+;;; so that we can use meta-.)
+(hi:defcommand "Show Callers" (p)
+  "Show the callers of the symbol at point."
+  (declare (ignore p))
+  (with-mark ((mark1 (current-point))
+              (mark2 (current-point)))
+    (mark-symbol mark1 mark2)
+    (with-input-from-region (s (region mark1 mark2))
+      (let* ((symbol (read s)))
+        (with-pop-up-display (*standard-output*
+                              :title (format nil "Callers of ~s" symbol))
+          (format t "~{~&~s~}" (ccl::callers symbol)))))))
+
 #||
 (defcommand "Set Package Name" (p)
   (variable-value 'current-package :buffer buffer)
