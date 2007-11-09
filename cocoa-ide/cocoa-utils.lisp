@@ -22,6 +22,7 @@
     (#/setWindow: self w)
     (#/setHasVerticalScroller: scrollview t)
     (#/setHasHorizontalScroller: scrollview t)
+    (#/setAutohidesScrollers: scrollview t)
     (#/setRulersVisible: scrollview nil)
     (#/setAutoresizingMask: scrollview (logior
                                         #$NSViewWidthSizable
@@ -29,9 +30,11 @@
     (#/setAutoresizesSubviews: (#/contentView scrollview) t)
     (let* ((table-view (make-instance 'ns:ns-table-view)))
       (#/setDocumentView: scrollview table-view)
+      (#/setColumnAutoresizingStyle: table-view #$NSTableViewUniformColumnAutoresizingStyle)
       (setf (slot-value self 'table-view) table-view)
       (let* ((column (make-instance 'ns:ns-table-column :with-identifier #@"")))
         (#/setEditable: column nil)
+	(#/setResizingMask: column #$NSTableColumnAutoresizingMask)
         (#/addTableColumn: table-view column))
       (#/setAutoresizingMask: table-view (logior
                                           #$NSViewWidthSizable
