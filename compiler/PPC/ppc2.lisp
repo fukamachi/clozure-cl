@@ -1573,7 +1573,7 @@
           (multiple-value-setq (src unscaled-i unscaled-j val-reg)
             (if needs-memoization
               (progn
-                (ppc2-four-untargeted-reg-forms seg
+                (ppc2-four-targeted-reg-forms seg
                                                 array ($ ppc::temp0)
                                                 i ($ ppc::arg_x)
                                                 j ($ ppc::arg_y)
