@@ -1221,7 +1221,8 @@
       (call-next-method event)))
 
 (objc:defmethod (#/mouseDown: :void) ((self hemlock-text-view) event)
-  (unless (logtest #$NSCommandKeyMask (#/modifierFlags event))
+  ;; If no modifier keys are pressed, send hemlock a no-op.
+  (unless (logtest #$NSDeviceIndependentModifierFlagsMask (#/modifierFlags event))
     (let* ((q (hemlock-frame-event-queue (#/window self))))
       (hi::enqueue-key-event q #k"leftdown")))
   (call-next-method event))
