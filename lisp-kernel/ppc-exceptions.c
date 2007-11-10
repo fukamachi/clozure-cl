@@ -459,13 +459,18 @@ handle_gc_trap(ExceptionInformation *xp, TCR *tcr)
         }
         fatal_oserr(": save_application", err);
       }
-      if (selector == GC_TRAP_FUNCTION_SET_HONS_AREA_SIZE) {
-        LispObj aligned_arg = align_to_power_of_2(arg, log2_nbits_in_word);
-        signed_natural 
-          delta_dnodes = ((signed_natural) aligned_arg) - 
-          ((signed_natural) tenured_area->static_dnodes);
-        change_hons_area_size_from_xp(xp, delta_dnodes*dnode_size);
-        xpGPR(xp, imm0) = tenured_area->static_dnodes;
+      switch (selector) {
+      case GC_TRAP_FUNCTION_SET_HONS_AREA_SIZE:
+        xpGPR(xp, imm0) = 0;
+        break;
+
+      case GC_TRAP_FUNCTION_FREEZE:
+        a->active = (BytePtr) align_to_power_of_2(a->active, log2_page_size);
+        tenured_area->static_dnodes = area_dnode(a->active, a->low);
+        xpGPR(xp, imm0) = tenured_area->static_dnodes << dnode_shift;
+        break;
+      default:
+        break;
       }
     }
     
@@ -787,11 +792,6 @@ impurify_from_xp(ExceptionInformation *xp, signed_natural param)
   return gc_like_from_xp(xp, impurify, param);
 }
 
-int
-change_hons_area_size_from_xp(ExceptionInformation *xp, signed_natural delta_in_bytes)
-{
-  return gc_like_from_xp(xp, change_hons_area_size, delta_in_bytes);
-}
 
 
 
