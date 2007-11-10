@@ -89,6 +89,12 @@ typedef unsigned char qnode;
 #endif
 
 
+#ifdef fulltag_symbol
+#define is_symbol_fulltag(x) (fulltag_of(x) == fulltag_symbol)
+#else
+#define is_symbol_fulltag(x) (fulltag_of(x) == fulltag_misc)
+#endif
+
 #define area_dnode(w,low) ((natural)(((ptr_to_lispobj(w)) - ptr_to_lispobj(low))>>dnode_shift))
 #define gc_area_dnode(w)  area_dnode(w,GCarealow)
 #define gc_dynamic_area_dnode(w) area_dnode(w,GCareadynamiclow)
@@ -120,5 +126,23 @@ typedef unsigned char qnode;
 #define GC_TRAP_FUNCTION_SET_HONS_AREA_SIZE 128 /* deprecated */
 #define GC_TRAP_FUNCTION_FREEZE 129
 #define GC_TRAP_FUNCTION_THAW 130
+
+Boolean GCDebug, GCverbose, just_purified_p;
+bitvector GCmarkbits, GCdynamic_markbits;
+LispObj GCarealow, GCareadynamiclow;
+natural GCndnodes_in_area, GCndynamic_dnodes_in_area;
+LispObj GCweakvll;
+LispObj GCephemeral_low;
+natural GCn_ephemeral_dnodes;
+natural GCstack_limit;
+
+#if WORD_SIZE == 64
+unsigned short *_one_bits;
+#else
+const unsigned char _one_bits[256];
+#endif
+
+#define one_bits(x) _one_bits[x]
+
 
 #endif                          /* __GC_H__ */
