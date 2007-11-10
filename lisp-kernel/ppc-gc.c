@@ -38,7 +38,7 @@ check_node(LispObj n)
   case fulltag_even_fixnum:
   case fulltag_odd_fixnum:
 
-#ifdef PPC
+
 #ifdef PPC64
   case fulltag_imm_0:
   case fulltag_imm_1:
@@ -47,7 +47,7 @@ check_node(LispObj n)
 #else
   case fulltag_imm:
 #endif
-#endif
+
 
     return;
 
@@ -59,7 +59,7 @@ check_node(LispObj n)
     return;
 #endif
 
-#ifdef PPC
+
 #ifdef PPC64
   case fulltag_nodeheader_0: 
   case fulltag_nodeheader_1: 
@@ -73,7 +73,7 @@ check_node(LispObj n)
   case fulltag_nodeheader:
   case fulltag_immheader:
 #endif
-#endif
+
 
     Bug(NULL, "Header not expected : 0x%lx", n);
     return;
@@ -114,7 +114,6 @@ check_node(LispObj n)
   return;
 }
 
-Boolean GCDebug = false, GCverbose = false;
 
 
 
@@ -204,14 +203,6 @@ check_all_areas()
   }
 }
 
-natural
-static_dnodes_for_area(area *a)
-{
-  if (a->low == tenured_area->low) {
-    return tenured_area->static_dnodes;
-  }
-  return 0;
-}
 
 
 
@@ -219,12 +210,6 @@ static_dnodes_for_area(area *a)
 
 
 
-bitvector GCmarkbits = NULL, GCdynamic_markbits = NULL;
-LispObj GCarealow, GCareadynamiclow;
-natural GCndnodes_in_area, GCndynamic_dnodes_in_area;
-LispObj GCweakvll = (LispObj)NULL;
-LispObj GCephemeral_low;
-natural GCn_ephemeral_dnodes;
 
 
 /* Sooner or later, this probably wants to be in assembler */
@@ -266,7 +251,7 @@ mark_root(LispObj n)
       suffix_dnodes;
     tag_n = fulltag_of(header);
 
-#ifdef PPC
+
 #ifdef PPC64
     if ((nodeheader_tag_p(tag_n)) ||
         (tag_n == ivector_class_64_bit)) {
@@ -297,7 +282,7 @@ mark_root(LispObj n)
       total_size_in_bytes = 4 + ((element_count+7)>>3);
     }
 #endif
-#endif
+
 
 
     suffix_dnodes = ((total_size_in_bytes+(dnode_size-1))>>dnode_shift) -1;
@@ -379,7 +364,7 @@ mark_ephemeral_root(LispObj n)
   return false;                 /* Not a heap pointer or not ephemeral */
 }
   
-#ifdef PPC
+
 #ifdef PPC64
 /* Any register (srr0, the lr or ctr) or stack location that
    we're calling this on should have its low 2 bits clear; it'll
@@ -468,9 +453,9 @@ mark_pc_root(LispObj pc)
   }
 }
 #endif /* PPC64 */
-#endif /* PPC */
 
-#ifdef PPC
+
+
 #ifdef PPC64
 #define RMARK_PREV_ROOT fulltag_imm_3
 #define RMARK_PREV_CAR fulltag_misc
@@ -478,11 +463,9 @@ mark_pc_root(LispObj pc)
 #define RMARK_PREV_ROOT fulltag_imm
 #define RMARK_PREV_CAR fulltag_nil
 #endif
-#endif
 
 
-natural
-GCstack_limit = 0;
+
 
 
 /*
@@ -524,7 +507,6 @@ rmark(LispObj n)
         total_size_in_bytes,
         suffix_dnodes;
       tag_n = fulltag_of(header);
-#ifdef PPC
 #ifdef PPC64
       if ((nodeheader_tag_p(tag_n)) ||
           (tag_n == ivector_class_64_bit)) {
@@ -555,7 +537,7 @@ rmark(LispObj n)
         total_size_in_bytes = 4 + ((element_count+7)>>3);
       }
 #endif
-#endif
+
 
       suffix_dnodes = ((total_size_in_bytes+(dnode_size-1))>>dnode_shift)-1;
 
@@ -701,7 +683,6 @@ rmark(LispObj n)
 
       tag_n = fulltag_of(header);
 
-#ifdef PPC
 #ifdef PPC64
       if ((nodeheader_tag_p(tag_n)) ||
           (tag_n == ivector_class_64_bit)) {
@@ -732,7 +713,7 @@ rmark(LispObj n)
         total_size_in_bytes = 4 + ((element_count+7)>>3);
       }
 #endif
-#endif
+
 
       suffix_dnodes = ((total_size_in_bytes+(dnode_size-1))>>dnode_shift)-1;
 
@@ -1087,7 +1068,7 @@ mark_vstack_area(area *a)
   mark_simple_area_range(start, end);
 }
 
-#ifdef PPC
+
 /*
   Mark lisp frames on the control stack.
   Ignore emulator frames (odd backpointer) and C frames (size != 4).
@@ -1122,352 +1103,8 @@ mark_cstack_area(area *a)
     }
   }
 }
-#endif
-
-void
-reapweakv(LispObj weakv)
-{
-  /*
-    element 2 of the weak vector should be tagged as a cons: if it
-    isn't, just mark it as a root.  if it is, cdr through it until a
-    "marked" cons is encountered.  If the car of any unmarked cons is
-    marked, mark the cons which contains it; otherwise, splice the
-    cons out of the list.  N.B. : elements 0 and 1 are already marked
-    (or are immediate, etc.)
-  */
-  LispObj *prev = ((LispObj *) ptr_from_lispobj(untag(weakv))+(1+2)), cell = *prev;
-  LispObj termination_list = lisp_nil;
-  natural weak_type = (natural) deref(weakv,2);
-  Boolean alistp = ((weak_type & population_type_mask) == population_weak_alist),
-    terminatablep = ((weak_type >> population_termination_bit) != 0);
-  Boolean done = false;
-  cons *rawcons;
-  natural dnode, car_dnode;
-  bitvector markbits = GCmarkbits;
-
-  if (terminatablep) {
-    termination_list = deref(weakv,1+3);
-  }
-
-  if (fulltag_of(cell) != fulltag_cons) {
-    mark_root(cell);
-  } else if (alistp) {
-    /* weak alist */
-    while (! done) {
-      dnode = gc_area_dnode(cell);
-      if ((dnode >= GCndnodes_in_area) ||
-          (ref_bit(markbits, dnode))) {
-        done = true;
-      } else {
-        /* Cons cell is unmarked. */
-        LispObj alist_cell, thecar;
-        unsigned cell_tag;
-
-        rawcons = (cons *) ptr_from_lispobj(untag(cell));
-        alist_cell = rawcons->car;
-        cell_tag = fulltag_of(alist_cell);
-
-        if ((cell_tag == fulltag_cons) &&
-            ((car_dnode = gc_area_dnode(alist_cell)) < GCndnodes_in_area) &&
-            (! ref_bit(markbits, car_dnode)) &&
-            (is_node_fulltag(fulltag_of(thecar = car(alist_cell)))) &&
-            ((car_dnode = gc_area_dnode(thecar)) < GCndnodes_in_area) &&
-            (! ref_bit(markbits, car_dnode))) {
-          *prev = rawcons->cdr;
-          if (terminatablep) {
-            rawcons->cdr = termination_list;
-            termination_list = cell;
-          }
-        } else {
-          set_bit(markbits, dnode);
-          prev = (LispObj *)(&(rawcons->cdr));
-          mark_root(alist_cell);
-        }
-        cell = *prev;
-      }
-    }
-  } else {
-    /* weak list */
-    while (! done) {
-      dnode = gc_area_dnode(cell);
-      if ((dnode >= GCndnodes_in_area) ||
-          (ref_bit(markbits, dnode))) {
-        done = true;
-      } else {
-        /* Cons cell is unmarked. */
-        LispObj thecar;
-        unsigned cartag;
-
-        rawcons = (cons *) ptr_from_lispobj(untag(cell));
-        thecar = rawcons->car;
-        cartag = fulltag_of(thecar);
-
-        if (is_node_fulltag(cartag) &&
-            ((car_dnode = gc_area_dnode(thecar)) < GCndnodes_in_area) &&
-            (! ref_bit(markbits, car_dnode))) {
-          *prev = rawcons->cdr;
-          if (terminatablep) {
-            rawcons->cdr = termination_list;
-            termination_list = cell;
-          }
-        } else {
-          set_bit(markbits, dnode);
-          prev = (LispObj *)(&(rawcons->cdr));
-        }
-        cell = *prev;
-      }
-    }
-  }
-
-  if (terminatablep) {
-    deref(weakv,1+3) = termination_list;
-    if (termination_list != lisp_nil) {
-      deref(weakv,1) = GCweakvll;
-      GCweakvll = weakv;
-    }
-  }
-}
-
-/* 
-  Screw: doesn't deal with finalization.
-  */
-
-void
-reaphashv(LispObj hashv)
-{
-  hash_table_vector_header
-    *hashp = (hash_table_vector_header *) ptr_from_lispobj(untag(hashv));
-  natural
-    dnode,
-    npairs = (header_element_count(hashp->header) - 
-              ((sizeof(hash_table_vector_header)/sizeof(LispObj)) -1)) >> 1;
-  LispObj *pairp = (LispObj*) (hashp+1), weakelement;
-  Boolean 
-    weak_on_value = ((hashp->flags & nhash_weak_value_mask) != 0);
-  bitvector markbits = GCmarkbits;
-  int tag;
-
-  while (npairs--) {
-    if (weak_on_value) {
-      weakelement = pairp[1];
-    } else {
-      weakelement = pairp[0];
-    }
-    tag = fulltag_of(weakelement);
-    if (is_node_fulltag(tag)) {
-      dnode = gc_area_dnode(weakelement);
-      if ((dnode < GCndnodes_in_area) && 
-          ! ref_bit(markbits, dnode)) {
-        pairp[0] = slot_unbound;
-        pairp[1] = lisp_nil;
-        hashp->weak_deletions_count += (1<<fixnumshift);
-      }
-    }
-    pairp += 2;
-  }
-}    
-    
 
 
-Boolean
-mark_weak_hash_vector(hash_table_vector_header *hashp, natural elements)
-{
-  natural flags = hashp->flags, key_dnode, val_dnode;
-  Boolean 
-    marked_new = false, 
-    key_marked,
-    val_marked,
-    weak_value = ((flags & nhash_weak_value_mask) != 0);
-  int 
-    skip = (sizeof(hash_table_vector_header)/sizeof(LispObj))-1,
-    key_tag,
-    val_tag,
-    i;
-  LispObj 
-    *pairp = (LispObj*) (hashp+1),
-    key,
-    val;
-
-  /* Mark everything in the header */
-  
-  for (i = 2; i<= skip; i++) {
-    mark_root(deref(ptr_to_lispobj(hashp),i));
-  }
-
-  elements -= skip;
-
-  for (i = 0; i<elements; i+=2, pairp+=2) {
-    key = pairp[0];
-    val = pairp[1];
-    key_marked = val_marked = true;
-    key_tag = fulltag_of(key);
-    val_tag = fulltag_of(val);
-    if (is_node_fulltag(key_tag)) {
-      key_dnode = gc_area_dnode(key);
-      if ((key_dnode < GCndnodes_in_area) &&
-          ! ref_bit(GCmarkbits,key_dnode)) {
-        key_marked = false;
-      }
-    }
-    if (is_node_fulltag(val_tag)) {
-      val_dnode = gc_area_dnode(val);
-      if ((val_dnode < GCndnodes_in_area) &&
-          ! ref_bit(GCmarkbits,val_dnode)) {
-        val_marked = false;
-      }
-    }
-
-    if (weak_value) {
-      if (val_marked & !key_marked) {
-        mark_root(key);
-        marked_new = true;
-      }
-    } else {
-      if (key_marked & !val_marked) {
-        mark_root(val);
-        marked_new = true;
-      }
-    }
-  }
-  return marked_new;
-}
-
-
-Boolean
-mark_weak_alist(LispObj weak_alist, int weak_type)
-{
-  natural
-    elements = header_element_count(header_of(weak_alist)),
-    dnode;
-  int pair_tag;
-  Boolean marked_new = false;
-  LispObj alist, pair, key, value;
-  bitvector markbits = GCmarkbits;
-
-  if (weak_type >> population_termination_bit) {
-    elements -= 1;
-  }
-  for(alist = deref(weak_alist, elements);
-      (fulltag_of(alist) == fulltag_cons) &&
-      ((dnode = gc_area_dnode(alist)) < GCndnodes_in_area) &&
-      (! ref_bit(markbits,dnode));
-      alist = cdr(alist)) {
-    pair = car(alist);
-    pair_tag = fulltag_of(pair);
-    if ((is_node_fulltag(pair_tag)) &&
-        ((dnode = gc_area_dnode(pair_tag)) < GCndnodes_in_area) &&
-        (! ref_bit(markbits,dnode))) {
-      if (pair_tag == fulltag_cons) {
-        key = car(pair);
-        if ((! is_node_fulltag(fulltag_of(key))) ||
-            ((dnode = gc_area_dnode(key)) >= GCndnodes_in_area) ||
-            ref_bit(markbits,dnode)) {
-          /* key is marked, mark value if necessary */
-          value = cdr(pair);
-          if (is_node_fulltag(fulltag_of(value)) &&
-              ((dnode = gc_area_dnode(value)) < GCndnodes_in_area) &&
-              (! ref_bit(markbits,dnode))) {
-            mark_root(value);
-            marked_new = true;
-          }
-        }
-      } else {
-          mark_root(pair);
-          marked_new = true;
-      }
-    }
-  }
-  return marked_new;
-}
-  
-void
-markhtabvs()
-{
-  LispObj this, header, pending;
-  int subtag;
-  bitvector markbits = GCmarkbits;
-  hash_table_vector_header *hashp;
-  Boolean marked_new;
-
-  do {
-    pending = (LispObj) NULL;
-    marked_new = false;
-    
-    while (GCweakvll) {
-      this = GCweakvll;
-      GCweakvll = deref(this,1);
-      
-      header = header_of(this);
-      subtag = header_subtag(header);
-      
-      if (subtag == subtag_weak) {
-        natural weak_type = deref(this,2);
-        deref(this,1) = pending;
-        pending = this;
-        if ((weak_type & population_type_mask) == population_weak_alist) {
-          if (mark_weak_alist(this, weak_type)) {
-            marked_new = true;
-          }
-        }
-      } else if (subtag == subtag_hash_vector) {
-        natural elements = header_element_count(header), i;
-
-        hashp = (hash_table_vector_header *) ptr_from_lispobj(untag(this));
-        if (hashp->flags & nhash_weak_mask) {
-          deref(this,1) = pending;
-          pending = this;
-          if (mark_weak_hash_vector(hashp, elements)) {
-            marked_new = true;
-          }
-        } else {
-          deref(this,1) = (LispObj)NULL;
-          for (i = 2; i <= elements; i++) {
-            mark_root(deref(this,i));
-          }
-        } 
-      } else {
-        Bug(NULL, "Strange object on weak vector linked list: 0x~08x\n", this);
-      }
-    }
-
-    if (marked_new) {
-      GCweakvll = pending;
-    }
-  } while (marked_new);
-
-  /* Now, everything's marked that's going to be,  and "pending" is a list
-     of populations and weak hash tables.  CDR down that list and free
-     anything that isn't marked.
-     */
-
-  while (pending) {
-    this = pending;
-    pending = deref(this,1);
-    deref(this,1) = (LispObj)NULL;
-
-    subtag = header_subtag(header_of(this));
-    if (subtag == subtag_weak) {
-      reapweakv(this);
-    } else {
-      reaphashv(this);
-    }
-  }
-
-  /* Finally, mark the termination lists in all terminatable weak vectors
-     They are now linked together on GCweakvll.
-     This is where to store  lisp_global(TERMINATION_LIST) if we decide to do that,
-     but it will force terminatable popualations to hold on to each other
-     (set TERMINATION_LIST before clearing GCweakvll, and don't clear deref(this,1)).
-     */
-  pending = GCweakvll;
-  GCweakvll = (LispObj)NULL;
-  while (pending) {
-    this = pending;
-    pending = deref(this,1);
-    deref(this,1) = (LispObj)NULL;
-    mark_root(deref(this,1+3));
-  }
-}
 
 /* Mark the lisp objects in an exception frame */
 void
@@ -1500,179 +1137,6 @@ mark_xp(ExceptionInformation *xp)
 #endif /* PPC */
 
 }
-void
-mark_tcr_tlb(TCR *tcr)
-{
-  natural n = tcr->tlb_limit;
-  LispObj 
-    *start = tcr->tlb_pointer,
-    *end = (LispObj *) ((BytePtr)start+n),
-    node;
-
-  while (start < end) {
-    node = *start;
-    if (node != no_thread_local_binding_marker) {
-      mark_root(node);
-    }
-    start++;
-  }
-}
-
-/*
-  Mark things that're only reachable through some (suspended) TCR.
-  (This basically means the tcr's gc_context and the exception
-  frames on its xframe_list.)
-*/
-
-void
-mark_tcr_xframes(TCR *tcr)
-{
-  xframe_list *xframes;
-  ExceptionInformation *xp;
-
-  xp = tcr->gc_context;
-  if (xp) {
-    mark_xp(xp);
-  }
-  
-  for (xframes = (xframe_list *) tcr->xframe; 
-       xframes; 
-       xframes = xframes->prev) {
-      mark_xp(xframes->curr);
-  }
-}
-      
-
-void *postGCptrs = NULL;
-
-void
-postGCfree(void *p)
-{
-  *(void **)p = postGCptrs;
-  postGCptrs = p;
-}
-
-void
-freeGCptrs()
-{
-  void *p, *next;
-
-  for (p = postGCptrs; p; p = next) {
-    next = *((void **)p);
-    free(p);
-  }
-  postGCptrs = NULL;
-}
-
-void
-reap_gcable_ptrs()
-{
-  LispObj *prev = &(lisp_global(GCABLE_POINTERS)), next, ptr;
-  xmacptr_flag flag;
-  natural dnode;
-  xmacptr *x;
-
-  while((next = *prev) != (LispObj)NULL) {
-    dnode = gc_area_dnode(next);
-    x = (xmacptr *) ptr_from_lispobj(untag(next));
-
-    if ((dnode >= GCndnodes_in_area) ||
-        (ref_bit(GCmarkbits,dnode))) {
-      prev = &(x->link);
-    } else {
-      *prev = x->link;
-      flag = (xmacptr_flag)(x->flags);
-      ptr = x->address;
-
-      if (ptr) {
-        switch (flag) {
-        case xmacptr_flag_recursive_lock:
-	  destroy_recursive_lock((RECURSIVE_LOCK)ptr_from_lispobj(ptr));
-          break;
-
-        case xmacptr_flag_ptr:
-	  postGCfree((void *)ptr_from_lispobj(ptr));
-          break;
-
-        case xmacptr_flag_rwlock:
-          rwlock_destroy((rwlock *)ptr_from_lispobj(ptr));
-          break;
-
-        case xmacptr_flag_semaphore:
-	  destroy_semaphore((void**)&(x->address));
-          break;
-
-        default:
-          /* (warn "unknown xmacptr_flag: ~s" flag) */
-          /* Unknowd, and perhaps unknowdable. */
-          /* Fall in: */
-        case xmacptr_flag_none:
-          break;
-        }
-      }
-    }
-  }
-}
-
-
-
-#if  WORD_SIZE == 64
-unsigned short *_one_bits = NULL;
-
-unsigned short
-logcount16(unsigned short n)
-{
-  unsigned short c=0;
-  
-  while(n) {
-    n = n & (n-1);
-    c++;
-  }
-  return c;
-}
-
-void
-gc_init()
-{
-  int i;
-  
-  _one_bits = malloc(sizeof(unsigned short) * (1<<16));
-
-  for (i = 0; i < (1<<16); i++) {
-    _one_bits[i] = dnode_size*logcount16(i);
-  }
-}
-
-#define one_bits(x) _one_bits[x]
-
-#else
-const unsigned char _one_bits[256] = {
-    0*8,1*8,1*8,2*8,1*8,2*8,2*8,3*8,1*8,2*8,2*8,3*8,2*8,3*8,3*8,4*8,
-    1*8,2*8,2*8,3*8,2*8,3*8,3*8,4*8,2*8,3*8,3*8,4*8,3*8,4*8,4*8,5*8,
-    1*8,2*8,2*8,3*8,2*8,3*8,3*8,4*8,2*8,3*8,3*8,4*8,3*8,4*8,4*8,5*8,
-    2*8,3*8,3*8,4*8,3*8,4*8,4*8,5*8,3*8,4*8,4*8,5*8,4*8,5*8,5*8,6*8,
-    1*8,2*8,2*8,3*8,2*8,3*8,3*8,4*8,2*8,3*8,3*8,4*8,3*8,4*8,4*8,5*8,
-    2*8,3*8,3*8,4*8,3*8,4*8,4*8,5*8,3*8,4*8,4*8,5*8,4*8,5*8,5*8,6*8,
-    2*8,3*8,3*8,4*8,3*8,4*8,4*8,5*8,3*8,4*8,4*8,5*8,4*8,5*8,5*8,6*8,
-    3*8,4*8,4*8,5*8,4*8,5*8,5*8,6*8,4*8,5*8,5*8,6*8,5*8,6*8,6*8,7*8,
-    1*8,2*8,2*8,3*8,2*8,3*8,3*8,4*8,2*8,3*8,3*8,4*8,3*8,4*8,4*8,5*8,
-    2*8,3*8,3*8,4*8,3*8,4*8,4*8,5*8,3*8,4*8,4*8,5*8,4*8,5*8,5*8,6*8,
-    2*8,3*8,3*8,4*8,3*8,4*8,4*8,5*8,3*8,4*8,4*8,5*8,4*8,5*8,5*8,6*8,
-    3*8,4*8,4*8,5*8,4*8,5*8,5*8,6*8,4*8,5*8,5*8,6*8,5*8,6*8,6*8,7*8,
-    2*8,3*8,3*8,4*8,3*8,4*8,4*8,5*8,3*8,4*8,4*8,5*8,4*8,5*8,5*8,6*8,
-    3*8,4*8,4*8,5*8,4*8,5*8,5*8,6*8,4*8,5*8,5*8,6*8,5*8,6*8,6*8,7*8,
-    3*8,4*8,4*8,5*8,4*8,5*8,5*8,6*8,4*8,5*8,5*8,6*8,5*8,6*8,6*8,7*8,
-    4*8,5*8,5*8,6*8,5*8,6*8,6*8,7*8,5*8,6*8,6*8,7*8,6*8,7*8,7*8,8*8
-};
-
-#define one_bits(x) _one_bits[x]
-
-void
-gc_init()
-{
-}
-
-#endif
 
 /* A "pagelet" contains 32 doublewords.  The relocation table contains
    a word for each pagelet which defines the lowest address to which
@@ -1848,61 +1312,8 @@ locative_forwarding_address(LispObj obj)
   return dnode_forwarding_address(dnode, tag_n);
 }
 
-LispObj
-node_forwarding_address(LispObj node)
-{
-  int tag_n;
-  natural dnode = gc_dynamic_area_dnode(node);
 
-  if ((dnode >= GCndynamic_dnodes_in_area) ||
-      (node < GCfirstunmarked)) {
-    return node;
-  }
 
-  tag_n = fulltag_of(node);
-  if (!is_node_fulltag(tag_n)) {
-    return node;
-  }
-
-  return dnode_forwarding_address(dnode, tag_n);
-}
-
-Boolean
-update_noderef(LispObj *noderef)
-{
-  LispObj
-    node = *noderef,
-    new = node_forwarding_address(node);
-
-  if (new != node) {
-    *noderef = new;
-    return true;
-  }
-  return false;
-}
-
-void
-update_locref(LispObj *locref)
-{
-  LispObj
-    obj = *locref,
-    new = locative_forwarding_address(obj);
-
-  if (new != obj) {
-    *locref = new;
-  }
-}
-
-void
-forward_gcable_ptrs()
-{
-  LispObj *prev = &(lisp_global(GCABLE_POINTERS)), next;
-
-  while ((next = *prev) != (LispObj)NULL) {
-    *prev = node_forwarding_address(next);
-    prev = &(((xmacptr *)ptr_from_lispobj(untag(next)))->link);
-  }
-}
 
 void
 forward_range(LispObj *range_start, LispObj *range_end)
@@ -1965,81 +1376,6 @@ forward_range(LispObj *range_start, LispObj *range_end)
 }
 
 
-void
-forward_memoized_area(area *a, natural num_memo_dnodes)
-{
-  bitvector refbits = a->refbits;
-  LispObj *p = (LispObj *) a->low, x1, x2, new;
-  natural bits, bitidx, *bitsp, nextbit, diff, memo_dnode = 0, hash_dnode_limit = 0;
-  int tag_x1;
-  hash_table_vector_header *hashp = NULL;
-  Boolean header_p;
-
-  if (GCDebug) {
-    check_refmap_consistency(p, p+(num_memo_dnodes << 1), refbits);
-  }
-
-  /* This is pretty straightforward, but we have to note
-     when we move a key in a hash table vector that wants
-     us to tell it about that. */
-
-  set_bitidx_vars(refbits, 0, bitsp, bits, bitidx);
-  while (memo_dnode < num_memo_dnodes) {
-    if (bits == 0) {
-      int remain = nbits_in_word - bitidx;
-      memo_dnode += remain;
-      p += (remain+remain);
-      bits = *++bitsp;
-      bitidx = 0;
-    } else {
-      nextbit = count_leading_zeros(bits);
-      if ((diff = (nextbit - bitidx)) != 0) {
-        memo_dnode += diff;
-        bitidx = nextbit;
-        p += (diff+diff);
-      }
-      x1 = p[0];
-      x2 = p[1];
-      tag_x1 = fulltag_of(x1);
-      bits &= ~(BIT0_MASK >> bitidx);
-      header_p = (nodeheader_tag_p(tag_x1));
-
-      if (header_p &&
-          (header_subtag(x1) == subtag_hash_vector)) {
-        hashp = (hash_table_vector_header *) p;
-        if (hashp->flags & nhash_track_keys_mask) {
-          hash_dnode_limit = memo_dnode + ((header_element_count(x1)+2)>>1);
-        } else {
-          hashp = NULL;
-        }
-      }
-
-
-      if (! header_p) {
-        new = node_forwarding_address(x1);
-        if (new != x1) {
-          *p = new;
-        }
-      }
-      p++;
-
-      new = node_forwarding_address(x2);
-      if (new != x2) {
-        *p = new;
-        if (memo_dnode < hash_dnode_limit) {
-          hashp->flags |= nhash_key_moved_mask;
-          hash_dnode_limit = 0;
-          hashp = NULL;
-        }
-      }
-      p++;
-      memo_dnode++;
-      bitidx++;
-
-    }
-  }
-}
-
 
 
 /* Forward a tstack area */
@@ -2082,7 +1418,6 @@ forward_vstack_area(area *a)
   forward_range(p, q);
 }
 
-#ifdef PPC
 void
 forward_cstack_area(area *a)
 {
@@ -2104,14 +1439,13 @@ forward_cstack_area(area *a)
   }
 }
 
-#endif
+
 
 void
 forward_xp(ExceptionInformation *xp)
 {
   natural *regs = (natural *) xpGPRvector(xp);
 
-#ifdef PPC
   int r;
 
   /* registers >= fn should be tagged and forwarded as roots.
@@ -2127,27 +1461,9 @@ forward_xp(ExceptionInformation *xp)
   update_locref((LispObj*) (&(xpPC(xp))));
   update_locref((LispObj*) (&(xpLR(xp))));
   update_locref((LispObj*) (&(xpCTR(xp))));
-#endif
 
 }
 
-void
-forward_tcr_tlb(TCR *tcr)
-{
-  natural n = tcr->tlb_limit;
-  LispObj 
-    *start = tcr->tlb_pointer, 
-    *end = (LispObj *) ((BytePtr)start+n),
-    node;
-
-  while (start < end) {
-    node = *start;
-    if (node != no_thread_local_binding_marker) {
-      update_noderef(start);
-    }
-    start++;
-  }
-}
 
 void
 forward_tcr_xframes(TCR *tcr)
@@ -2167,53 +1483,6 @@ forward_tcr_xframes(TCR *tcr)
   }
 }
 
-void
-forward_and_resolve_static_references(area *a)
-{
-  natural 
-    nstatic = static_dnodes_for_area(a),
-    nstatic_bitmap_words = nstatic >> bitmap_shift;
-  if (nstatic != 0) {
-    /* exploit the fact that a cons is the same size as a dnode. */
-    cons *pagelet_start = (cons *) a->low, *work;
-    bitvector markbits = GCmarkbits, 
-      usedbits = tenured_area->static_used;
-    natural marked, used, used_but_not_marked, ndeleted = 0, i;
-
-    while (nstatic_bitmap_words--) {
-      marked = *markbits++;
-      used = *usedbits;
-      if (marked != used) {
-        *usedbits = marked;
-      }
-      used |= marked;
-      used_but_not_marked = used & ~marked;
-
-      while (marked) {
-        i = count_leading_zeros(marked);
-        marked &= ~(BIT0_MASK >> i);
-        work = pagelet_start+i;
-        update_noderef(&work->cdr);
-        update_noderef(&work->car);
-      }
-
-      while (used_but_not_marked) {
-        i = count_leading_zeros(used_but_not_marked);
-        used_but_not_marked &= ~(BIT0_MASK >> i);
-        work = pagelet_start+i;
-        if ((work->cdr != undefined) &&
-            (work->cdr != slot_unbound)) {
-          work->car = slot_unbound;
-          work->cdr = slot_unbound;
-          ndeleted++;
-        }
-      }
-      usedbits++;
-      pagelet_start += nbits_in_word;
-    }
-    lisp_global(DELETED_STATIC_PAIRS) += box_fixnum(ndeleted);
-  }
-}
 
 
 /*
@@ -2392,443 +1661,17 @@ compact_dynamic_heap()
 }
 
 
-Boolean
-youngest_non_null_area_p (area *a)
-{
-  if (a->active == a->high) {
-    return false;
-  } else {
-    for (a = a->younger; a; a = a->younger) {
-      if (a->active != a->high) {
-        return false;
-      }
-    }
-  };
-  return true;
-}
-
-Boolean just_purified_p = false;
 
 
+      
+    
 /*
-  All thread's stack areas have been "normalized", as
-  has the dynamic heap.  (The "active" pointer in these areas
-  matches the stack pointer/freeptr value at the time that
-  the exception occurred.)
+  Total the (physical) byte sizes of all ivectors in the indicated memory range
 */
 
-
-#define get_time(when) gettimeofday(&when, NULL)
-
-#define MARK_RECURSIVELY_USING_STACK 1
-#if !MARK_RECURSIVELY_USING_STACK
-#warning recursive marker disabled for testing; remember to re-enable it
-#endif
-
-void 
-gc(TCR *tcr, signed_natural param)
+natural
+unboxed_bytes_in_range(LispObj *start, LispObj *end)
 {
-  xframe_list *xframes = (tcr->xframe);
-  struct timeval start, stop;
-  area *a = active_dynamic_area, *to = NULL, *from = NULL, *note = NULL;
-  unsigned timeidx = 1;
-  xframe_list *x;
-  LispObj
-    pkg,
-    itabvec = 0;
-  BytePtr oldfree = a->active;
-  TCR *other_tcr;
-  natural static_dnodes;
-  
-#if MARK_RECURSIVELY_USING_STACK
-  if ((natural) (tcr->cs_limit) == CS_OVERFLOW_FORCE_LIMIT) {
-    GCstack_limit = CS_OVERFLOW_FORCE_LIMIT;
-  } else {
-    GCstack_limit = (natural)(tcr->cs_limit)+(natural)page_size;
-  }
-#else
-  GCstack_limit = CS_OVERFLOW_FORCE_LIMIT;
-#endif
-
-  GCephemeral_low = lisp_global(OLDEST_EPHEMERAL);
-  if (GCephemeral_low) {
-    GCn_ephemeral_dnodes=area_dnode(oldfree, GCephemeral_low);
-  } else {
-    GCn_ephemeral_dnodes = 0;
-  }
-  
-  if (GCn_ephemeral_dnodes) {
-    GCverbose = ((nrs_GC_EVENT_STATUS_BITS.vcell & egc_verbose_bit) != 0);
-  } else {
-    GCverbose = ((nrs_GC_EVENT_STATUS_BITS.vcell & gc_verbose_bit) != 0);
-  }
-
-  if (GCephemeral_low) {
-    if ((oldfree-g1_area->low) < g1_area->threshold) {
-      to = g1_area;
-      note = a;
-      timeidx = 4;
-    } else if ((oldfree-g2_area->low) < g2_area->threshold) {
-      to = g2_area;
-      from = g1_area;
-      note = g1_area;
-      timeidx = 3;
-    } else {
-      to = tenured_area;
-      from = g2_area;
-      note = g2_area;
-      timeidx = 2;
-    } 
-  } else {
-    note = tenured_area;
-  }
-
-  if (GCverbose) {
-    if (GCephemeral_low) {
-      fprintf(stderr,
-              "\n\n;;; Starting Ephemeral GC of generation %d",
-              (from == g2_area) ? 2 : (from == g1_area) ? 1 : 0); 
-    } else {
-      fprintf(stderr,"\n\n;;; Starting full GC");
-    }
-    fprintf(stderr, ",  %ld bytes allocated.\n", area_dnode(oldfree,a->low) << dnode_shift);
-  }
-
-  get_time(start);
-  lisp_global(IN_GC) = (1<<fixnumshift);
-  
-  
-  GCDebug = ((nrs_GC_EVENT_STATUS_BITS.vcell & gc_integrity_check_bit) != 0);
-
-  if (just_purified_p) {
-    just_purified_p = false;
-  } else {
-    if (GCDebug) {
-      check_all_areas();
-    }
-  }
-
-  if (from) {
-    untenure_from_area(from);
-  }
-  static_dnodes = static_dnodes_for_area(a);
-  GCmarkbits = a->markbits;
-  GCarealow = ptr_to_lispobj(a->low);
-#ifdef DEBUG
-  fprintf(stderr, "GC: low = #x%x, high = #x%x\n",a->low,oldfree);
-#endif
-  GCareadynamiclow = GCarealow+(static_dnodes << dnode_shift);
-  GCndnodes_in_area = gc_area_dnode(oldfree);
-
-
-  if (GCndnodes_in_area) {
-    GCndynamic_dnodes_in_area = GCndnodes_in_area-static_dnodes;
-    GCdynamic_markbits = 
-      GCmarkbits + ((GCndnodes_in_area-GCndynamic_dnodes_in_area)>>bitmap_shift);
-
-    zero_bits(GCmarkbits, GCndnodes_in_area);
-    GCweakvll = (LispObj)NULL;
-
-
-    if (GCn_ephemeral_dnodes == 0) {
-      /* For GCTWA, mark the internal package hash table vector of
-       *PACKAGE*, but don't mark its contents. */
-      {
-        LispObj
-          itab;
-        natural
-          dnode, ndnodes;
-      
-        pkg = nrs_PACKAGE.vcell;
-        if ((fulltag_of(pkg) == fulltag_misc) &&
-            (header_subtag(header_of(pkg)) == subtag_package)) {
-          itab = ((package *)ptr_from_lispobj(untag(pkg)))->itab;
-          itabvec = car(itab);
-          dnode = gc_area_dnode(itabvec);
-          if (dnode < GCndnodes_in_area) {
-            ndnodes = (header_element_count(header_of(itabvec))+1) >> 1;
-            set_n_bits(GCmarkbits, dnode, ndnodes);
-          }
-        }
-      }
-    }
-
-    {
-      area *next_area;
-      area_code code;
-
-      /* Could make a jump table instead of the typecase */
-
-      for (next_area = a->succ; (code = next_area->code) != AREA_VOID; next_area = next_area->succ) {
-        switch (code) {
-        case AREA_TSTACK:
-          mark_tstack_area(next_area);
-          break;
-
-        case AREA_VSTACK:
-          mark_vstack_area(next_area);
-          break;
-
-        case AREA_CSTACK:
-#ifdef PPC
-          mark_cstack_area(next_area);
-#endif
-          break;
-
-        case AREA_STATIC:
-        case AREA_DYNAMIC:                  /* some heap that isn't "the" heap */
-          /* In both of these cases, we -could- use the area's "markbits"
-             bitvector as a reference map.  It's safe (but slower) to
-             ignore that map and process the entire area.
-          */
-          if (next_area->younger == NULL) {
-            mark_simple_area_range((LispObj *) next_area->low, (LispObj *) next_area->active);
-          }
-          break;
-
-        default:
-          break;
-        }
-      }
-    }
-  
-    if (lisp_global(OLDEST_EPHEMERAL)) {
-      mark_memoized_area(tenured_area, area_dnode(a->low,tenured_area->low));
-    }
-
-    other_tcr = tcr;
-    do {
-      mark_tcr_xframes(other_tcr);
-      mark_tcr_tlb(other_tcr);
-      other_tcr = other_tcr->next;
-    } while (other_tcr != tcr);
-
-
-
-
-    /* Go back through *package*'s internal symbols, marking
-       any that aren't worthless.
-    */
-    
-    if (itabvec) {
-      natural
-        i,
-        n = header_element_count(header_of(itabvec));
-      LispObj
-        sym,
-        *raw = 1+((LispObj *)ptr_from_lispobj(untag(itabvec)));
-
-      for (i = 0; i < n; i++) {
-        sym = *raw++;
-        if (fulltag_of(sym) == fulltag_misc) {
-          lispsymbol *rawsym = (lispsymbol *)ptr_from_lispobj(untag(sym));
-          natural dnode = gc_area_dnode(sym);
-          
-          if ((dnode < GCndnodes_in_area) &&
-              (!ref_bit(GCmarkbits,dnode))) {
-            /* Symbol is in GC area, not marked.
-               Mark it if fboundp, boundp, or if
-               it has a plist or another home package.
-            */
-            
-            if (FBOUNDP(rawsym) ||
-                BOUNDP(rawsym) ||
-                (rawsym->flags != 0) || /* SPECIAL, etc. */
-                (rawsym->plist != lisp_nil) ||
-                ((rawsym->package_predicate != pkg) &&
-                 (rawsym->package_predicate != lisp_nil))) {
-              mark_root(sym);
-            }
-          }
-        }
-      }
-    }
-
-    (void)markhtabvs();
-
-    if (itabvec) {
-      natural
-        i,
-        n = header_element_count(header_of(itabvec));
-      LispObj
-        sym,
-        *raw = 1+((LispObj *)ptr_from_lispobj(untag(itabvec)));
-
-      for (i = 0; i < n; i++, raw++) {
-        sym = *raw;
-        if (fulltag_of(sym) == fulltag_misc) {
-          lispsymbol *rawsym = (lispsymbol *)ptr_from_lispobj(untag(sym));
-          natural dnode = gc_area_dnode(sym);
-
-          if ((dnode < GCndnodes_in_area) &&
-              (!ref_bit(GCmarkbits,dnode))) {
-            *raw = unbound_marker;
-          }
-        }
-      }
-    }
-  
-    reap_gcable_ptrs();
-
-    GCrelocptr = global_reloctab;
-    GCfirstunmarked = calculate_relocation();
-
-    forward_range((LispObj *) ptr_from_lispobj(GCareadynamiclow), (LispObj *) ptr_from_lispobj(GCfirstunmarked));
-
-    other_tcr = tcr;
-    do {
-      forward_tcr_xframes(other_tcr);
-      forward_tcr_tlb(other_tcr);
-      other_tcr = other_tcr->next;
-    } while (other_tcr != tcr);
-
-  
-    forward_gcable_ptrs();
-
-
-
-    {
-      area *next_area;
-      area_code code;
-
-      /* Could make a jump table instead of the typecase */
-
-      for (next_area = a->succ; (code = next_area->code) != AREA_VOID; next_area = next_area->succ) {
-        switch (code) {
-        case AREA_TSTACK:
-          forward_tstack_area(next_area);
-          break;
-
-        case AREA_VSTACK:
-          forward_vstack_area(next_area);
-          break;
-
-        case AREA_CSTACK:
-#ifdef PPC
-          forward_cstack_area(next_area);
-#endif
-          break;
-
-        case AREA_STATIC:
-        case AREA_DYNAMIC:                  /* some heap that isn't "the" heap */
-          if (next_area->younger == NULL) {
-            forward_range((LispObj *) next_area->low, (LispObj *) next_area->active);
-          }
-          break;
-
-        default:
-          break;
-        }
-      }
-    }
-  
-    if (GCephemeral_low) {
-      forward_memoized_area(tenured_area, area_dnode(a->low, tenured_area->low));
-    } else {
-      /* Full GC, need to process static space */
-      forward_and_resolve_static_references(a);
-    }
-  
-    a->active = (BytePtr) ptr_from_lispobj(compact_dynamic_heap());
-#ifdef DEBUG
-    fprintf(stderr, "GC done, new active ptr = #x%x\n",a->active);
-#endif
-
-    if (to) {
-      tenure_to_area(to);
-    }
-
-    zero_memory_range(a->active, oldfree);
-
-    resize_dynamic_heap(a->active,
-                        (GCephemeral_low == 0) ? lisp_heap_gc_threshold : 0);
-
-    /*
-      If the EGC is enabled: If there's no room for the youngest
-      generation, untenure everything.  If this was a full GC and
-      there's now room for the youngest generation, tenure everything.
-    */
-    if (a->older != NULL) {
-      natural nfree = (a->high - a->active);
-
-
-      if (nfree < a->threshold) {
-        untenure_from_area(tenured_area);
-      } else {
-        if (GCephemeral_low == 0) {
-          tenure_to_area(tenured_area);
-        }
-      }
-    }
-  }
-  lisp_global(GC_NUM) += (1<<fixnumshift);
-  if (note) {
-    note->gccount += (1<<fixnumshift);
-  }
-
-  if (GCDebug) {
-    check_all_areas();
-  }
-
-  
-  lisp_global(IN_GC) = 0;
-
-  nrs_GC_EVENT_STATUS_BITS.vcell |= gc_postgc_pending;
-  get_time(stop);
-
-  {
-    lispsymbol * total_gc_microseconds = (lispsymbol *) &(nrs_TOTAL_GC_MICROSECONDS);
-    lispsymbol * total_bytes_freed = (lispsymbol *) &(nrs_TOTAL_BYTES_FREED);
-    LispObj val;
-    struct timeval *timeinfo, elapsed;
-
-    val = total_gc_microseconds->vcell;
-    if ((fulltag_of(val) == fulltag_misc) &&
-        (header_subtag(header_of(val)) == subtag_macptr)) {
-      timersub(&stop, &start, &elapsed);
-      timeinfo = (struct timeval *) ptr_from_lispobj(((macptr *) ptr_from_lispobj(untag(val)))->address);
-      timeradd(timeinfo,  &elapsed, timeinfo);
-      timeradd(timeinfo+timeidx,  &elapsed, timeinfo+timeidx);
-    }
-
-    val = total_bytes_freed->vcell;
-    if ((fulltag_of(val) == fulltag_misc) &&
-        (header_subtag(header_of(val)) == subtag_macptr)) {
-      long long justfreed = oldfree - a->active;
-      *( (long long *) ptr_from_lispobj(((macptr *) ptr_from_lispobj(untag(val)))->address)) += justfreed;
-      if (GCverbose) {
-        if (justfreed <= heap_segment_size) {
-          justfreed = 0;
-        }
-        if (note == tenured_area) {
-          fprintf(stderr,";;; Finished full GC.  Freed %lld bytes in %d.%06d s\n\n", justfreed, elapsed.tv_sec, elapsed.tv_usec);
-        } else {
-          fprintf(stderr,";;; Finished Ephemeral GC of generation %d.  Freed %lld bytes in %d.%06d s\n\n", 
-                  (from == g2_area) ? 2 : (from == g1_area) ? 1 : 0,
-                  justfreed, 
-                  elapsed.tv_sec, elapsed.tv_usec);
-        }
-      }
-    }
-  }
-#ifdef DEBUG
-  fprintf(stderr, "Finished GC of %s\n", 
-          (note == tenured_area) ?
-          "tenured area" : 
-          ((from == g2_area) ? "generation 2" : 
-           ((from == g1_area) ? "generation 1" : "generation 0")));
-#endif
-}
-
-      
-    
-  /*
-    Total the (physical) byte sizes of all ivectors in the indicated memory range
-  */
-
-  natural
-    unboxed_bytes_in_range(LispObj *start, LispObj *end)
-  {
     natural total=0, elements, tag, subtag, bytes;
     LispObj header;
 
@@ -2844,7 +1687,6 @@ gc(TCR *tcr, signed_natural param)
         } else {
           subtag = header_subtag(header);
 
-#ifdef PPC
 #ifdef PPC64
           switch(fulltag_of(header)) {
           case ivector_class_64_bit:
@@ -2877,7 +1719,7 @@ gc(TCR *tcr, signed_natural param)
             bytes = 4 + ((elements+7)>>3);
           }
 #endif
-#endif
+
 
           bytes = (bytes+dnode_size-1) & ~(dnode_size-1);
           total += bytes;
@@ -3556,703 +2398,5 @@ impurify(TCR *tcr, signed_natural param)
     return 0;
   }
   return -1;
-}
-
-
-void
-adjust_locref(LispObj *loc, LispObj base, LispObj limit, signed_natural delta)
-{
-  LispObj p = *loc;
-  
-  if (area_dnode(p, base) < limit) {
-    *loc = p+delta;
-  }
-}
-
-/* like adjust_locref() above, but only changes the contents of LOC if it's
-   a tagged lisp pointer */
-void
-adjust_noderef(LispObj *loc, LispObj base, LispObj limit, signed_natural delta)
-{
-  LispObj p = *loc;
-  int tag_n = fulltag_of(p);
-
-  if (is_node_fulltag(tag_n)) {
-    if (area_dnode(p, base) < limit) {
-      *loc = p+delta;
-    }
-  }
-}
-
-/* 
-   If *loc is a tagged pointer into the address range denoted by BASE and LIMIT,
-   nuke it (set it to NIL.)
-*/
-void
-nuke_noderef(LispObj *loc, LispObj base, LispObj limit)
-{
-  LispObj p = *loc;
-  int tag_n = fulltag_of(p);
-
-  if (is_node_fulltag(tag_n)) {
-    if (area_dnode(p, base) < limit) {
-      *loc = lisp_nil;
-    }
-  }
-}
-
-
-void
-adjust_pointers_in_xp(ExceptionInformation *xp, 
-                      LispObj base, 
-                      LispObj limit, 
-                      signed_natural delta) 
-{
-  natural *regs = (natural *) xpGPRvector(xp);
-#ifdef PPC
-  int r;
-  for (r = fn; r < 32; r++) {
-    adjust_noderef((LispObj *) (&(regs[r])),
-                   base,
-                   limit,
-                   delta);
-  }
-  adjust_locref((LispObj*) (&(regs[loc_pc])), base, limit, delta);
-  adjust_locref((LispObj*) (&(xpPC(xp))), base, limit, delta);
-  adjust_locref((LispObj*) (&(xpLR(xp))), base, limit, delta);
-  adjust_locref((LispObj*) (&(xpCTR(xp))), base, limit, delta);
-#endif
-
-}
-
-void
-nuke_pointers_in_xp(ExceptionInformation *xp, 
-                      LispObj base, 
-                      LispObj limit) 
-{
-  natural *regs = (natural *) xpGPRvector(xp);
-#ifdef PPC
-  int r;
-  for (r = fn; r < 32; r++) {
-    nuke_noderef((LispObj *) (&(regs[r])),
-                   base,
-                   limit);
-  }
-#endif
-
-}
-
-void
-adjust_pointers_in_range(LispObj *range_start,
-                         LispObj *range_end,
-                         LispObj base,
-                         LispObj limit,
-                         signed_natural delta)
-{
-  LispObj *p = range_start, node, new;
-  int tag_n;
-  natural nwords;
-  hash_table_vector_header *hashp;
-
-  while (p < range_end) {
-    node = *p;
-    tag_n = fulltag_of(node);
-    if (immheader_tag_p(tag_n)) {
-      p = (LispObj *) skip_over_ivector((natural) p, node);
-    } else if (nodeheader_tag_p(tag_n)) {
-      nwords = header_element_count(node);
-      nwords += (1 - (nwords&1));
-      if ((header_subtag(node) == subtag_hash_vector) &&
-          ((((hash_table_vector_header *)p)->flags) & nhash_track_keys_mask)) {
-        hashp = (hash_table_vector_header *) p;
-        hashp->flags |= nhash_key_moved_mask;
-      }
-      p++;
-      while (nwords--) {
-        adjust_noderef(p, base, limit, delta);
-        p++;
-      }
-    } else {
-      /* just a cons */
-      adjust_noderef(p, base, limit, delta);
-      p++;
-      adjust_noderef(p, base, limit, delta);
-      p++;
-    }
-  }
-}
-
-void
-nuke_pointers_in_range(LispObj *range_start,
-                         LispObj *range_end,
-                         LispObj base,
-                         LispObj limit)
-{
-  LispObj *p = range_start, node, new;
-  int tag_n;
-  natural nwords;
-
-  while (p < range_end) {
-    node = *p;
-    tag_n = fulltag_of(node);
-    if (immheader_tag_p(tag_n)) {
-      p = (LispObj *) skip_over_ivector((natural) p, node);
-    } else if (nodeheader_tag_p(tag_n)) {
-      nwords = header_element_count(node);
-      nwords += (1 - (nwords&1));
-      p++;
-      while (nwords--) {
-        nuke_noderef(p, base, limit);
-        p++;
-      }
-    } else {
-      /* just a cons */
-      nuke_noderef(p, base, limit);
-      p++;
-      nuke_noderef(p, base, limit);
-      p++;
-    }
-  }
-}
-
-void
-adjust_pointers_in_tstack_area(area *a,
-                               LispObj base,
-                               LispObj limit,
-                               LispObj delta)
-{
-  LispObj
-    *current,
-    *next,
-    *start = (LispObj *) a->active,
-    *end = start,
-    *area_limit = (LispObj *) (a->high);
-
-  for (current = start;
-       end != area_limit;
-       current = next) {
-    next = ptr_from_lispobj(*current);
-    end = ((next >= start) && (next < area_limit)) ? next : area_limit;
-    if (current[1] == 0) {
-      adjust_pointers_in_range(current+2, end, base, limit, delta);
-    }
-  }
-}
-
-void
-nuke_pointers_in_tstack_area(area *a,
-                             LispObj base,
-                             LispObj limit)
-{
-  LispObj
-    *current,
-    *next,
-    *start = (LispObj *) a->active,
-    *end = start,
-    *area_limit = (LispObj *) (a->high);
-
-  for (current = start;
-       end != area_limit;
-       current = next) {
-    next = ptr_from_lispobj(*current);
-    end = ((next >= start) && (next < area_limit)) ? next : area_limit;
-    if (current[1] == 0) {
-      nuke_pointers_in_range(current+2, end, base, limit);
-    }
-  }
-}
-
-void
-adjust_pointers_in_vstack_area(area *a,
-                               LispObj base,
-                               LispObj limit,
-                               LispObj delta)
-{
-  LispObj
-    *p = (LispObj *) a->active,
-    *q = (LispObj *) a->high;
-
-  if (((natural)p) & sizeof(natural)) {
-    adjust_noderef(p, base, limit, delta);
-    p++;
-  }
-  adjust_pointers_in_range(p, q, base, limit, delta);
-}
-
-void
-nuke_pointers_in_vstack_area(area *a,
-                             LispObj base,
-                             LispObj limit)
-{
-  LispObj
-    *p = (LispObj *) a->active,
-    *q = (LispObj *) a->high;
-
-  if (((natural)p) & sizeof(natural)) {
-    nuke_noderef(p, base, limit);
-    p++;
-  }
-  nuke_pointers_in_range(p, q, base, limit);
-}
-
-#ifdef PPC
-void
-adjust_pointers_in_cstack_area(area *a,
-                               LispObj base,
-                               LispObj limit,
-                               LispObj delta)
-{
-  BytePtr
-    current,
-    next,
-    area_limit = a->high,
-    low = a->low;
-
-  for (current = a->active; (current >= low) && (current < area_limit); current = next) {
-    next = *((BytePtr *)current);
-    if (next == NULL) break;
-    if (((next - current) == sizeof(lisp_frame)) &&
-	(((((lisp_frame *)current)->savefn) == 0) ||
-	 (fulltag_of(((lisp_frame *)current)->savefn) == fulltag_misc))) {
-      adjust_noderef(&((lisp_frame *) current)->savefn, base, limit, delta);
-      adjust_locref(&((lisp_frame *) current)->savelr, base, limit, delta);
-    }
-  }
-}
-#endif
-
-
-
-void
-adjust_pointers_in_tcrs(TCR *current, LispObj base, LispObj limit, signed_natural delta)
-{
-  TCR *tcr = current;
-  xframe_list *xframes;
-  LispObj *tlb_start, *tlb_end;
-  ExceptionInformation *xp;
-
-  do {
-    xp = tcr->gc_context;
-    if (xp) {
-      adjust_pointers_in_xp(xp, base, limit, delta);
-    }
-    for (xframes = (xframe_list *) tcr->xframe;
-         xframes;
-         xframes = xframes->prev) {
-      adjust_pointers_in_xp(xframes->curr, base, limit, delta);
-    }
-    adjust_pointers_in_range(tcr->tlb_pointer,
-                             (LispObj *) ((BytePtr)tcr->tlb_pointer+tcr->tlb_limit),
-                             base,
-                             limit,
-                             delta);
-    tcr = tcr->next;
-  } while (tcr != current);
-}
-
-void
-nuke_pointers_in_tcrs(TCR *current, LispObj base, LispObj limit)
-{
-  TCR *tcr = current;
-  xframe_list *xframes;
-  LispObj *tlb_start, *tlb_end;
-  ExceptionInformation *xp;
-
-  do {
-    xp = tcr->gc_context;
-    if (xp) {
-      nuke_pointers_in_xp(xp, base, limit);
-    }
-    for (xframes = (xframe_list *) tcr->xframe;
-         xframes;
-         xframes = xframes->prev) {
-      nuke_pointers_in_xp(xframes->curr, base, limit);
-    }
-    nuke_pointers_in_range(tcr->tlb_pointer,
-                           (LispObj *) ((BytePtr)tcr->tlb_pointer+tcr->tlb_limit),
-                           base,
-                           limit);
-    tcr = tcr->next;
-  } while (tcr != current);
-}
-
-void
-adjust_gcable_ptrs(LispObj base, LispObj limit, signed_natural delta)
-{
-  /* These need to be special-cased, because xmacptrs are immediate
-     objects that contain (in their "link" fields") tagged pointers
-     to other xmacptrs */
-  LispObj *prev = &(lisp_global(GCABLE_POINTERS)), next;
-
-  while ((next = *prev) != (LispObj)NULL) {
-    adjust_noderef(prev, base, limit, delta);
-    if (delta < 0) {
-      /* Assume that we've already moved things */
-      next = *prev;
-    }
-    prev = &(((xmacptr *)ptr_from_lispobj(untag(next)))->link);
-  }
-}
-    
-
-void
-adjust_pointers_in_dynamic_area(area *a, 
-                                LispObj base, 
-                                LispObj limit,
-                                signed_natural delta)
-{
-  natural 
-    nstatic = static_dnodes_for_area(a),
-    nstatic_bitmap_words = nstatic >> bitmap_shift;
-  LispObj 
-    *low = (LispObj *) (a->low),
-    *active = (LispObj *) (a->active),
-    *dynamic_low = low + (2 * nstatic);
-
-  adjust_pointers_in_range(dynamic_low, active, base, limit, delta);
-
-  if (nstatic && (nstatic <= a->ndnodes)) {
-    cons *pagelet_start = (cons *) a->low, *work;
-    bitvector usedbits = tenured_area->static_used;
-    natural used, i;
-    
-    while (nstatic_bitmap_words--) {
-      used = *usedbits++;
-
-      while (used) {
-        i = count_leading_zeros(used);
-        used &= ~(BIT0_MASK >> i);
-        work = pagelet_start+i;
-        adjust_noderef(&(work->cdr), base, limit, delta);
-        adjust_noderef(&(work->car), base, limit, delta);
-      }
-      pagelet_start += nbits_in_word;
-    }
-  }
-}
-
-void
-nuke_pointers_in_dynamic_area(area *a, 
-                              LispObj base, 
-                              LispObj limit)
-{
-  natural 
-    nstatic = static_dnodes_for_area(a),
-    nstatic_bitmap_words = nstatic >> bitmap_shift;
-  LispObj 
-    *low = (LispObj *) (a->low),
-    *active = (LispObj *) (a->active),
-    *dynamic_low = low + (2 * nstatic);
-
-  nuke_pointers_in_range(dynamic_low, active, base, limit);
-
-  if (nstatic && (nstatic <= a->ndnodes)) {
-    cons *pagelet_start = (cons *) a->low, *work;
-    bitvector usedbits = tenured_area->static_used;
-    natural used, i;
-    
-    while (nstatic_bitmap_words--) {
-      used = *usedbits++;
-
-      while (used) {
-        i = count_leading_zeros(used);
-        used &= ~(BIT0_MASK >> i);
-        work = pagelet_start+i;
-        nuke_noderef(&(work->cdr), base, limit);
-        nuke_noderef(&(work->car), base, limit);
-      }
-      pagelet_start += nbits_in_word;
-    }
-  }
-}
-
-    
-void
-adjust_all_pointers(LispObj base, LispObj limit, signed_natural delta)
-{
-  area *next_area;
-  area_code code;
-
-  for (next_area = active_dynamic_area; 
-       (code = next_area->code) != AREA_VOID;
-       next_area = next_area->succ) {
-    switch (code) {
-    case AREA_TSTACK:
-      adjust_pointers_in_tstack_area(next_area, base, limit, delta);
-      break;
-      
-    case AREA_VSTACK:
-      adjust_pointers_in_vstack_area(next_area, base, limit, delta);
-      break;
-
-    case AREA_CSTACK:
-      adjust_pointers_in_cstack_area(next_area, base, limit, delta);
-      break;
-
-    case AREA_STATIC:
-    case AREA_MANAGED_STATIC:
-      adjust_pointers_in_range((LispObj *) (next_area->low),
-                               (LispObj *) (next_area->active),
-                               base,
-                               limit,
-                               delta);
-      break;
-
-    case AREA_DYNAMIC:
-      adjust_pointers_in_dynamic_area(next_area, base, limit, delta);
-      break;
-    }
-  }
-  adjust_pointers_in_tcrs(get_tcr(false), base, limit, delta);
-  adjust_gcable_ptrs(base, limit, delta);
-}
-
-void
-nuke_all_pointers(LispObj base, LispObj limit)
-{
-  area *next_area;
-  area_code code;
-
-  for (next_area = active_dynamic_area; 
-       (code = next_area->code) != AREA_VOID;
-       next_area = next_area->succ) {
-    switch (code) {
-    case AREA_TSTACK:
-      nuke_pointers_in_tstack_area(next_area, base, limit);
-      break;
-      
-    case AREA_VSTACK:
-      nuke_pointers_in_vstack_area(next_area, base, limit);
-      break;
-
-    case AREA_CSTACK:
-      /* There aren't any "nukable" pointers in a cstack area */
-      break;
-
-    case AREA_STATIC:
-    case AREA_MANAGED_STATIC:
-      nuke_pointers_in_range((LispObj *) (next_area->low),
-                               (LispObj *) (next_area->active),
-                               base,
-                               limit);
-      break;
-
-    case AREA_DYNAMIC:
-      nuke_pointers_in_dynamic_area(next_area, base, limit);
-      break;
-    }
-  }
-  nuke_pointers_in_tcrs(get_tcr(false), base, limit);
-}
-
-#ifndef MREMAP_MAYMOVE
-#define MREMAP_MAYMOVE 1
-#endif
-
-#ifdef FREEBSD
-void *
-freebsd_mremap(void *old_address, 
-	       size_t old_size, 
-	       size_t new_size, 
-	       unsigned long flags)
-{
-  return old_address;
-}
-#define mremap freebsd_mremap
-
-#endif
-
-#ifdef DARWIN
-void *
-darwin_mremap(void *old_address, 
-	      size_t old_size, 
-	      size_t new_size, 
-	      unsigned long flags)
-{
-  void *end = (void *) ((char *)old_address+old_size);
-
-  if (old_size == new_size) {
-    return old_address;
-  }
-  if (new_size < old_size) {
-    munmap(end, old_size-new_size);
-    return old_address;
-  }
-  {
-    void * new_address = mmap(NULL,
-                              new_size,
-                              PROT_READ|PROT_WRITE,
-                              MAP_PRIVATE | MAP_ANON,
-                              -1,
-                              0);
-    if (new_address !=  MAP_FAILED) {
-      vm_copy(mach_task_self(),
-              (vm_address_t)old_address,
-              old_size,
-              (vm_address_t)new_address);
-      munmap(old_address, old_size);
-    }
-    return new_address;
-  }
-}
-
-#define mremap darwin_mremap
-#endif
-
-Boolean
-resize_used_bitvector(natural new_dnodes, bitvector *newbits)
-{
-  natural
-    old_dnodes = tenured_area->static_dnodes,
-    old_page_aligned_size =
-    (align_to_power_of_2((align_to_power_of_2(old_dnodes, log2_nbits_in_word)>>3),
-                         log2_page_size)),
-    new_page_aligned_size =
-    (align_to_power_of_2((align_to_power_of_2(new_dnodes, log2_nbits_in_word)>>3),
-                         log2_page_size));
-  bitvector old_used = tenured_area->static_used, new_used = NULL;
-
-  if (old_page_aligned_size == new_page_aligned_size) {
-    *newbits = old_used;
-    return true;
-  }
-
-  if (old_used == NULL) {
-    new_used = mmap(NULL,
-                    new_page_aligned_size,
-                    PROT_READ|PROT_WRITE,
-                    MAP_PRIVATE | MAP_ANON,
-                    -1,
-                    0);
-    if (new_used == MAP_FAILED) {
-      *newbits = NULL;
-      return false;
-    } else {
-      *newbits = new_used;
-      return true;
-    }
-  }
-  if (new_page_aligned_size == 0) {
-    munmap(old_used, old_page_aligned_size);
-    *newbits = NULL;
-    return true;
-  }
-    
-  /* Have to try to remap the old bitmap.  That's implementation-dependent,
-     and (naturally) Mach sucks, but no one understands how.
-  */
-  new_used = mremap(old_used, 
-                    old_page_aligned_size, 
-                    new_page_aligned_size, 
-                    MREMAP_MAYMOVE);
-  if (new_used == MAP_FAILED) {
-    *newbits = NULL;
-    return false;
-  }
-  *newbits = new_used;
-  return true;
-}
-
-  
-int
-grow_hons_area(signed_natural delta_in_bytes)
-{
-  bitvector new_used;
-  area *ada = active_dynamic_area;
-  natural 
-    delta_in_dnodes = delta_in_bytes >> dnode_shift,
-    current_static_dnodes = tenured_area->static_dnodes,
-    new_static_dnodes;
-    
-  delta_in_dnodes = align_to_power_of_2(delta_in_dnodes,log2_nbits_in_word);
-  new_static_dnodes = current_static_dnodes+delta_in_dnodes;
-  delta_in_bytes = delta_in_dnodes << dnode_shift;
-  if (grow_dynamic_area((natural) delta_in_bytes)) {
-    LispObj 
-      base = (LispObj) (ada->low + (current_static_dnodes*dnode_size)),
-      oldactive = (LispObj) ada->active,
-      limit = area_dnode(oldactive, base);
-    if (!resize_used_bitvector(new_static_dnodes, &new_used)) {
-      shrink_dynamic_area(delta_in_bytes);
-      return -1;
-    }
-    tenured_area->static_used = new_used;
-    adjust_all_pointers(base, limit, delta_in_bytes);
-    memmove((void *)(base+delta_in_bytes),(void *)base,oldactive-base);
-    ada->ndnodes = area_dnode(ada->high, ada->low);
-    ada->active += delta_in_bytes;
-    {
-      LispObj *p;
-      natural i;
-      for (p = (LispObj *)(tenured_area->low + (current_static_dnodes << dnode_shift)), i = 0;
-           i< delta_in_dnodes;
-           i++ ) {
-        *p++ = undefined;
-        *p++ = undefined;
-      }
-      tenured_area->static_dnodes += delta_in_dnodes;
-      xMakeDataExecutable(tenured_area->low+(tenured_area->static_dnodes<<dnode_shift),
-                          ada->active-(tenured_area->low+(tenured_area->static_dnodes<<dnode_shift)));
-          
-    }
-    return 0;
-  }
-  return -1;
-}
-
-int 
-shrink_hons_area(signed_natural delta_in_bytes)
-{
-  area *ada = active_dynamic_area;
-  signed_natural 
-    delta_in_dnodes = delta_in_bytes >> dnode_shift;
-  natural 
-    current_static_dnodes = tenured_area->static_dnodes,
-    new_static_dnodes;
-  LispObj base, limit, oldactive;
-  bitvector newbits;
-
-    
-  delta_in_dnodes = -align_to_power_of_2(-delta_in_dnodes,log2_nbits_in_word);
-  new_static_dnodes = current_static_dnodes+delta_in_dnodes;
-  delta_in_bytes = delta_in_dnodes << dnode_shift;
-  oldactive = (LispObj) (ada->active);
-
-  resize_used_bitvector(new_static_dnodes, &newbits);
-  tenured_area->static_used = newbits; /* redundant */
-
-  memmove(ada->low+(new_static_dnodes << dnode_shift),
-          ada->low+(current_static_dnodes << dnode_shift),
-          oldactive-(natural)(ada->low+(current_static_dnodes << dnode_shift)));
-  tenured_area->static_dnodes = new_static_dnodes;
-  ada->active -= -delta_in_bytes; /* delta_in_bytes is negative */
-  shrink_dynamic_area(-delta_in_bytes);
-
-  base = (LispObj) (tenured_area->low + 
-                    (new_static_dnodes << dnode_shift));
-  limit = area_dnode(tenured_area->low + 
-                     (current_static_dnodes << dnode_shift), base);
-  nuke_all_pointers(base, limit);
-
-  base = (LispObj) (tenured_area->low + 
-                    (current_static_dnodes << dnode_shift));
-  limit = area_dnode(oldactive, base);
-  adjust_all_pointers(base, limit, delta_in_bytes);
-
-  xMakeDataExecutable(tenured_area->low+(tenured_area->static_dnodes<<dnode_shift),
-                      ada->active-(tenured_area->low+(tenured_area->static_dnodes<<dnode_shift)));
-  return 0;
-}
-
-int
-change_hons_area_size(TCR *tcr, signed_natural delta_in_bytes)
-{
-  if (delta_in_bytes > 0) {
-    return grow_hons_area(delta_in_bytes);
-  }
-  if (delta_in_bytes < 0) {
-    return shrink_hons_area(delta_in_bytes);
-  }
-  return 0;
 }
 
