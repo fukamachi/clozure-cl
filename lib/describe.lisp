@@ -1543,7 +1543,9 @@
                       :initform (and *backtrace-hide-internal-functions-p*
                                      *backtrace-internal-functions*))
    (break-condition :accessor break-condition
-                    :initarg :break-condition)))
+                    :initarg :break-condition)
+   (unavailable-value-marker :initform (cons nil nil)
+                             :accessor unavailable-value-marker)))
   
 
 
@@ -1558,9 +1560,11 @@
 
 (defmethod compute-frame-info ((f error-frame) n)
   (let* ((frame (svref (addresses f) n))
-         (context (context f)))
+         (context (context f))
+         (marker (unavailable-value-marker f)))
+    
     (multiple-value-bind (lfun pc) (ccl::cfp-lfun frame)
-      (multiple-value-bind (args locals) (ccl::arguments-and-locals context frame lfun pc)
+      (multiple-value-bind (args locals) (ccl::arguments-and-locals context frame lfun pc marker)
         (list (ccl::arglist-from-map lfun) args locals)))))
 
 (defun print-error-frame-limits (f stream)

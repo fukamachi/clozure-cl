@@ -152,6 +152,49 @@ whose name or ID matches <p>, or to any process if <p> is null"
     (if frame-sp
       (toplevel-print (list (nth-value-in-frame frame-sp n nil))))))
 
+(define-toplevel-command :break arg (name frame-number) "Return value of argument named <name> in frame <frame-number>"
+  (let* ((frame-sp (nth-raw-frame frame-number *break-frame* nil)))
+    (when frame-sp
+      (multiple-value-bind (lfun pc) (cfp-lfun frame-sp)
+        (when (and lfun pc)
+          (let* ((unavailable (cons nil nil)))
+            (declare (dynamic-extent unavailable))
+            (let* ((value (arg-value nil frame-sp lfun pc unavailable name)))
+              (if (eq value unavailable)
+                (format *debug-io* "~&;; Can't determine value of ~s in frame ~s." name frame-number)
+                (toplevel-print (list value))))))))))
+
+(define-toplevel-command :break set-arg (name frame-number new) "Set value of argument named <name> in frame <frame-number> to value <new>."
+  (let* ((frame-sp (nth-raw-frame frame-number *break-frame* nil)))
+    (when frame-sp
+      (multiple-value-bind (lfun pc) (cfp-lfun frame-sp)
+        (when (and lfun pc)
+          (or (set-arg-value nil frame-sp lfun pc name new)
+              (format *debug-io* "~&;; Can't change value of ~s in frame ~s." name frame-number)))))))
+   
+
+(define-toplevel-command :break local (name frame-number) "Return value of local denoted by <name> in frame <frame-number> <name> can either be a symbol - in which case the most recent
+binding of that symbol is used - or an integer index into the frame's set of local bindings."
+  (let* ((frame-sp (nth-raw-frame frame-number *break-frame* nil)))
+    (when frame-sp
+      (multiple-value-bind (lfun pc) (cfp-lfun frame-sp)
+        (when (and lfun pc)
+          (let* ((unavailable (cons nil nil)))
+            (declare (dynamic-extent unavailable))
+            (let* ((value (local-value nil frame-sp lfun pc unavailable name)))
+              (if (eq value unavailable)
+                (format *debug-io* "~&;; Can't determine value of ~s in frame ~s." name frame-number)
+                (toplevel-print (list value))))))))))
+
+(define-toplevel-command :break set-local (name frame-number new) "Set value of argument denoted <name> (see :LOCAL) in frame <frame-number> to value <new>."
+  (let* ((frame-sp (nth-raw-frame frame-number *break-frame* nil)))
+    (when frame-sp
+      (multiple-value-bind (lfun pc) (cfp-lfun frame-sp)
+        (when (and lfun pc)
+          (or (set-local-value nil frame-sp lfun pc name new)
+              (format *debug-io* "~&;; Can't change value of ~s in frame ~s." name frame-number)))))))
+
+
 (define-toplevel-command :break form (frame-number)
    "Return a form which looks like the call which established the stack frame identified by <frame-number>.  This is only well-defined in certain cases: when the function is globally named and not a lexical closure and when it was compiled with *SAVE-LOCAL-SYMBOLS* in effect."
    (let* ((form (dbg-form frame-number)))
@@ -271,7 +314,7 @@ whose name or ID matches <p>, or to any process if <p> is null"
                         (if params
                           (cons keyword params)
                           keyword)))
-                    (params param)))))))))))
+                    (params (eval param))))))))))))
 
 ;;; Read a form from the specified stream.
 (defun toplevel-read (&key (input-stream *standard-input*)
@@ -348,7 +391,7 @@ whose name or ID matches <p>, or to any process if <p> is null"
   (multiple-value-bind (bogus-globals newvals oldvals) (%check-error-globals)
     (dolist (x bogus-globals)
       (set x (funcall (pop newvals))))
-    (when (and *debugger-hook* *break-on-errors*)
+    (when (and *debugger-hook* *break-on-errors* (not *batch-flag*))
       (let ((hook *debugger-hook*)
             (*debugger-hook* nil))
         (funcall hook condition hook)))
@@ -362,9 +405,11 @@ whose name or ID matches <p>, or to any process if <p> is null"
 	      (format s "unbound")
 	      (format s "~s" oldval))
 	    (format s ", was reset to ~s ." (symbol-value bogusness)))))
-      (if *break-on-errors*
+      (if (and *break-on-errors* (not *batch-flag*))
 	(break-loop condition error-pointer)
-	(abort)))))
+        (if *batch-flag*
+          (quit -1)
+          (abort))))))
 
 (defun break (&optional string &rest args)
   "Print a message and invoke the debugger without allowing any possibility

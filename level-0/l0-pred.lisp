@@ -400,7 +400,7 @@
     complex                             ; 3
     catch-frame                         ; 4
     function                            ; 5
-    lisp-thread                         ; 6
+    basic-stream                         ; 6
     symbol                              ; 7
     lock                                ; 8
     hash-table-vector                   ; 9
@@ -585,7 +585,7 @@
       slot-vector
       ratio
       symbol
-      lisp-thread
+      basic-stream
       standard-instance
       complex
       bogus
@@ -702,7 +702,7 @@
     population
     package
     slot-vector
-    lisp-thread
+    basic-stream
     function-vector                                        ;8
     array-header
     bogus

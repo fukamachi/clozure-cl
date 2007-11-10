@@ -106,14 +106,25 @@
 	  (return pair))))
     (assq item list)))
 
+(defun assequal (item list)
+  (dolist (pair list)
+    (if pair
+      (if (equal item (car pair))
+        (return pair)))))
+
+
 ;;; (memeql item list) <=> (member item list :test #'eql :key #'identity)
 (defun memeql (item list)
   (if (need-use-eql-macro item)
     (do* ((l list (%cdr l)))
          ((endp l))
       (when (eql (%car l) item) (return l)))
-    (memq item list))
-)
+    (memq item list)))
+
+(defun memequal (item list)
+  (do* ((l list (%cdr l)))
+       ((endp l))
+    (when (equal (%car l) item) (return l))))
 
 
 ; (member-test item list test-fn) 

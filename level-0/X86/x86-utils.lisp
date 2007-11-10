@@ -442,6 +442,14 @@ be somewhat larger than what was specified)."
   (movl ($ x8664::nil-value) (%l arg_z))
   (single-value-return))
 
+(defx86lapfunction freeze ()
+  "Do a full GC, then consider all heap-allocated objects which survive to be non-relocatable."
+  (movq ($ arch::gc-trap-function-freeze) (% imm0))
+  (uuo-gc-trap)
+  (jmp-subprim .SPmakeu64))
+
+  
+  
 
 
 ;;; offset is a fixnum, one of the x8664::kernel-import-xxx constants.

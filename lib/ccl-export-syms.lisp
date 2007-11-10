@@ -142,6 +142,7 @@
      ensure-class
      ensure-class-using-class
      ensure-generic-function-using-class
+     eql-specializer
      eql-specializer-object
      extract-lambda-list
      extract-specializer-names
@@ -220,6 +221,9 @@
      specializer-direct-methods
      specializer-direct-generic-functions
      copy-instance
+
+     override-one-method-one-arg-dcode
+     optimize-generic-function-dispatching
 
      ;; Not MOP
      string-studlify			;** DO NOT REMOVE, DO NOT DOCUMENT
@@ -650,6 +654,7 @@
    "ENSURE-CLASS"
    "ENSURE-CLASS-USING-CLASS"
    "ENSURE-GENERIC-FUNCTION-USING-CLASS"
+   "EQL-SPECIALIZER"
    "EQL-SPECIALIZER-OBJECT"
    "EXTRACT-LAMBDA-LIST"
    "EXTRACT-SPECIALIZER-NAMES"

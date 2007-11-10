@@ -94,6 +94,27 @@
               (%fixnum-ref addr)))))
       bad)))
 
+(defun %raw-frame-set (frame context idx new)
+  (declare (fixnum frame idx))
+  (let* ((base (parent-frame frame context))
+         (raw-size (- base frame)))
+    (declare (fixnum base raw-size))
+    (if (and (>= idx 0)
+             (< idx raw-size))
+      (let* ((addr (- (the fixnum (1- base))
+                      idx)))
+        (multiple-value-bind (db-count first-db last-db)
+            (count-db-links-in-frame frame base context)
+          (let* ((is-db-link
+                  (unless (zerop db-count)
+                    (do* ((last last-db (previous-db-link last first-db)))
+                         ((null last))
+                      (when (= addr last)
+                        (return t))))))
+            (if is-db-link
+              (setf (oldest-binding-frame-value context addr) new)
+              (setf (%fixnum-ref addr) new))))))))
+
 (defun %stack< (index1 index2 &optional context)
   (let* ((tcr (if context (bt.tcr context) (%current-tcr)))
          (vs-area (%fixnum-ref tcr target::tcr.vs-area)))
@@ -151,6 +172,32 @@
                       (raw-frame-ref frame context where bad)))))))
           (setq first nil))))
     (get-register-value nil last-catch index)))
+
+(defun %set-register-argument-value (context cfp regval new)
+  (let* ((last-catch (last-catch-since cfp context))
+         (index (register-number->saved-register-index regval)))
+    (do* ((frame cfp (child-frame frame context))
+          (first t))
+         ((null frame))
+      (if (xcf-p frame)
+        (with-macptrs (xp)
+          (%setf-macptr-to-object xp (%fixnum-ref frame x8664::xcf.xp))
+          (return-from %set-register-argument-value
+            (setf (encoded-gpr-lisp xp regval) new)))
+        (progn
+          (unless first
+            (multiple-value-bind (lfun pc)
+                (cfp-lfun frame)
+              (when lfun
+                (multiple-value-bind (mask where)
+                    (registers-used-by lfun pc)
+                  (when (if mask (logbitp index mask))
+                    (incf where (logcount (logandc2 mask (1- (ash 1 (1+ index))))))
+
+                    (return-from %set-register-argument-value
+                      (raw-frame-set frame context where new)))))))
+          (setq first nil))))
+    (set-register-value new nil last-catch index)))
 
 ;;; Used for printing only.
 (defun index->address (p)

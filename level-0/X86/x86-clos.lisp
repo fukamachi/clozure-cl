@@ -34,7 +34,6 @@
   (movq (% arg_x) (% imm1))
   (shrq ($ x8664::word-shift) (% imm1))
   (movzbl (@ x8664::misc-data-offset (% temp1) (% imm1)) (%l imm1))
-  (shlq ($ x8664::word-shift) (% imm1))
   @have-table-index
   (movq (@ x8664::misc-data-offset (% temp0) (% imm1) 8) (% arg_z))
   (single-value-return))

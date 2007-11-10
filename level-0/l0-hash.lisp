@@ -186,6 +186,7 @@
    address-based                        ; nhash.address-based
    find                                 ; nhash.find
    find-new                             ; nhash.find-new
+   nil                                  ; hhash.read-only
    ))
 
 
@@ -566,9 +567,42 @@ before doing so.")
     (incf suggestion 2)))
 
 
+(defvar *continue-from-readonly-hashtable-lock-error* nil)
+
+(defun signal-read-only-hash-table-error (hash write-p)
+  (cond (*continue-from-readonly-hashtable-lock-error*
+         (cerror "Make the hash-table writable. DANGEROUS! CONTINUE ONLY IF YOU KNOW WHAT YOU'RE DOING!"
+                 "Hash-table ~s is readonly" hash)
+         (assert-hash-table-writeable hash)
+         (lock-hash-table hash write-p))
+        (t (error "Hash-table ~s is readonly" hash))))
+
+(defun lock-hash-table (hash write-p)
+  (if (nhash.read-only hash)
+    (if write-p
+        (signal-read-only-hash-table-error hash write-p)
+      :readonly)
+    (let* ((lock (nhash.exclusion-lock hash)))
+      (if lock
+        (write-lock-rwlock lock)
+        (progn (unless (eq (nhash.owner hash) *current-process*)
+                 (error "Not owner of hash table ~s" hash)))))))
+
+(defun lock-hash-table-for-map (hash)
+  (if (nhash.read-only hash)
+    :readonly
+    (let* ((lock (nhash.exclusion-lock hash)))
+      (if lock
+        (write-lock-rwlock lock)
+        (progn (unless (eq (nhash.owner hash) *current-process*)
+                 (error "Not owner of hash table ~s" hash)))))))
 
 
-
+(defun unlock-hash-table (hash was-readonly)
+  (unless was-readonly
+    (let* ((lock (nhash.exclusion-lock hash)))
+      (if lock
+        (unlock-rwlock lock)))))
 
 
 ;;; what if somebody is mapping, growing, rehashing? 
@@ -578,7 +612,7 @@ before doing so.")
   (unless (hash-table-p hash)
     (report-bad-arg hash 'hash-table))
   (without-interrupts
-   (lock-hash-table hash)
+   (lock-hash-table hash t)
    (let* ((vector (nhash.vector hash))
           (size (nhash.vector-size vector))
           (count (+ size size))
@@ -599,7 +633,7 @@ before doing so.")
            (nhash.vector.deleted-count vector) 0
            (nhash.vector.flags vector) (logand $nhash_weak_flags_mask
                                                (nhash.vector.flags vector))))
-   (unlock-hash-table hash)
+   (unlock-hash-table hash nil)
    hash))
 
 (defun index->vector-index (index)
@@ -653,17 +687,6 @@ before doing so.")
 ;; 
 
 
-(defun lock-hash-table (hash)
-  (let* ((lock (nhash.exclusion-lock hash)))
-    (if lock
-      (write-lock-rwlock lock)
-      (progn (unless (eq (nhash.owner hash) *current-process*)
-               (error "Not owner of hash table ~s" hash))))))
-
-(defun unlock-hash-table (hash)
-  (let* ((lock (nhash.exclusion-lock hash)))
-    (if lock
-      (unlock-rwlock lock))))
 
 (defun gethash (key hash &optional default)
   "Finds the entry in HASH-TABLE whose key is KEY and returns the associated
@@ -674,9 +697,10 @@ before doing so.")
   (let* ((value nil)
          (vector-key nil)
          (gc-locked nil)
+         (readonly nil)
          (foundp nil))
     (without-interrupts
-     (lock-hash-table hash)
+     (setq readonly (eq (lock-hash-table hash nil) :readonly))
      (let* ((vector (nhash.vector hash)))
        (if (and (eq key (nhash.vector.cache-key vector))
                 ;; Check twice: the GC might nuke the cached key/value pair
@@ -693,6 +717,7 @@ before doing so.")
                    vector-key (%svref vector vector-index))
              (cond ((setq foundp (and (not (eq vector-key free-hash-key-marker))
                                       (not (eq vector-key deleted-hash-key-marker))))
+                    #+no
                     (setf (nhash.vector.cache-key vector) vector-key
                           (nhash.vector.cache-value vector) value
                           (nhash.vector.cache-idx vector) (vector-index->index
@@ -704,7 +729,7 @@ before doing so.")
                 (%rehash hash))
                (t (return)))))))
      (when gc-locked (%unlock-gc-lock))
-     (unlock-hash-table hash))
+     (unlock-hash-table hash readonly))
     (if foundp
       (values value t)
       (values default nil))))
@@ -716,7 +741,7 @@ before doing so.")
     (setq hash (require-type hash 'hash-table)))
   (let* ((foundp nil))
     (without-interrupts
-     (lock-hash-table hash)
+     (lock-hash-table hash t)
      (%lock-gc-lock)
      (when (%needs-rehashing-p hash)
        (%rehash hash))    
@@ -727,7 +752,7 @@ before doing so.")
                 ((null iterator))
              (unless (= (the fixnum (hti.index iterator))
                         (the fixnum (nhash.vector.cache-idx vector))) 
-               (unlock-hash-table hash)
+               (unlock-hash-table hash nil)
                (%unlock-gc-lock)
                (error "Can't remove key ~s during iteration on hash-table ~s"
                       key hash)))
@@ -748,7 +773,7 @@ before doing so.")
                   ((null iterator))
                (unless (= (the fixnum (hti.index iterator))
                           (the fixnum (vector-index->index vector-index)))
-                 (unlock-hash-table hash)
+                 (unlock-hash-table hash nil)
                  (%unlock-gc-lock)
                  (error "Can't remove key ~s during iteration on hash-table ~s"
                         key hash)))
@@ -781,7 +806,7 @@ before doing so.")
                (nhash.vector.weak-deletions-count vector) 0)))
      ;; Return T if we deleted something
      (%unlock-gc-lock)
-     (unlock-hash-table hash))
+     (unlock-hash-table hash nil))
     foundp))
 
 (defun puthash (key hash default &optional (value default))
@@ -791,7 +816,7 @@ before doing so.")
   (without-interrupts
    (block protected
      (tagbody
-        (lock-hash-table hash)
+        (lock-hash-table hash t)
         AGAIN
         (%lock-gc-lock)
         (when (%needs-rehashing-p hash)
@@ -804,7 +829,7 @@ before doing so.")
             (declare (fixnum index))
             (when (and (< index (the fixnum (uvsize vector)))
                        (not (funcall test (%svref vector index) key)))
-              (unlock-hash-table hash)
+              (unlock-hash-table hash nil)
               (%unlock-gc-lock)
               (error "Can't add key ~s during iteration on hash-table ~s"
                      key hash))))
@@ -849,7 +874,7 @@ before doing so.")
                   (nhash.vector.cache-key vector) key
                   (nhash.vector.cache-value vector) value)))))
    (%unlock-gc-lock)
-   (unlock-hash-table hash))
+   (unlock-hash-table hash nil))
   value)
 
 
@@ -1679,3 +1704,33 @@ before doing so.")
           (nhash.vector.cache-idx vector) nil)
     vector))
 
+(defun assert-hash-table-readonly (hash)
+  (unless (hash-table-p hash)
+    (report-bad-arg hash 'hash-table))
+  (or (nhash.read-only hash)
+      (without-interrupts
+       (lock-hash-table hash t)
+       (let* ((flags (nhash.vector.flags (nhash.vector hash))))
+         (declare (fixnum flags))
+         (when (or (logbitp $nhash_track_keys_bit flags)
+                   (logbitp $nhash_component_address_bit flags))
+           (format t "~&Hash-table ~s uses address-based hashing and can't yet be made read-only for that reason." hash)
+           (unlock-hash-table hash nil)
+           (return-from assert-hash-table-readonly nil))
+         (setf (nhash.read-only hash) t)
+         (unlock-hash-table hash nil)
+         t))))
+
+;; This is dangerous, if multiple threads are accessing a read-only
+;; hash table. Use it responsibly.
+(defun assert-hash-table-writeable (hash)
+  (unless (hash-table-p hash)
+    (report-bad-arg hash 'hash-table))
+  (when (nhash.read-only hash)
+    (setf (nhash.read-only hash) nil)
+    t))
+
+(defun readonly-hash-table-p (hash)
+  (unless (hash-table-p hash)
+    (report-bad-arg hash 'hash-table))
+  (nhash.read-only hash))

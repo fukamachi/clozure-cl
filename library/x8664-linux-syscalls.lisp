@@ -149,6 +149,7 @@
 (define-syscall (logior platform-os-linux platform-cpu-x86 platform-word-size-64)  syscalls::getcwd 79 (:address :unsigned-fullword) :signed-fullword )
 
 
+(define-syscall (logior platform-os-linux platform-cpu-x86 platform-word-size-64)  syscalls::futex 202 (:address :signed-fullword :signed-fullword :address :address :signed-fullword) :signed-fullword )
 
 #+notdefinedyet
 (progn

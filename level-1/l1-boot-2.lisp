@@ -268,7 +268,6 @@ present and false otherwise. This variable shouldn't be set by user code.")
       (bin-load-provide "SOURCE-FILES" "source-files")
       (bin-load-provide "MCL-COMPAT" "mcl-compat")
       (require "LOOP")
-      (require "HASH-CONS")
       (bin-load-provide "CCL-EXPORT-SYMS" "ccl-export-syms")
       (l1-load-provide "VERSION" "version")
       (require "LISPEQU") ; Shouldn't need this at load time ...

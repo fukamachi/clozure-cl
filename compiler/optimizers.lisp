@@ -134,52 +134,61 @@
       (setq keys (%cddr keys)))
     t))
 
-;;; return new form if no keys (or if keys constant and specify :TEST
-;;; {#'eq, #'eql} only.)
-(defun eq-eql-call (x l keys eq-fn  eql-fn env)
-  (flet ((eql-to-eq ()
-           (or (eql-iff-eq-p x env)
-               (and (or (quoted-form-p l) (null l))
-                    (dolist (elt (%cadr l) t)
-                      (when (eq eq-fn 'assq) (setq elt (car elt)))
-                      (when (and (numberp elt) (not (fixnump elt)))
-                        (return nil)))))))
-    (if (null keys)
-      (list (if (eql-to-eq) eq-fn eql-fn) x l)
-      (if (constant-keywords-p keys)
+(defun remove-explicit-test-keyword-from-test-testnot-key (item list keys default alist testonly)
+  (if (null keys)
+    `(,default ,item ,list)
+     (if (constant-keywords-p keys)
         (destructuring-bind (&key (test nil test-p)
                                   (test-not nil test-not-p)
                                   (key nil key-p))
                             keys
-          (declare (ignore test-not key))
+          (declare (ignore test-not))
           (if (and test-p 
-                   (not test-not-p) 
-                   (not key-p) 
+                   (not test-not-p)
+                   (or (not key-p)
+                       (and (consp key)
+                            (consp (%cdr key))
+                            (null (%cddr key))
+                            (or (eq (%car key) 'function)
+                                (eq (%car key) 'quote))
+                            (eq (%cadr key) 'identity)))
                    (consp test) 
                    (consp (%cdr test))
                    (null (%cddr test))
                    (or (eq (%car test) 'function)
                        (eq (%car test) 'quote)))
-            (let ((testname (%cadr test)))
-              (if (or (eq testname 'eq)
-                      (and (eq testname 'eql)
-                           (eql-to-eq)))
-                (list eq-fn x l)
-                (if (and eql-fn (eq testname 'eql))
-                  (list eql-fn x l))))))))))
+            (let* ((testname (%cadr test))
+                   (reduced (cdr (assoc testname alist))))
+              (if reduced
+                `(,reduced ,item ,list)
+                `(,testonly ,item ,list ,test))))))))
+
 
 (defun eql-iff-eq-p (thing env)
   (if (quoted-form-p thing)
     (setq thing (%cadr thing))
     (if (not (self-evaluating-p thing))
         (return-from eql-iff-eq-p
-                     (nx-form-typep thing
-                                     '(or fixnum
-                                       #+64-bit-target single-float
-                                       character symbol 
-                                       (and (not number) (not macptr))) env))))
+          (or (nx-form-typep thing  'symbol env)
+              (nx-form-typep thing 'character env)
+              (nx-form-typep thing
+                             '(or fixnum
+                               #+64-bit-target single-float
+                               symbol character
+                               (and (not number) (not macptr))) env)))))
   (or (fixnump thing) #+64-bit-target (typep thing 'single-float)
+      (symbolp thing) (characterp thing)
       (and (not (numberp thing)) (not (macptrp thing)))))
+
+(defun equal-iff-eql-p (thing env)
+  (if (quoted-form-p thing)
+    (setq thing (%cadr thing))
+    (if (not (self-evaluating-p thing))
+      (return-from equal-iff-eql-p
+        (nx-form-typep thing
+                       '(and (not cons) (not string) (not bit-vector) (not pathname)) env))))
+  (not (typep thing '(or cons string bit-vector pathname))))
+
 
 (defun fold-constant-subforms (call env)
     (let* ((constants nil)
@@ -329,10 +338,34 @@
 
 
 
-(define-compiler-macro assoc (&whole call &environment env item list &rest keys)
-  (or (eq-eql-call item list keys 'assq 'asseql env)
+(define-compiler-macro assoc (&whole call item list &rest keys)
+  (or (remove-explicit-test-keyword-from-test-testnot-key item list keys 'asseql '((eq . assq) (eql . asseql) (equal . assequal)) 'assoc-test)
       call))
 
+(define-compiler-macro assequal (&whole call &environment env item list)
+  (if (or (equal-iff-eql-p item env)
+          (and (quoted-form-p list)
+               (proper-list-p (%cadr list))
+               (every (lambda (x) (equal-iff-eql-p (car x) env)) (%cadr list))))
+    `(asseql ,item ,list)
+    call))
+  
+(define-compiler-macro asseql (&whole call &environment env item list)
+  (if (or (eql-iff-eq-p item env)
+          (and (quoted-form-p list)
+               (proper-list-p (%cadr list))
+               (every (lambda (x) (eql-iff-eq-p (car x) env)) (%cadr list))))
+    `(assq ,item ,list)
+    call))
+
+(define-compiler-macro assq (item list)
+  (let* ((itemx (gensym))
+         (listx (gensym))
+         (pair (gensym)))
+    `(let* ((,itemx ,item)
+            (,listx ,list))
+      (dolist (,pair ,listx)
+        (when (and ,pair (eq (car ,pair) ,itemx)) (return ,pair))))))
 
 (define-compiler-macro caar (form)
   `(car (car ,form)))
@@ -784,19 +817,40 @@
          (dolist (,elt-var ,lst (cdr ,result-var))
            (setq ,temp-var (setf (cdr ,temp-var) (list (funcall ,fn-var ,elt-var)))))))))
 
-(define-compiler-macro member (&whole call &environment env item list &rest keys)
-  (or (eq-eql-call item list keys 'memq 'memeql env)
+(define-compiler-macro member (&whole call item list &rest keys)
+  (or (remove-explicit-test-keyword-from-test-testnot-key item list keys 'memeql '((eq . memq) (eql . memeql) (equal . memequal)) 'member-test)
       call))
 
+(define-compiler-macro memequal (&whole call &environment env item list)
+  (if (or (equal-iff-eql-p item env)
+          (and (quoted-form-p list)
+               (proper-list-p (%cadr list))
+               (every (lambda (elt) (equal-iff-eql-p elt env)) (%cadr list))))
+    `(memeql ,item ,list)
+    call))
+  
+(define-compiler-macro memeql (&whole call &environment env item list)
+  (if (or (eql-iff-eq-p item env)
+          (and (quoted-form-p list)
+               (proper-list-p (%cadr list))
+               (every (lambda (elt) (eql-iff-eq-p elt env)) (%cadr list))))
+    `(memq ,item ,list)
+    call))
+
 (define-compiler-macro memq (&whole call &environment env item list)
-   ;(memq x '(y)) => (if (eq x 'y) '(y))
-   ;Would it be worth making a two elt list into an OR?  Maybe if
-   ;optimizing for speed...
+  ;;(memq x '(y)) => (if (eq x 'y) '(y))
+  ;;Would it be worth making a two elt list into an OR?  Maybe if
+  ;;optimizing for speed...
    (if (and (or (quoted-form-p list)
                 (null list))
             (null (cdr (%cadr list))))
      (if list `(if (eq ,item ',(%caadr list)) ,list))
-     call))
+     (let* ((x (gensym))
+            (tail (gensym)))
+       `(do* ((,x ,item)
+              (,tail ,list (cdr (the list ,tail))))
+         ((null ,tail))
+         (if (eq (car ,tail) ,x) (return ,tail))))))
 
 (define-compiler-macro minusp (x)
   `(< ,x 0))
@@ -814,16 +868,23 @@
             (%i>= count 0)
             (%i< count 3))
      `(,(svref '#(car cadr caddr) count) ,list)
-     call))
+     `(car (nthcdr ,count ,list))))
 
 (define-compiler-macro nthcdr (&whole call &environment env count list)
   (if (and (fixnump count)
            (%i>= count 0)
            (%i< count 4))  
      (if (%izerop count)
-       list
+       `(require-type ,list 'list)
        `(,(svref '#(cdr cddr cdddr) (%i- count 1)) ,list))
-     call))
+    (let* ((i (gensym))
+           (n (gensym))                 ; evaluation order
+           (tail (gensym)))
+      `(let* ((,n (require-type ,count 'unsigned-byte))
+              (,tail (require-type ,list 'list)))
+        (dotimes (,i ,n ,tail)
+          (unless (setq ,tail (cdr ,tail))
+            (return nil)))))))
 
 (define-compiler-macro plusp (x)
   `(> ,x 0))
@@ -1813,7 +1874,12 @@
     (if (ignore-errors (subtypep type 'double-float))
       `(float ,thing 0.0d0)
       call)))
-                     
+
+(define-compiler-macro equal (&whole call x y &environment env)
+  (if (or (equal-iff-eql-p x env)
+          (equal-iff-eql-p y env))
+    `(eql ,x ,y)
+    call))
 
 (provide "OPTIMIZERS")
 

@@ -309,11 +309,11 @@
     arg
     (%kernel-restart $xwrongtype arg type)))
 
-; Might want to use an inverted mapping instead of (satisfies ccl::obscurely-named)
+;;; Might want to use an inverted mapping instead of (satisfies ccl::obscurely-named)
 (defun %require-type (arg predsym)
-    (if (funcall predsym arg)
+  (if (funcall predsym arg)
     arg
-    (%kernel-restart $xwrongtype arg `(satisfies ,predsym))))
+    (%kernel-restart $xwrongtype arg (type-for-predicate predsym))))
 
 (defun %require-type-builtin (arg type-cell)  
   (if (builtin-typep arg type-cell)
@@ -322,6 +322,16 @@
 
 
 
+;;; In lieu of an inverted mapping, at least try to find cases involving
+;;; builtin numeric types and predicates associated with them.
+(defun type-for-predicate (pred)
+  (or (block find
+        (maphash #'(lambda (type ctype) (when (and (typep ctype 'numeric-ctype)
+                                                   (eq (numeric-ctype-predicate ctype)
+                                                       pred))
+                                          (return-from find type)))
+                 *builtin-type-info*))
+      `(satisfies ,pred)))
 
 
 

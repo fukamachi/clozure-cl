@@ -550,57 +550,7 @@
   (trlgei allocptr 0)
   (blr))
 
-;;; Return true iff we were able to increment a non-negative
-;;; lock._value
-(defppclapfunction %try-read-lock-rwlock ((lock arg_z))
-  (check-nargs 1)
-  (li imm1 target::lock._value)
-  @try
-  (lrarx imm0 lock imm1)
-  (cmpri imm0 0)
-  (blt @fail)				; locked for writing
-  (addi imm0 imm0 '1)
-  (strcx. imm0 lock imm1)
-  (bne @try)                            ; lost reservation, try again
-  (isync)
-  (blr)                                 ; return the lock
-@fail
-  (li imm0 target::reservation-discharge)
-  (strcx. rzero rzero imm0)
-  (li arg_z nil)
-  (blr))
 
-
-
-(defppclapfunction unlock-rwlock ((lock arg_z))
-  (ldr imm2 target::lock._value lock)
-  (cmpri imm2 0)
-  (li imm1 target::lock._value)
-  (ble @unlock-write)
-  @unlock-read
-  (lrarx imm0 lock imm1)
-  (subi imm0 imm0 '1)
-  (strcx. imm0 lock imm1)
-  (bne @unlock-read)
-  (isync)
-  (blr)
-  @unlock-write
-  ;;; If we aren't the writer, return NIL.
-  ;;; If we are and the value's about to go to 0, clear the writer field.
-  (ldr imm0 target::lock.writer lock)
-  (cmpr imm0 target::rcontext)
-  (ldrx imm0 lock imm1)
-  (cmpri cr1 imm0 '-1)
-  (addi imm0 imm0 '1)
-  (bne @fail)
-  (bne cr1 @noclear)
-  (str rzero target::lock.writer lock)
-  @noclear
-  (str imm0 target::lock._value lock)
-  (blr)
-  @fail
-  (li arg_z nil)
-  (blr))
 
 (defppclapfunction %atomic-incf-node ((by arg_x) (node arg_y) (disp arg_z))
   (check-nargs 3)
@@ -1021,5 +971,14 @@
   #+darinppc32-target (mr arg_z 0)
   (blr))
 
+(defppclapfunction %check-deferred-gc ()
+  (ldr imm0 target::tcr.flags target::rcontext)
+  (slri. imm0 imm0 (- (1- target::nbits-in-word) (+ arch::tcr-flag-bit-pending-suspend target::fixnumshift)))
+  (li arg_z nil)
+  (bgelr)
+  (uuo_interr arch::error-propagate-suspend rzero)
+  (li arg_z t)
+  (blr))
+  
 
 ; end of ppc-misc.lisp

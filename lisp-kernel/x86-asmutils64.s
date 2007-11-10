@@ -172,7 +172,7 @@ _endfn
 	
         
         __ifdef([DARWIN_GS_HACK])
-/* Check (in and ugly, non-portale way) to see if %gs is addressing
+/* Check (in and ugly, non-portable way) to see if %gs is addressing
    pthreads data.  If it was, return 0; otherwise, assume that it's
    addressing a lisp tcr and set %gs to point to the tcr's tcr.osid,
    then return 1. */

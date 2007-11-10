@@ -1595,6 +1595,7 @@ reap_gcable_ptrs()
           break;
 
         case xmacptr_flag_rwlock:
+          rwlock_destroy((rwlock *)ptr_from_lispobj(ptr));
           break;
 
         case xmacptr_flag_semaphore:

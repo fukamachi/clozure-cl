@@ -2057,6 +2057,23 @@
                          (return j))))))))))
 
 
+(defun %bignum-random (number state)
+  (let* ((ndigits (%bignum-length number))
+         (sign-index (1- ndigits)))
+    (declare (fixnum ndigits sign-index))
+    (with-bignum-buffers ((bignum ndigits))
+      (dotimes (i sign-index)
+        (setf (bignum-ref bignum i) (%next-random-seed state)))
+      (setf (bignum-ref bignum sign-index)
+            (logand #x7fffffff (the (unsigned-byte 32)
+                                 (%next-random-seed state))))
+      (let* ((result (mod bignum number)))
+        (if (eq result bignum)
+          (copy-uvector bignum)
+          result)))))
+
+
+
 (defun logbitp (index integer)
   "Predicate returns T if bit index of integer is a 1."
   (number-case index

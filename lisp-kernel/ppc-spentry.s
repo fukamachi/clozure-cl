@@ -6681,11 +6681,14 @@ _spentry(bind_interrupt_level)
 /* a context where nargs is significant, so save and restore nargs around */
 /* any interrupt polling  */
         
-_spentry(unbind_interrupt_level)        
-        __(ldr(imm2,tcr.tlb_pointer(rcontext)))   
+_spentry(unbind_interrupt_level)
+        __(ldr(imm0,tcr.flags(rcontext)))
+        __(ldr(imm2,tcr.tlb_pointer(rcontext)))
+        __(andi. imm0,imm0,1<<TCR_FLAG_BIT_PENDING_SUSPEND)
         __(ldr(imm1,tcr.db_link(rcontext)))
         __(ldr(temp1,INTERRUPT_LEVEL_BINDING_INDEX(imm2)))
-        __(cmpri(cr1,temp1,0))
+        __(bne 5f)
+0:      __(cmpri(cr1,temp1,0))
         __(ldr(temp1,binding.val(imm1)))
         __(ldr(imm1,binding.link(imm1)))
         __(cmpri(cr0,temp1,0))
@@ -6697,6 +6700,18 @@ _spentry(unbind_interrupt_level)
         __(check_pending_interrupt([cr1]))
         __(mr nargs,imm2)
         __(blr)
+5:       /* Missed a suspend request; force suspend now if we're restoring
+          interrupt level to -1 or greater */
+        __(cmpri(temp1,-2<<fixnumshift))
+        __(bne 0b)
+        __(ldr(imm0,binding.val(imm1)))
+        __(cmpr(imm0,temp1))
+        __(beq 0b)
+        __(li imm0,1<<fixnumshift)
+        __(str(imm0,INTERRUPT_LEVEL_BINDING_INDEX(imm2)))
+        __(suspend_now())
+        __(b 0b)
+
 
 /* arg_x = array, arg_y = i, arg_z = j. Typecheck everything.
    We don't know whether the array is alleged to be simple or

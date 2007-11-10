@@ -210,24 +210,6 @@ load_image_section(int fd, openmcl_image_section_header *sect)
 
 
     a->static_dnodes = sect->static_dnodes;
-    if (a->static_dnodes) {
-      natural pages_size = (align_to_power_of_2((align_to_power_of_2(a->static_dnodes, 
-                                                                     log2_nbits_in_word)>>3),
-                                                log2_page_size));
-      lseek(fd,pos+mem_size, SEEK_SET);
-      pos = seek_to_next_page(fd);
-      addr = mmap(NULL,
-                  pages_size,
-                  PROT_READ | PROT_WRITE,
-                  MAP_PRIVATE,
-                  fd,
-                  pos);
-      if (addr == MAP_FAILED) {
-        return;
-      }
-      a->static_used = addr;
-      advance = pages_size;
-    }
     sect->area = a;
     break;
 
@@ -419,9 +401,9 @@ save_application(unsigned fd)
   signed_natural section_data_delta;
 #endif
 
-  areas[0] = readonly_area;
-  areas[1] = nilreg_area; 
-  areas[2] = active_dynamic_area;
+  areas[0] = nilreg_area; 
+  areas[1] = active_dynamic_area;
+  areas[2] = readonly_area;
   areas[3] = managed_static_area;
   for (i = 0; i < NUM_IMAGE_SECTIONS; i++) {
     a = areas[i];
@@ -476,7 +458,7 @@ save_application(unsigned fd)
     switch (i) {
     case FWDNUM:
     case GC_NUM:
-    case DELETED_STATIC_PAIRS:
+    case STATIC_CONSES:
       break;
     default:
       lisp_global(i) = 0;
@@ -501,17 +483,6 @@ save_application(unsigned fd)
     } else {
       if (write(fd, a->low, n) != n) {
 	return errno;
-      }
-      if (nstatic) {
-        /* Need to write the static_used bitmap */
-        natural static_used_size_in_bytes =
-          (align_to_power_of_2((align_to_power_of_2(nstatic, log2_nbits_in_word)>>3),
-                               log2_page_size));
-        seek_to_next_page(fd);
-        if (write(fd, tenured_area->static_used, static_used_size_in_bytes) 
-            != static_used_size_in_bytes) {
-          return errno;
-        }
       }
     }
   }

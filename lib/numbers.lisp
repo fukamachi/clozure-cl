@@ -349,12 +349,20 @@
 
 (defparameter a-short-float 1.0s0)
 
-
+#+32-bit-target
 (defmethod print-object ((rs random-state) stream)
   (format stream "#.(~S ~S ~S)"         ;>> #.GAG!!!
           'ccl::initialize-random-state
-          (%svref rs 1)
-          (%svref rs 2)))
+          (random.seed-1 rs)
+          (random.seed-2 rs)))
+
+#+64-bit-target
+(defmethod print-object ((rs random-state) stream)
+  (let* ((s1 (random.seed-1 rs)))
+    (format stream "#.(~S ~S ~S)"       ;>> #.GAG!!!
+            'ccl::initialize-random-state
+            (ldb (byte 16 16) s1)
+            (ldb (byte 16 0) s1))))
 
 
 

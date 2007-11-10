@@ -1736,3 +1736,147 @@ changing its name to ~s may have serious consequences." class new))
                        (setf (slot-value-using-class class instance slotd)
                              newval))))))))))
   instance)
+
+;;; Sometimes you can do a lot better at generic function dispatch than the
+;;; default. This supports that for the one-arg-dcode case.
+(defmethod override-one-method-one-arg-dcode ((generic-function t) (method t))
+  nil)
+
+(defun optimize-generic-function-dispatching ()
+  (dolist (gf (population.data %all-gfs%))
+    (when (eq #'%%one-arg-dcode (%gf-dcode gf))
+      (let ((methods (generic-function-methods gf)))
+        (when (eql 1 (length methods))
+          (override-one-method-one-arg-dcode gf (car methods)))))))
+
+
+
+;;; dcode for a GF with a single reader method which accesses
+;;; a slot in a class that has no subclasses (that restriction
+;;; makes typechecking simpler and also ensures that the slot's
+;;; location is correct.)
+(defun singleton-reader-dcode (dt instance)
+  (declare (optimize (speed 3) (safety 0)))
+  (let* ((class (%svref dt %gf-dispatch-table-first-data))
+         (location (%svref dt (1+ %gf-dispatch-table-first-data))))
+    (if (eq (if (eq (typecode instance) target::subtag-instance)
+              (%class-of-instance instance))
+            class)
+      (%slot-ref (instance.slots instance) location)
+      (no-applicable-method (%gf-dispatch-table-gf dt) instance))))
+
+;;; Dcode for a GF whose methods are all reader-methods which access a
+;;; slot in one or more classes which have multiple subclasses, all of
+;;; which (by luck or design) have the same slot-definition location.
+(defun reader-constant-location-dcode (dt instance)
+  (declare (optimize (speed 3) (safety 0)))
+  (let* ((classes (%svref dt %gf-dispatch-table-first-data))
+         (location (%svref dt (1+ %gf-dispatch-table-first-data))))
+    (if (memq (if (eq (typecode instance) target::subtag-instance)
+              (%class-of-instance instance))
+            classes)
+      (%slot-ref (instance.slots instance) location)
+      (no-applicable-method (%gf-dispatch-table-gf dt) instance))))
+
+;;; Similar to the case above, but we use an alist to map classes
+;;; to their non-constant locations.
+(defun reader-variable-location-dcode (dt instance)
+  (declare (optimize (speed 3) (safety 0)))
+  (let* ((alist (%svref dt %gf-dispatch-table-first-data))
+         (location (cdr
+                    (assq
+                     (if (eq (typecode instance) target::subtag-instance)
+                       (%class-of-instance instance))
+                     alist))))
+    (if location
+      (%slot-ref (instance.slots instance) location)
+      (no-applicable-method (%gf-dispatch-table-gf dt) instance))))
+
+(defun class-and-slot-location-alist (classes slot-name)
+  (let* ((alist nil))
+    (labels ((add-class (c)
+               (unless (assq c alist)
+                 (let* ((slots (class-slots c)))
+                   (unless slots
+                     (finalize-inheritance c)
+                     (setq slots (class-slots c)))
+                   (push (cons c (slot-definition-location (find-slotd slot-name slots))) alist))
+                 (dolist (sub (class-direct-subclasses c))
+                   (add-class sub)))))
+      (dolist (class classes) (add-class class))
+      ;; Building the alist the way that we have should often approximate
+      ;; this ordering; the idea is that leaf classes are more likely to
+      ;; be instantiated than non-leaves.
+      (sort alist (lambda (c1 c2)
+                    (< (length (class-direct-subclasses c1))
+                       (length (class-direct-subclasses c2))))
+            :key #'car))))
+
+
+;;; Try to replace gf dispatch with something faster in f.
+(defun %snap-reader-method (f)
+  (when (slot-boundp f 'methods)
+    (let* ((methods (generic-function-methods f)))
+      (when (and methods
+                 (every (lambda (m) (eq (class-of m) *standard-reader-method-class*)) methods)
+                 (every (lambda (m) (subtypep (class-of (car (method-specializers m))) *standard-class-class*)) methods)
+                 (every (lambda (m) (null (method-qualifiers m))) methods))
+        (let* ((m0 (car methods))
+               (name (slot-definition-name (accessor-method-slot-definition m0))))
+          (when (every (lambda (m)
+                         (eq name (slot-definition-name (accessor-method-slot-definition m))))
+                       (cdr methods))
+            ;; All methods are *STANDARD-READER-METHODS* that
+            ;; access the same slot name.  Build an alist of
+            ;; mapping all subclasses of all classes on which those
+            ;; methods are specialized to the effective slot's
+            ;; location in that subclass.
+            (let* ((classes (mapcar #'(lambda (m) (car (method-specializers m)))
+                                    methods))
+                   (alist (class-and-slot-location-alist classes name))
+                   (loc (cdar alist))
+                   (dt (gf.dispatch-table f)))
+              ;; Only try to handle the case where all slots have
+              ;; :allocation :instance (and all locations - the CDRs
+              ;; of the alist pairs - are small, positive fixnums.
+              (when (every (lambda (pair) (typep (cdr pair) 'fixnum)) alist)
+                (clear-gf-dispatch-table dt)
+                (cond ((null (cdr alist))
+                       ;; Method is only applicable to a single class.
+                       (destructuring-bind (class . location) (car alist)
+                         (setf (%svref dt %gf-dispatch-table-first-data) class
+                               (%svref dt (1+ %gf-dispatch-table-first-data)) location
+                               (gf.dcode f) #'singleton-reader-dcode)))
+                      ((dolist (other (cdr alist) t)
+                         (unless (eq (cdr other) loc)
+                           (return)))
+                       ;; All classes have the slot in the same location,
+                       ;; by luck or design.
+                       (setf (%svref dt %gf-dispatch-table-first-data)
+                             (mapcar #'car alist)
+                             (%svref dt (1+ %gf-dispatch-table-first-data))
+                             loc
+                             (gf.dcode f) #'reader-constant-location-dcode))
+                      (t
+                       ;; Multiple classes; the slot's location varies.
+                       (setf (%svref dt %gf-dispatch-table-first-data)
+                             alist
+                             
+                             (gf.dcode f) #'reader-variable-location-dcode)))))))))))                       
+
+
+;;; Iterate over all known GFs; try to optimize their dcode in cases
+;;; involving reader methods.
+
+(defun snap-reader-methods (&key known-sealed-world (check-conflicts t))
+  (declare (ignore check-conflicts))
+  (unless known-sealed-world
+    (cerror "Proceed, if it's known that no new classes or methods will be defined."
+            "Optimizing reader methods in this way is only safe if it's known that no new classes or methods will be defined."))
+  (let* ((ngf 0)
+         (nwin 0))
+    (dolist (f (population.data %all-gfs%))
+      (incf ngf)
+      (when (%snap-reader-method f)
+        (incf nwin)))
+    (values ngf nwin 0)))

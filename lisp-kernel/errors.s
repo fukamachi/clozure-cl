@@ -24,6 +24,7 @@ error_alloc_failed = 4
 error_stack_overflow = 5
 error_excised_function_call = 6
 error_too_many_values = 7
+error_propagate_suspend = 10	
 error_cant_call = 17
         
 error_type_error = 128

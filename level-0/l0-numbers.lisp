@@ -1725,6 +1725,7 @@
     (values high low)))
 
 
+#+32-bit-target
 (defun random (number &optional (state *random-state*))
   (if (not (typep state 'random-state)) (report-bad-arg state 'random-state))
   (cond
@@ -1732,7 +1733,12 @@
       (locally (declare (fixnum number))
         (if (< number 65536)
           (fast-mod (%next-random-seed state) number)
-          (%bignum-random number state))))
+          (let* ((n 0)
+                 (nhalf (ash (+ 15 (integer-length number)) -4)))
+            (declare (fixnum n nhalf))
+            (dotimes (i nhalf (fast-mod n number))
+              (setq n (logior (the fixnum (ash n 16))
+                              (the fixnum (%next-random-seed state)))))))))
      ((and (typep number 'double-float) (> (the double-float number) 0.0))
       (%float-random number state))
      ((and (typep number 'short-float) (> (the short-float number) 0.0s0))
@@ -1740,6 +1746,26 @@
      ((and (bignump number) (> number 0))
       (%bignum-random number state))
      (t (report-bad-arg number '(or (integer (0)) (float (0.0)))))))
+
+#+64-bit-target
+(defun random (number &optional (state *random-state*))
+  (if (not (typep state 'random-state)) (report-bad-arg state 'random-state))
+  (cond
+    ((and (fixnump number) (> (the fixnum number) 0))
+     (locally (declare (fixnum number))
+       (let* ((n 0)
+              (n32 (ash (+ 31 (integer-length number)) -5)))
+         (declare (fixnum n n32))
+         (dotimes (i n32 (fast-mod n number))
+           (setq n (logior (the fixnum (ash n 32))
+                           (the fixnum (%next-random-seed state))))))))
+    ((and (typep number 'double-float) (> (the double-float number) 0.0))
+     (%float-random number state))
+    ((and (typep number 'short-float) (> (the short-float number) 0.0s0))
+     (%float-random number state))
+    ((and (bignump number) (> number 0))
+     (%bignum-random number state))
+    (t (report-bad-arg number '(or (integer (0)) (float (0.0)))))))
 
 
 #|
@@ -1783,30 +1809,23 @@ What we do is use 2b and 2^n so we can do arithemetic mod 2^32 instead of
 |#
 
 #+64-bit-target
-(defun %next-random-pair (high low)
-  (declare (type (unsigned-byte 16) high low))
-  (let* ((n0
-          (%i* 48271
-             (the  (unsigned-byte 31)
-               (logior (the (unsigned-byte 31)
-                         (ash (ldb (byte 15 0) high) 16))
-                       (the (unsigned-byte 16)
-                         (ldb (byte 16 0) low))))))
-         (n (fast-mod n0 (1- (expt 2 31)))))
-    (declare (fixnum n))
-    (values (ldb (byte 15 16) n)
-            (ldb (byte 16 0) n))))
-
 (defun %next-random-seed (state)
-  (multiple-value-bind (high low) (%next-random-pair (%svref state 1)
-                                                     (%svref state 2))
+  (let* ((n (the fixnum (* (the fixnum (random.seed-1 state)) 48271))))
+    (declare (fixnum n))
+    (setf (random.seed-1 state) (fast-mod n (1- (expt 2 31))))
+    (logand n (1- (ash 1 32)))))
+
+#+32-bit-target
+(defun %next-random-seed (state)
+  (multiple-value-bind (high low) (%next-random-pair (random.seed-1 state)
+                                                     (random.seed-2 state))
     (declare (type (unsigned-byte 15) high)
              (type (unsigned-byte 16) low))
-    (setf (%svref state 1) high
-          (%svref state 2) low)
+    (setf (random.seed-1 state) high
+          (random.seed-2 state) low)
     (logior high (the fixnum (logand low (ash 1 15))))))
 
-
+#+32-bit-target
 (defun %bignum-random (number state)
   (let* ((bits (+ (integer-length number) 8))
          (half-words (ash (the fixnum (+ bits 15)) -4))
@@ -1835,11 +1854,9 @@ What we do is use 2b and 2^n so we can do arithemetic mod 2^32 instead of
 	result))))
 
 (defun %float-random (number state)
-  (if (zerop number)
-    number
-    (let ((ratio (gvector :ratio (random most-positive-fixnum state) most-positive-fixnum)))
-      (declare (dynamic-extent ratio))
-      (* number ratio))))
+  (let ((ratio (gvector :ratio (random most-positive-fixnum state) most-positive-fixnum)))
+    (declare (dynamic-extent ratio))
+    (* number ratio)))
 
 (eval-when (:compile-toplevel :execute)
   (defmacro bignum-abs (nexp)

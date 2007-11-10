@@ -175,6 +175,11 @@
    (:ppc32 `(slwi ,@args))
    (:ppc64 `(sldi ,@args))))
 
+(defppclapmacro slri. (&rest args)
+  (target-arch-case
+   (:ppc32 `(slwi. ,@args))
+   (:ppc64 `(sldi. ,@args))))
+
 (defppclapmacro srr (&rest args)
   (target-arch-case
    (:ppc32 `(srw ,@args))

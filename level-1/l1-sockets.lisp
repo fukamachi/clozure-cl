@@ -147,7 +147,7 @@
 	    "SOCKET-ERROR-SITUATION"
 	    "WITH-OPEN-SOCKET"))
 
-(eval-when (:compile-toplevel)
+(eval-when (:compile-toplevel :execute)
   #+linuxppc-target
   (require "PPC-LINUX-SYSCALLS")
   #+linuxx8664-target
@@ -167,7 +167,7 @@
 
 (define-condition socket-creation-error (simple-error)
   ((code :initarg :code :reader socket-creation-error-code)
-   (identifier :initform :unknown :initarg :identifier :reader socket-creationg-error-identifier)
+   (identifier :initform :unknown :initarg :identifier :reader socket-creation-error-identifier)
    (situation :initarg :situation :reader socket-creation-error-situation)))
 
 (defvar *socket-error-identifiers*
@@ -602,13 +602,14 @@ the socket is not connected."))
 		    keepalive reuse-address nodelay broadcast linger
 		    local-port local-host backlog class out-of-band-inline
 		    local-filename remote-filename sharing basic
-                    external-format)
+                    external-format (auto-close t))
   "Create and return a new socket."
   (declare (dynamic-extent keys))
   (declare (ignore type connect remote-host remote-port eol format
 		   keepalive reuse-address nodelay broadcast linger
 		   local-port local-host backlog class out-of-band-inline
-		   local-filename remote-filename sharing basic external-format))
+		   local-filename remote-filename sharing basic external-format
+                   auto-close))
   (ecase address-family
     ((:file) (apply #'make-file-socket keys))
     ((nil :internet) (apply #'make-ip-socket keys))))
@@ -695,7 +696,7 @@ the socket is not connected."))
   (apply #'make-file-socket-stream fd keys))
 
 
-(defun make-tcp-stream (fd &key (format :bivalent) external-format (class 'tcp-stream) sharing (basic t) &allow-other-keys)
+(defun make-tcp-stream (fd &key (format :bivalent) external-format (class 'tcp-stream) sharing (basic t) (auto-close t) &allow-other-keys)
   (let* ((external-format (normalize-external-format :socket external-format)))
     (let ((element-type (ecase format
                           ((nil :text) 'character)
@@ -710,9 +711,10 @@ the socket is not connected."))
                       :character-p (not (eq format :binary))
                       :encoding (external-format-character-encoding external-format)
                       :line-termination (external-format-line-termination external-format)
-                      :basic basic))))
+                      :basic basic
+                      :auto-close auto-close))))
 
-(defun make-file-socket-stream (fd &key (format :bivalent) external-format (class 'file-socket-stream)  sharing basic &allow-other-keys)
+(defun make-file-socket-stream (fd &key (format :bivalent) external-format (class 'file-socket-stream)  sharing basic (auto-close t) &allow-other-keys)
   (let* ((external-format (normalize-external-format :socket external-format)))
   
     (let ((element-type (ecase format
@@ -728,7 +730,8 @@ the socket is not connected."))
                       :line-termination (external-format-line-termination external-format)
                       :sharing sharing
                       :character-p (not (eq format :binary))
-                      :basic basic))))
+                      :basic basic
+                      :auto-close auto-close))))
 
 (defun make-tcp-listener-socket (fd &rest keys &key backlog &allow-other-keys)
   (socket-call nil "listen" (c_listen fd (or backlog 5)))
@@ -1102,7 +1105,7 @@ unsigned IP address."
 	(unless (eql result 0)
 	  (pref addr :in_addr.s_addr))))))
 
-(defun c_socket (domain type protocol)
+(defun c_socket_1 (domain type protocol)
   #-linuxppc-target
   (syscall syscalls::socket domain type protocol)
   #+linuxppc-target
@@ -1111,6 +1114,16 @@ unsigned IP address."
           (paref params (:* :unsigned-long) 1) type
           (paref params (:* :unsigned-long) 2) protocol)
     (syscall syscalls::socketcall 1 params)))
+
+(defun c_socket (domain type protocol)
+  (let* ((fd (c_socket_1 domain type protocol)))
+    (when (or (eql fd (- #$EMFILE))
+              (eql fd (- #$ENFILE)))
+      (gc)
+      (drain-termination-queue)
+      (setq fd (c_socket_1 domain type protocol)))
+    fd))
+      
 
 (defun init-unix-sockaddr (addr path)
   (macrolet ((sockaddr_un-path-len ()

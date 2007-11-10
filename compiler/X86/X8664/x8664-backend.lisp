@@ -488,7 +488,7 @@
                   (progn
                     (lets (list name `(%inc-ptr ,stack-ptr ,(prog1 memory-arg-offset
                                                                    (incf memory-arg-offset (* 8 (ceiling bits 64)))))))
-                    (dynamic-extent-names name))
+                         (dynamic-extent-names name))
                   (progn
                     (rlets (list name (foreign-record-type-name argtype)))
                     (inits `(setf (%%get-unsigned-longlong ,name 0)
@@ -510,7 +510,8 @@
                                (:unsigned-halfword '%get-unsigned-word)
                                (:unsigned-byte '%get-unsigned-byte)
                                (:address
-                                ;(dynamic-extent-names name)
+                                #+nil
+                                (dynamic-extent-names name)
                                 '%get-ptr))
                              ,stack-ptr
                              ,(if fp (next-fpr) (next-gpr))))))))))))

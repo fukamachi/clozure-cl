@@ -62,6 +62,10 @@ define([interrupt_now],[
 	xuuo(2)
 ])		
 
+define([suspend_now],[
+	xuuo(3)
+])		
+
 define([uuo_error_reg_not_fixnum],[
 	int [$]0xf0|$1
 ])	

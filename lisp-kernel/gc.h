@@ -117,5 +117,8 @@ typedef unsigned char qnode;
 #define GC_TRAP_FUNCTION_USE_LISP_HEAP_THRESHOLD 18
 #define GC_TRAP_FUNCTION_EGC_CONTROL 32
 #define GC_TRAP_FUNCTION_CONFIGURE_EGC 64
-#define GC_TRAP_FUNCTION_SET_HONS_AREA_SIZE 128
+#define GC_TRAP_FUNCTION_SET_HONS_AREA_SIZE 128 /* deprecated */
+#define GC_TRAP_FUNCTION_FREEZE 129
+#define GC_TRAP_FUNCTION_THAW 130
+
 #endif                          /* __GC_H__ */

@@ -302,30 +302,7 @@
     tcr))
   
 	 
-(defmacro with-self-bound-io-control-vars (&body body)
-  `(let (; from CLtL2, table 22-7:
-         (*package* *package*)
-         (*print-array* *print-array*)
-         (*print-base* *print-base*)
-         (*print-case* *print-case*)
-         (*print-circle* *print-circle*)
-         (*print-escape* *print-escape*)
-         (*print-gensym* *print-gensym*)
-         (*print-length* *print-length*)
-         (*print-level* *print-level*)
-         (*print-lines* *print-lines*)
-         (*print-miser-width* *print-miser-width*)
-         (*print-pprint-dispatch* *print-pprint-dispatch*)
-         (*print-pretty* *print-pretty*)
-         (*print-radix* *print-radix*)
-         (*print-readably* *print-readably*)
-         (*print-right-margin* *print-right-margin*)
-         (*read-base* *read-base*)
-         (*read-default-float-format* *read-default-float-format*)
-         (*read-eval* *read-eval*)
-         (*read-suppress* *read-suppress*)
-         (*readtable* *readtable*))
-     ,@body))
+
 
 
 (defconstant cstack-hardprot (ash 100 10))
@@ -963,10 +940,10 @@ termination-function object
 |#
 
 
-(defvar *termination-population*
+(defstatic *termination-population*
   (%cons-terminatable-alist))
 
-(defvar *termination-population-lock* (make-lock))
+(defstatic *termination-population-lock* (make-lock))
 
 
 (defvar *enable-automatic-termination* t)
@@ -979,45 +956,53 @@ Common Lisp, although other Lisp implementations have similar features.
 It is useful when there is some sort of special cleanup, deallocation,
 or releasing of resources which needs to happen when a certain object is
 no longer being used."
-  (let ((new-cell (list (cons object function)))
+  (let ((new-cell (cons object function))
         (population *termination-population*))
     (without-interrupts
      (with-lock-grabbed (*termination-population-lock*)
-       (setf (cdr new-cell) (population-data population)
-	     (population-data population) new-cell)))
+       (atomic-push-uvector-cell population population.data new-cell)))
     function))
 
 (defmethod terminate ((object t))
   nil)
 
 (defun drain-termination-queue ()
-  (let ((cell nil)
-        (population *termination-population*))
-    (loop
-    (without-interrupts
-     (with-lock-grabbed (*termination-population-lock*)
-       (without-gcing
-        (let ((list (population-termination-list population)))
-          (unless list (return))
-          (setf cell (car list)
-                (population-termination-list population) (cdr list))))))
-      (funcall (cdr cell) (car cell)))))
+  (with-lock-grabbed (*termination-population-lock*)
+    (let* ((population *termination-population*))
+      (loop
+        (multiple-value-bind (cell existed)
+            (atomic-pop-uvector-cell population population.termination-list)
+          (if (not existed)
+            (return)
+          (funcall (cdr cell) (car cell))))))))
 
 (defun cancel-terminate-when-unreachable (object &optional (function nil function-p))
-  (let ((found-it? nil))
-    (flet ((test (object cell)
-             (and (eq object (car cell))
-                  (or (not function-p)
-                      (eq function (cdr cell)))
-                  (setq found-it? t))))
-      (declare (dynamic-extent #'test))
-      (without-interrupts
-       (with-lock-grabbed (*termination-population-lock*)
-	 (setf (population-data *termination-population*)
-	       (delete object (population-data *termination-population*)
-		       :test #'test
-		       :count 1))))
-      found-it?)))
+  (let* ((found nil))
+    (with-lock-grabbed (*termination-population-lock*)
+      ;; Have to defer GCing, e.g., defer responding to a GC
+      ;; suspend request here (that also defers interrupts)
+      ;; We absolutely, positively can't take an exception
+      ;; in here, so don't even bother to typecheck on 
+      ;; car/cdr etc.
+      (with-deferred-gc
+          (do ((spine (population-data *termination-population*) (cdr spine))
+               (prev nil spine))
+              ((null spine))
+            (declare (optimize (speed 3) (safety 0)))
+            (let* ((head (car spine))
+                   (tail (cdr spine))
+                   (o (car head))
+                   (f (cdr head)))
+              (when (and (eq o object)
+                         (or (null function-p)
+                             (eq function f)))
+                (if prev
+                  (setf (cdr prev) tail)
+                  (setf (population-data *termination-population*) tail))
+                (setq found t)
+                (return)))))
+      found)))
+
 
 (defun termination-function (object)
   (without-interrupts

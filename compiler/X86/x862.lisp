@@ -3643,7 +3643,9 @@
                     (#.hard-reg-class-gpr-mode-u32
                      (case src-mode
                        (#.hard-reg-class-gpr-mode-node
-                        (! unbox-u32 dest src))
+                        (if *x862-reckless*
+                          (! %unbox-u32 dest src)
+                          (! unbox-u32 dest src)))
                        ((#.hard-reg-class-gpr-mode-u32
                          #.hard-reg-class-gpr-mode-s32)
                         (unless (eql  dest-gpr src-gpr)
@@ -3659,7 +3661,9 @@
                     (#.hard-reg-class-gpr-mode-u16
                      (case src-mode
                        (#.hard-reg-class-gpr-mode-node
-                        (! unbox-u16 dest src))
+                        (if *x862-reckless*
+                          (! %unbox-u16 dest src)
+                          (! unbox-u16 dest src)))
                        ((#.hard-reg-class-gpr-mode-u8
                          #.hard-reg-class-gpr-mode-s8)
                         (! u8->u32 dest src))

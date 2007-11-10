@@ -1326,7 +1326,11 @@ handle_uuo(ExceptionInformation *xp, opcode the_uuo, pc where)
 
 
   case UUO_INTERR:
-    status = handle_error(xp, errnum, rb, 0,  where);
+    if (errnum == error_propagate_suspend) {
+      status = 0;
+    } else {
+      status = handle_error(xp, errnum, rb, 0,  where);
+    }
     break;
 
   case UUO_INTCERR:
@@ -1758,6 +1762,12 @@ signal_handler(int signum, siginfo_t *info, ExceptionInformation  *context, TCR 
     
     old_valence = prepare_to_wait_for_exception_lock(tcr, context);
   }
+
+  if (tcr->flags & (1<<TCR_FLAG_BIT_PENDING_SUSPEND)) {
+    CLR_TCR_FLAG(tcr, TCR_FLAG_BIT_PENDING_SUSPEND);
+    pthread_kill(pthread_self(), thread_suspend_signal);
+  }
+
   
   wait_for_exception_lock_in_handler(tcr, context, &xframe_link);
   if ((noErr != PMCL_exception_handler(signum, context, tcr, info, old_valence))) {

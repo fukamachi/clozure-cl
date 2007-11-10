@@ -420,6 +420,18 @@
       (require-type integer 'integer)
       nil)))
 
+(defun %cons-random-state (seed-1 seed-2)
+  #+32-bit-target
+  (gvector :istuct
+           'random-state
+           seed-1
+           seed-2)
+  #+64-bit-target
+  (gvector :istruct
+           'random-state
+           (the fixnum (+ (the fixnum seed-2)
+                          (the fixnum (ash (the fixnum seed-1) 16))))))
+
 ;;; random associated stuff except for the print-object method which
 ;;; is still in "lib;numbers.lisp"
 (defun initialize-random-state (seed-1 seed-2)
@@ -427,14 +439,7 @@
     (report-bad-arg seed-1 '(unsigned-byte 16)))
   (unless (and (fixnump seed-2) (%i<= 0 seed-2) (%i< seed-2 #x10000))
     (report-bad-arg seed-2 '(unsigned-byte 16)))
-    (gvector :istruct
-             'random-state
-             seed-1
-             seed-2))
-
-
-
-
+    (%cons-random-state seed-1 seed-2))
 
 (defun make-random-state (&optional state)
   "Make a random state object. If STATE is not supplied, return a copy
@@ -448,7 +453,7 @@
       (progn
         (setq state (require-type (or state *random-state*) 'random-state))
         (setq seed-1 (random.seed-1 state) seed-2 (random.seed-2 state))))
-    (gvector :istruct 'random-state seed-1 seed-2)))
+    (%cons-random-state seed-1 seed-2)))
 
 (defun random-state-p (thing) (istruct-typep thing 'random-state))
 

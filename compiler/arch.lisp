@@ -27,6 +27,12 @@
 
 (defconstant tcr-flag-bit-foreign 0)
 (defconstant tcr-flag-bit-awaiting-preset 1)
+(defconstant tcr-flag-bit-alt-suspend 2)
+(defconstant tcr-flag-bit-propagate-exception 3)
+(defconstant tcr-flag-bit-suspend-ack-pending 4)
+(defconstant tcr-flag-bit-pending-exception 5)
+(defconstant tcr-flag-bit-foreign-exception 6)
+(defconstant tcr-flag-bit-pending-suspend 7)        
 
 
 
@@ -51,6 +57,7 @@
 (defconstant error-too-many-values 7)   ; too many values returned
 (defconstant error-cant-take-car 8)
 (defconstant error-cant-take-cdr 9)
+(defconstant error-propagate-suspend 10)
 (defconstant error-cant-call 17)        ; Attempt to funcall something that is not a symbol or function.
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defconstant error-type-error 128)
@@ -322,6 +329,9 @@
 (defconstant gc-trap-function-egc-control 32)
 (defconstant gc-trap-function-configure-egc 64)
 (defconstant gc-trap-function-set-hons-area-size 128)
+(defconstant gc-trap-function-freeze 129)
+(defconstant gc-trap-function-thaw 130)
+
 
 
 (provide "ARCH")

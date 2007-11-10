@@ -25,13 +25,168 @@
 
 
 
+#+x8664-target
+(progn
+;;; None of the stores in here can be intergenerational; the vector
+;;; is known to be younger than the initial value
+(defx86lapfunction %init-gvector ((len arg_x) (value arg_y) (vector arg_z))
+  (jmp @test)
+  @loop
+  (movq (% value) (@ x8664::misc-data-offset (% vector) (% len)))
+  @test
+  (subq ($ x8664::fixnumone) (% len))
+  (jns @loop)
+  (single-value-return))
 
+;;; "val" is either a fixnum or a uvector with 64-bits of data
+;;; (small bignum, DOUBLE-FLOAT).
+(defx86lapfunction %%init-ivector64 ((len arg_x) (value arg_y) (vector arg_z))
+  (unbox-fixnum value imm0)
+  (testb ($ x8664::fixnummask) (%b value))
+  (je @test)
+  (movq (@ x8664::misc-data-offset (% value)) (% imm0))
+  (jmp @test)
+  @loop
+  (movq (% imm0) (@ x8664::misc-data-offset (% vector) (% len)))
+  @test
+  (subq ($ x8664::fixnumone) (% len))
+  (jns @loop)
+  (single-value-return))
 
-;; rewrite in LAP someday (soon).
+(defun %init-ivector64 (typecode len val uvector)
+  (declare (type (mod 256) typecode))
+  (%%init-ivector64 len
+                    (case typecode
+                      (#.x8664::subtag-fixnum-vector
+                       (require-type val 'fixnum))
+                      (#.x8664::subtag-double-float-vector
+                       (if (typep val 'double-float)
+                         val
+                         (require-type val 'double-float)))
+                      (#.x8664::subtag-s64-vector
+                       (require-type val '(signed-byte 64)))
+                      (#.x8664::subtag-u64-vector
+                       (require-type val '(unsigned-byte 64)))
+                      (t (report-bad-arg uvector
+                                         '(or (simple-array fixnum (*))
+                                           (simple-array double-float (*))
+                                           (simple-array (signed-byte 64) (*))
+                                           (simple-array (unsigned-byte 64) (*))))))
+                    uvector))
+  
+
+(eval-when (:compile-toplevel :execute)
+  (declaim (inline %init-ivector-u32)))
+
+(defun %init-ivector-u32 (len u32val uvector)
+  (declare (type index len)
+           (type (unsigned-byte 32) u32val)
+           (type (simple-array (unsigned-byte 32) (*)) uvector)
+           (optimize (speed 3) (safety 0)))
+  (dotimes (i len uvector)
+    (setf (aref uvector i) u32val)))
+
+(eval-when (:compile-toplevel :execute)
+  (declaim (inline %init-ivector-u16)))
+
+(defun %init-ivector-u16 (len val uvector)
+  (declare (type index len)
+           (type (unsigned-byte 16) val)
+           (type (simple-array (unsigned-byte 16) (*)) uvector)
+           (optimize (speed 3) (safety 0)))
+  (dotimes (i len uvector)
+    (setf (aref uvector i) val)))
+
+                              
+
+(defun %init-ivector32 (typecode len val uvector)
+  (declare (type (unsigned-byte 32) typecode)
+           (type index len))
+  (let* ((u32val (case typecode
+                   (#.x8664::subtag-s32-vector
+                    (logand (the (signed-byte 32)
+                              (require-type val '(signed-byte 32)))
+                            #xffffffff))
+                   (#.x8664::subtag-single-float-vector
+                    (single-float-bits (require-type val 'single-float)))
+                   (#.x8664::subtag-simple-base-string
+                    (char-code val))
+                   (t
+                    (require-type val '(unsigned-byte 32))))))
+    (declare (type (unsigned-byte 32) u32val))
+    (%init-ivector-u32 len u32val uvector)))
+
+(defun %init-misc (val uvector)
+  (let* ((len (uvsize uvector))
+         (typecode (typecode uvector))
+         (fulltag (logand x8664::fulltagmask typecode)))
+    (declare (type index len)
+             (type (unsigned-byte 8) typecode)
+             (type (mod 16) fulltag))
+    (if (or (= fulltag x8664::fulltag-nodeheader-0)
+            (= fulltag x8664::fulltag-nodeheader-1))
+      (%init-gvector len val uvector)
+      (if (= fulltag x8664::ivector-class-64-bit)
+        (%init-ivector64 typecode len val uvector)
+        (if (= fulltag x8664::ivector-class-32-bit)
+          (%init-ivector32 typecode len val uvector)
+          ;; Value must be a fixnum, 1, 8, 16 bits
+          (case typecode
+            (#.x8664::subtag-u16-vector
+             (%init-ivector-u16 len
+                                (require-type val '(unsigned-byte 16))
+                                uvector))
+            (#.x8664::subtag-s16-vector
+             (%init-ivector-u16 len
+                                (logand (the (signed-byte 16)
+                                          (require-type val '(unsigned-byte 16)))
+                                        #xffff)
+                                uvector))
+            (#.x8664::subtag-u8-vector
+             (let* ((v0 (require-type val '(unsigned-byte 8)))
+                    (l0 (ash (the fixnum (1+ len)) -1)))
+               (declare (type (unsigned-byte 8) v0)
+                        (type index l0))
+               (%init-ivector-u16 l0
+                                  (logior (the (unsigned-byte 16) (ash v0 8))
+                                          v0)
+                                  uvector)))
+            (#.x8664::subtag-s8-vector
+             (let* ((v0 (logand #xff
+                                (the (signed-byte 8)
+                                  (require-type val '(signed-byte 8)))))
+                    (l0 (ash (the fixnum (1+ len)) -1)))
+               (declare (type (unsigned-byte 8) v0)
+                        (type index l0))
+               (%init-ivector-u16 l0
+                                  (logior (the (unsigned-byte 16) (ash v0 8))
+                                          v0)
+                                  uvector)))
+            (#.x8664::subtag-bit-vector
+             (if (eql 0 val)
+               uvector
+               (let* ((v0 (case val
+                            (1 -1)
+                            (t (report-bad-arg val 'bit))))
+                      (l0 (ash (the fixnum (+ len 64)) -6)))
+                 (declare (type (unsigned-byte 8) v0)
+                          (type index l0))
+                 (%%init-ivector64  l0 v0 uvector))))
+            (t (report-bad-arg uvector
+                               '(or simple-bit-vector
+                                   (simple-array (signed-byte 8) (*))
+                                   (simple-array (unsigned-byte 8) (*))
+                                   (simple-array (signed-byte 16) (*))
+                                   (simple-array (unsigned-byte 16) (*)))))))))))
+             
+
+)
+
+#-x8664-target
 (defun %init-misc (val uvector)
   (dotimes (i (uvsize uvector) uvector)
     (setf (uvref uvector i) val)))
-
+          
 
 ;;; Make a new vector of size newsize whose subtag matches that of oldv-arg.
 ;;; Blast the contents of the old vector into the new one as quickly as

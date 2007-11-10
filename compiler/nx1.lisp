@@ -1660,8 +1660,8 @@
     (make-acode
      (%nx1-operator %immediate-set-xxx)
      (case op
-       (%%set-signed-longlong (logior 32 8))
-       (t 8))
+       (%%set-signed-longlong 8)
+       (t (logior 32 8)))
      (make-acode (%nx1-operator %macptrptr%) (nx1-form ptr))
      (nx1-form offset)
      (nx1-form newval)))))

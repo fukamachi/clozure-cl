@@ -1860,6 +1860,9 @@ of 32KBytes in earlier versions.)"
     (setf (gethash upper *non-standard-upper-to-lower*) lower
           (gethash lower *non-standard-lower-to-upper*) upper)))
 
+(assert-hash-table-readonly *non-standard-upper-to-lower*)
+(assert-hash-table-readonly *non-standard-lower-to-upper*)
+
 (defun %non-standard-upper-case-equivalent (char)
   (gethash char *non-standard-lower-to-upper*))
 

@@ -21,7 +21,7 @@
 
 ;;; This weak list is used to track semaphores as well as locks.
 (defvar %system-locks% nil)
-(setf %system-locks% (%cons-population nil))
+
 
 (defun record-system-lock (l)
   (atomic-push-uvector-cell %system-locks% population.data l)
@@ -70,8 +70,8 @@
                     (char-code #\Sub)))))
         (when nul-terminated
           (setf (%get-byte pointer n) 0)))
-      nil)
-    (%cstr-segment-pointer string pointer 0 (length string) nul-terminated)))
+      nil))
+  (%cstr-segment-pointer string pointer 0 (length string) nul-terminated))
 
 (defun %cstr-segment-pointer (string pointer start end &optional (nul-terminated t))
   (declare (fixnum start end))
@@ -122,7 +122,12 @@
     (ff-call (%kernel-import target::kernel-import-new-recursive-lock)
              :address))))
 
-
+(defun %make-rwlock-ptr ()
+  (record-system-lock
+   (%setf-macptr
+    (make-gcable-macptr $flags_DisposeRwLock)
+    (ff-call (%kernel-import target::kernel-import-rwlock-new)
+             :address))))
   
 (defun make-recursive-lock ()
   (make-lock nil))
@@ -141,12 +146,16 @@ between threads."
     (%svref r target::lock._value-cell)
     (report-bad-arg r 'recursive-lock)))
 
-
+(defun read-write-lock-ptr (rw)
+  (if (and (eq target::subtag-lock (typecode rw))
+           (eq (%svref rw target::lock.kind-cell) 'read-write-lock))
+    (%svref rw target::lock._value-cell)
+    (report-bad-arg rw 'read-write-lock)))
 
 (defun make-read-write-lock ()
   "Create and return a read-write lock, which can be used for
 synchronization between threads."
-  (gvector :lock 0 'read-write-lock 0 nil))
+  (gvector :lock (%make-rwlock-ptr) 'read-write-lock 0 nil))
 
 
 (defun %make-semaphore-ptr ()

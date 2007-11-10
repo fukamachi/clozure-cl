@@ -392,48 +392,9 @@
 
 ;;; Return true iff we were able to increment a non-negative
 ;;; lock._value
-(defx86lapfunction %try-read-lock-rwlock ((lock arg_z))
-  (check-nargs 1)
-  @try
-  (movq (@ x8664::lock._value (% lock)) (% rax))
-  (movq (% rax) (% imm1))
-  (addq ($ '1) (% imm1))
-  (jle @fail)
-  (lock)
-  (cmpxchgq (% imm1) (@ x8664::lock._value (% lock)))
-  (jne @try)
-  (single-value-return)                                 ; return the lock
-@fail
-  (movl ($ x8664::nil-value) (%l arg_z))
-  (single-value-return))
 
 
 
-(defx86lapfunction unlock-rwlock ((lock arg_z))
-  (cmpq ($ 0) (@ x8664::lock._value (% lock)))
-  (jle @unlock-write)
-  @unlock-read
-  (movq (@ x8664::lock._value (% lock)) (% rax))
-  (lea (@ '-1 (% imm0)) (% imm1))
-  (lock)
-  (cmpxchgq (% imm1) (@ x8664::lock._value (% lock)))
-  (jne @unlock-read)
-  (single-value-return)
-  @unlock-write
-  ;;; If we aren't the writer, return NIL.
-  ;;; If we are and the value's about to go to 0, clear the writer field.
-  (movq (@ x8664::lock.writer (% lock)) (% imm0))
-  (cmpq (% imm0) (@ (% :rcontext) x8664::tcr.linear))
-  (jne @fail)
-  (cmpq ($ '-1) (@ x8664::lock._value (% lock)))
-  (jne @still-owner)
-  (movsd (% fpzero) (@ x8664::lock.writer (% lock)))
-  @still-owner
-  (addq ($ '1) (@ x8664::lock._value (% lock)))
-  (single-value-return)
-  @fail
-  (movl ($ x8664::nil-value) (%l arg_z))
-  (single-value-return))
 
 (defx86lapfunction %atomic-incf-node ((by arg_x) (node arg_y) (disp arg_z))
   (check-nargs 3)
@@ -534,6 +495,16 @@
     @done
     (movq (% imm0) (% arg_z))
     (single-value-return)))
+
+(defx86lapfunction xchgl ((newval arg_y) (ptr arg_z))
+  (unbox-fixnum newval imm0)
+  (macptr-ptr ptr arg_y)                ; had better be aligned
+  (lock)                                ; implicit ?
+  (xchgl (% imm0.l) (@ (% arg_y)))
+  (box-fixnum imm0 arg_z)
+  (single-value-return))
+  
+                          
 
 
 (defx86lapfunction %macptr->dead-macptr ((macptr arg_z))
@@ -749,5 +720,39 @@
 ;;; Leopard test releases.  It's probably not necessary any more; is
 ;;; it still called ?
 
+(defx86lapfunction %check-deferred-gc ()
+  (btq ($ (+ arch::tcr-flag-bit-pending-suspend target::fixnumshift)) (@ (% :rcontext) x8664::tcr.flags))
+  (movl ($ x8664::nil-value) (% arg_z.l))
+  (jae @done)
+  (ud2a)
+  (:byte 3)
+  (movl ($ x8664::t-value) (% arg_z.l))
+  @done
+  (single-value-return))
+
+(defx86lapfunction %get-spin-lock ((p arg_z))
+  (check-nargs 1)
+  (save-simple-frame)
+  @again
+  (macptr-ptr arg_z imm1)
+  (movq (@ '*spin-lock-tries* (% fn)) (% temp0))
+  (movq (@ target::symbol.vcell (% temp0)) (% temp0))
+  (movq (@ (% :rcontext) x8664::tcr.linear) (% arg_y))
+  @try-swap
+  (xorq (% rax) (% rax))
+  (lock)
+  (cmpxchgq (% arg_y) (@ (% imm1)))
+  (je @done)
+  (pause)
+  (subq ($ '1) (% temp0))
+  (jne @try-swap)
+  (pushq (% arg_z))
+  (call-symbol yield 0)
+  (popq (% arg_z))
+  (jmp @again)
+  @done
+  (restore-simple-frame)
+  (single-value-return))
+  
 
 ;;; end of x86-misc.lisp

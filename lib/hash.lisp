@@ -158,7 +158,9 @@
     (format stream "~S ~S size ~D/~D"
             ':test (hash-table-test table)
             (hash-table-count table)
-            (hash-table-size table))))
+            (hash-table-size table))
+    (when (readonly-hash-table-p table)
+      (format stream " (Readonly)"))))
 
 
 ;;; Of course, the lisp version of this would be too slow ...
@@ -208,15 +210,15 @@
 
 
 (defun start-hash-table-iterator (hash state)
-  (let (vector)
+  (let (vector locked)
     (unless (hash-table-p hash)
       (setf (hti.hash-table state) nil)         ; for finish-hash-table-iterator
       (report-bad-arg hash 'hash-table))
 
     (without-interrupts
      (setf (hti.hash-table state) hash)
-     (lock-hash-table hash)
-     (%lock-gc-lock)
+     (setf (hti.lock state) (setq locked (not (eq :readonly (lock-hash-table-for-map hash)))))
+     (when locked (%lock-gc-lock))
      (setq vector (nhash.vector hash))
      (setf (hti.vector state) vector)
      (setf (hti.index state) (nhash.vector-size vector))
@@ -253,11 +255,13 @@
 
 (defun finish-hash-table-iterator (state)
   (without-interrupts
-   (let ((hash (hti.hash-table state)))
+   (let ((hash (hti.hash-table state))
+         (locked (hti.lock state)))
      (when hash
        (setf (hti.hash-table state) nil)
-       (unlock-hash-table hash)
-       (%unlock-gc-lock)
+       (when locked
+         (unlock-hash-table hash nil)
+         (%unlock-gc-lock))
        (when (eq state (nhash.iterator hash))
          (setf (nhash.iterator hash) (hti.prev-iterator state)))
        (setf

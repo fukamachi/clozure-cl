@@ -2861,123 +2861,11 @@ bytes."
                                             (the fixnum (logxor 4th-unit #x80))))))))))))))))
                (setf (schar string i) (or char #\Replacement_Character)))))))
     :memory-encode-function
-    (nfunction
-     utf-8-memory-encode
-     (lambda (string pointer idx start end)
-       (declare (fixnum idx))
-       (do* ((i start (1+ i)))
-            ((>= i end) idx)
-         (let* ((code (char-code (schar string i))))
-           (declare (type (mod #x110000) code))
-           (cond ((< code #x80)
-                  (setf (%get-unsigned-byte pointer idx) code)
-                  (incf idx))
-                 ((< code #x800)
-                  (setf (%get-unsigned-byte pointer idx)
-                        (logior #xc0 (the fixnum (ash code -6))))
-                  (setf (%get-unsigned-byte pointer (the fixnum (1+ idx)))
-                        (logior #x80 (the fixnum (logand code #x3f))))
-                  (incf idx 2))
-                 ((< code #x10000)
-                  (setf (%get-unsigned-byte pointer idx)
-                        (logior #xe0 (the fixnum (ash code -12))))
-                  (setf (%get-unsigned-byte pointer (the fixnum (1+ idx)))
-                        (logior #x80 (the fixnum (logand #x3f (the fixnum (ash code -6))))))
-                  (setf (%get-unsigned-byte pointer (the fixnum (+ idx 2)))
-                        (logior #x80 (the fixnum (logand code #x3f))))
-                  (incf idx 3))
-                 (t
-                  (setf (%get-unsigned-byte pointer idx)
-                        (logior #xf0
-                                (the fixnum (logand #x7 (the fixnum (ash code -18))))))
-                  (setf (%get-unsigned-byte pointer (the fixnum (1+ idx)))
-                        (logior #x80 (the fixnum (logand #x3f (the fixnum (ash code -12))))))
-                  (setf (%get-unsigned-byte pointer (the fixnum (+ idx 2)))
-                        (logior #x80 (the fixnum (logand #x3f (the fixnum (ash code -6))))))
-                  (setf (%get-unsigned-byte pointer (the fixnum (+ idx 3)))
-                        (logand #x3f code))
-                  (incf idx 4)))))))
+    #'utf-8-memory-encode
     :memory-decode-function
-    (nfunction
-     utf-8-memory-decode
-     (lambda (pointer noctets idx string)
-       (declare (fixnum noctets idx))
-       (do* ((i 0 (1+ i))
-             (end (+ idx noctets))
-             (index idx (1+ index)))
-            ((>= index end) (if (= index end) index 0))
-         (let* ((1st-unit (%get-unsigned-byte pointer index)))
-           (declare (type (unsigned-byte 8) 1st-unit))
-           (let* ((char (if (< 1st-unit #x80)
-                          (code-char 1st-unit)
-                          (if (>= 1st-unit #xc2)
-                            (let* ((2nd-unit (%get-unsigned-byte pointer (incf index))))
-                              (declare (type (unsigned-byte 8) 2nd-unit))
-                              (if (< 1st-unit #xe0)
-                                (if (< (the fixnum (logxor 2nd-unit #x80)) #x40)
-                                  (code-char
-                                   (logior
-                                    (the fixnum (ash (the fixnum (logand #x1f 1st-unit)) 6))
-                                    (the fixnum (logxor 2nd-unit #x80)))))
-                                (let* ((3rd-unit (%get-unsigned-byte pointer (incf index))))
-                                  (declare (type (unsigned-byte 8) 3rd-unit))
-                                  (if (< 1st-unit #xf0)
-                                    (if (and (< (the fixnum (logxor 2nd-unit #x80)) #x40)
-                                             (< (the fixnum (logxor 3rd-unit #x80)) #x40)
-                                             (or (>= 1st-unit #xe1)
-                                                 (>= 2nd-unit #xa0)))
-                                      (code-char (the fixnum
-                                                   (logior (the fixnum
-                                                             (ash (the fixnum (logand 1st-unit #xf))
-                                                                  12))
-                                                           (the fixnum
-                                                             (logior
-                                                              (the fixnum
-                                                                (ash (the fixnum (logand 2nd-unit #x3f))
-                                                                     6))
-                                                              (the fixnum (logand 3rd-unit #x3f))))))))
-                                    (if (< 1st-unit #xf8)
-                                      (let* ((4th-unit (%get-unsigned-byte pointer (incf index))))
-                                        (declare (type (unsigned-byte 8) 4th-unit))
-                                        (if (and (< (the fixnum (logxor 2nd-unit #x80)) #x40)
-                                                 (< (the fixnum (logxor 3rd-unit #x80)) #x40)
-                                                 (< (the fixnum (logxor 4th-unit #x80)) #x40)
-                                                 (or (>= 1st-unit #xf1)
-                                                     (>= 2nd-unit #x90)))
-                                          (code-char
-                                           (logior
-                                            (the fixnum
-                                              (logior
-                                               (the fixnum
-                                                 (ash (the fixnum (logand 1st-unit 7)) 18))
-                                               (the fixnum
-                                                 (ash (the fixnum (logxor 2nd-unit #x80)) 12))))
-                                            (the fixnum
-                                              (logior
-                                               (the fixnum
-                                                 (ash (the fixnum (logxor 3rd-unit #x80)) 6))
-                                               (the fixnum (logxor 4th-unit #x80)))))))))))))))))
-             (setf (schar string i) (or char #\Replacement_Character)))))))
+    #'utf-8-memory-decode
     :octets-in-string-function
-    (nfunction
-     utf-8-octets-in-string
-     (lambda (string start end)
-       (if (>= end start)
-         (do* ((noctets 0)
-               (i start (1+ i)))
-              ((= i end) noctets)
-           (declare (fixnum noctets))
-           (let* ((code (char-code (schar string i))))
-             (declare (type (mod #x110000) code))
-             (incf noctets
-                   (if (< code #x80)
-                     1
-                     (if (< code #x800)
-                       2
-                       (if (< code #x10000)
-                         3
-                         4))))))
-         0)))
+    #'utf-8-octets-in-string
     :length-of-vector-encoding-function
     (nfunction
      utf-8-length-of-vector-encoding
@@ -2998,22 +2886,7 @@ bytes."
              (return (values nchars i))
              (setq nchars (1+ nchars) i nexti))))))
     :length-of-memory-encoding-function
-    (nfunction
-     utf-8-length-of-memory-encoding
-     (lambda (pointer noctets start)
-       (do* ((i start)
-             (end (+ start noctets))
-             (nchars 0 (1+ nchars)))
-            ((= i end) (values nchars i))
-         (let* ((code (%get-unsigned-byte pointer i))
-                (nexti (+ i (cond ((< code #x80) 1)
-                                  ((< code #xe0) 2)
-                                  ((< code #xf0) 3)
-                                  (t 4)))))
-           (declare (type (unsigned-byte 8) code))
-           (if (> nexti end)
-             (return (values nchars i))
-             (setq i nexti))))))
+    #'utf-8-length-of-memory-encoding
     :decode-literal-code-unit-limit #x80
     :encode-literal-char-code-limit #x80    
     :bom-encoding #(#xef #xbb #xbf)
@@ -4650,3 +4523,1517 @@ or prepended to output."
         (funcall (character-encoding-memory-encode-function encoding)
                  data pointer offset (+ data-offset (or start 0)) (+ data-offset (or end (length s))))))))
       
+
+
+
+
+;;; This is an array of 256 integers, that (sparsely) encodes 64K bits.
+;;; (There might be as many as 256 significant bits in some of entries
+;;; in this table.)
+(defstatic *bmp-combining-bitmap*
+    #(
+	#x00
+        #x00
+        #x00
+        #xFFFF0000FFFFFFFFFFFFFFFFFFFF
+        #x37800000000000000000000000000000000
+        #x16BBFFFFFBFFFE000000000000000000000000000000000000
+        #x3D9FFFC00000000000000000000000010000003FF8000000000000000000
+        #x1FFC00000000000000000000007FFFFFF000000020000
+        
+	#x00
+        #xC0080399FD00000000000000E0000000C001E3FFFD00000000000000E
+        #x3BBFD00000000000000E0003000000003987D000000000000004
+        #x803DC7C0000000000000040000000000C0398FD00000000000000E
+        #x603DDFC00000000000000C0000000000603DDFC00000000000000E
+        #xC0000FF5F8400000000000000000C0000000000803DCFC00000000000000C
+        #x3F001BF20000000000000000000000007F8007F2000000000000
+        #x401FFFFFFFFEFF00DFFFFE000000000000C2A0000003000000
+        
+        #x3C0000003C7F00000000000
+        #x7FFFFFF0000000000003FFFFE000000000000000000000000
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #xFFFFFFFF0000000000000000C0000000C0000001C0000001C0000        
+        
+        #x2000000000000000000000000000000000000003800
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        
+        #x7FFFFFF0000000000000000000000000000000000000000000000000000
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        
+	#x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        
+        #x600000000000000000000000000FC0000000000
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        
+	#x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        
+	#x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        
+	#x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        
+	#x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        
+	#x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        
+	#x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        
+	#x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        
+	#x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        
+	#x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        
+	#x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        
+	#x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        
+	#x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        
+	#x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        
+	#x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        
+	#x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        
+	#x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        
+	#x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        
+	#x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        
+	#x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        
+	#x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        
+	#x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        
+	#x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        
+	#x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        
+	#x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        #x00
+        
+	#x00
+        #x00
+        #x00
+        #x40000000
+        #x00
+        #x00
+        #xF0000FFFF
+        #x00))
+
+(defun is-combinable (char)
+  (let* ((code (char-code char)))
+    (declare (type (mod #x110000) code))
+    (when (< code #x1000)
+      (logbitp (ldb (byte 8 0) code)
+               (svref *bmp-combining-bitmap* (ldb (byte 8 8) code))))))
+
+(defstatic *bmp-combining-chars*
+  #(#\Combining_Grave_Accent 
+    #\Combining_Acute_Accent 
+    #\Combining_Circumflex_Accent 
+    #\Combining_Tilde 
+    #\Combining_Macron 
+    #\Combining_Breve 
+    #\Combining_Dot_Above 
+    #\Combining_Diaeresis 
+    #\Combining_Hook_Above 
+    #\Combining_Ring_Above 
+    #\Combining_Double_Acute_Accent 
+    #\Combining_Caron 
+    #\Combining_Double_Grave_Accent 
+    #\Combining_Inverted_Breve 
+    #\Combining_Comma_Above 
+    #\Combining_Reversed_Comma_Above 
+    #\Combining_Horn 
+    #\Combining_Dot_Below 
+    #\Combining_Diaeresis_Below 
+    #\Combining_Ring_Below 
+    #\Combining_Comma_Below 
+    #\Combining_Cedilla 
+    #\Combining_Ogonek 
+    #\Combining_Circumflex_Accent_Below 
+    #\Combining_Breve_Below 
+    #\Combining_Tilde_Below 
+    #\Combining_Macron_Below 
+    #\Combining_Long_Solidus_Overlay 
+    #\Combining_Greek_Perispomeni 
+    #\Combining_Greek_Ypogegrammeni 
+    #\Arabic_Maddah_Above 
+    #\Arabic_Hamza_Above 
+    #\Arabic_Hamza_Below 
+    #\U+093C 
+    #\U+09BE 
+    #\U+09D7 
+    #\U+0B3E 
+    #\U+0B56 
+    #\U+0B57 
+    #\U+0BBE 
+    #\U+0BD7 
+    #\U+0C56 
+    #\U+0CC2 
+    #\U+0CD5 
+    #\U+0CD6 
+    #\U+0D3E 
+    #\U+0D57 
+    #\U+0DCA 
+    #\U+0DCF 
+    #\U+0DDF 
+    #\U+102E 
+    #\U+3099 
+    #\U+309A))
+
+(defstatic *bmp-combining-base-chars*
+  #(
+    ;; #\Combining_Grave_Accent
+
+    #(#\A #\E #\I #\N #\O #\U #\W #\Y #\a #\e #\i #\n #\o #\u #\w #\y
+      #\Diaeresis #\Latin_Capital_Letter_A_With_Circumflex
+      #\Latin_Capital_Letter_E_With_Circumflex
+      #\Latin_Capital_Letter_O_With_Circumflex
+      #\Latin_Capital_Letter_U_With_Diaeresis
+      #\Latin_Small_Letter_A_With_Circumflex
+      #\Latin_Small_Letter_E_With_Circumflex
+      #\Latin_Small_Letter_O_With_Circumflex
+      #\Latin_Small_Letter_U_With_Diaeresis
+      #\Latin_Capital_Letter_A_With_Breve #\Latin_Small_Letter_A_With_Breve
+      #\Latin_Capital_Letter_E_With_Macron
+      #\Latin_Small_Letter_E_With_Macron
+      #\Latin_Capital_Letter_O_With_Macron
+      #\Latin_Small_Letter_O_With_Macron #\Latin_Capital_Letter_O_With_Horn
+      #\Latin_Small_Letter_O_With_Horn #\Latin_Capital_Letter_U_With_Horn
+      #\Latin_Small_Letter_U_With_Horn #\Greek_Capital_Letter_Alpha
+      #\Greek_Capital_Letter_Epsilon #\Greek_Capital_Letter_Eta
+      #\Greek_Capital_Letter_Iota #\Greek_Capital_Letter_Omicron
+      #\Greek_Capital_Letter_Upsilon #\Greek_Capital_Letter_Omega
+      #\Greek_Small_Letter_Alpha #\Greek_Small_Letter_Epsilon
+      #\Greek_Small_Letter_Eta #\Greek_Small_Letter_Iota
+      #\Greek_Small_Letter_Omicron #\Greek_Small_Letter_Upsilon
+      #\Greek_Small_Letter_Omega #\Greek_Small_Letter_Iota_With_Dialytika
+      #\Greek_Small_Letter_Upsilon_With_Dialytika
+      #\Cyrillic_Capital_Letter_Ie #\Cyrillic_Capital_Letter_I
+      #\Cyrillic_Small_Letter_Ie #\Cyrillic_Small_Letter_I #\U+1F00 #\U+1F01
+      #\U+1F08 #\U+1F09 #\U+1F10 #\U+1F11 #\U+1F18 #\U+1F19 #\U+1F20
+      #\U+1F21 #\U+1F28 #\U+1F29 #\U+1F30 #\U+1F31 #\U+1F38 #\U+1F39
+      #\U+1F40 #\U+1F41 #\U+1F48 #\U+1F49 #\U+1F50 #\U+1F51 #\U+1F59
+      #\U+1F60 #\U+1F61 #\U+1F68 #\U+1F69 #\U+1FBF #\U+1FFE)
+
+
+    ;; #\Combining_Acute_Accent
+
+    #(#\A #\C #\E #\G #\I #\K #\L #\M #\N #\O #\P #\R #\S #\U #\W #\Y #\Z
+      #\a #\c #\e #\g #\i #\k #\l #\m #\n #\o #\p #\r #\s #\u #\w #\y #\z
+      #\Diaeresis #\Latin_Capital_Letter_A_With_Circumflex
+      #\Latin_Capital_Letter_A_With_Ring_Above #\Latin_Capital_Letter_Ae
+      #\Latin_Capital_Letter_C_With_Cedilla
+      #\Latin_Capital_Letter_E_With_Circumflex
+      #\Latin_Capital_Letter_I_With_Diaeresis
+      #\Latin_Capital_Letter_O_With_Circumflex
+      #\Latin_Capital_Letter_O_With_Tilde
+      #\Latin_Capital_Letter_O_With_Stroke
+      #\Latin_Capital_Letter_U_With_Diaeresis
+      #\Latin_Small_Letter_A_With_Circumflex
+      #\Latin_Small_Letter_A_With_Ring_Above #\Latin_Small_Letter_Ae
+      #\Latin_Small_Letter_C_With_Cedilla
+      #\Latin_Small_Letter_E_With_Circumflex
+      #\Latin_Small_Letter_I_With_Diaeresis
+      #\Latin_Small_Letter_O_With_Circumflex
+      #\Latin_Small_Letter_O_With_Tilde #\Latin_Small_Letter_O_With_Stroke
+      #\Latin_Small_Letter_U_With_Diaeresis
+      #\Latin_Capital_Letter_A_With_Breve #\Latin_Small_Letter_A_With_Breve
+      #\Latin_Capital_Letter_E_With_Macron
+      #\Latin_Small_Letter_E_With_Macron
+      #\Latin_Capital_Letter_O_With_Macron
+      #\Latin_Small_Letter_O_With_Macron #\Latin_Capital_Letter_U_With_Tilde
+      #\Latin_Small_Letter_U_With_Tilde #\Latin_Capital_Letter_O_With_Horn
+      #\Latin_Small_Letter_O_With_Horn #\Latin_Capital_Letter_U_With_Horn
+      #\Latin_Small_Letter_U_With_Horn #\Greek_Capital_Letter_Alpha
+      #\Greek_Capital_Letter_Epsilon #\Greek_Capital_Letter_Eta
+      #\Greek_Capital_Letter_Iota #\Greek_Capital_Letter_Omicron
+      #\Greek_Capital_Letter_Upsilon #\Greek_Capital_Letter_Omega
+      #\Greek_Small_Letter_Alpha #\Greek_Small_Letter_Epsilon
+      #\Greek_Small_Letter_Eta #\Greek_Small_Letter_Iota
+      #\Greek_Small_Letter_Omicron #\Greek_Small_Letter_Upsilon
+      #\Greek_Small_Letter_Omega #\Greek_Small_Letter_Iota_With_Dialytika
+      #\Greek_Small_Letter_Upsilon_With_Dialytika
+      #\Greek_Upsilon_With_Hook_Symbol #\Cyrillic_Capital_Letter_Ghe
+      #\Cyrillic_Capital_Letter_Ka #\Cyrillic_Small_Letter_Ghe
+      #\Cyrillic_Small_Letter_Ka #\U+1F00 #\U+1F01 #\U+1F08 #\U+1F09
+      #\U+1F10 #\U+1F11 #\U+1F18 #\U+1F19 #\U+1F20 #\U+1F21 #\U+1F28
+      #\U+1F29 #\U+1F30 #\U+1F31 #\U+1F38 #\U+1F39 #\U+1F40 #\U+1F41
+      #\U+1F48 #\U+1F49 #\U+1F50 #\U+1F51 #\U+1F59 #\U+1F60 #\U+1F61
+      #\U+1F68 #\U+1F69 #\U+1FBF #\U+1FFE)
+
+
+    ;; #\Combining_Circumflex_Accent
+
+    #(#\A #\C #\E #\G #\H #\I #\J #\O #\S #\U #\W #\Y #\Z #\a #\c #\e #\g
+      #\h #\i #\j #\o #\s #\u #\w #\y #\z #\U+1EA0 #\U+1EA1 #\U+1EB8
+      #\U+1EB9 #\U+1ECC #\U+1ECD)
+
+
+    ;; #\Combining_Tilde
+
+    #(#\A #\E #\I #\N #\O #\U #\V #\Y #\a #\e #\i #\n #\o #\u #\v #\y
+      #\Latin_Capital_Letter_A_With_Circumflex
+      #\Latin_Capital_Letter_E_With_Circumflex
+      #\Latin_Capital_Letter_O_With_Circumflex
+      #\Latin_Small_Letter_A_With_Circumflex
+      #\Latin_Small_Letter_E_With_Circumflex
+      #\Latin_Small_Letter_O_With_Circumflex
+      #\Latin_Capital_Letter_A_With_Breve #\Latin_Small_Letter_A_With_Breve
+      #\Latin_Capital_Letter_O_With_Horn #\Latin_Small_Letter_O_With_Horn
+      #\Latin_Capital_Letter_U_With_Horn #\Latin_Small_Letter_U_With_Horn)
+
+
+    ;; #\Combining_Macron
+
+    #(#\A #\E #\G #\I #\O #\U #\Y #\a #\e #\g #\i #\o #\u #\y
+      #\Latin_Capital_Letter_A_With_Diaeresis #\Latin_Capital_Letter_Ae
+      #\Latin_Capital_Letter_O_With_Tilde
+      #\Latin_Capital_Letter_O_With_Diaeresis
+      #\Latin_Capital_Letter_U_With_Diaeresis
+      #\Latin_Small_Letter_A_With_Diaeresis #\Latin_Small_Letter_Ae
+      #\Latin_Small_Letter_O_With_Tilde
+      #\Latin_Small_Letter_O_With_Diaeresis
+      #\Latin_Small_Letter_U_With_Diaeresis
+      #\Latin_Capital_Letter_O_With_Ogonek
+      #\Latin_Small_Letter_O_With_Ogonek
+      #\Latin_Capital_Letter_A_With_Dot_Above
+      #\Latin_Small_Letter_A_With_Dot_Above
+      #\Latin_Capital_Letter_O_With_Dot_Above
+      #\Latin_Small_Letter_O_With_Dot_Above #\Greek_Capital_Letter_Alpha
+      #\Greek_Capital_Letter_Iota #\Greek_Capital_Letter_Upsilon
+      #\Greek_Small_Letter_Alpha #\Greek_Small_Letter_Iota
+      #\Greek_Small_Letter_Upsilon #\Cyrillic_Capital_Letter_I
+      #\Cyrillic_Capital_Letter_U #\Cyrillic_Small_Letter_I
+      #\Cyrillic_Small_Letter_U #\U+1E36 #\U+1E37 #\U+1E5A #\U+1E5B)
+
+
+    ;; #\Combining_Breve
+
+    #(#\A #\E #\G #\I #\O #\U #\a #\e #\g #\i #\o #\u
+      #\Latin_Capital_Letter_E_With_Cedilla
+      #\Latin_Small_Letter_E_With_Cedilla #\Greek_Capital_Letter_Alpha
+      #\Greek_Capital_Letter_Iota #\Greek_Capital_Letter_Upsilon
+      #\Greek_Small_Letter_Alpha #\Greek_Small_Letter_Iota
+      #\Greek_Small_Letter_Upsilon #\Cyrillic_Capital_Letter_A
+      #\Cyrillic_Capital_Letter_Ie #\Cyrillic_Capital_Letter_Zhe
+      #\Cyrillic_Capital_Letter_I #\Cyrillic_Capital_Letter_U
+      #\Cyrillic_Small_Letter_A #\Cyrillic_Small_Letter_Ie
+      #\Cyrillic_Small_Letter_Zhe #\Cyrillic_Small_Letter_I
+      #\Cyrillic_Small_Letter_U #\U+1EA0 #\U+1EA1)
+
+
+    ;; #\Combining_Dot_Above
+
+    #(#\A #\B #\C #\D #\E #\F #\G #\H #\I #\M #\N #\O #\P #\R #\S #\T #\W
+      #\X #\Y #\Z #\a #\b #\c #\d #\e #\f #\g #\h #\m #\n #\o #\p #\r #\s
+      #\t #\w #\x #\y #\z #\Latin_Capital_Letter_S_With_Acute
+      #\Latin_Small_Letter_S_With_Acute #\Latin_Capital_Letter_S_With_Caron
+      #\Latin_Small_Letter_S_With_Caron #\Latin_Small_Letter_Long_S #\U+1E62
+      #\U+1E63)
+
+
+    ;; #\Combining_Diaeresis
+
+    #(#\A #\E #\H #\I #\O #\U #\W #\X #\Y #\a #\e #\h #\i #\o #\t #\u #\w
+      #\x #\y #\Latin_Capital_Letter_O_With_Tilde
+      #\Latin_Small_Letter_O_With_Tilde #\Latin_Capital_Letter_U_With_Macron
+      #\Latin_Small_Letter_U_With_Macron #\Greek_Capital_Letter_Iota
+      #\Greek_Capital_Letter_Upsilon #\Greek_Small_Letter_Iota
+      #\Greek_Small_Letter_Upsilon #\Greek_Upsilon_With_Hook_Symbol
+      #\Cyrillic_Capital_Letter_Byelorussian-Ukrainian_I
+      #\Cyrillic_Capital_Letter_A #\Cyrillic_Capital_Letter_Ie
+      #\Cyrillic_Capital_Letter_Zhe #\Cyrillic_Capital_Letter_Ze
+      #\Cyrillic_Capital_Letter_I #\Cyrillic_Capital_Letter_O
+      #\Cyrillic_Capital_Letter_U #\Cyrillic_Capital_Letter_Che
+      #\Cyrillic_Capital_Letter_Yeru #\Cyrillic_Capital_Letter_E
+      #\Cyrillic_Small_Letter_A #\Cyrillic_Small_Letter_Ie
+      #\Cyrillic_Small_Letter_Zhe #\Cyrillic_Small_Letter_Ze
+      #\Cyrillic_Small_Letter_I #\Cyrillic_Small_Letter_O
+      #\Cyrillic_Small_Letter_U #\Cyrillic_Small_Letter_Che
+      #\Cyrillic_Small_Letter_Yeru #\Cyrillic_Small_Letter_E
+      #\Cyrillic_Small_Letter_Byelorussian-Ukrainian_I
+      #\Cyrillic_Capital_Letter_Schwa #\Cyrillic_Small_Letter_Schwa
+      #\Cyrillic_Capital_Letter_Barred_O #\Cyrillic_Small_Letter_Barred_O)
+
+
+    ;; #\Combining_Hook_Above
+
+    #(#\A #\E #\I #\O #\U #\Y #\a #\e #\i #\o #\u #\y
+      #\Latin_Capital_Letter_A_With_Circumflex
+      #\Latin_Capital_Letter_E_With_Circumflex
+      #\Latin_Capital_Letter_O_With_Circumflex
+      #\Latin_Small_Letter_A_With_Circumflex
+      #\Latin_Small_Letter_E_With_Circumflex
+      #\Latin_Small_Letter_O_With_Circumflex
+      #\Latin_Capital_Letter_A_With_Breve #\Latin_Small_Letter_A_With_Breve
+      #\Latin_Capital_Letter_O_With_Horn #\Latin_Small_Letter_O_With_Horn
+      #\Latin_Capital_Letter_U_With_Horn #\Latin_Small_Letter_U_With_Horn)
+
+
+    ;; #\Combining_Ring_Above
+
+    #(#\A #\U #\a #\u #\w #\y)
+
+
+    ;; #\Combining_Double_Acute_Accent
+
+    #(#\O #\U #\o #\u #\Cyrillic_Capital_Letter_U
+      #\Cyrillic_Small_Letter_U)
+
+
+    ;; #\Combining_Caron
+
+    #(#\A #\C #\D #\E #\G #\H #\I #\K #\L #\N #\O #\R #\S #\T #\U #\Z #\a
+      #\c #\d #\e #\g #\h #\i #\j #\k #\l #\n #\o #\r #\s #\t #\u #\z
+      #\Latin_Capital_Letter_U_With_Diaeresis
+      #\Latin_Small_Letter_U_With_Diaeresis #\Latin_Capital_Letter_Ezh
+      #\Latin_Small_Letter_Ezh)
+
+
+    ;; #\Combining_Double_Grave_Accent
+
+    #(#\A #\E #\I #\O #\R #\U #\a #\e #\i #\o #\r #\u
+      #\Cyrillic_Capital_Letter_Izhitsa #\Cyrillic_Small_Letter_Izhitsa)
+
+
+    ;; #\Combining_Inverted_Breve
+
+    #(#\A #\E #\I #\O #\R #\U #\a #\e #\i #\o #\r #\u)
+
+
+    ;; #\Combining_Comma_Above
+
+    #(#\Greek_Capital_Letter_Alpha #\Greek_Capital_Letter_Epsilon
+      #\Greek_Capital_Letter_Eta #\Greek_Capital_Letter_Iota
+      #\Greek_Capital_Letter_Omicron #\Greek_Capital_Letter_Omega
+      #\Greek_Small_Letter_Alpha #\Greek_Small_Letter_Epsilon
+      #\Greek_Small_Letter_Eta #\Greek_Small_Letter_Iota
+      #\Greek_Small_Letter_Omicron #\Greek_Small_Letter_Rho
+      #\Greek_Small_Letter_Upsilon #\Greek_Small_Letter_Omega)
+
+
+    ;; #\Combining_Reversed_Comma_Above
+
+    #(#\Greek_Capital_Letter_Alpha #\Greek_Capital_Letter_Epsilon
+      #\Greek_Capital_Letter_Eta #\Greek_Capital_Letter_Iota
+      #\Greek_Capital_Letter_Omicron #\Greek_Capital_Letter_Rho
+      #\Greek_Capital_Letter_Upsilon #\Greek_Capital_Letter_Omega
+      #\Greek_Small_Letter_Alpha #\Greek_Small_Letter_Epsilon
+      #\Greek_Small_Letter_Eta #\Greek_Small_Letter_Iota
+      #\Greek_Small_Letter_Omicron #\Greek_Small_Letter_Rho
+      #\Greek_Small_Letter_Upsilon #\Greek_Small_Letter_Omega)
+
+
+    ;; #\Combining_Horn
+
+    #(#\O #\U #\o #\u)
+
+
+    ;; #\Combining_Dot_Below
+
+    #(#\A #\B #\D #\E #\H #\I #\K #\L #\M #\N #\O #\R #\S #\T #\U #\V #\W
+      #\Y #\Z #\a #\b #\d #\e #\h #\i #\k #\l #\m #\n #\o #\r #\s #\t #\u
+      #\v #\w #\y #\z #\Latin_Capital_Letter_O_With_Horn
+      #\Latin_Small_Letter_O_With_Horn #\Latin_Capital_Letter_U_With_Horn
+      #\Latin_Small_Letter_U_With_Horn)
+
+
+    ;; #\Combining_Diaeresis_Below
+
+    #(#\U #\u)
+
+
+    ;; #\Combining_Ring_Below
+
+    #(#\A #\a)
+
+
+    ;; #\Combining_Comma_Below
+
+    #(#\S #\T #\s #\t)
+
+
+    ;; #\Combining_Cedilla
+
+    #(#\C #\D #\E #\G #\H #\K #\L #\N #\R #\S #\T #\c #\d #\e #\g #\h #\k
+      #\l #\n #\r #\s #\t)
+
+
+    ;; #\Combining_Ogonek
+
+    #(#\A #\E #\I #\O #\U #\a #\e #\i #\o #\u)
+
+
+    ;; #\Combining_Circumflex_Accent_Below
+
+    #(#\D #\E #\L #\N #\T #\U #\d #\e #\l #\n #\t #\u)
+
+
+    ;; #\Combining_Breve_Below
+
+    #(#\H #\h)
+
+
+    ;; #\Combining_Tilde_Below
+
+    #(#\E #\I #\U #\e #\i #\u)
+
+
+    ;; #\Combining_Macron_Below
+
+    #(#\B #\D #\K #\L #\N #\R #\T #\Z #\b #\d #\h #\k #\l #\n #\r #\t #\z)
+
+
+    ;; #\Combining_Long_Solidus_Overlay
+
+    #(#\< #\= #\> #\U+2190 #\U+2192 #\U+2194 #\U+21D0 #\U+21D2 #\U+21D4
+      #\U+2203 #\U+2208 #\U+220B #\U+2223 #\U+2225 #\U+223C #\U+2243
+      #\U+2245 #\U+2248 #\U+224D #\U+2261 #\U+2264 #\U+2265 #\U+2272
+      #\U+2273 #\U+2276 #\U+2277 #\U+227A #\U+227B #\U+227C #\U+227D
+      #\U+2282 #\U+2283 #\U+2286 #\U+2287 #\U+2291 #\U+2292 #\U+22A2
+      #\U+22A8 #\U+22A9 #\U+22AB #\U+22B2 #\U+22B3 #\U+22B4 #\U+22B5)
+
+
+    ;; #\Combining_Greek_Perispomeni
+
+    #(#\Diaeresis #\Greek_Small_Letter_Alpha #\Greek_Small_Letter_Eta
+      #\Greek_Small_Letter_Iota #\Greek_Small_Letter_Upsilon
+      #\Greek_Small_Letter_Omega #\Greek_Small_Letter_Iota_With_Dialytika
+      #\Greek_Small_Letter_Upsilon_With_Dialytika #\U+1F00 #\U+1F01 #\U+1F08
+      #\U+1F09 #\U+1F20 #\U+1F21 #\U+1F28 #\U+1F29 #\U+1F30 #\U+1F31
+      #\U+1F38 #\U+1F39 #\U+1F50 #\U+1F51 #\U+1F59 #\U+1F60 #\U+1F61
+      #\U+1F68 #\U+1F69 #\U+1FBF #\U+1FFE)
+
+
+    ;; #\Combining_Greek_Ypogegrammeni
+
+    #(#\Greek_Capital_Letter_Alpha #\Greek_Capital_Letter_Eta
+      #\Greek_Capital_Letter_Omega #\Greek_Small_Letter_Alpha_With_Tonos
+      #\Greek_Small_Letter_Eta_With_Tonos #\Greek_Small_Letter_Alpha
+      #\Greek_Small_Letter_Eta #\Greek_Small_Letter_Omega
+      #\Greek_Small_Letter_Omega_With_Tonos #\U+1F00 #\U+1F01 #\U+1F02
+      #\U+1F03 #\U+1F04 #\U+1F05 #\U+1F06 #\U+1F07 #\U+1F08 #\U+1F09
+      #\U+1F0A #\U+1F0B #\U+1F0C #\U+1F0D #\U+1F0E #\U+1F0F #\U+1F20
+      #\U+1F21 #\U+1F22 #\U+1F23 #\U+1F24 #\U+1F25 #\U+1F26 #\U+1F27
+      #\U+1F28 #\U+1F29 #\U+1F2A #\U+1F2B #\U+1F2C #\U+1F2D #\U+1F2E
+      #\U+1F2F #\U+1F60 #\U+1F61 #\U+1F62 #\U+1F63 #\U+1F64 #\U+1F65
+      #\U+1F66 #\U+1F67 #\U+1F68 #\U+1F69 #\U+1F6A #\U+1F6B #\U+1F6C
+      #\U+1F6D #\U+1F6E #\U+1F6F #\U+1F70 #\U+1F74 #\U+1F7C #\U+1FB6
+      #\U+1FC6 #\U+1FF6)
+
+
+    ;; #\Arabic_Maddah_Above
+
+    #(#\Arabic_Letter_Alef)
+
+
+    ;; #\Arabic_Hamza_Above
+
+    #(#\Arabic_Letter_Alef #\Arabic_Letter_Waw #\Arabic_Letter_Yeh
+      #\Arabic_Letter_Heh_Goal #\Arabic_Letter_Yeh_Barree
+      #\Arabic_Letter_Ae)
+
+
+    ;; #\Arabic_Hamza_Below
+
+    #(#\Arabic_Letter_Alef)
+
+
+    ;; #\U+093C
+
+    #(#\U+0928 #\U+0930 #\U+0933)
+
+
+    ;; #\U+09BE
+
+    #(#\U+09C7)
+
+
+    ;; #\U+09D7
+
+    #(#\U+09C7)
+
+
+    ;; #\U+0B3E
+
+    #(#\U+0B47)
+
+
+    ;; #\U+0B56
+
+    #(#\U+0B47)
+
+
+    ;; #\U+0B57
+
+    #(#\U+0B47)
+
+
+    ;; #\U+0BBE
+
+    #(#\U+0BC6 #\U+0BC7)
+
+
+    ;; #\U+0BD7
+
+    #(#\U+0B92 #\U+0BC6)
+
+
+    ;; #\U+0C56
+
+    #(#\U+0C46)
+
+
+    ;; #\U+0CC2
+
+    #(#\U+0CC6)
+
+
+    ;; #\U+0CD5
+
+    #(#\U+0CBF #\U+0CC6 #\U+0CCA)
+
+
+    ;; #\U+0CD6
+
+    #(#\U+0CC6)
+
+
+    ;; #\U+0D3E
+
+    #(#\U+0D46 #\U+0D47)
+
+
+    ;; #\U+0D57
+
+    #(#\U+0D46)
+
+
+    ;; #\U+0DCA
+
+    #(#\U+0DD9 #\U+0DDC)
+
+
+    ;; #\U+0DCF
+
+    #(#\U+0DD9)
+
+
+    ;; #\U+0DDF
+
+    #(#\U+0DD9)
+
+
+    ;; #\U+102E
+
+    #(#\U+1025)
+
+
+    ;; #\U+3099
+
+    #(#\U+3046 #\U+304B #\U+304D #\U+304F #\U+3051 #\U+3053 #\U+3055
+      #\U+3057 #\U+3059 #\U+305B #\U+305D #\U+305F #\U+3061 #\U+3064
+      #\U+3066 #\U+3068 #\U+306F #\U+3072 #\U+3075 #\U+3078 #\U+307B
+      #\U+309D #\U+30A6 #\U+30AB #\U+30AD #\U+30AF #\U+30B1 #\U+30B3
+      #\U+30B5 #\U+30B7 #\U+30B9 #\U+30BB #\U+30BD #\U+30BF #\U+30C1
+      #\U+30C4 #\U+30C6 #\U+30C8 #\U+30CF #\U+30D2 #\U+30D5 #\U+30D8
+      #\U+30DB #\U+30EF #\U+30F0 #\U+30F1 #\U+30F2 #\U+30FD)
+
+
+    ;; #\U+309A
+
+    #(#\U+306F #\U+3072 #\U+3075 #\U+3078 #\U+307B #\U+30CF #\U+30D2
+      #\U+30D5 #\U+30D8 #\U+30DB)
+    ))
+
+(defstatic *bmp-precombined-chars*
+  #(
+
+    ;; #\Combining_Grave_Accent
+
+    #(#\Latin_Capital_Letter_A_With_Grave
+      #\Latin_Capital_Letter_E_With_Grave
+      #\Latin_Capital_Letter_I_With_Grave
+      #\Latin_Capital_Letter_N_With_Grave
+      #\Latin_Capital_Letter_O_With_Grave
+      #\Latin_Capital_Letter_U_With_Grave #\U+1E80 #\U+1EF2
+      #\Latin_Small_Letter_A_With_Grave #\Latin_Small_Letter_E_With_Grave
+      #\Latin_Small_Letter_I_With_Grave #\Latin_Small_Letter_N_With_Grave
+      #\Latin_Small_Letter_O_With_Grave #\Latin_Small_Letter_U_With_Grave
+      #\U+1E81 #\U+1EF3 #\U+1FED #\U+1EA6 #\U+1EC0 #\U+1ED2
+      #\Latin_Capital_Letter_U_With_Diaeresis_And_Grave #\U+1EA7 #\U+1EC1
+      #\U+1ED3 #\Latin_Small_Letter_U_With_Diaeresis_And_Grave #\U+1EB0
+      #\U+1EB1 #\U+1E14 #\U+1E15 #\U+1E50 #\U+1E51 #\U+1EDC #\U+1EDD
+      #\U+1EEA #\U+1EEB #\U+1FBA #\U+1FC8 #\U+1FCA #\U+1FDA #\U+1FF8
+      #\U+1FEA #\U+1FFA #\U+1F70 #\U+1F72 #\U+1F74 #\U+1F76 #\U+1F78
+      #\U+1F7A #\U+1F7C #\U+1FD2 #\U+1FE2
+      #\Cyrillic_Capital_Letter_Ie_With_Grave
+      #\Cyrillic_Capital_Letter_I_With_Grave
+      #\Cyrillic_Small_Letter_Ie_With_Grave
+      #\Cyrillic_Small_Letter_I_With_Grave #\U+1F02 #\U+1F03 #\U+1F0A
+      #\U+1F0B #\U+1F12 #\U+1F13 #\U+1F1A #\U+1F1B #\U+1F22 #\U+1F23
+      #\U+1F2A #\U+1F2B #\U+1F32 #\U+1F33 #\U+1F3A #\U+1F3B #\U+1F42
+      #\U+1F43 #\U+1F4A #\U+1F4B #\U+1F52 #\U+1F53 #\U+1F5B #\U+1F62
+      #\U+1F63 #\U+1F6A #\U+1F6B #\U+1FCD #\U+1FDD)
+
+
+    ;; #\Combining_Acute_Accent
+
+    #(#\Latin_Capital_Letter_A_With_Acute
+      #\Latin_Capital_Letter_C_With_Acute
+      #\Latin_Capital_Letter_E_With_Acute
+      #\Latin_Capital_Letter_G_With_Acute
+      #\Latin_Capital_Letter_I_With_Acute #\U+1E30
+      #\Latin_Capital_Letter_L_With_Acute #\U+1E3E
+      #\Latin_Capital_Letter_N_With_Acute
+      #\Latin_Capital_Letter_O_With_Acute #\U+1E54
+      #\Latin_Capital_Letter_R_With_Acute
+      #\Latin_Capital_Letter_S_With_Acute
+      #\Latin_Capital_Letter_U_With_Acute #\U+1E82
+      #\Latin_Capital_Letter_Y_With_Acute
+      #\Latin_Capital_Letter_Z_With_Acute #\Latin_Small_Letter_A_With_Acute
+      #\Latin_Small_Letter_C_With_Acute #\Latin_Small_Letter_E_With_Acute
+      #\Latin_Small_Letter_G_With_Acute #\Latin_Small_Letter_I_With_Acute
+      #\U+1E31 #\Latin_Small_Letter_L_With_Acute #\U+1E3F
+      #\Latin_Small_Letter_N_With_Acute #\Latin_Small_Letter_O_With_Acute
+      #\U+1E55 #\Latin_Small_Letter_R_With_Acute
+      #\Latin_Small_Letter_S_With_Acute #\Latin_Small_Letter_U_With_Acute
+      #\U+1E83 #\Latin_Small_Letter_Y_With_Acute
+      #\Latin_Small_Letter_Z_With_Acute #\Greek_Dialytika_Tonos #\U+1EA4
+      #\Latin_Capital_Letter_A_With_Ring_Above_And_Acute
+      #\Latin_Capital_Letter_Ae_With_Acute #\U+1E08 #\U+1EBE #\U+1E2E
+      #\U+1ED0 #\U+1E4C #\Latin_Capital_Letter_O_With_Stroke_And_Acute
+      #\Latin_Capital_Letter_U_With_Diaeresis_And_Acute #\U+1EA5
+      #\Latin_Small_Letter_A_With_Ring_Above_And_Acute
+      #\Latin_Small_Letter_Ae_With_Acute #\U+1E09 #\U+1EBF #\U+1E2F #\U+1ED1
+      #\U+1E4D #\Latin_Small_Letter_O_With_Stroke_And_Acute
+      #\Latin_Small_Letter_U_With_Diaeresis_And_Acute #\U+1EAE #\U+1EAF
+      #\U+1E16 #\U+1E17 #\U+1E52 #\U+1E53 #\U+1E78 #\U+1E79 #\U+1EDA
+      #\U+1EDB #\U+1EE8 #\U+1EE9 #\Greek_Capital_Letter_Alpha_With_Tonos
+      #\Greek_Capital_Letter_Epsilon_With_Tonos
+      #\Greek_Capital_Letter_Eta_With_Tonos
+      #\Greek_Capital_Letter_Iota_With_Tonos
+      #\Greek_Capital_Letter_Omicron_With_Tonos
+      #\Greek_Capital_Letter_Upsilon_With_Tonos
+      #\Greek_Capital_Letter_Omega_With_Tonos
+      #\Greek_Small_Letter_Alpha_With_Tonos
+      #\Greek_Small_Letter_Epsilon_With_Tonos
+      #\Greek_Small_Letter_Eta_With_Tonos
+      #\Greek_Small_Letter_Iota_With_Tonos
+      #\Greek_Small_Letter_Omicron_With_Tonos
+      #\Greek_Small_Letter_Upsilon_With_Tonos
+      #\Greek_Small_Letter_Omega_With_Tonos
+      #\Greek_Small_Letter_Iota_With_Dialytika_And_Tonos
+      #\Greek_Small_Letter_Upsilon_With_Dialytika_And_Tonos
+      #\Greek_Upsilon_With_Acute_And_Hook_Symbol
+      #\Cyrillic_Capital_Letter_Gje #\Cyrillic_Capital_Letter_Kje
+      #\Cyrillic_Small_Letter_Gje #\Cyrillic_Small_Letter_Kje #\U+1F04
+      #\U+1F05 #\U+1F0C #\U+1F0D #\U+1F14 #\U+1F15 #\U+1F1C #\U+1F1D
+      #\U+1F24 #\U+1F25 #\U+1F2C #\U+1F2D #\U+1F34 #\U+1F35 #\U+1F3C
+      #\U+1F3D #\U+1F44 #\U+1F45 #\U+1F4C #\U+1F4D #\U+1F54 #\U+1F55
+      #\U+1F5D #\U+1F64 #\U+1F65 #\U+1F6C #\U+1F6D #\U+1FCE #\U+1FDE)
+
+
+    ;; #\Combining_Circumflex_Accent
+
+    #(#\Latin_Capital_Letter_A_With_Circumflex
+      #\Latin_Capital_Letter_C_With_Circumflex
+      #\Latin_Capital_Letter_E_With_Circumflex
+      #\Latin_Capital_Letter_G_With_Circumflex
+      #\Latin_Capital_Letter_H_With_Circumflex
+      #\Latin_Capital_Letter_I_With_Circumflex
+      #\Latin_Capital_Letter_J_With_Circumflex
+      #\Latin_Capital_Letter_O_With_Circumflex
+      #\Latin_Capital_Letter_S_With_Circumflex
+      #\Latin_Capital_Letter_U_With_Circumflex
+      #\Latin_Capital_Letter_W_With_Circumflex
+      #\Latin_Capital_Letter_Y_With_Circumflex #\U+1E90
+      #\Latin_Small_Letter_A_With_Circumflex
+      #\Latin_Small_Letter_C_With_Circumflex
+      #\Latin_Small_Letter_E_With_Circumflex
+      #\Latin_Small_Letter_G_With_Circumflex
+      #\Latin_Small_Letter_H_With_Circumflex
+      #\Latin_Small_Letter_I_With_Circumflex
+      #\Latin_Small_Letter_J_With_Circumflex
+      #\Latin_Small_Letter_O_With_Circumflex
+      #\Latin_Small_Letter_S_With_Circumflex
+      #\Latin_Small_Letter_U_With_Circumflex
+      #\Latin_Small_Letter_W_With_Circumflex
+      #\Latin_Small_Letter_Y_With_Circumflex #\U+1E91 #\U+1EAC #\U+1EAD
+      #\U+1EC6 #\U+1EC7 #\U+1ED8 #\U+1ED9)
+
+
+    ;; #\Combining_Tilde
+
+    #(#\Latin_Capital_Letter_A_With_Tilde #\U+1EBC
+      #\Latin_Capital_Letter_I_With_Tilde
+      #\Latin_Capital_Letter_N_With_Tilde
+      #\Latin_Capital_Letter_O_With_Tilde
+      #\Latin_Capital_Letter_U_With_Tilde #\U+1E7C #\U+1EF8
+      #\Latin_Small_Letter_A_With_Tilde #\U+1EBD
+      #\Latin_Small_Letter_I_With_Tilde #\Latin_Small_Letter_N_With_Tilde
+      #\Latin_Small_Letter_O_With_Tilde #\Latin_Small_Letter_U_With_Tilde
+      #\U+1E7D #\U+1EF9 #\U+1EAA #\U+1EC4 #\U+1ED6 #\U+1EAB #\U+1EC5
+      #\U+1ED7 #\U+1EB4 #\U+1EB5 #\U+1EE0 #\U+1EE1 #\U+1EEE #\U+1EEF)
+
+
+    ;; #\Combining_Macron
+
+    #(#\Latin_Capital_Letter_A_With_Macron
+      #\Latin_Capital_Letter_E_With_Macron #\U+1E20
+      #\Latin_Capital_Letter_I_With_Macron
+      #\Latin_Capital_Letter_O_With_Macron
+      #\Latin_Capital_Letter_U_With_Macron
+      #\Latin_Capital_Letter_Y_With_Macron
+      #\Latin_Small_Letter_A_With_Macron #\Latin_Small_Letter_E_With_Macron
+      #\U+1E21 #\Latin_Small_Letter_I_With_Macron
+      #\Latin_Small_Letter_O_With_Macron #\Latin_Small_Letter_U_With_Macron
+      #\Latin_Small_Letter_Y_With_Macron
+      #\Latin_Capital_Letter_A_With_Diaeresis_And_Macron
+      #\Latin_Capital_Letter_Ae_With_Macron
+      #\Latin_Capital_Letter_O_With_Tilde_And_Macron
+      #\Latin_Capital_Letter_O_With_Diaeresis_And_Macron
+      #\Latin_Capital_Letter_U_With_Diaeresis_And_Macron
+      #\Latin_Small_Letter_A_With_Diaeresis_And_Macron
+      #\Latin_Small_Letter_Ae_With_Macron
+      #\Latin_Small_Letter_O_With_Tilde_And_Macron
+      #\Latin_Small_Letter_O_With_Diaeresis_And_Macron
+      #\Latin_Small_Letter_U_With_Diaeresis_And_Macron
+      #\Latin_Capital_Letter_O_With_Ogonek_And_Macron
+      #\Latin_Small_Letter_O_With_Ogonek_And_Macron
+      #\Latin_Capital_Letter_A_With_Dot_Above_And_Macron
+      #\Latin_Small_Letter_A_With_Dot_Above_And_Macron
+      #\Latin_Capital_Letter_O_With_Dot_Above_And_Macron
+      #\Latin_Small_Letter_O_With_Dot_Above_And_Macron #\U+1FB9 #\U+1FD9
+      #\U+1FE9 #\U+1FB1 #\U+1FD1 #\U+1FE1
+      #\Cyrillic_Capital_Letter_I_With_Macron
+      #\Cyrillic_Capital_Letter_U_With_Macron
+      #\Cyrillic_Small_Letter_I_With_Macron
+      #\Cyrillic_Small_Letter_U_With_Macron #\U+1E38 #\U+1E39 #\U+1E5C
+      #\U+1E5D)
+
+
+    ;; #\Combining_Breve
+
+    #(#\Latin_Capital_Letter_A_With_Breve
+      #\Latin_Capital_Letter_E_With_Breve
+      #\Latin_Capital_Letter_G_With_Breve
+      #\Latin_Capital_Letter_I_With_Breve
+      #\Latin_Capital_Letter_O_With_Breve
+      #\Latin_Capital_Letter_U_With_Breve #\Latin_Small_Letter_A_With_Breve
+      #\Latin_Small_Letter_E_With_Breve #\Latin_Small_Letter_G_With_Breve
+      #\Latin_Small_Letter_I_With_Breve #\Latin_Small_Letter_O_With_Breve
+      #\Latin_Small_Letter_U_With_Breve #\U+1E1C #\U+1E1D #\U+1FB8 #\U+1FD8
+      #\U+1FE8 #\U+1FB0 #\U+1FD0 #\U+1FE0
+      #\Cyrillic_Capital_Letter_A_With_Breve
+      #\Cyrillic_Capital_Letter_Ie_With_Breve
+      #\Cyrillic_Capital_Letter_Zhe_With_Breve
+      #\Cyrillic_Capital_Letter_Short_I #\Cyrillic_Capital_Letter_Short_U
+      #\Cyrillic_Small_Letter_A_With_Breve
+      #\Cyrillic_Small_Letter_Ie_With_Breve
+      #\Cyrillic_Small_Letter_Zhe_With_Breve #\Cyrillic_Small_Letter_Short_I
+      #\Cyrillic_Small_Letter_Short_U #\U+1EB6 #\U+1EB7)
+
+
+    ;; #\Combining_Dot_Above
+
+    #(#\Latin_Capital_Letter_A_With_Dot_Above #\U+1E02
+      #\Latin_Capital_Letter_C_With_Dot_Above #\U+1E0A
+      #\Latin_Capital_Letter_E_With_Dot_Above #\U+1E1E
+      #\Latin_Capital_Letter_G_With_Dot_Above #\U+1E22
+      #\Latin_Capital_Letter_I_With_Dot_Above #\U+1E40 #\U+1E44
+      #\Latin_Capital_Letter_O_With_Dot_Above #\U+1E56 #\U+1E58 #\U+1E60
+      #\U+1E6A #\U+1E86 #\U+1E8A #\U+1E8E
+      #\Latin_Capital_Letter_Z_With_Dot_Above
+      #\Latin_Small_Letter_A_With_Dot_Above #\U+1E03
+      #\Latin_Small_Letter_C_With_Dot_Above #\U+1E0B
+      #\Latin_Small_Letter_E_With_Dot_Above #\U+1E1F
+      #\Latin_Small_Letter_G_With_Dot_Above #\U+1E23 #\U+1E41 #\U+1E45
+      #\Latin_Small_Letter_O_With_Dot_Above #\U+1E57 #\U+1E59 #\U+1E61
+      #\U+1E6B #\U+1E87 #\U+1E8B #\U+1E8F
+      #\Latin_Small_Letter_Z_With_Dot_Above #\U+1E64 #\U+1E65 #\U+1E66
+      #\U+1E67 #\U+1E9B #\U+1E68 #\U+1E69)
+
+
+    ;; #\Combining_Diaeresis
+
+    #(#\Latin_Capital_Letter_A_With_Diaeresis
+      #\Latin_Capital_Letter_E_With_Diaeresis #\U+1E26
+      #\Latin_Capital_Letter_I_With_Diaeresis
+      #\Latin_Capital_Letter_O_With_Diaeresis
+      #\Latin_Capital_Letter_U_With_Diaeresis #\U+1E84 #\U+1E8C
+      #\Latin_Capital_Letter_Y_With_Diaeresis
+      #\Latin_Small_Letter_A_With_Diaeresis
+      #\Latin_Small_Letter_E_With_Diaeresis #\U+1E27
+      #\Latin_Small_Letter_I_With_Diaeresis
+      #\Latin_Small_Letter_O_With_Diaeresis #\U+1E97
+      #\Latin_Small_Letter_U_With_Diaeresis #\U+1E85 #\U+1E8D
+      #\Latin_Small_Letter_Y_With_Diaeresis #\U+1E4E #\U+1E4F #\U+1E7A
+      #\U+1E7B #\Greek_Capital_Letter_Iota_With_Dialytika
+      #\Greek_Capital_Letter_Upsilon_With_Dialytika
+      #\Greek_Small_Letter_Iota_With_Dialytika
+      #\Greek_Small_Letter_Upsilon_With_Dialytika
+      #\Greek_Upsilon_With_Diaeresis_And_Hook_Symbol
+      #\Cyrillic_Capital_Letter_Yi
+      #\Cyrillic_Capital_Letter_A_With_Diaeresis
+      #\Cyrillic_Capital_Letter_Io
+      #\Cyrillic_Capital_Letter_Zhe_With_Diaeresis
+      #\Cyrillic_Capital_Letter_Ze_With_Diaeresis
+      #\Cyrillic_Capital_Letter_I_With_Diaeresis
+      #\Cyrillic_Capital_Letter_O_With_Diaeresis
+      #\Cyrillic_Capital_Letter_U_With_Diaeresis
+      #\Cyrillic_Capital_Letter_Che_With_Diaeresis
+      #\Cyrillic_Capital_Letter_Yeru_With_Diaeresis
+      #\Cyrillic_Capital_Letter_E_With_Diaeresis
+      #\Cyrillic_Small_Letter_A_With_Diaeresis #\Cyrillic_Small_Letter_Io
+      #\Cyrillic_Small_Letter_Zhe_With_Diaeresis
+      #\Cyrillic_Small_Letter_Ze_With_Diaeresis
+      #\Cyrillic_Small_Letter_I_With_Diaeresis
+      #\Cyrillic_Small_Letter_O_With_Diaeresis
+      #\Cyrillic_Small_Letter_U_With_Diaeresis
+      #\Cyrillic_Small_Letter_Che_With_Diaeresis
+      #\Cyrillic_Small_Letter_Yeru_With_Diaeresis
+      #\Cyrillic_Small_Letter_E_With_Diaeresis #\Cyrillic_Small_Letter_Yi
+      #\Cyrillic_Capital_Letter_Schwa_With_Diaeresis
+      #\Cyrillic_Small_Letter_Schwa_With_Diaeresis
+      #\Cyrillic_Capital_Letter_Barred_O_With_Diaeresis
+      #\Cyrillic_Small_Letter_Barred_O_With_Diaeresis)
+
+
+    ;; #\Combining_Hook_Above
+
+    #(#\U+1EA2 #\U+1EBA #\U+1EC8 #\U+1ECE #\U+1EE6 #\U+1EF6 #\U+1EA3
+      #\U+1EBB #\U+1EC9 #\U+1ECF #\U+1EE7 #\U+1EF7 #\U+1EA8 #\U+1EC2
+      #\U+1ED4 #\U+1EA9 #\U+1EC3 #\U+1ED5 #\U+1EB2 #\U+1EB3 #\U+1EDE
+      #\U+1EDF #\U+1EEC #\U+1EED)
+
+
+    ;; #\Combining_Ring_Above
+
+    #(#\Latin_Capital_Letter_A_With_Ring_Above
+      #\Latin_Capital_Letter_U_With_Ring_Above
+      #\Latin_Small_Letter_A_With_Ring_Above
+      #\Latin_Small_Letter_U_With_Ring_Above #\U+1E98 #\U+1E99)
+
+
+    ;; #\Combining_Double_Acute_Accent
+
+    #(#\Latin_Capital_Letter_O_With_Double_Acute
+      #\Latin_Capital_Letter_U_With_Double_Acute
+      #\Latin_Small_Letter_O_With_Double_Acute
+      #\Latin_Small_Letter_U_With_Double_Acute
+      #\Cyrillic_Capital_Letter_U_With_Double_Acute
+      #\Cyrillic_Small_Letter_U_With_Double_Acute)
+
+
+    ;; #\Combining_Caron
+
+    #(#\Latin_Capital_Letter_A_With_Caron
+      #\Latin_Capital_Letter_C_With_Caron
+      #\Latin_Capital_Letter_D_With_Caron
+      #\Latin_Capital_Letter_E_With_Caron
+      #\Latin_Capital_Letter_G_With_Caron
+      #\Latin_Capital_Letter_H_With_Caron
+      #\Latin_Capital_Letter_I_With_Caron
+      #\Latin_Capital_Letter_K_With_Caron
+      #\Latin_Capital_Letter_L_With_Caron
+      #\Latin_Capital_Letter_N_With_Caron
+      #\Latin_Capital_Letter_O_With_Caron
+      #\Latin_Capital_Letter_R_With_Caron
+      #\Latin_Capital_Letter_S_With_Caron
+      #\Latin_Capital_Letter_T_With_Caron
+      #\Latin_Capital_Letter_U_With_Caron
+      #\Latin_Capital_Letter_Z_With_Caron #\Latin_Small_Letter_A_With_Caron
+      #\Latin_Small_Letter_C_With_Caron #\Latin_Small_Letter_D_With_Caron
+      #\Latin_Small_Letter_E_With_Caron #\Latin_Small_Letter_G_With_Caron
+      #\Latin_Small_Letter_H_With_Caron #\Latin_Small_Letter_I_With_Caron
+      #\Latin_Small_Letter_J_With_Caron #\Latin_Small_Letter_K_With_Caron
+      #\Latin_Small_Letter_L_With_Caron #\Latin_Small_Letter_N_With_Caron
+      #\Latin_Small_Letter_O_With_Caron #\Latin_Small_Letter_R_With_Caron
+      #\Latin_Small_Letter_S_With_Caron #\Latin_Small_Letter_T_With_Caron
+      #\Latin_Small_Letter_U_With_Caron #\Latin_Small_Letter_Z_With_Caron
+      #\Latin_Capital_Letter_U_With_Diaeresis_And_Caron
+      #\Latin_Small_Letter_U_With_Diaeresis_And_Caron
+      #\Latin_Capital_Letter_Ezh_With_Caron
+      #\Latin_Small_Letter_Ezh_With_Caron)
+
+
+    ;; #\Combining_Double_Grave_Accent
+
+    #(#\Latin_Capital_Letter_A_With_Double_Grave
+      #\Latin_Capital_Letter_E_With_Double_Grave
+      #\Latin_Capital_Letter_I_With_Double_Grave
+      #\Latin_Capital_Letter_O_With_Double_Grave
+      #\Latin_Capital_Letter_R_With_Double_Grave
+      #\Latin_Capital_Letter_U_With_Double_Grave
+      #\Latin_Small_Letter_A_With_Double_Grave
+      #\Latin_Small_Letter_E_With_Double_Grave
+      #\Latin_Small_Letter_I_With_Double_Grave
+      #\Latin_Small_Letter_O_With_Double_Grave
+      #\Latin_Small_Letter_R_With_Double_Grave
+      #\Latin_Small_Letter_U_With_Double_Grave
+      #\Cyrillic_Capital_Letter_Izhitsa_With_Double_Grave_Accent
+      #\Cyrillic_Small_Letter_Izhitsa_With_Double_Grave_Accent)
+
+
+    ;; #\Combining_Inverted_Breve
+
+    #(#\Latin_Capital_Letter_A_With_Inverted_Breve
+      #\Latin_Capital_Letter_E_With_Inverted_Breve
+      #\Latin_Capital_Letter_I_With_Inverted_Breve
+      #\Latin_Capital_Letter_O_With_Inverted_Breve
+      #\Latin_Capital_Letter_R_With_Inverted_Breve
+      #\Latin_Capital_Letter_U_With_Inverted_Breve
+      #\Latin_Small_Letter_A_With_Inverted_Breve
+      #\Latin_Small_Letter_E_With_Inverted_Breve
+      #\Latin_Small_Letter_I_With_Inverted_Breve
+      #\Latin_Small_Letter_O_With_Inverted_Breve
+      #\Latin_Small_Letter_R_With_Inverted_Breve
+      #\Latin_Small_Letter_U_With_Inverted_Breve)
+
+
+    ;; #\Combining_Comma_Above
+
+    #(#\U+1F08 #\U+1F18 #\U+1F28 #\U+1F38 #\U+1F48 #\U+1F68 #\U+1F00
+      #\U+1F10 #\U+1F20 #\U+1F30 #\U+1F40 #\U+1FE4 #\U+1F50 #\U+1F60)
+
+
+    ;; #\Combining_Reversed_Comma_Above
+
+    #(#\U+1F09 #\U+1F19 #\U+1F29 #\U+1F39 #\U+1F49 #\U+1FEC #\U+1F59
+      #\U+1F69 #\U+1F01 #\U+1F11 #\U+1F21 #\U+1F31 #\U+1F41 #\U+1FE5
+      #\U+1F51 #\U+1F61)
+
+
+    ;; #\Combining_Horn
+
+    #(#\Latin_Capital_Letter_O_With_Horn
+      #\Latin_Capital_Letter_U_With_Horn #\Latin_Small_Letter_O_With_Horn
+      #\Latin_Small_Letter_U_With_Horn)
+
+
+    ;; #\Combining_Dot_Below
+
+    #(#\U+1EA0 #\U+1E04 #\U+1E0C #\U+1EB8 #\U+1E24 #\U+1ECA #\U+1E32
+      #\U+1E36 #\U+1E42 #\U+1E46 #\U+1ECC #\U+1E5A #\U+1E62 #\U+1E6C
+      #\U+1EE4 #\U+1E7E #\U+1E88 #\U+1EF4 #\U+1E92 #\U+1EA1 #\U+1E05
+      #\U+1E0D #\U+1EB9 #\U+1E25 #\U+1ECB #\U+1E33 #\U+1E37 #\U+1E43
+      #\U+1E47 #\U+1ECD #\U+1E5B #\U+1E63 #\U+1E6D #\U+1EE5 #\U+1E7F
+      #\U+1E89 #\U+1EF5 #\U+1E93 #\U+1EE2 #\U+1EE3 #\U+1EF0 #\U+1EF1)
+
+
+    ;; #\Combining_Diaeresis_Below
+
+    #(#\U+1E72 #\U+1E73)
+
+
+    ;; #\Combining_Ring_Below
+
+    #(#\U+1E00 #\U+1E01)
+
+
+    ;; #\Combining_Comma_Below
+
+    #(#\Latin_Capital_Letter_S_With_Comma_Below
+      #\Latin_Capital_Letter_T_With_Comma_Below
+      #\Latin_Small_Letter_S_With_Comma_Below
+      #\Latin_Small_Letter_T_With_Comma_Below)
+
+
+    ;; #\Combining_Cedilla
+
+    #(#\Latin_Capital_Letter_C_With_Cedilla #\U+1E10
+      #\Latin_Capital_Letter_E_With_Cedilla
+      #\Latin_Capital_Letter_G_With_Cedilla #\U+1E28
+      #\Latin_Capital_Letter_K_With_Cedilla
+      #\Latin_Capital_Letter_L_With_Cedilla
+      #\Latin_Capital_Letter_N_With_Cedilla
+      #\Latin_Capital_Letter_R_With_Cedilla
+      #\Latin_Capital_Letter_S_With_Cedilla
+      #\Latin_Capital_Letter_T_With_Cedilla
+      #\Latin_Small_Letter_C_With_Cedilla #\U+1E11
+      #\Latin_Small_Letter_E_With_Cedilla
+      #\Latin_Small_Letter_G_With_Cedilla #\U+1E29
+      #\Latin_Small_Letter_K_With_Cedilla
+      #\Latin_Small_Letter_L_With_Cedilla
+      #\Latin_Small_Letter_N_With_Cedilla
+      #\Latin_Small_Letter_R_With_Cedilla
+      #\Latin_Small_Letter_S_With_Cedilla
+      #\Latin_Small_Letter_T_With_Cedilla)
+
+
+    ;; #\Combining_Ogonek
+
+    #(#\Latin_Capital_Letter_A_With_Ogonek
+      #\Latin_Capital_Letter_E_With_Ogonek
+      #\Latin_Capital_Letter_I_With_Ogonek
+      #\Latin_Capital_Letter_O_With_Ogonek
+      #\Latin_Capital_Letter_U_With_Ogonek
+      #\Latin_Small_Letter_A_With_Ogonek #\Latin_Small_Letter_E_With_Ogonek
+      #\Latin_Small_Letter_I_With_Ogonek #\Latin_Small_Letter_O_With_Ogonek
+      #\Latin_Small_Letter_U_With_Ogonek)
+
+
+    ;; #\Combining_Circumflex_Accent_Below
+
+    #(#\U+1E12 #\U+1E18 #\U+1E3C #\U+1E4A #\U+1E70 #\U+1E76 #\U+1E13
+      #\U+1E19 #\U+1E3D #\U+1E4B #\U+1E71 #\U+1E77)
+
+
+    ;; #\Combining_Breve_Below
+
+    #(#\U+1E2A #\U+1E2B)
+
+
+    ;; #\Combining_Tilde_Below
+
+    #(#\U+1E1A #\U+1E2C #\U+1E74 #\U+1E1B #\U+1E2D #\U+1E75)
+
+
+    ;; #\Combining_Macron_Below
+
+    #(#\U+1E06 #\U+1E0E #\U+1E34 #\U+1E3A #\U+1E48 #\U+1E5E #\U+1E6E
+      #\U+1E94 #\U+1E07 #\U+1E0F #\U+1E96 #\U+1E35 #\U+1E3B #\U+1E49
+      #\U+1E5F #\U+1E6F #\U+1E95)
+
+
+    ;; #\Combining_Long_Solidus_Overlay
+
+    #(#\U+226E #\U+2260 #\U+226F #\U+219A #\U+219B #\U+21AE #\U+21CD
+      #\U+21CF #\U+21CE #\U+2204 #\U+2209 #\U+220C #\U+2224 #\U+2226
+      #\U+2241 #\U+2244 #\U+2247 #\U+2249 #\U+226D #\U+2262 #\U+2270
+      #\U+2271 #\U+2274 #\U+2275 #\U+2278 #\U+2279 #\U+2280 #\U+2281
+      #\U+22E0 #\U+22E1 #\U+2284 #\U+2285 #\U+2288 #\U+2289 #\U+22E2
+      #\U+22E3 #\U+22AC #\U+22AD #\U+22AE #\U+22AF #\U+22EA #\U+22EB
+      #\U+22EC #\U+22ED)
+
+
+    ;; #\Combining_Greek_Perispomeni
+
+    #(#\U+1FC1 #\U+1FB6 #\U+1FC6 #\U+1FD6 #\U+1FE6 #\U+1FF6 #\U+1FD7
+      #\U+1FE7 #\U+1F06 #\U+1F07 #\U+1F0E #\U+1F0F #\U+1F26 #\U+1F27
+      #\U+1F2E #\U+1F2F #\U+1F36 #\U+1F37 #\U+1F3E #\U+1F3F #\U+1F56
+      #\U+1F57 #\U+1F5F #\U+1F66 #\U+1F67 #\U+1F6E #\U+1F6F #\U+1FCF
+      #\U+1FDF)
+
+
+    ;; #\Combining_Greek_Ypogegrammeni
+
+    #(#\U+1FBC #\U+1FCC #\U+1FFC #\U+1FB4 #\U+1FC4 #\U+1FB3 #\U+1FC3
+      #\U+1FF3 #\U+1FF4 #\U+1F80 #\U+1F81 #\U+1F82 #\U+1F83 #\U+1F84
+      #\U+1F85 #\U+1F86 #\U+1F87 #\U+1F88 #\U+1F89 #\U+1F8A #\U+1F8B
+      #\U+1F8C #\U+1F8D #\U+1F8E #\U+1F8F #\U+1F90 #\U+1F91 #\U+1F92
+      #\U+1F93 #\U+1F94 #\U+1F95 #\U+1F96 #\U+1F97 #\U+1F98 #\U+1F99
+      #\U+1F9A #\U+1F9B #\U+1F9C #\U+1F9D #\U+1F9E #\U+1F9F #\U+1FA0
+      #\U+1FA1 #\U+1FA2 #\U+1FA3 #\U+1FA4 #\U+1FA5 #\U+1FA6 #\U+1FA7
+      #\U+1FA8 #\U+1FA9 #\U+1FAA #\U+1FAB #\U+1FAC #\U+1FAD #\U+1FAE
+      #\U+1FAF #\U+1FB2 #\U+1FC2 #\U+1FF2 #\U+1FB7 #\U+1FC7 #\U+1FF7)
+
+
+    ;; #\Arabic_Maddah_Above
+
+    #(#\Arabic_Letter_Alef_With_Madda_Above)
+
+
+    ;; #\Arabic_Hamza_Above
+
+    #(#\Arabic_Letter_Alef_With_Hamza_Above
+      #\Arabic_Letter_Waw_With_Hamza_Above
+      #\Arabic_Letter_Yeh_With_Hamza_Above
+      #\Arabic_Letter_Heh_Goal_With_Hamza_Above
+      #\Arabic_Letter_Yeh_Barree_With_Hamza_Above
+      #\Arabic_Letter_Heh_With_Yeh_Above)
+
+
+    ;; #\Arabic_Hamza_Below
+
+    #(#\Arabic_Letter_Alef_With_Hamza_Below)
+
+
+    ;; #\U+093C
+
+    #(#\U+0929 #\U+0931 #\U+0934)
+
+
+    ;; #\U+09BE
+
+    #(#\U+09CB)
+
+
+    ;; #\U+09D7
+
+    #(#\U+09CC)
+
+
+    ;; #\U+0B3E
+
+    #(#\U+0B4B)
+
+
+    ;; #\U+0B56
+
+    #(#\U+0B48)
+
+
+    ;; #\U+0B57
+
+    #(#\U+0B4C)
+
+
+    ;; #\U+0BBE
+
+    #(#\U+0BCA #\U+0BCB)
+
+
+    ;; #\U+0BD7
+
+    #(#\U+0B94 #\U+0BCC)
+
+
+    ;; #\U+0C56
+
+    #(#\U+0C48)
+
+
+    ;; #\U+0CC2
+
+    #(#\U+0CCA)
+
+
+    ;; #\U+0CD5
+
+    #(#\U+0CC0 #\U+0CC7 #\U+0CCB)
+
+
+    ;; #\U+0CD6
+
+    #(#\U+0CC8)
+
+
+    ;; #\U+0D3E
+
+    #(#\U+0D4A #\U+0D4B)
+
+
+    ;; #\U+0D57
+
+    #(#\U+0D4C)
+
+
+    ;; #\U+0DCA
+
+    #(#\U+0DDA #\U+0DDD)
+
+
+    ;; #\U+0DCF
+
+    #(#\U+0DDC)
+
+
+    ;; #\U+0DDF
+
+    #(#\U+0DDE)
+
+
+    ;; #\U+102E
+
+    #(#\U+1026)
+
+
+    ;; #\U+3099
+
+    #(#\U+3094 #\U+304C #\U+304E #\U+3050 #\U+3052 #\U+3054 #\U+3056
+      #\U+3058 #\U+305A #\U+305C #\U+305E #\U+3060 #\U+3062 #\U+3065
+      #\U+3067 #\U+3069 #\U+3070 #\U+3073 #\U+3076 #\U+3079 #\U+307C
+      #\U+309E #\U+30F4 #\U+30AC #\U+30AE #\U+30B0 #\U+30B2 #\U+30B4
+      #\U+30B6 #\U+30B8 #\U+30BA #\U+30BC #\U+30BE #\U+30C0 #\U+30C2
+      #\U+30C5 #\U+30C7 #\U+30C9 #\U+30D0 #\U+30D3 #\U+30D6 #\U+30D9
+      #\U+30DC #\U+30F7 #\U+30F8 #\U+30F9 #\U+30FA #\U+30FE)
+
+
+    ;; #\U+309A
+
+    #(#\U+3071 #\U+3074 #\U+3077 #\U+307A #\U+307D #\U+30D1 #\U+30D4
+      #\U+30D7 #\U+30DA #\U+30DD)
+    ))
+
+(defun search-char-vector (vector char)
+  ;; vector is a SIMPLE-VECTOR of chars sorted by char-code.
+  ;; return the index of char in vector or NIL if not found
+  (let* ((left 0)
+         (right (1- (length vector))))
+    (declare (fixnum left right))
+    (if (and (char>= char (svref vector left))
+             (char<= char (svref vector right)))
+      (do* ()
+           ((> left right))
+        (let* ((mid (ash (the fixnum (+ left right)) -1))
+               (midch (svref vector mid)))
+          (declare (fixnum mid))
+          (if (eql char midch)
+            (return mid)
+            (if (char< char midch)
+              (setq right (1- mid))
+              (setq left (1+ mid)))))))))
+
+
+(defconstant HANGUL-SBASE #xAC00)
+(defconstant HANGUL-LBASE #x1100)
+(defconstant HANGUL-VBASE #x1161)
+(defconstant HANGUL-TBASE #x11A7)
+
+(defconstant HANGUL-SCOUNT 11172)
+(defconstant HANGUL-LCOUNT 19)
+(defconstant HANGUL-VCOUNT 21)
+(defconstant HANGUL-TCOUNT 28)
+(defconstant HANGUL-NCOUNT (* HANGUL-VCOUNT HANGUL-TCOUNT))
+
+(defun combine-bmp-chars (base combiner)
+  (if (and (char>= combiner (code-char hangul-vbase))
+           (char< combiner (code-char (+ hangul-tbase hangul-tcount))))
+    (if (and (char< combiner (code-char (+ hangul-vbase hangul-vcount)))
+             (char>= base (code-char hangul-lbase))
+             (char< base (code-char (+ hangul-lbase hangul-lcount))))
+      (return-from combine-bmp-chars
+        (code-char (+ hangul-lbase
+                      (* hangul-ncount (- (char-code base) hangul-lbase))
+                      (* hangul-tcount (- (char-code combiner) hangul-vbase))))))
+    (if (and (char> combiner (code-char hangul-tbase))
+             (char>= base (code-char hangul-sbase))
+             (char< base (code-char (+ hangul-sbase hangul-scount))))
+      (if (not (zerop (the fixnum (mod (- (char-code base) hangul-sbase) hangul-tcount))))
+        (return-from combine-bmp-chars nil)
+        (return-from combine-bmp-chars
+          (code-char (+ (char-code base) (- (char-code combiner) hangul-tbase)))))))
+    
+  (let* ((idx (search-char-vector *bmp-combining-chars* combiner))
+         (base-table (if idx (svref *bmp-combining-base-chars* idx))))
+    (if base-table
+      (let* ((combined-idx (search-char-vector base-table base)))
+        (if combined-idx
+          (svref (svref *bmp-precombined-chars* idx) combined-idx))))))
+
+(defun precompose-simple-string (s)
+  (let* ((n (length s)))
+    (or (dotimes (i n s)
+          (when (is-combinable (schar s i))
+            (return nil)))
+        (let* ((new (make-string n)))
+          (declare (dynamic-extent new))
+          (do* ((i 0 (1+ i))
+                (nout -1)
+                (lastch nil))
+               ((= i n) (subseq new 0 (1+ nout)))
+            (declare (fixnum nout i))
+            (let* ((ch (schar s i)))
+              (if (or (not lastch)
+                      (not (is-combinable ch)))
+                (setf lastch ch
+                      (schar new (incf nout)) ch)
+                (let* ((combined (combine-bmp-chars lastch ch)))
+                  (if combined
+                    (setf (schar new nout) (setq lastch combined))
+                    (setf lastch ch
+                      (schar new (incf nout)) ch))))))))))

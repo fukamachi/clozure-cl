@@ -249,6 +249,30 @@
                     (raw-frame-ref frame context where bad)))))))))
     (get-register-value nil last-catch index)))
 
+(defun %set-register-argument-value (context cfp regval new)
+  (let* ((last-catch (last-catch-since cfp context))
+         (index (register-number->saved-register-index regval)))
+    (do* ((frame cfp
+                 (child-frame frame context))
+          (first t))
+         ((null frame))
+      (if (fake-stack-frame-p frame)
+        (return-from %set-register-argument-value
+          (setf (xp-gpr-lisp (%fake-stack-frame.xp frame) regval) new))
+        (if first
+          (setq first nil)
+          (multiple-value-bind (lfun pc)
+              (cfp-lfun frame)
+            (when lfun
+              (multiple-value-bind (mask where)
+                  (registers-used-by lfun pc)
+                (when (if mask (logbitp index mask))
+                  (incf where (logcount (logandc2 mask (1- (ash 1 (1+ index))))))
+                  (return-from
+                   %set-register-argument-value
+                    (raw-frame-set frame context where new)))))))))
+    (set-register-value new nil last-catch index)))
+
 (defun %raw-frame-ref (cfp context idx bad)
   (declare (fixnum idx))
   (multiple-value-bind (frame base)
@@ -271,6 +295,29 @@
                 (oldest-binding-frame-value context addr)
                 (%fixnum-ref addr)))))
         bad))))
+
+(defun %raw-frame-set (cfp context idx new)
+  (declare (fixnum idx))
+  (multiple-value-bind (frame base)
+      (vsp-limits cfp context)
+    (let* ((raw-size (- base frame)))
+      (declare (fixnum frame base raw-size))
+      (if (and (>= idx 0)
+               (< idx raw-size))
+        (let* ((addr (- (the fixnum (1- base))
+                        idx)))
+          (multiple-value-bind (db-count first-db last-db)
+              (count-db-links-in-frame frame base context)
+            (let* ((is-db-link
+                    (unless (zerop db-count)
+                      (do* ((last last-db (previous-db-link last first-db)))
+                           ((null last))
+                        (when (= addr last)
+                          (return t))))))
+              (if is-db-link
+                (setf (oldest-binding-frame-value context addr) new)
+                (setf (%fixnum-ref addr) new))))
+          t)))))
 
 ;;; Used for printing only.
 (defun index->address (p)

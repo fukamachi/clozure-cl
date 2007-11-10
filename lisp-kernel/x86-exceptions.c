@@ -232,13 +232,17 @@ handle_gc_trap(ExceptionInformation *xp, TCR *tcr)
       }
       fatal_oserr(": save_application", err);
     }
-    if (selector == GC_TRAP_FUNCTION_SET_HONS_AREA_SIZE) {
-      LispObj aligned_arg = align_to_power_of_2(arg, log2_nbits_in_word);
-      signed_natural 
-	delta_dnodes = ((signed_natural) aligned_arg) - 
-	((signed_natural) tenured_area->static_dnodes);
-      change_hons_area_size_from_xp(xp, delta_dnodes*dnode_size);
-      xpGPR(xp, Iimm0) = tenured_area->static_dnodes;
+    switch (selector) {
+    case GC_TRAP_FUNCTION_SET_HONS_AREA_SIZE:
+      xpGPR(xp, Iimm0) = 0;
+      break;
+    case GC_TRAP_FUNCTION_FREEZE:
+      a->active = (BytePtr) align_to_power_of_2(a->active, log2_page_size);
+      tenured_area->static_dnodes = area_dnode(a->active, a->low);
+      xpGPR(xp, Iimm0) = tenured_area->static_dnodes << dnode_shift;
+      break;
+    default:
+      break;
     }
     if (egc_was_enabled) {
       egc_control(true, NULL);
@@ -832,6 +836,10 @@ handle_exception(int signum, siginfo_t *info, ExceptionInformation  *context, TC
 	callback_for_interrupt(tcr,context);
 	xpPC(context)+=3;
 	return true;
+
+      case XUUO_SUSPEND_NOW:
+	xpPC(context)+=3;
+	return true;
 	
       default:
 	return false;
@@ -957,6 +965,10 @@ signal_handler(int signum, siginfo_t *info, ExceptionInformation  *context, TCR 
 
   old_valence = prepare_to_wait_for_exception_lock(tcr, context);
 #endif
+  if (tcr->flags & (1<<TCR_FLAG_BIT_PENDING_SUSPEND)) {
+    CLR_TCR_FLAG(tcr, TCR_FLAG_BIT_PENDING_SUSPEND);
+    pthread_kill(pthread_self(), thread_suspend_signal);
+  }
   wait_for_exception_lock_in_handler(tcr,context, &xframe_link);
 
 
@@ -1138,7 +1150,7 @@ handle_signal_on_foreign_stack(TCR *tcr,
 void
 arbstack_signal_handler(int signum, siginfo_t *info, ExceptionInformation *context)
 {
-  TCR *tcr = get_interrupt_tcr(false); 
+  TCR *tcr = get_interrupt_tcr(false);
 #if 1
   if (tcr->valence != TCR_STATE_LISP) {
     FBug(context, "exception in foreign context");
@@ -1147,6 +1159,7 @@ arbstack_signal_handler(int signum, siginfo_t *info, ExceptionInformation *conte
   {
     area *vs = tcr->vs_area;
     BytePtr current_sp = (BytePtr) current_stack_pointer();
+
 
     if ((current_sp >= vs->low) &&
         (current_sp < vs->high)) {
@@ -1185,6 +1198,15 @@ altstack_signal_handler(int signum, siginfo_t *info, ExceptionInformation  *cont
 }
 #endif
 
+Boolean
+stack_pointer_on_vstack_p(LispObj stack_pointer, TCR *tcr)
+{
+  area *a = tcr->vs_area;
+ 
+  return (((BytePtr)stack_pointer <= a->high) &&
+          ((BytePtr)stack_pointer > a->low));
+}
+
 void
 interrupt_handler (int signum, siginfo_t *info, ExceptionInformation *context)
 {
@@ -1195,7 +1217,9 @@ interrupt_handler (int signum, siginfo_t *info, ExceptionInformation *context)
   if (tcr) {
     if ((TCR_INTERRUPT_LEVEL(tcr) < 0) ||
         (tcr->valence != TCR_STATE_LISP) ||
-        (tcr->unwinding != 0)) {
+        (tcr->unwinding != 0) ||
+        ! stack_pointer_on_vstack_p(xpGPR(context,Isp), tcr) ||
+        ! stack_pointer_on_vstack_p(xpGPR(context,Irbp), tcr)) {
       tcr->interrupt_pending = (1L << (nbits_in_word - 1L));
     } else {
       LispObj cmain = nrs_CMAIN.vcell;
@@ -1927,12 +1951,6 @@ gc_like_from_xp(ExceptionInformation *xp,
 }
 
 int
-change_hons_area_size_from_xp(ExceptionInformation *xp, signed_natural delta_in_bytes)
-{
-  return gc_like_from_xp(xp, change_hons_area_size, delta_in_bytes);
-}
-
-int
 purify_from_xp(ExceptionInformation *xp, signed_natural param)
 {
   return gc_like_from_xp(xp, purify, param);
@@ -2143,7 +2161,7 @@ do_pseudo_sigreturn(mach_port_t thread, TCR *tcr)
     restore_mach_thread_state(thread, xp);
     raise_pending_interrupt(tcr);
   } else {
-    FBug(NULL, "no xp here!\n");
+    Bug(NULL, "no xp here!\n");
   }
 #ifdef DEBUG_MACH_EXCEPTIONS
   fprintf(stderr, "did pseudo_sigreturn for 0x%x\n",tcr);

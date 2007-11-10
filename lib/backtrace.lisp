@@ -238,6 +238,25 @@
               (uvref value 0)
               value)))))))
 
+;;; Returns non-nil on success (not newval)
+(defun set-map-entry-value (context cfp lfun pc idx newval)
+  (declare (fixnum pc idx))
+  (let* ((unavailable (cons nil nil))
+         (value (map-entry-value context cfp lfun pc idx unavailable)))
+    (if (eq value unavailable)
+      nil
+      (if (typep value 'value-cell)
+        (progn (setf (uvref value 0) newval) t)
+
+        (let* ((addrs (cdr (function-symbol-map lfun)))
+               (addr (svref addrs (the fixnum (* 3 idx)))))
+          (declare (fixnum  addr))
+          (if (= #o77 (ldb (byte 6 0) addr))
+            (raw-frame-set cfp context (ash addr (- (+ target::word-shift 6))) newval)
+            (set-register-argument-value context cfp addr newval))
+          t)))))
+
+          
 (defun argument-value (context cfp lfun pc name &optional (quote t))
   (declare (fixnum pc))
   (let* ((info (function-symbol-map lfun))
@@ -273,9 +292,16 @@
 
 (defun raw-frame-ref (cfp context index bad)
   (%raw-frame-ref cfp context index bad))
+
+(defun raw-frame-set (cfp context index new)
+  (%raw-frame-set cfp context index new))
   
 (defun find-register-argument-value (context cfp regval bad)
   (%find-register-argument-value context cfp regval bad))
+
+(defun set-register-argument-value (context cfp regval newval)
+  (%set-register-argument-value context cfp regval newval))
+
     
 
 (defun dbg-form (frame-number)
@@ -390,6 +416,60 @@
                   (push i indices)
                   (push (svref names i) vars))))))))))
 
+
+(defun arg-value (context cfp lfun pc unavailable name)
+  (multiple-value-bind (vars map-indices) (variables-in-scope lfun pc)
+    (multiple-value-bind (valid req opt rest keys)
+        (arg-names-from-map lfun pc)
+      (if valid
+        (let* ((nargs (+ (length req) (length opt) (if rest 1 0) (length keys)))
+               (pos (position name vars)))
+          (if (and pos (< pos nargs))
+            (map-entry-value context cfp lfun pc (nth pos map-indices) unavailable)
+            unavailable))
+        unavailable))))
+
+(defun local-value (context cfp lfun pc unavailable name)
+  (multiple-value-bind (vars map-indices) (variables-in-scope lfun pc)
+    (multiple-value-bind (valid req opt rest keys)
+        (arg-names-from-map lfun pc)
+      (if valid
+        (let* ((nargs (+ (length req) (length opt) (if rest 1 0) (length keys)))
+               (names (nthcdr nargs vars))
+               (indices (nthcdr nargs map-indices))
+               (pos (if (typep name 'unsigned-byte)
+                      name
+                      (position name names :from-end t))))
+          (if (and pos (< pos nargs))
+            (map-entry-value context cfp lfun pc (nth pos indices) unavailable)
+            unavailable))
+        unavailable))))
+
+(defun set-arg-value (context cfp lfun pc name new)
+  (multiple-value-bind (vars map-indices) (variables-in-scope lfun pc)
+    (multiple-value-bind (valid req opt rest keys)
+        (arg-names-from-map lfun pc)
+      (if valid
+        (let* ((nargs (+ (length req) (length opt) (if rest 1 0) (length keys)))
+               (pos (position name vars)))
+          (when (and pos (< pos nargs))
+            (set-map-entry-value context cfp lfun pc (nth pos map-indices) new)))))))
+
+(defun set-local-value (context cfp lfun pc name new)
+  (multiple-value-bind (vars map-indices) (variables-in-scope lfun pc)
+    (multiple-value-bind (valid req opt rest keys)
+        (arg-names-from-map lfun pc)
+      (if valid
+        (let* ((nargs (+ (length req) (length opt) (if rest 1 0) (length keys)))
+               (names (nthcdr nargs vars))
+               (indices (nthcdr nargs map-indices))
+               (pos (if (typep name 'unsigned-byte)
+                      name
+                      (position name names :from-end t))))
+          (if (and pos (< pos nargs))
+            (set-map-entry-value context cfp lfun pc (nth pos indices) new)))))))
+
+
 (defun arguments-and-locals (context cfp lfun pc &optional unavailable)
   (multiple-value-bind (vars map-indices) (variables-in-scope lfun pc)
     (collect ((args)
@@ -462,6 +542,20 @@
               (if context
                 (symbol-value-in-tcr symbol (bt.tcr context))
                 (%sym-value symbol)))))
+      (if (eq (%fixnum-ref db (ash 1 target::fixnum-shift)) binding-index)
+        (setq oldest db)))))
+
+(defun (setf oldest-binding-frame-value) (new context frame)
+  (let* ((oldest nil)
+         (binding-index (%fixnum-ref frame (ash 1 target::fixnum-shift))))
+    (do* ((db (db-link context) (%fixnum-ref db 0)))
+         ((eq frame db)
+          (if oldest
+            (setf (%fixnum-ref oldest (ash 2 target::fixnum-shift)) new)
+            (let* ((symbol (binding-index-symbol binding-index)))
+              (if context
+                (setf (symbol-value-in-tcr symbol (bt.tcr context)) new)
+                (%set-sym-value symbol new)))))
       (if (eq (%fixnum-ref db (ash 1 target::fixnum-shift)) binding-index)
         (setq oldest db)))))
     

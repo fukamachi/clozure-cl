@@ -3252,14 +3252,16 @@
     (:unicode . :unicode)))
 
 
-    
+(defun optimal-buffer-size (fd)
+  (or (nth-value 6 (%fstat fd)) *elements-per-buffer*))
+
 
 ;;; Note that we can get "bivalent" streams by specifiying :character-p t
 ;;; with a reasonable element-type (e.g. (UNSIGNED-BYTE 8))
 (defun make-fd-stream (fd &key
 			  (direction :input)
 			  (interactive t)
-			  (elements-per-buffer *elements-per-buffer*)
+			  (elements-per-buffer (optimal-buffer-size fd))
 			  (element-type 'character)
 			  (class 'fd-stream)
                           (sharing :private)
@@ -3267,7 +3269,8 @@
                                            (subtypep element-type 'character)))
                           (basic nil)
                           encoding
-                          line-termination)
+                          line-termination
+                          auto-close)
   (when line-termination
     (setq line-termination
           (cdr (assoc line-termination *canonical-line-termination-conventions*))))
@@ -3277,24 +3280,31 @@
   (let* ((in-p (member direction '(:io :input)))
          (out-p (member direction '(:io :output)))
          (class-name (select-stream-class class in-p out-p character-p))
-         (class (find-class class-name)))
-    (make-ioblock-stream class
-			 :insize (if in-p elements-per-buffer)
-			 :outsize (if out-p elements-per-buffer)
-			 :device fd
-			 :interactive interactive
-			 :element-type element-type
-			 :advance-function (if in-p
-                                             (select-stream-advance-function class direction))
-			 :listen-function (if in-p 'fd-stream-listen)
-			 :eofp-function (if in-p 'fd-stream-eofp)
-			 :force-output-function (if out-p
-                                                  (select-stream-force-output-function class direction))
-			 :close-function 'fd-stream-close
-                         :sharing sharing
-                         :character-p character-p
-                         :encoding encoding
-                         :line-termination line-termination)))
+         (class (find-class class-name))
+         (stream
+          (make-ioblock-stream class
+                               :insize (if in-p elements-per-buffer)
+                               :outsize (if out-p elements-per-buffer)
+                               :device fd
+                               :interactive interactive
+                               :element-type element-type
+                               :advance-function (if in-p
+                                                    (select-stream-advance-function class direction))
+                               :listen-function (if in-p 'fd-stream-listen)
+                               :eofp-function (if in-p 'fd-stream-eofp)
+                               :force-output-function (if out-p
+                                                         (select-stream-force-output-function class direction))
+                               :close-function 'fd-stream-close
+                               :sharing sharing
+                               :character-p character-p
+                               :encoding encoding
+                               :line-termination line-termination)))
+    (if auto-close
+       (terminate-when-unreachable stream
+                                   (lambda (stream)
+                                     (close stream :abort t))))
+    stream))
+
   
 ;;;  Fundamental streams.
 
@@ -3586,8 +3596,7 @@
     (apply #'initialize-basic-stream s initargs)
     s))
 
-(defmethod %stream-ioblock ((s basic-stream))
-  (basic-stream.state s))
+
 
 (defmethod (setf stream-ioblock) (ioblock (s basic-stream))
   (setf (basic-stream.state s) ioblock))
@@ -4629,7 +4638,9 @@
 (declaim (inline stream-ioblock))
 
 (defun stream-ioblock (stream error-if-nil)
-  (or (%stream-ioblock stream)
+  (or (if (typep stream 'basic-stream)
+        (basic-stream.state stream)
+        (%stream-ioblock stream))
       (when error-if-nil
         (stream-is-closed stream))))
 
@@ -4739,7 +4750,7 @@
       (and ioblock (%ioblock-surrounding-characters ioblock))))
 
 (defmethod stream-surrounding-characters ((stream basic-character-input-stream))
-    (let* ((ioblock (stream-ioblock stream nil)))
+    (let* ((ioblock (basic-stream.state stream)))
       (and ioblock (%ioblock-surrounding-characters ioblock))))
 
 
@@ -5351,6 +5362,7 @@
   (unread-data-available-p (ioblock-device ioblock)))
 
 (defun fd-stream-close (s ioblock)
+  (cancel-terminate-when-unreachable s)
   (when (ioblock-dirty ioblock)
     (stream-finish-output s))
   (let* ((fd (ioblock-device ioblock)))
@@ -5708,10 +5720,10 @@ are printed.")
     ef))
 
 (defmethod stream-external-format ((s basic-character-stream))
-  (%ioblock-external-format (stream-ioblock s t)))
+  (%ioblock-external-format (basic-stream-ioblock s)))
 
 (defmethod (setf stream-external-format) (new (s basic-character-stream))
-  (setf (%ioblock-external-format (stream-ioblock s t))
+  (setf (%ioblock-external-format (basic-stream-ioblock s))
         (normalize-external-format (stream-domain s) new)))
 
 (defmethod stream-external-format ((s buffered-stream-mixin))

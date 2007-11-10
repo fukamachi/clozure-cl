@@ -825,7 +825,9 @@
     (op-e ds bytemode sizeflag)))
 
 (defun nop-fixup (ds bytemode sizeflag)
-  (declare (ignore bytemode sizeflag))
+  (declare (ignore bytemode sizeflag)
+           (ignorable ds))
+  #+nothing
   (if (logtest (x86-ds-prefixes ds) +prefix-repz+)
     (break "should be PAUSE")))
 

@@ -180,8 +180,8 @@
     (arglist          "ccl:bin;arglist"          ("ccl:lib;arglist.lisp"))
 
     (edit-callers	   "ccl:bin;edit-callers"   ("ccl:lib;edit-callers.lisp"))
-    (hash-cons        "ccl:library;hash-cons"    ("ccl:library;hash-cons.lisp"))
-; (step             "ccl:bin;step"           ("ccl:lib;step.lisp"))
+    ;; (hash-cons        "ccl:library;hash-cons"    ("ccl:library;hash-cons.lisp"))
+    ;; (step             "ccl:bin;step"           ("ccl:lib;step.lisp"))
     (ccl-export-syms  "ccl:bin;ccl-export-syms"  ("ccl:lib;ccl-export-syms.lisp"))
     (systems          "ccl:bin;systems"        ("ccl:lib;systems.lisp"))
     (compile-ccl      "ccl:bin;compile-ccl"    ("ccl:lib;compile-ccl.lisp"))

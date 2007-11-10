@@ -46,7 +46,18 @@
 #include "lisp_globals.h"
 #include "gc.h"
 
+#ifdef USE_FUTEX
+#include <linux/futex.h>
+#include <sys/syscall.h>
+#endif
+
+#include <syslog.h>
+
 Boolean extern threads_initialized;
+Boolean extern log_tcr_info;
+
+#define LOCK_SPINLOCK(x,tcr) get_spin_lock(&(x),tcr)
+#define RELEASE_SPINLOCK(x) (x)=0
 
 #define TCR_TO_TSD(tcr) ((void *)((natural)(tcr)+TCR_BIAS))
 #define TCR_FROM_TSD(tsd) ((TCR *)((natural)(tsd)-TCR_BIAS))
@@ -55,6 +66,7 @@ Boolean extern threads_initialized;
 typedef sem_t * SEMAPHORE;
 #define SEM_WAIT(s) sem_wait((SEMAPHORE)s)
 #define SEM_RAISE(s) sem_post((SEMAPHORE)s)
+#define SEM_BROADCAST(s, count) do {while(count) {SEM_RAISE(s);(count)--;}}while(0)
 #define SEM_TIMEDWAIT(s,t) sem_timedwait((SEMAPHORE)s,(struct timespec *)t)
 #endif
 
@@ -62,6 +74,7 @@ typedef sem_t * SEMAPHORE;
 typedef semaphore_t SEMAPHORE;
 #define SEM_WAIT(s) semaphore_wait((SEMAPHORE)(natural)s)
 #define SEM_RAISE(s) semaphore_signal((SEMAPHORE)(natural)s)
+#define SEM_BROADCAST(s,count)semaphore_signal_all((SEMAPHORE)(natural)s)
 #define SEM_TIMEDWAIT(s,t) semaphore_timedwait((SEMAPHORE)(natural)s,t)
 #endif
 
@@ -120,35 +133,30 @@ TCR *get_interrupt_tcr(Boolean);
 Boolean suspend_tcr(TCR *);
 Boolean resume_tcr(TCR *);
 
-typedef struct _rwquentry 
-{
-  struct _rwquentry *prev;
-  struct _rwquentry *next;
-  TCR *tcr;
-  int count;
-} rwquentry;
-
 typedef struct
 {
-  rwquentry head;
-  int state;                    /* sum of all counts on queue */
-  pthread_mutex_t *lock;        /* lock access to this data structure */
-  pthread_cond_t *reader_signal;
-  pthread_cond_t *writer_signal;
-  int write_wait_count;
-  int read_wait_count;
-  int dying;
-  rwquentry freelist;
+  signed_natural spin; /* need spin lock to change fields */
+  signed_natural state; /* 0 = free, positive if writer, negative if readers; */
+  natural blocked_writers;
+  natural blocked_readers;
+  TCR  *writer;
+#ifdef USE_FUTEX
+  natural reader_signal;
+  natural writer_signal;
+#else
+  void * reader_signal;
+  void * writer_signal;
+#endif
+  void *malloced_ptr;
 } rwlock;
 
-#define RWLOCK_WRITER(rw) rw->head.tcr
-#define RWLOCK_WRITE_COUNT(rw) rw->head.count
 
 rwlock * rwlock_new(void);
-int rwlock_destroy(rwlock *);
+void rwlock_destroy(rwlock *);
 int rwlock_rlock(rwlock *, TCR *, struct timespec *);
 int rwlock_wlock(rwlock *, TCR *, struct timespec *);
 int rwlock_try_wlock(rwlock *, TCR *);
+int rwlock_try_rlock(rwlock *, TCR *);
 int rwlock_unlock(rwlock *, TCR *);
 
 

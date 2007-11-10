@@ -17,18 +17,6 @@
 #ifndef __ERRORS_X
 #define __ERRORS_X 1
 
-/*
-10/22/96 bill error_too_many_values
---- 4.0 ---
-05/12/96  gb  conditionalize on __ERRORS_X to avoid conflict with <errors.h>
---- 3.9 ---
-04/10/96  gb  error_memory_full
-04/09/96  gb  error_excised_function_call
-03/01/96  gb  FPU exceptions
-01/22/96  gb  add/rename error_alloc_failed, error_stack_overflow
-12/13/95  gb  add error_alloc_fail, error_throw_tag_missing.
-11/09/95  gb  in synch with %type-error-types%.
-*/
 
 #define error_reg_regnum 0
 #define error_udf 1
@@ -38,6 +26,7 @@
 #define error_stack_overflow 5
 #define error_excised_function_call 6
 #define error_too_many_values 7
+#define error_propagate_suspend 10
 #define error_cant_call 17
 
 #define error_type_error 128

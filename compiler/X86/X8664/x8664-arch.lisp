@@ -212,8 +212,8 @@
 
 (defx86reg save3 r11)
 (defx86reg save3.l r11d)
-(defx86reg save3.w r10w)
-(defx86reg save3.b r10b)
+(defx86reg save3.w r11w)
+(defx86reg save3.b r11b)
 
 (defx86reg save2 r12)
 (defx86reg save2.l r12d)
@@ -723,6 +723,17 @@
   waiting
   malloced-ptr
   spinlock)
+
+(define-storage-layout rwlock 0
+  spin
+  state
+  blocked-writers
+  blocked-readers
+  writer
+  reader-signal
+  writer-signal
+  malloced-ptr
+  )
 
 (defmacro define-header (name element-count subtag)
   `(defconstant ,name (logior (ash ,element-count num-subtag-bits) ,subtag)))

@@ -43,6 +43,13 @@ store_conditional(natural*, natural, natural);
 extern signed_natural
 atomic_swap(signed_natural*, signed_natural);
 
+#ifdef USE_FUTEX
+#define futex_wait(futex,val) syscall(SYS_futex,futex,FUTEX_WAIT,val)
+#define futex_wake(futex,n) syscall(SYS_futex,futex,FUTEX_WAKE,n)
+#define FUTEX_AVAIL (0)
+#define FUTEX_LOCKED (1)
+#define FUTEX_CONTENDED (2)
+#endif
 
 int
 raise_thread_interrupt(TCR *target)
@@ -86,6 +93,7 @@ atomic_decf(signed_natural *ptr)
 }
 
 
+#ifndef USE_FUTEX
 int spin_lock_tries = 1;
 
 void
@@ -102,8 +110,9 @@ get_spin_lock(signed_natural *p, TCR *tcr)
     sched_yield();
   }
 }
+#endif
 
-
+#ifndef USE_FUTEX
 int
 lock_recursive_lock(RECURSIVE_LOCK m, TCR *tcr)
 {
@@ -116,21 +125,68 @@ lock_recursive_lock(RECURSIVE_LOCK m, TCR *tcr)
     return 0;
   }
   while (1) {
-    get_spin_lock(&(m->spinlock),tcr);
+    LOCK_SPINLOCK(m->spinlock,tcr);
     ++m->avail;
     if (m->avail == 1) {
       m->owner = tcr;
       m->count = 1;
-      m->spinlock = 0;
+      RELEASE_SPINLOCK(m->spinlock);
       break;
     }
-    m->spinlock = 0;
+    RELEASE_SPINLOCK(m->spinlock);
     SEM_WAIT_FOREVER(m->signal);
   }
   return 0;
 }
 
+#else /* USE_FUTEX */
+
+static void inline
+lock_futex(natural *p)
+{
   
+  while (1) {
+    if (store_conditional(p,FUTEX_AVAIL,FUTEX_LOCKED) == FUTEX_AVAIL) {
+      return;
+    }
+    while (1) {
+      if (atomic_swap(p,FUTEX_CONTENDED) == FUTEX_AVAIL) {
+        return;
+      }
+      futex_wait(p,FUTEX_CONTENDED);
+    }
+  }
+}
+
+static void inline
+unlock_futex(natural *p)
+{
+  if (atomic_decf(p) != FUTEX_AVAIL) {
+    *p = FUTEX_AVAIL;
+    futex_wake(p,INT_MAX);
+  }
+}
+    
+int
+lock_recursive_lock(RECURSIVE_LOCK m, TCR *tcr)
+{
+  natural val;
+  if (tcr == NULL) {
+    tcr = get_tcr(true);
+  }
+  if (m->owner == tcr) {
+    m->count++;
+    return 0;
+  }
+  lock_futex(&m->avail);
+  m->owner = tcr;
+  m->count = 1;
+  return 0;
+}
+#endif /* USE_FUTEX */
+
+
+#ifndef USE_FUTEX  
 int
 unlock_recursive_lock(RECURSIVE_LOCK m, TCR *tcr)
 {
@@ -143,7 +199,7 @@ unlock_recursive_lock(RECURSIVE_LOCK m, TCR *tcr)
   if (m->owner == tcr) {
     --m->count;
     if (m->count == 0) {
-      get_spin_lock(&(m->spinlock),tcr);
+      LOCK_SPINLOCK(m->spinlock,tcr);
       m->owner = NULL;
       pending = m->avail-1 + m->waiting;     /* Don't count us */
       m->avail = 0;
@@ -153,7 +209,7 @@ unlock_recursive_lock(RECURSIVE_LOCK m, TCR *tcr)
       } else {
         m->waiting = 0;
       }
-      m->spinlock = 0;
+      RELEASE_SPINLOCK(m->spinlock);
       if (pending >= 0) {
 	SEM_RAISE(m->signal);
       }
@@ -162,11 +218,34 @@ unlock_recursive_lock(RECURSIVE_LOCK m, TCR *tcr)
   }
   return ret;
 }
+#else /* USE_FUTEX */
+int
+unlock_recursive_lock(RECURSIVE_LOCK m, TCR *tcr)
+{
+  int ret = EPERM, pending;
+
+   if (tcr == NULL) {
+    tcr = get_tcr(true);
+  }
+
+  if (m->owner == tcr) {
+    --m->count;
+    if (m->count == 0) {
+      m->owner = NULL;
+      unlock_futex(&m->avail);
+    }
+    ret = 0;
+  }
+  return ret;
+}
+#endif /* USE_FUTEX */
 
 void
 destroy_recursive_lock(RECURSIVE_LOCK m)
 {
+#ifndef USE_FUTEX
   destroy_semaphore((void **)&m->signal);
+#endif
   postGCfree((void *)(m->malloced_ptr));
 }
 
@@ -176,6 +255,35 @@ destroy_recursive_lock(RECURSIVE_LOCK m)
   waiting.
 */
 
+#ifndef USE_FUTEX
+int
+recursive_lock_trylock(RECURSIVE_LOCK m, TCR *tcr, int *was_free)
+{
+  TCR *owner = m->owner;
+
+  LOCK_SPINLOCK(m->spinlock,tcr);
+  if (owner == tcr) {
+    m->count++;
+    if (was_free) {
+      *was_free = 0;
+      RELEASE_SPINLOCK(m->spinlock);
+      return 0;
+    }
+  }
+  if (store_conditional((natural*)&(m->avail), 0, 1) == 0) {
+    m->owner = tcr;
+    m->count = 1;
+    if (was_free) {
+      *was_free = 1;
+    }
+    RELEASE_SPINLOCK(m->spinlock);
+    return 0;
+  }
+
+  RELEASE_SPINLOCK(m->spinlock);
+  return EBUSY;
+}
+#else
 int
 recursive_lock_trylock(RECURSIVE_LOCK m, TCR *tcr, int *was_free)
 {
@@ -199,6 +307,7 @@ recursive_lock_trylock(RECURSIVE_LOCK m, TCR *tcr, int *was_free)
 
   return EBUSY;
 }
+#endif
 
 void
 sem_wait_forever(SEMAPHORE s)
@@ -220,15 +329,15 @@ sem_wait_forever(SEMAPHORE s)
 }
 
 int
-wait_on_semaphore(SEMAPHORE s, int seconds, int millis)
+wait_on_semaphore(void *s, int seconds, int millis)
 {
   int nanos = (millis % 1000) * 1000000;
-#if defined(LINUX) || defined(FREEBSD)
+#ifdef USE_POSIX_SEMAPHORES
   int status;
 
   struct timespec q;
   gettimeofday((struct timeval *)&q, NULL);
-  q.tv_nsec *= 1000L;
+  q.tv_nsec *= 1000L;  /* microseconds -> nanoseconds */
     
   q.tv_nsec += nanos;
   if (q.tv_nsec >= 1000000000L) {
@@ -257,6 +366,16 @@ wait_on_semaphore(SEMAPHORE s, int seconds, int millis)
 #endif
 }
 
+
+int
+semaphore_maybe_timedwait(void *s, struct timespec *t)
+{
+  if (t) {
+    return wait_on_semaphore(s, t->tv_sec, t->tv_nsec/1000000L);
+  }
+  SEM_WAIT_FOREVER(s);
+  return 0;
+}
 
 void
 signal_semaphore(SEMAPHORE s)
@@ -297,43 +416,47 @@ suspend_resume_handler(int signo, siginfo_t *info, ExceptionInformation *context
 #endif
   TCR *tcr = get_interrupt_tcr(false);
 
-  if (signo == thread_suspend_signal) {
+  if (TCR_INTERRUPT_LEVEL(tcr) <= (-2<<fixnumshift)) {
+    SET_TCR_FLAG(tcr,TCR_FLAG_BIT_PENDING_SUSPEND);
+  } else {
+    if (signo == thread_suspend_signal) {
 #if 0
-    sigset_t wait_for;
+      sigset_t wait_for;
 #endif
 
-    tcr->suspend_context = context;
+      tcr->suspend_context = context;
 #if 0
-    sigfillset(&wait_for);
+      sigfillset(&wait_for);
 #endif
-    SEM_RAISE(tcr->suspend);
+      SEM_RAISE(tcr->suspend);
 #if 0
-    sigdelset(&wait_for, thread_resume_signal);
+      sigdelset(&wait_for, thread_resume_signal);
 #endif
 #if 1
 #if RESUME_VIA_RESUME_SEMAPHORE
-    SEM_WAIT_FOREVER(tcr->resume);
+      SEM_WAIT_FOREVER(tcr->resume);
 #if SUSPEND_RESUME_VERBOSE
-    fprintf(stderr, "got  resume in 0x%x\n",tcr);
+      fprintf(stderr, "got  resume in 0x%x\n",tcr);
 #endif
-    tcr->suspend_context = NULL;
+      tcr->suspend_context = NULL;
 #else
-    sigsuspend(&wait_for);
+      sigsuspend(&wait_for);
 #endif
 #else
     do {
       sigsuspend(&wait_for);
     } while (tcr->suspend_context);
 #endif  
-  } else {
-    tcr->suspend_context = NULL;
+    } else {
+      tcr->suspend_context = NULL;
 #if SUSEPEND_RESUME_VERBOSE
-    fprintf(stderr,"got  resume in in 0x%x\n",tcr);
+      fprintf(stderr,"got  resume in in 0x%x\n",tcr);
+#endif
+    }
+#if WAIT_FOR_RESUME_ACK
+    SEM_RAISE(tcr->suspend);
 #endif
   }
-#if WAIT_FOR_RESUME_ACK
-  SEM_RAISE(tcr->suspend);
-#endif
 #ifdef DARWIN_GS_HACK
   if (gs_was_tcr) {
     set_gs_address(tcr);
@@ -406,13 +529,20 @@ new_recursive_lock()
   extern int cache_block_size;
   void *p = calloc(1,sizeof(_recursive_lock)+cache_block_size-1);
   RECURSIVE_LOCK m = NULL;
+#ifndef USE_FUTEX
   void *signal = new_semaphore(0);
+#endif
 
   if (p) {
     m = (RECURSIVE_LOCK) ((((natural)p)+cache_block_size-1) & (~(cache_block_size-1)));
     m->malloced_ptr = p;
   }
 
+#ifdef USE_FUTEX
+  if (m) {
+    return m;
+  }
+#else
   if (m && signal) {
     m->signal = signal;
     return m;
@@ -423,6 +553,7 @@ new_recursive_lock()
   if (signal) {
     destroy_semaphore(&signal);
   }
+#endif
   return NULL;
 }
 
@@ -572,14 +703,12 @@ new_tcr(natural vstack_size, natural tstack_size)
   pthread_sigmask(SIG_SETMASK,&sigmask, NULL);
 #ifdef HAVE_TLS
   TCR *tcr = &current_tcr;
-#ifdef X8664
-  setup_tcr_extra_segment(tcr);
-#endif
 #else
   TCR *tcr = allocate_tcr();
 #endif
 
 #ifdef X8664
+  setup_tcr_extra_segment(tcr);
   tcr->linear = tcr;
 #endif
 
@@ -826,6 +955,7 @@ free_stack(void *s)
 
 Boolean threads_initialized = false;
 
+#ifndef USE_FUTEX
 void
 count_cpus()
 {
@@ -849,6 +979,8 @@ count_cpus()
   }
 #endif
 }
+#endif
+
 
 void
 init_threads(void * stack_base, TCR *tcr)
@@ -856,7 +988,10 @@ init_threads(void * stack_base, TCR *tcr)
   lisp_global(INITIAL_TCR) = (LispObj)ptr_to_lispobj(tcr);
   pthread_key_create((pthread_key_t *)&(lisp_global(TCR_KEY)), shutdown_thread_tcr);
   thread_signal_setup();
+
+#ifndef USE_FUTEX
   count_cpus();
+#endif
   threads_initialized = true;
 }
 
@@ -1334,160 +1469,35 @@ lisp_resume_other_threads()
 }
 
 
-/*
-  Try to take an rwquentry off of the rwlock's freelist; failing that,
-  malloc one.  The caller owns the lock on the rwlock itself, of course.
 
-*/
-rwquentry *
-recover_rwquentry(rwlock *rw)
-{
-  rwquentry *freelist = &(rw->freelist), 
-    *p = freelist->next, 
-    *follow = p->next;
-
-  if (p == freelist) {
-    p = NULL;
-  } else {
-    follow->prev = freelist;
-    freelist->next = follow;
-    p->prev = p->next = NULL;
-    p->tcr = NULL;
-    p->count = 0;
-  }
-  return p;
-}
-
-rwquentry *
-new_rwquentry(rwlock *rw)
-{
-  rwquentry *p = recover_rwquentry(rw);
-
-  if (p == NULL) {
-    p = calloc(1, sizeof(rwquentry));
-  }
-  return p;
-}
-
-
-void
-free_rwquentry(rwquentry *p, rwlock *rw)
-{
-  rwquentry 
-    *prev = p->prev, 
-    *next = p->next, 
-    *freelist = &(rw->freelist),
-    *follow = freelist->next;
-  
-  prev->next = next;
-  next->prev = prev;
-  p->prev = freelist;
-  freelist->next = p;
-  follow->prev = p;
-  p->next = follow;
-  p->prev = freelist;
-}
-  
-void
-add_rwquentry(rwquentry *p, rwlock *rw)
-{
-  rwquentry
-    *head = &(rw->head),
-    *follow = head->next;
-  
-  head->next = p;
-  follow->prev = p;
-  p->next = follow;
-  p->prev = head;
-}
-
-rwquentry *
-find_enqueued_tcr(TCR *target, rwlock *rw)
-{
-  rwquentry
-    *head = &(rw->head),
-    *p = head->next;
-
-  do {
-    if (p->tcr == target) {
-      return p;
-    }
-    p = p->next;
-  } while (p != head);
-  return NULL;
-}
-    
 rwlock *
 rwlock_new()
 {
-  rwlock *rw = calloc(1, sizeof(rwlock));
+  extern int cache_block_size;
+
+  void *p = calloc(1,sizeof(rwlock)+cache_block_size-1);
+  rwlock *rw;
   
-  if (rw) {
-    pthread_mutex_t *lock = calloc(1, sizeof(pthread_mutex_t));
-    if (lock == NULL) {
-      free (rw);
-      rw = NULL;
-    } else {
-      pthread_cond_t *reader_signal = calloc(1, sizeof(pthread_cond_t));
-      pthread_cond_t *writer_signal = calloc(1, sizeof(pthread_cond_t));
-      if ((reader_signal == NULL) || (writer_signal == NULL)) {
-        if (reader_signal) {
-          free(reader_signal);
-        } else {
-          free(writer_signal);
-        }
-       
-        free(lock);
-        free(rw);
-        rw = NULL;
+  if (p) {
+    rw = (rwlock *) ((((natural)p)+cache_block_size-1) & (~(cache_block_size-1)));
+    rw->malloced_ptr = p;
+#ifndef USE_FUTEX
+    rw->reader_signal = new_semaphore(0);
+    rw->writer_signal = new_semaphore(0);
+    if ((rw->reader_signal == NULL) || (rw->writer_signal == NULL)) {
+      if (rw->reader_signal) {
+        destroy_semaphore(&(rw->reader_signal));
       } else {
-        pthread_mutex_init(lock, NULL);
-        pthread_cond_init(reader_signal, NULL);
-        pthread_cond_init(writer_signal, NULL);
-        rw->lock = lock;
-        rw->reader_signal = reader_signal;
-        rw->writer_signal = writer_signal;
-        rw->head.prev = rw->head.next = &(rw->head);
-        rw->freelist.prev = rw->freelist.next = &(rw->freelist);
+        destroy_semaphore(&(rw->writer_signal));
       }
+      free(rw);
+      rw = NULL;
     }
+#endif
   }
   return rw;
 }
 
-/*
-  no thread should be waiting on the lock, and the caller has just
-  unlocked it.
-*/
-static void
-rwlock_delete(rwlock *rw)
-{
-  pthread_mutex_t *lock = rw->lock;
-  pthread_cond_t *cond;
-  rwquentry *entry;
-
-  rw->lock = NULL;
-  cond = rw->reader_signal;
-  rw->reader_signal = NULL;
-  pthread_cond_destroy(cond);
-  free(cond);
-  cond = rw->writer_signal;
-  rw->writer_signal = NULL;
-  pthread_cond_destroy(cond);
-  free(cond);
-  while (entry = recover_rwquentry(rw)) {
-    free(entry);
-  }
-  free(rw);
-  pthread_mutex_unlock(lock);
-  free(lock);
-}
-
-void
-rwlock_rlock_cleanup(void *arg)
-{
-  pthread_mutex_unlock((pthread_mutex_t *)arg);
-}
      
 /*
   Try to get read access to a multiple-readers/single-writer lock.  If
@@ -1497,229 +1507,316 @@ rwlock_rlock_cleanup(void *arg)
   thread has or is waiting for write access, then indicate that we
   hold read access once.
 */
+#ifndef USE_FUTEX
 int
 rwlock_rlock(rwlock *rw, TCR *tcr, struct timespec *waitfor)
 {
-  pthread_mutex_t *lock = rw->lock;
-  rwquentry *entry;
   int err = 0;
+  
+  LOCK_SPINLOCK(rw->spin, tcr);
 
-
-  pthread_mutex_lock(lock);
-
-  if (RWLOCK_WRITER(rw) == tcr) {
-    pthread_mutex_unlock(lock);
+  if (rw->writer == tcr) {
+    RELEASE_SPINLOCK(rw->spin);
     return EDEADLK;
   }
 
-  if (rw->state > 0) {
-    /* already some readers, we may be one of them */
-    entry = find_enqueued_tcr(tcr, rw);
-    if (entry) {
-      entry->count++;
-      rw->state++;
-      pthread_mutex_unlock(lock);
-      return 0;
+  while (rw->blocked_writers || (rw->state > 0)) {
+    rw->blocked_readers++;
+    RELEASE_SPINLOCK(rw->spin);
+    err = semaphore_maybe_timedwait(rw->reader_signal,waitfor);
+    LOCK_SPINLOCK(rw->spin,tcr);
+    rw->blocked_readers--;
+    if (err == EINTR) {
+      err = 0;
+    }
+    if (err) {
+      RELEASE_SPINLOCK(rw->spin);
+      return err;
     }
   }
-  entry = new_rwquentry(rw);
-  entry->tcr = tcr;
-  entry->count = 1;
-
-  pthread_cleanup_push(rwlock_rlock_cleanup,lock);
-
-  /* Wait for current and pending writers */
-  while ((err == 0) && ((rw->state < 0) || (rw->write_wait_count > 0))) {
-    if (waitfor) {
-      if (pthread_cond_timedwait(rw->reader_signal, lock, waitfor)) {
-        err = errno;
-      }
-    } else {
-      pthread_cond_wait(rw->reader_signal, lock);
-    }
-  }
-  
-  if (err == 0) {
-    add_rwquentry(entry, rw);
-    rw->state++;
-  }
-
-  pthread_cleanup_pop(1);
+  rw->state--;
+  RELEASE_SPINLOCK(rw->spin);
   return err;
 }
-
-
-/* 
-   This is here to support cancelation.  Cancelation is evil. 
-*/
-
-void
-rwlock_wlock_cleanup(void *arg)
+#else
+int
+rwlock_rlock(rwlock *rw, TCR *tcr, struct timespec *waitfor)
 {
-  rwlock *rw = (rwlock *)arg;
+  natural waitval;
 
-  /* If this thread was the only queued writer and the lock
-     is now available for reading, tell any threads that're
-     waiting for read access.
-     This thread owns the lock on the rwlock itself.
-  */
-  if ((--(rw->write_wait_count) == 0) &&
-      (rw->state >= 0)) {
-    pthread_cond_broadcast(rw->reader_signal);
+  lock_futex(&rw->spin);
+
+  if (rw->writer == tcr) {
+    unlock_futex(&rw->spin);
+    return EDEADLOCK;
   }
-  
-  pthread_mutex_unlock(rw->lock);
+  while (1) {
+    if (rw->writer == NULL) {
+      --rw->state;
+      unlock_futex(&rw->spin);
+      return 0;
+    }
+    rw->blocked_readers++;
+    waitval = rw->reader_signal;
+    unlock_futex(&rw->spin);
+    futex_wait(&rw->reader_signal,waitval);
+    lock_futex(&rw->spin);
+    rw->blocked_readers--;
+  }
+  return 0;
 }
+#endif   
+
 
 /*
   Try to obtain write access to the lock.
-  If we already have read access, fail with EDEADLK.
+  It is an error if we already have read access, but it's hard to
+  detect that.
   If we already have write access, increment the count that indicates
   that.
   Otherwise, wait until the lock is not held for reading or writing,
   then assert write access.
 */
 
+#ifndef USE_FUTEX
 int
 rwlock_wlock(rwlock *rw, TCR *tcr, struct timespec *waitfor)
 {
-  pthread_mutex_t *lock = rw->lock;
-  rwquentry *entry;
   int err = 0;
 
-
-  pthread_mutex_lock(lock);
-  if (RWLOCK_WRITER(rw) == tcr) {
-    --RWLOCK_WRITE_COUNT(rw);
-    --rw->state;
-    pthread_mutex_unlock(lock);
+  LOCK_SPINLOCK(rw->spin,tcr);
+  if (rw->writer == tcr) {
+    rw->state++;
+    RELEASE_SPINLOCK(rw->spin);
     return 0;
   }
-  
-  if (rw->state > 0) {
-    /* already some readers, we may be one of them */
-    entry = find_enqueued_tcr(tcr, rw);
-    if (entry) {
-      pthread_mutex_unlock(lock);
-      return EDEADLK;
-    }
-  }
-  rw->write_wait_count++;
-  pthread_cleanup_push(rwlock_wlock_cleanup,rw);
 
-  while ((err == 0) && (rw->state) != 0) {
-    if (waitfor) {
-      if (pthread_cond_timedwait(rw->writer_signal, lock, waitfor)) {
-        err = errno;
-      }
-    } else {
-      pthread_cond_wait(rw->writer_signal, lock);
+  while (rw->state != 0) {
+    rw->blocked_writers++;
+    RELEASE_SPINLOCK(rw->spin);
+    err = semaphore_maybe_timedwait(rw->writer_signal, waitfor);
+    LOCK_SPINLOCK(rw->spin,tcr);
+    rw->blocked_writers--;
+    if (err = EINTR) {
+      err = 0;
+    }
+    if (err) {
+      RELEASE_SPINLOCK(rw->spin);
+      return err;
     }
   }
-  if (err == 0) {
-    RWLOCK_WRITER(rw) = tcr;
-    RWLOCK_WRITE_COUNT(rw) = -1;
-    rw->state = -1;
-  }
-  pthread_cleanup_pop(1);
+  rw->state = 1;
+  rw->writer = tcr;
+  RELEASE_SPINLOCK(rw->spin);
   return err;
 }
 
+#else
+int
+rwlock_wlock(rwlock *rw, TCR *tcr, struct timespec *waitfor)
+{
+  int err = 0;
+  natural waitval;
+
+  lock_futex(&rw->spin);
+  if (rw->writer == tcr) {
+    rw->state++;
+    unlock_futex(&rw->spin);
+    return 0;
+  }
+
+  while (rw->state != 0) {
+    rw->blocked_writers++;
+    waitval = rw->writer_signal;
+    unlock_futex(&rw->spin);
+    futex_wait(&rw->writer_signal,waitval);
+    lock_futex(&rw->spin);
+    rw->blocked_writers--;
+  }
+  rw->state = 1;
+  rw->writer = tcr;
+  unlock_futex(&rw->spin);
+  return err;
+}
+#endif
+
 /*
   Sort of the same as above, only return EBUSY if we'd have to wait.
-  In partucular, distinguish between the cases of "some other readers
-  (EBUSY) another writer/queued writer(s)" (EWOULDBLOK) and "we hold a
-  read lock" (EDEADLK.)
 */
+#ifndef USE_FUTEX
 int
 rwlock_try_wlock(rwlock *rw, TCR *tcr)
 {
-  pthread_mutex_t *lock = rw->lock;
-  rwquentry *entry;
   int ret = EBUSY;
 
-  pthread_mutex_lock(lock);
-  if ((RWLOCK_WRITER(rw) == tcr) ||
-      ((rw->state == 0) && (rw->write_wait_count == 0))) {
-    RWLOCK_WRITER(rw) = tcr;
-    --RWLOCK_WRITE_COUNT(rw);
-    --rw->state;
-    pthread_mutex_unlock(lock);
-    return 0;
-  }
-  
-  if (rw->state > 0) {
-    /* already some readers, we may be one of them */
-    entry = find_enqueued_tcr(tcr, rw);
-    if (entry) {
-      ret = EDEADLK;
-    }
+  LOCK_SPINLOCK(rw->spin,tcr);
+  if (rw->writer == tcr) {
+    rw->state++;
+    ret = 0;
   } else {
-    /* another writer or queued writers */
-    ret = EWOULDBLOCK;
+    if (rw->state == 0) {
+      rw->writer = tcr;
+      rw->state = 1;
+      ret = 0;
+    }
   }
-  pthread_mutex_unlock(rw->lock);
+  RELEASE_SPINLOCK(rw->spin);
   return ret;
 }
-
-/*
-  "Upgrade" a lock held once or more for reading to one held the same
-  number of times for writing.
-  Upgraders have higher priority than writers do
-*/
-
+#else
 int
-rwlock_read_to_write(rwlock *rw, TCR *tcr)
+rwlock_try_wlock(rwlock *rw, TCR *tcr)
 {
+  int ret = EBUSY;
+
+  lock_futex(&rw->spin);
+  if (rw->writer == tcr) {
+    rw->state++;
+    ret = 0;
+  } else {
+    if (rw->state == 0) {
+      rw->writer = tcr;
+      rw->state = 1;
+      ret = 0;
+    }
+  }
+  unlock_futex(&rw->spin);
+  return ret;
 }
+#endif
+
+#ifndef USE_FUTEX
+int
+rwlock_try_rlock(rwlock *rw, TCR *tcr)
+{
+  int ret = EBUSY;
+
+  LOCK_SPINLOCK(rw->spin,tcr);
+  if (rw->state <= 0) {
+    --rw->state;
+    ret = 0;
+  }
+  RELEASE_SPINLOCK(rw->spin);
+  return ret;
+}
+#else
+int
+rwlock_try_rlock(rwlock *rw, TCR *tcr)
+{
+  int ret = EBUSY;
+
+  lock_futex(&rw->spin);
+  if (rw->state <= 0) {
+    --rw->state;
+    ret = 0;
+  }
+  unlock_futex(&rw->spin);
+  return ret;
+}
+#endif
 
 
+
+#ifndef USE_FUTEX
 int
 rwlock_unlock(rwlock *rw, TCR *tcr)
 {
-  rwquentry *entry;
 
-  pthread_mutex_lock(rw->lock);
-  if (rw->state < 0) {
-    /* Locked for writing.  By us ? */
-    if (RWLOCK_WRITER(rw) != tcr) {
-      pthread_mutex_unlock(rw->lock);
-      /* Can't unlock: locked for writing by another thread. */
-      return EPERM;
-    }
-    if (++RWLOCK_WRITE_COUNT(rw) == 0) {
-      rw->state = 0;
-      RWLOCK_WRITER(rw) = NULL;
-      if (rw->write_wait_count) {
-        pthread_cond_signal(rw->writer_signal);
-      } else {
-        pthread_cond_broadcast(rw->reader_signal);
+  int err = 0;
+  natural blocked_readers = 0;
+
+  LOCK_SPINLOCK(rw->spin,tcr);
+  if (rw->state > 0) {
+    if (rw->writer != tcr) {
+      err = EINVAL;
+    } else {
+      --rw->state;
+      if (rw->state == 0) {
+        rw->writer = NULL;
       }
     }
-    pthread_mutex_unlock(rw->lock);
-    return 0;
+  } else {
+    if (rw->state < 0) {
+      ++rw->state;
+    } else {
+      err = EINVAL;
+    }
   }
-  entry = find_enqueued_tcr(tcr, rw);
-  if (entry == NULL) {
-    /* Not locked for reading by us, so why are we unlocking it ? */
-    pthread_mutex_unlock(rw->lock);
-    return EPERM;
+  if (err) {
+    RELEASE_SPINLOCK(rw->spin);
+    return err;
   }
-  if (--entry->count == 0) {
-    free_rwquentry(entry, rw);
+  
+  if (rw->state == 0) {
+    if (rw->blocked_writers) {
+      SEM_RAISE(rw->writer_signal);
+    } else {
+      blocked_readers = rw->blocked_readers;
+      if (blocked_readers) {
+        SEM_BROADCAST(rw->reader_signal, blocked_readers);
+      }
+    }
   }
-  if (--rw->state == 0) {
-    pthread_cond_signal(rw->writer_signal);
-  }
-  pthread_mutex_unlock(rw->lock);
+  RELEASE_SPINLOCK(rw->spin);
   return 0;
 }
+#else
+int
+rwlock_unlock(rwlock *rw, TCR *tcr)
+{
+
+  int err = 0;
+
+  lock_futex(&rw->spin);
+  if (rw->state > 0) {
+    if (rw->writer != tcr) {
+      err = EINVAL;
+    } else {
+      --rw->state;
+      if (rw->state == 0) {
+        rw->writer = NULL;
+      }
+    }
+  } else {
+    if (rw->state < 0) {
+      ++rw->state;
+    } else {
+      err = EINVAL;
+    }
+  }
+  if (err) {
+    unlock_futex(&rw->spin);
+    return err;
+  }
+  
+  if (rw->state == 0) {
+    if (rw->blocked_writers) {
+      ++rw->writer_signal;
+      unlock_futex(&rw->spin);
+      futex_wake(&rw->writer_signal,1);
+      return 0;
+    }
+    if (rw->blocked_readers) {
+      ++rw->reader_signal;
+      unlock_futex(&rw->spin);
+      futex_wake(&rw->reader_signal, INT_MAX);
+      return 0;
+    }
+  }
+  unlock_futex(&rw->spin);
+  return 0;
+}
+#endif
 
         
-int
+void
 rwlock_destroy(rwlock *rw)
 {
-  return 0;                     /* for now. */
+#ifndef USE_FUTEX
+  destroy_semaphore((void **)&rw->reader_signal);
+  destroy_semaphore((void **)&rw->writer_signal);
+#endif
+  postGCfree((void *)(rw->malloced_ptr));
 }
 
 

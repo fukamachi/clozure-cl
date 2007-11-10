@@ -1044,7 +1044,7 @@
                         *xload-cold-load-documentation*
                         *xload-startup-file*))
       (%set-tcr-toplevel-function (%current-tcr) nil) ; should get reset by l1-boot.
-
+      (setq %system-locks% (%cons-population nil))
       ;; Need to make %ALL-PACKAGES-LOCK% early, so that we can casually
       ;; do SET-PACKAGE in cold load functions.
       (setq %all-packages-lock% (make-read-write-lock))

@@ -98,6 +98,7 @@ void switch_to_foreign_stack(void*, ...);
 
 #define XUUO_TLB_TOO_SMALL 1
 #define XUUO_INTERRUPT_NOW 2
+#define XUUO_SUSPEND_NOW 3
 
 void
 pc_luser_xp(ExceptionInformation*, TCR*, signed_natural*);
@@ -145,8 +146,8 @@ extern void set_gs_address(void *);
 #ifdef DARWIN
 #undef USE_SIGALTSTACK
 #else
-/* #define USE_SIGALTSTACK 1 */
-#undef USE_SIGALTSTACK
+#define USE_SIGALTSTACK 1
+/* #undef USE_SIGALTSTACK */
 #endif
 
 #ifdef USE_SIGALTSTACK

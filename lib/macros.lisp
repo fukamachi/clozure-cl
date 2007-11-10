@@ -1492,6 +1492,30 @@ to open."
        ,@decls
        ,@body)))
 
+(defmacro with-self-bound-io-control-vars (&body body)
+  `(let (
+         (*print-array* *print-array*)
+         (*print-base* *print-base*)
+         (*print-case* *print-case*)
+         (*print-circle* *print-circle*)
+         (*print-escape* *print-escape*)
+         (*print-gensym* *print-gensym*)
+         (*print-length* *print-length*)
+         (*print-level* *print-level*)
+         (*print-lines* *print-lines*)
+         (*print-miser-width* *print-miser-width*)
+         (*print-pprint-dispatch* *print-pprint-dispatch*)
+         (*print-pretty* *print-pretty*)
+         (*print-radix* *print-radix*)
+         (*print-readably* *print-readably*)
+         (*print-right-margin* *print-right-margin*)
+         (*read-base* *read-base*)
+         (*read-default-float-format* *read-default-float-format*)
+         (*read-eval* *read-eval*)
+         (*read-suppress* *read-suppress*)
+         (*readtable* *readtable*))
+     ,@body))
+
 (defmacro print-unreadable-object (&environment env (object stream &key type identity) &body forms)
   "Output OBJECT to STREAM with \"#<\" prefix, \">\" suffix, optionally
   with object-type prefix and object-identity suffix, and executing the
@@ -1579,6 +1603,23 @@ to open."
                 `(%cstr-segment-pointer ,strname ,sym ,start-name ,end-name)
                 `(%cstr-pointer ,strname ,sym))
              ,@body))))))
+
+(defmacro with-utf-8-cstr ((sym str) &body body)
+  (let* ((data (gensym))
+         (offset (gensym))
+         (string (gensym))
+         (len (gensym))
+         (noctets (gensym))
+         (end (gensym)))
+    `(let* ((,string ,str)
+            (,len (length ,string)))
+      (multiple-value-bind (,data ,offset) (array-data-and-offset ,string)
+        (let* ((,end (+ ,offset ,len))
+               (,noctets (utf-8-octets-in-string ,data ,offset ,end)))
+          (%stack-block ((,sym (1+ ,noctets)))
+            (utf-8-memory-encode ,data ,sym 0 ,offset ,end)
+            (setf (%get-unsigned-byte ,sym ,noctets) 0)
+            ,@body))))))
 
 
 
@@ -2906,7 +2947,14 @@ function free to deallocate the record, when it is no longer needed."
         (declare (fixnum ,i))
         (setf (,accessor ,dst ,i) (,accessor ,src ,i))))))
 
-      
+(defmacro assert-pointer-type (pointer type)
+  "Assert that the pointer points to an instance of the specified foreign type.
+Return the pointer."
+  (let* ((ptr (gensym)))
+    `(let* ((,ptr ,pointer))
+      (%set-macptr-type ,ptr (foreign-type-ordinal (load-time-value (parse-foreign-type ',type))))
+      ,ptr)))
+
     
 
 (defmacro with-terminal-input (&body body)
@@ -2987,6 +3035,22 @@ its body with the lock held."
       (%lock-gc-lock)
       ,@body)
     (%unlock-gc-lock)))
+
+(defmacro with-deferred-gc (&body body)
+  "Execute BODY without responding to the signal used to suspend
+threads for GC.  BODY must be very careful not to do anything which
+could cause an exception (note that attempting to allocate lisp memory
+may cause an exception.)"
+  `(let* ((*interrupt-level* -2))
+    ,@body))
+
+(defmacro allowing-deferred-gc (&body body)
+  "Within the extent of a surrounding WITH-DEFERRED-GC, allow GC."
+  `(let* ((*interrupt-level* -1))
+    (%check-deferred-gc)
+    ,@body))
+  
+
 
 (defmacro with-pointer-to-ivector ((ptr ivector) &body body)
   "Executes BODY with PTR bound to a pointer to the first byte of data

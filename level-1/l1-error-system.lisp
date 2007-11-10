@@ -262,6 +262,16 @@
 	     (format s "Current process ~s does not own lock ~s"
 		     *current-process* (slot-value c 'lock)))))
 
+(define-condition not-locked (lock-protocol-error)
+  ()
+  (:report (lambda (c s)
+	     (format s "Lock ~s isn't locked." (slot-value c 'lock)))))
+
+(define-condition deadlock (lock-protocol-error)
+  ()
+  (:report (lambda (c s)
+	     (format s "Requested operation on ~s would cause deadlock." (slot-value c 'lock)))))
+
 (define-condition package-error (error)
   ((package :initarg :package :reader package-error-package)))
 (define-condition no-such-package (package-error)
@@ -575,11 +585,9 @@
 (defun make-condition (name &rest init-list)
   "Make an instance of a condition object using the specified initargs."
   (declare (dynamic-extent init-list))
-  (let ((class (or (and (symbolp name) (find-class name nil))
-                   name)))
-    (if (condition-p (class-prototype class))
-        (apply #'make-instance class init-list)
-        (error "~S is not a defined condition type name" name))))
+  (if (subtypep name 'condition)
+    (apply #'make-instance name init-list)
+    (error "~S is not a defined condition type name" name)))
 
 (defmethod print-object ((c condition) stream)
   (if *print-escape* 

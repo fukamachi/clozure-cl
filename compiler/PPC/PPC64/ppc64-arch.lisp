@@ -548,6 +548,17 @@
   malloced-ptr
   spinlock)
 
+(define-storage-layout rwlock 0
+  spin
+  state
+  blocked-writers
+  blocked-readers
+  writer
+  reader-signal
+  writer-signal
+  malloced-ptr
+  )
+
 ;;; For the eabi port: mark this stack frame as Lisp's (since EABI
 ;;; foreign frames can be the same size as a lisp frame.)
 

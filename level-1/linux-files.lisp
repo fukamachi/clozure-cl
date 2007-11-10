@@ -30,6 +30,21 @@
   )
 
 
+(defun get-foreign-namestring (pointer)
+  ;; On Darwin, foreign namestrings are encoded in UTF-8 and
+  ;; are canonically decomposed (NFD).  Use PRECOMPOSE-SIMPLE-STRING
+  ;; to ensure that the string is "precomposed" (NFC), like the
+  ;; rest of the world and most sane people would expect.
+  #+darwin-target
+  (precompose-simple-string (%get-utf-8-cstring pointer))
+  ;; On some other platforms, the namestring is assumed to
+  ;; be encoded according to the current locale's character
+  ;; encoding (though FreeBSD seems to be moving towards
+  ;; precomposed UTF-8.).
+  ;; In any case, the use if %GET-CSTRING here is wrong ...
+  #-darwin-target
+  (%get-cstring pointer))
+
 (defun nanoseconds (n)
   (unless (and (typep n 'fixnum)
                (>= (the fixnum n) 0))
@@ -155,7 +170,7 @@ it has been changed, this is the directory OpenMCL was started in."
 	       (cond ((< len 0) (%errno-disp len bufsize))
 		     ((< len bufsize)
 		      (setf (%get-unsigned-byte buf len) 0)
-		      (values (%get-cstring buf) len))
+		      (values (get-foreign-namestring buf) len))
 		     (t (values nil len)))))))
     (do* ((string nil)
 	  (len 64)
@@ -175,24 +190,25 @@ it has been changed, this is the directory OpenMCL was started in."
   (cwd path))
 
 (defun %chdir (dirname)
-  (with-cstrs ((dirname dirname))
+  (#+darwin-target with-utf-8-cstrs #-darwin-target with-cstrs ((dirname dirname))
     (syscall syscalls::chdir dirname)))
 
 (defun %mkdir (name mode)
-  (let* ((last (1- (length name))))
-    (with-cstrs ((name name))
-      (when (and (>= last 0)
-		 (eql (%get-byte name last) (char-code #\/)))
-	(setf (%get-byte name last) 0))
-    (syscall syscalls::mkdir name mode))))
+  (let* ((name name)
+         (len (length name)))
+    (when (and (> len 0) (eql (char name (1- len)) #\/))
+      (setq name (subseq name 0 (1- len))))
+    (#+darwin-target with-utf-8-cstrs #-darwin-target with-cstrs ((name name))
+      (syscall syscalls::mkdir name mode))))
 
 (defun %rmdir (name)
   (let* ((last (1- (length name))))
-    (with-cstrs ((name name))
+    (#+darwin-target with-utf8-cstrs #-darwin-target with-cstrs ((name name))
       (when (and (>= last 0)
 		 (eql (%get-byte name last) (char-code #\/)))
 	(setf (%get-byte name last) 0))
     (syscall syscalls::rmdir name))))
+
 
 (defun getenv (key)
   "Look up the value of the environment variable named by name, in the
@@ -246,7 +262,7 @@ given is that of a group to which the current user belongs."
 
 
 (defun %%stat (name stat)
-  (with-cstrs ((cname name))
+  (#+darwin-target with-utf-8-cstrs #-darwin-target with-cstrs ((cname name))
     (%stat-values
      #+linux-target
      (#_ __xstat #$_STAT_VER_LINUX cname stat)
@@ -263,7 +279,7 @@ given is that of a group to which the current user belongs."
    stat))
 
 (defun %%lstat (name stat)
-  (with-cstrs ((cname name))
+  (#+darwin-target with-utf-8-cstrs #-darwin-target with-cstrs ((cname name))
     (%stat-values
      #+linux-target
      (#_ __lxstat #$_STAT_VER_LINUX cname stat)
@@ -376,11 +392,11 @@ given is that of a group to which the current user belongs."
   (when (zerop (length namestring))
     (setq namestring (current-directory-name)))
   (%stack-block ((resultbuf #$PATH_MAX))
-    (with-cstrs ((name (tilde-expand namestring)))
+    (#+darwin-target with-utf-8-cstrs #-darwin-target with-cstrs ((name namestring #|(tilde-expand namestring)|#))
       (let* ((result (#_realpath name resultbuf)))
         (declare (dynamic-extent result))
         (unless (%null-ptr-p result)
-          (%get-cstring result))))))
+          (get-foreign-namestring result))))))
 
 ;;; Return fully resolved pathname & file kind, or (values nil nil)
 
@@ -435,7 +451,7 @@ given is that of a group to which the current user belongs."
            (%get-cstring (pref pw :passwd.pw_name))))))))
 
 (defun %utimes (namestring)
-  (with-cstrs ((cnamestring namestring))
+  (#+darwin-target with-utf-8-cstrs #-darwin-target with-cstrs ((cnamestring namestring))
     (let* ((err (#_utimes cnamestring (%null-ptr))))
       (declare (fixnum err))
       (or (eql err 0)
@@ -453,7 +469,7 @@ given is that of a group to which the current user belongs."
   (= 1 (#_isatty fd)))
 
 (defun %open-dir (namestring)
-  (with-cstrs ((name namestring))
+  (#+darwin-target with-utf-8-cstrs #-darwin-target with-cstrs ((name namestring))
     (let* ((DIR (#_opendir name)))
       (unless (%null-ptr-p DIR)
 	DIR))))
@@ -463,8 +479,8 @@ given is that of a group to which the current user belongs."
 
 (defun %read-dir (dir)
   (let* ((res (#_readdir dir)))
-    (unless (%null-ptr-p res)	     
-      (%get-cstring (pref res :dirent.d_name)))))
+    (unless (%null-ptr-p res)
+      (get-foreign-namestring (pref res :dirent.d_name)))))
 
 (defun tcgetpgrp (fd)
   (#_tcgetpgrp fd))
@@ -488,7 +504,7 @@ environment variable. Returns NIL if there is no user with the ID uid."
       (%stack-block ((buf buflen))
         (let* ((err (#_getpwuid_r userid pwd buf buflen result)))
           (if (eql 0 err)
-            (return (%get-cstring (pref pwd :passwd.pw_dir)))
+            (return (get-foreign-namestring (pref pwd :passwd.pw_dir)))
             (unless (eql err #$ERANGE)
               (return nil))))))))
 
@@ -632,24 +648,26 @@ any EXTERNAL-ENTRY-POINTs known to be defined by it to become unresolved."
 
 
 
-#+linux-target
-(defun pipe ()
-  (%stack-block ((pipes 8))
-    (let* ((status (syscall syscalls::pipe pipes)))
-      (if (= 0 status)
-	(values (%get-long pipes 0) (%get-long pipes 4))
-	(%errno-disp status)))))
+
 
 
 ;;; I believe that the Darwin/FreeBSD syscall infterface is rather ... odd.
 ;;; Use libc's interface.
-#+(or darwin-target freebsd-target)
 (defun pipe ()
+  ;;  (rlet ((filedes (:array :int 2)))
   (%stack-block ((filedes 8))
-    (let* ((status (#_pipe filedes)))
+    (let* ((status (#_pipe filedes))
+           (errno (if (eql status 0) 0 (%get-errno))))
+      (unless (zerop status)
+        (when (or (eql errno (- #$EMFILE))
+                  (eql errno (- #$ENFILE)))
+          (gc)
+          (drain-termination-queue)
+          (setq status (#_pipe filedes)
+                errno (if (zerop status) 0 (%get-errno)))))
       (if (zerop status)
         (values (paref filedes (:array :int)  0) (paref filedes (:array :int)  1))
-        (%errno-disp (%get-errno))))))
+        (%errno-disp errno)))))
 
 
 
@@ -705,7 +723,8 @@ any EXTERNAL-ENTRY-POINTs known to be defined by it to become unresolved."
 				  :direction :output
                                   :element-type element-type
 				  :interactive nil
-                                  :basic t)
+                                  :basic t
+                                  :auto-close t)
 		  (cons read-pipe close-in-parent)
 		  (cons write-pipe close-on-error)))
 	 (:output
@@ -714,7 +733,8 @@ any EXTERNAL-ENTRY-POINTs known to be defined by it to become unresolved."
 				  :direction :input
                                   :element-type element-type
 				  :interactive nil
-                                  :basic t)
+                                  :basic t
+                                  :auto-close t)
 		  (cons write-pipe close-in-parent)
 		  (cons read-pipe close-on-error)))
 	 (t
@@ -1189,7 +1209,8 @@ created with :WAIT NIL.) Return T if successful; signal an error otherwise."
 (def-load-pointers spin-count ()
   (if (eql 1 (cpu-count))
     (%defglobal '*spin-lock-tries* 1)
-    (%defglobal '*spin-lock-tries* 1024)))
+    (%defglobal '*spin-lock-tries* 1024))
+  (%defglobal '*spin-lock-timeouts* 0))
 
 (defun yield ()
   (#_sched_yield))
