@@ -161,7 +161,6 @@ check_all_mark_bits(LispObj *nodepointer)
 }
 
 
-Boolean GCDebug = false, GCverbose = false;
 
 
 
@@ -254,27 +253,10 @@ check_all_areas()
   }
 }
 
-natural
-static_dnodes_for_area(area *a)
-{
-  if (a->low == tenured_area->low) {
-    return tenured_area->static_dnodes;
-  }
-  return 0;
-}
-
-
 
 
 
 
-
-bitvector GCmarkbits = NULL, GCdynamic_markbits = NULL;
-LispObj GCarealow, GCareadynamiclow;
-natural GCndnodes_in_area, GCndynamic_dnodes_in_area;
-LispObj GCweakvll = (LispObj)NULL;
-LispObj GCephemeral_low;
-natural GCn_ephemeral_dnodes;
 
 
 /* Sooner or later, this probably wants to be in assembler */
@@ -442,8 +424,6 @@ mark_ephemeral_root(LispObj n)
 #else
 #endif
 
-natural
-GCstack_limit = 0;
 
 
 /*
@@ -1117,6 +1097,11 @@ mark_vstack_area(area *a)
   mark_headerless_area_range(start, end);
 }
 
+/* No lisp objects on cstack on x86, at least x86-64 */
+void
+mark_cstack_area(area *a)
+{
+}
 
 
 /* Mark the lisp objects in an exception frame */
@@ -1159,179 +1144,12 @@ mark_xp(ExceptionInformation *xp)
   }
 }
 
-void
-mark_tcr_tlb(TCR *tcr)
-{
-  natural n = tcr->tlb_limit;
-  LispObj 
-    *start = tcr->tlb_pointer,
-    *end = (LispObj *) ((BytePtr)start+n),
-    node;
 
-  while (start < end) {
-    node = *start;
-    if (node != no_thread_local_binding_marker) {
-      mark_root(node);
-    }
-    start++;
-  }
-}
-
-/*
-  Mark things that're only reachable through some (suspended) TCR.
-  (This basically means the tcr's gc_context and the exception
-  frames on its xframe_list.)
-*/
-
-void
-mark_tcr_xframes(TCR *tcr)
-{
-  xframe_list *xframes;
-  ExceptionInformation *xp;
-
-  xp = tcr->gc_context;
-  if (xp) {
-    mark_xp(xp);
-  }
-  
-  for (xframes = (xframe_list *) tcr->xframe; 
-       xframes; 
-       xframes = xframes->prev) {
-      mark_xp(xframes->curr);
-  }
-}
       
 
-void *postGCptrs = NULL;
-
-void
-postGCfree(void *p)
-{
-  *(void **)p = postGCptrs;
-  postGCptrs = p;
-}
-
-void
-freeGCptrs()
-{
-  void *p, *next;
-
-  for (p = postGCptrs; p; p = next) {
-    next = *((void **)p);
-    free(p);
-  }
-  postGCptrs = NULL;
-}
-
-void
-reap_gcable_ptrs()
-{
-  LispObj *prev = &(lisp_global(GCABLE_POINTERS)), next, ptr;
-  xmacptr_flag flag;
-  natural dnode;
-  xmacptr *x;
-
-  while((next = *prev) != (LispObj)NULL) {
-    dnode = gc_area_dnode(next);
-    x = (xmacptr *) ptr_from_lispobj(untag(next));
-
-    if ((dnode >= GCndnodes_in_area) ||
-        (ref_bit(GCmarkbits,dnode))) {
-      prev = &(x->link);
-    } else {
-      *prev = x->link;
-      flag = (xmacptr_flag)(x->flags);
-      ptr = x->address;
-
-      if (ptr) {
-        switch (flag) {
-        case xmacptr_flag_recursive_lock:
-	  destroy_recursive_lock((RECURSIVE_LOCK)ptr_from_lispobj(ptr));
-          break;
-
-        case xmacptr_flag_ptr:
-	  postGCfree((void *)ptr_from_lispobj(ptr));
-          break;
-
-        case xmacptr_flag_rwlock:
-          rwlock_destroy((rwlock *)ptr_from_lispobj(ptr));
-          break;
-
-        case xmacptr_flag_semaphore:
-	  destroy_semaphore((void**)&(x->address));
-          break;
-
-        default:
-          /* (warn "unknown xmacptr_flag: ~s" flag) */
-          /* Unknowd, and perhaps unknowdable. */
-          /* Fall in: */
-        case xmacptr_flag_none:
-          break;
-        }
-      }
-    }
-  }
-}
 
 
 
-#if  WORD_SIZE == 64
-unsigned short *_one_bits = NULL;
-
-unsigned short
-logcount16(unsigned short n)
-{
-  unsigned short c=0;
-  
-  while(n) {
-    n = n & (n-1);
-    c++;
-  }
-  return c;
-}
-
-void
-gc_init()
-{
-  int i;
-  
-  _one_bits = malloc(sizeof(unsigned short) * (1<<16));
-
-  for (i = 0; i < (1<<16); i++) {
-    _one_bits[i] = dnode_size*logcount16(i);
-  }
-}
-
-#define one_bits(x) _one_bits[x]
-
-#else
-const unsigned char _one_bits[256] = {
-    0*8,1*8,1*8,2*8,1*8,2*8,2*8,3*8,1*8,2*8,2*8,3*8,2*8,3*8,3*8,4*8,
-    1*8,2*8,2*8,3*8,2*8,3*8,3*8,4*8,2*8,3*8,3*8,4*8,3*8,4*8,4*8,5*8,
-    1*8,2*8,2*8,3*8,2*8,3*8,3*8,4*8,2*8,3*8,3*8,4*8,3*8,4*8,4*8,5*8,
-    2*8,3*8,3*8,4*8,3*8,4*8,4*8,5*8,3*8,4*8,4*8,5*8,4*8,5*8,5*8,6*8,
-    1*8,2*8,2*8,3*8,2*8,3*8,3*8,4*8,2*8,3*8,3*8,4*8,3*8,4*8,4*8,5*8,
-    2*8,3*8,3*8,4*8,3*8,4*8,4*8,5*8,3*8,4*8,4*8,5*8,4*8,5*8,5*8,6*8,
-    2*8,3*8,3*8,4*8,3*8,4*8,4*8,5*8,3*8,4*8,4*8,5*8,4*8,5*8,5*8,6*8,
-    3*8,4*8,4*8,5*8,4*8,5*8,5*8,6*8,4*8,5*8,5*8,6*8,5*8,6*8,6*8,7*8,
-    1*8,2*8,2*8,3*8,2*8,3*8,3*8,4*8,2*8,3*8,3*8,4*8,3*8,4*8,4*8,5*8,
-    2*8,3*8,3*8,4*8,3*8,4*8,4*8,5*8,3*8,4*8,4*8,5*8,4*8,5*8,5*8,6*8,
-    2*8,3*8,3*8,4*8,3*8,4*8,4*8,5*8,3*8,4*8,4*8,5*8,4*8,5*8,5*8,6*8,
-    3*8,4*8,4*8,5*8,4*8,5*8,5*8,6*8,4*8,5*8,5*8,6*8,5*8,6*8,6*8,7*8,
-    2*8,3*8,3*8,4*8,3*8,4*8,4*8,5*8,3*8,4*8,4*8,5*8,4*8,5*8,5*8,6*8,
-    3*8,4*8,4*8,5*8,4*8,5*8,5*8,6*8,4*8,5*8,5*8,6*8,5*8,6*8,6*8,7*8,
-    3*8,4*8,4*8,5*8,4*8,5*8,5*8,6*8,4*8,5*8,5*8,6*8,5*8,6*8,6*8,7*8,
-    4*8,5*8,5*8,6*8,5*8,6*8,6*8,7*8,5*8,6*8,6*8,7*8,6*8,7*8,7*8,8*8
-};
-
-#define one_bits(x) _one_bits[x]
-
-void
-gc_init()
-{
-}
-
-#endif
 
 /* A "pagelet" contains 32 doublewords.  The relocation table contains
    a word for each pagelet which defines the lowest address to which
@@ -1585,6 +1403,12 @@ forward_vstack_area(area *a)
   forward_headerless_range(p, q);
 }
 
+/* Nothing of interest on x86 cstack */
+void
+forward_cstack_area(area *a)
+{
+}
+
 
 void
 forward_xp(ExceptionInformation *xp)
@@ -1605,23 +1429,6 @@ forward_xp(ExceptionInformation *xp)
   update_locref(&(regs[Iip]));
 }
 
-void
-forward_tcr_tlb(TCR *tcr)
-{
-  natural n = tcr->tlb_limit;
-  LispObj 
-    *start = tcr->tlb_pointer, 
-    *end = (LispObj *) ((BytePtr)start+n),
-    node;
-
-  while (start < end) {
-    node = *start;
-    if (node != no_thread_local_binding_marker) {
-      update_noderef(start);
-    }
-    start++;
-  }
-}
 
 void
 forward_tcr_xframes(TCR *tcr)
