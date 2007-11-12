@@ -4774,7 +4774,11 @@
             (! recover-values-for-mvcall)
             (x862-close-undo)
             (x862-temp-pop-node seg x8664::temp0)
-            (x862-invoke-fn seg x8664::temp0 nil nil xfer label)))
+            (x862-invoke-fn seg x8664::temp0 nil nil xfer label)
+            (when label
+              ;; Pushed a label earlier, then returned to it.
+              (setq *x862-top-vstack-lcell* (lcell-parent *x862-top-vstack-lcell*))
+              (x862-adjust-vstack (- *x862-target-node-size*)))))
         (unless recursive-p
           (if mv-p
             (unless (eq xfer $backend-return)
