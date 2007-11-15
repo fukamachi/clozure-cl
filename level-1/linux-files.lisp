@@ -203,7 +203,7 @@ it has been changed, this is the directory OpenMCL was started in."
 
 (defun %rmdir (name)
   (let* ((last (1- (length name))))
-    (#+darwin-target with-utf8-cstrs #-darwin-target with-cstrs ((name name))
+    (#+darwin-target with-utf-8-cstrs #-darwin-target with-cstrs ((name name))
       (when (and (>= last 0)
 		 (eql (%get-byte name last) (char-code #\/)))
 	(setf (%get-byte name last) 0))
