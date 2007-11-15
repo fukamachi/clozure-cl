@@ -144,5 +144,50 @@ const unsigned char _one_bits[256];
 
 #define one_bits(x) _one_bits[x]
 
+natural static_dnodes_for_area(area *a);
+void reapweakv(LispObj weakv);
+void reaphashv(LispObj hashv);
+Boolean mark_weak_hash_vector(hash_table_vector_header *hashp, natural elements);
+Boolean mark_weak_alist(LispObj weak_alist, int weak_type);
+void markhtabvs(void);
+void mark_tcr_tlb(TCR *);
+void mark_tcr_xframes(TCR *);
+void postGCfree(void *);
+void freeGCptrs(void);
+void reap_gcable_ptrs(void);
+unsigned short logcount16(unsigned short);
+void gc_init(void);
+LispObj node_forwarding_address(LispObj);
+Boolean update_noderef(LispObj *);
+void update_locref(LispObj *);
+void forward_gcable_ptrs(void);
+void forward_memoized_area(area *, natural);
+void forward_tcr_tlb(TCR *);
+void reclaim_static_dnodes(void);
+Boolean youngest_non_null_area_p(area *);
+void gc(TCR *, signed_natural);
+
+/* backend-interface */
+
+void mark_root(LispObj);
+void mark_xp(ExceptionInformation *);
+LispObj dnode_forwarding_address(natural, int);
+LispObj locative_forwarding_address(LispObj);
+void check_refmap_consistency(LispObj *, LispObj *, bitvector);
+void check_all_areas(void);
+void mark_tstack_area(area *);
+void mark_vstack_area(area *);
+void mark_cstack_area(area *);
+void mark_simple_area_range(LispObj *, LispObj *);
+void mark_memoized_area(area *, natural);
+LispObj calculate_relocation(void);
+void forward_range(LispObj *, LispObj *);
+void forward_tstack_area(area *);
+void forward_vstack_area(area *);
+void forward_cstack_area(area *);
+LispObj compact_dynamic_heap(void);
+LispObj * skip_over_ivector(natural, LispObj);
+int purify(TCR *, signed_natural);
+int impurify(TCR *, signed_natural);
 
 #endif                          /* __GC_H__ */
