@@ -1633,6 +1633,9 @@ to open."
 (defmacro with-cstrs (speclist &body body)
    (with-specs-aux 'with-cstr speclist body))
 
+(defmacro with-utf-8-cstrs (speclist &body body)
+   (with-specs-aux 'with-utf-8-cstr speclist body))
+
 (defmacro with-encoded-cstr ((encoding-name (sym string &optional start end))
                              &rest body &environment env)
   (let* ((encoding (get-character-encoding encoding-name))
