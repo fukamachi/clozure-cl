@@ -736,32 +736,49 @@ are running on, or NIL if we can't find any useful information."
     (report-heap-utilization stream nconses nvectors vector-sizes)
     (values)))
 
-#+x8664-target
-(progn
-  (defvar *x8664-vector-type-names*
-    (let* ((a (make-array 256)))
-      (dotimes (i 256 a)
-        (let* ((fulltag (logand i x8664::fulltagmask))
-               (names-vector
-                (cond ((= fulltag x8664::fulltag-nodeheader-0)
-                       *nodeheader-0-types*)
-                      ((= fulltag x8664::fulltag-nodeheader-1)
-                       *nodeheader-1-types*)
-                      ((= fulltag x8664::fulltag-immheader-0)
-                       *immheader-0-types*)
-                      ((= fulltag x8664::fulltag-immheader-1)
-                       *immheader-1-types*)
-                      ((= fulltag x8664::fulltag-immheader-2)
-                       *immheader-2-types*)))
-               (name (if names-vector
-                       (aref names-vector (ash i -4)))))
-          ;; Special-case a few things ...
-          (if (eq name 'symbol-vector)
-            (setq name 'symbol)
-            (if (eq name 'function-vector)
-              (setq name 'function)))
-          (setf (aref a i) name)))))
-        
+(defvar *heap-utilization-vector-type-names*
+  (let* ((a (make-array 256)))
+    #+x8664-target
+    (dotimes (i 256)
+      (let* ((fulltag (logand i x8664::fulltagmask))
+             (names-vector
+              (cond ((= fulltag x8664::fulltag-nodeheader-0)
+                     *nodeheader-0-types*)
+                    ((= fulltag x8664::fulltag-nodeheader-1)
+                     *nodeheader-1-types*)
+                    ((= fulltag x8664::fulltag-immheader-0)
+                     *immheader-0-types*)
+                    ((= fulltag x8664::fulltag-immheader-1)
+                     *immheader-1-types*)
+                    ((= fulltag x8664::fulltag-immheader-2)
+                     *immheader-2-types*)))
+             (name (if names-vector
+                     (aref names-vector (ash i -4)))))
+        ;; Special-case a few things ...
+        (if (eq name 'symbol-vector)
+          (setq name 'symbol)
+          (if (eq name 'function-vector)
+            (setq name 'function)))
+        (setf (aref a i) name)))
+    #+ppc64-target
+    (dotimes (i 256)
+      (let* ((lowtag (logand i ppc64::lowtagmask)))
+        (setf (%svref a i)
+              (cond ((= lowtag ppc64::lowtag-immheader)
+                     (%svref *immheader-types* (ash i -2)))
+                    ((= lowtag ppc64::lowtag-nodeheader)
+                     (%svref *nodeheader-types* (ash i -2)))))))
+    #+ppc32-target
+    (dotimes (i 256)
+      (let* ((fulltag (logand i ppc32::fulltagmask)))
+        (setf (%svref a i)
+              (cond ((= fulltag ppc32::fulltag-immheader)
+                     (%svref *immheader-types* (ash i -3)))
+                    ((= fulltag ppc32::fulltag-nodeheader)
+                     (%svref *nodeheader-types* (ash i -3)))))))
+    a))
+
+  
     
 (defun report-heap-utilization (out nconses nvectors vector-sizes)
   (format out "~&Object type~42tCount~50tTotal Size in Bytes")
@@ -770,11 +787,7 @@ are running on, or NIL if we can't find any useful information."
     (let* ((count (aref nvectors i))
            (sizes (aref vector-sizes i)))
       (unless (zerop count)
-        (format out "~&~a~36t~12d~48t~16d" (aref *x8664-vector-type-names* i)  count sizes)))))
+        (format out "~&~a~36t~12d~48t~16d" (aref *heap-utilization-vector-type-names* i)  count sizes)))))
                             
-)
 
-#-x8664-target
-(eval-when (:compile-toplevel)
-  (warn "Need PPC versions of REPORT-HEAP-UTILIZATION"))
 
