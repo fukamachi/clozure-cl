@@ -313,7 +313,7 @@ given is that of a group to which the current user belongs."
 	    (t :special)))))
 
 (defun %unix-file-kind (path &optional check-for-link)
-  (%file-kind (nth-value 1 (%stat (native-translated-namestrig path)
+  (%file-kind (nth-value 1 (%stat (native-translated-namestring path)
                                   check-for-link))))
 
 (defun %unix-fd-kind (fd)
