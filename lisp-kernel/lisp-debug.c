@@ -816,12 +816,12 @@ OSStatus
 lisp_Debugger(ExceptionInformation *xp, 
 	      siginfo_t *info, 
 	      int why, 
+              Boolean in_foreign_code,
 	      char *message, 
 	      ...)
 {
   va_list args;
   debug_command_return state = debug_continue;
-  int in_foreign_code = (why & debug_foreign_exception);
 
   if (threads_initialized) {
     suspend_other_threads(false);
@@ -833,7 +833,6 @@ lisp_Debugger(ExceptionInformation *xp,
   va_end(args);
   if (in_foreign_code) {
     fprintf(stderr, "Exception occurred while executing foreign code\n");
-    why = (why & ~debug_foreign_exception);
   }
 
   if (lisp_global(BATCH_FLAG)) {
@@ -875,7 +874,7 @@ Bug(ExceptionInformation *xp, const char *format, ...)
   va_start(args, format);
   vsnprintf(s, sizeof(s),format, args);
   va_end(args);
-  lisp_Debugger(xp, NULL, debug_entry_bug, s);
+  lisp_Debugger(xp, NULL, debug_entry_bug, false, s);
 
 }
 
@@ -888,7 +887,7 @@ FBug(ExceptionInformation *xp, const char *format, ...)
   va_start(args, format);
   vsnprintf(s, sizeof(s),format, args);
   va_end(args);
-  lisp_Debugger(xp, NULL, debug_entry_bug | debug_foreign_exception , s);
+  lisp_Debugger(xp, NULL, debug_entry_bug, true, s);
 
 }
 
