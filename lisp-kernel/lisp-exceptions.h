@@ -41,7 +41,7 @@ extern protected_area_ptr AllProtectedAreas;
 protected_area_ptr find_protected_area(BytePtr);
 
 OSStatus
-lisp_Debugger(ExceptionInformation *, siginfo_t *, int, char *, ...);
+lisp_Debugger(ExceptionInformation *, siginfo_t *, int, Boolean, char *, ...);
 
 OSStatus
 handle_protection_violation(ExceptionInformation *, siginfo_t *, TCR *, int);
@@ -145,7 +145,6 @@ exception_fn_name( ExceptionInformation *, int, char *, size_t );
 void suspend_other_threads(Boolean);
 void resume_other_threads(Boolean);
 
-#define debug_foreign_exception 0x80
 
 #endif /* __lisp_exceptions_h__ */
 
