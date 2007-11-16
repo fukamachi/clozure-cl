@@ -422,7 +422,7 @@
 
 (defun %cons-random-state (seed-1 seed-2)
   #+32-bit-target
-  (gvector :istuct
+  (gvector :istruct
            'random-state
            seed-1
            seed-2)
