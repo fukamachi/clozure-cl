@@ -1552,12 +1552,12 @@ handle_trap(ExceptionInformation *xp, opcode the_trap, pc where, siginfo_t *info
       if (message == NULL) {
 	message = "Lisp Breakpoint";
       }
-      lisp_Debugger(xp, info, debug_entry_dbg, message);
+      lisp_Debugger(xp, info, debug_entry_dbg, false, message);
       return noErr;
     }
     if (the_trap == QUIET_LISP_BREAK_INSTRUCTION) {
       adjust_exception_pc(xp,4);
-      lisp_Debugger(xp, info, debug_entry_dbg, "Lisp Breakpoint");
+      lisp_Debugger(xp, info, debug_entry_dbg, false, "Lisp Breakpoint");
       return noErr;
     }
     /*
@@ -1773,7 +1773,7 @@ signal_handler(int signum, siginfo_t *info, ExceptionInformation  *context, TCR 
   if ((noErr != PMCL_exception_handler(signum, context, tcr, info, old_valence))) {
     char msg[512];
     snprintf(msg, sizeof(msg), "Unhandled exception %d at 0x%lx, context->regs at #x%lx", signum, xpPC(context), (natural)xpGPRvector(context));
-    if (lisp_Debugger(context, info, signum, msg)) {
+    if (lisp_Debugger(context, info, signum, false, msg)) {
       SET_TCR_FLAG(tcr,TCR_FLAG_BIT_PROPAGATE_EXCEPTION);
     }
   }

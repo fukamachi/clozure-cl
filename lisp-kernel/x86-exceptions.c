@@ -789,7 +789,7 @@ handle_exception(int signum, siginfo_t *info, ExceptionInformation  *context, TC
 	  
 	case UUO_DEBUG_TRAP:
 	  xpPC(context) = (natural) (program_counter+1);
-	  lisp_Debugger(context, info, debug_entry_dbg, "Lisp Breakpoint");
+	  lisp_Debugger(context, info, debug_entry_dbg, false, "Lisp Breakpoint");
 	  return true;
 
 	case UUO_DEBUG_TRAP_WITH_STRING:
@@ -798,7 +798,7 @@ handle_exception(int signum, siginfo_t *info, ExceptionInformation  *context, TC
             char msg[512];
 
             get_lisp_string(xpGPR(context,Iarg_z),msg, sizeof(msg)-1);
-            lisp_Debugger(context, info, debug_entry_dbg, msg);
+            lisp_Debugger(context, info, debug_entry_dbg, false, msg);
           }
 	  return true;
           
@@ -974,11 +974,11 @@ signal_handler(int signum, siginfo_t *info, ExceptionInformation  *context, TCR 
 
   if (! handle_exception(signum, info, context, tcr, old_valence)) {
     char msg[512];
-    int foreign = (old_valence == TCR_STATE_LISP) ? 0 : debug_foreign_exception;
+    Boolean foreign = (old_valence != TCR_STATE_LISP);
 
     snprintf(msg, sizeof(msg), "Unhandled exception %d at 0x%lx, context->regs at #x%lx", signum, xpPC(context), (natural)xpGPRvector(context));
     
-    if (lisp_Debugger(context, info, signum | foreign, msg)) {
+    if (lisp_Debugger(context, info, signum,  foreign, msg)) {
       SET_TCR_FLAG(tcr,TCR_FLAG_BIT_PROPAGATE_EXCEPTION);
     }
   }
