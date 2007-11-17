@@ -929,7 +929,7 @@ determine_executable_name(char *argv0)
 
   if (_NSGetExecutablePath(exepath, (void *)&len) == 0) {
     p = malloc(len+1);
-    bcopy(exepath, p, len);
+    memmove(p, exepath, len);
     p[len]=0;
     return p;
   } 
@@ -941,7 +941,7 @@ determine_executable_name(char *argv0)
 
   if ((n = readlink("/proc/self/exe", exepath, PATH_MAX)) > 0) {
     p = malloc(n+1);
-    bcopy(exepath,p,n);
+    memmove(p,exepath,n);
     p[n]=0;
     return p;
   }
@@ -958,7 +958,7 @@ determine_executable_name(char *argv0)
 
   if ((n = readlink(proc_path, exepath, PATH_MAX)) > 0) {
     p = malloc(n+1);
-    bcopy(exepath,p,n);
+    memmove(p,exepath,n);
     p[n]=0;
     return p;
   }
@@ -1279,7 +1279,7 @@ remap_spjump()
     perror("remap spjump");
     _exit(1);
   }
-  bcopy(old, new, 0x1000);
+  memmove(new, old, 0x1000);
 }
 #endif
 

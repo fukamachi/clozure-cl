@@ -352,7 +352,7 @@ write_area_pages(int fd, area *a)
     } else {
       count = total;
     }
-    bcopy(a->low+done,buffer,count);
+    memmove(buffer,a->low+done,count);
     n = write(fd, buffer, count);
     if (n < 0) {
       return n;

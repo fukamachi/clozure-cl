@@ -2356,7 +2356,7 @@ impurify(TCR *tcr, signed_natural param)
         grow_dynamic_area(newhigh-oldhigh);
       }
       a->active += n;
-      bcopy(ro_base, oldfree, n);
+      memmove(oldfree, ro_base, n);
       munmap((void *)ro_base, n);
       a->ndnodes = area_dnode(a, a->active);
       pure_space_active = r->active = r->low;

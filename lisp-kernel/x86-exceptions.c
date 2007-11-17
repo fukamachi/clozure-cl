@@ -2209,7 +2209,7 @@ create_thread_context_frame(mach_port_t thread,
   mc = (struct mcontext *) ptr_from_lispobj(stackp);
 #endif
   
-  bcopy(ts,&(mc->__ss),sizeof(*ts));
+  memmove(&(mc->__ss),ts,sizeof(*ts));
 
   thread_state_count = x86_FLOAT_STATE64_COUNT;
   thread_get_state(thread,

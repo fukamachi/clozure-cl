@@ -2454,7 +2454,7 @@ create_thread_context_frame(mach_port_t thread,
 
   stackp = TRUNC_DOWN(stackp, sizeof(*mc), C_STK_ALIGN);
   mc = (MCONTEXT_T) ptr_from_lispobj(stackp);
-  bcopy(&ts,&(mc->__ss),sizeof(ts));
+  memmove(&(mc->__ss),&ts,sizeof(ts));
 
   thread_state_count = PPC_FLOAT_STATE_COUNT;
   thread_get_state(thread,
