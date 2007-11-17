@@ -54,7 +54,7 @@ COPT = -O2
 .s.o:
 	$(M4) $(M4FLAGS) -I../ $< | $(AS) $(ASFLAGS) -o $@
 .c.o:
-	$(CC) -c $< -arch x86_64 -m64 $(CDEFINES) $(CDEBUG) $(COPT) $(MDYNAMIC_NO_PIC) -o $@
+	$(CC) -c $< -arch x86_64 -m64 $(CDEFINES) $(CDEBUG) $(COPT) $(MDYNAMIC_NO_PIC) -mmacosx-version-min=10.4 -isysroot /Developer/SDKs/MacOSX10.4u.sdk -o $@
 
 SPOBJ = x86-spjump64.o x86-spentry64.o x86-subprims64.o 
 ASMOBJ = x86-asmutils64.o imports.o
