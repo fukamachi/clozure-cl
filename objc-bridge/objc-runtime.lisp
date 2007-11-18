@@ -2693,7 +2693,7 @@ argument lisp string."
 
 (defun %objc-struct-return (return-temp size value)
   (unless (eq return-temp value)
-    (#_bcopy value return-temp size)))
+    (#_memmove return-temp value size)))
 
 (defmacro objc:defmethod (name (self-arg &rest other-args) &body body &environment env)
   (collect ((arglist)

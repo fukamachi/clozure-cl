@@ -1273,9 +1273,9 @@ vector
   (%inc-ptr pointer offset))
 
 (defun %set-composite-pointer-ref (size pointer offset new)
-  (#_bcopy new
-	   (%inc-ptr pointer offset)
-	   size))
+  (#_memmove (%inc-ptr pointer offset)
+             new
+             size))
 
 
 (defsetf %composite-pointer-ref %set-composite-pointer-ref)
