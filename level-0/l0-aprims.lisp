@@ -179,4 +179,14 @@ between threads."
 
 (setf (type-predicate 'semaphore) 'semaphorep)
 
+(defun make-list (size &key initial-element)
+  "Constructs a list with size elements each set to value"
+  (unless (and (typep size 'fixnum)
+               (>= (the fixnum size) 0))
+    (report-bad-arg size '(and fixnum unsigned-byte)))
+  (locally (declare (fixnum size))
+    (do* ((result '() (cons initial-element result)))
+        ((zerop size) result)
+      (decf size))))
+
 ; end
