@@ -16,6 +16,25 @@
 
 (in-package "CCL")
 
+
+(defparameter *locks-held* () "per-thread list of held locks")
+(defparameter *locks-pending* () "per-thread list of locks we're waiting for.")
+(defparameter *lock-conses* ())
+
+;; Cold-load lossage.
+(setq *lock-conses* (make-list 20))
+
+;;; Per-thread consing, for lock-ownership tracking.
+(defun %lock-cons (x y)
+  (let* ((cell (prog1 *lock-conses*
+                 (setq *lock-conses* (cdr *lock-conses*)))))
+    (if cell
+      (progn
+        (rplaca cell x)
+        (rplacd cell y))
+      (cons x y))))
+
+
 ;;; Bootstrapping for futexes
 #+(and linuxx8664-target)
 (eval-when (:compile-toplevel :execute)
