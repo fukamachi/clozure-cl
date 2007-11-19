@@ -37,7 +37,7 @@
 (defparameter *xload-show-cold-load-functions* nil "Set to T when debugging")
 (defparameter *xload-special-binding-indices* nil)
 (defparameter *xload-reserved-special-binding-index-symbols*
-  '(*interrupt-level*))
+  '(*interrupt-level* *locks-held* *locks-pending* *lock-conses*))
 
 (defparameter *xload-next-special-binding-index* (length *xload-reserved-special-binding-index-symbols*))
 
