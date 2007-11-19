@@ -2334,19 +2334,28 @@ has immediate effect."
        (when ,var
          (free-resource ,resource-var ,var))))))
 
+;;; Bind per-thread specials which help with lock accounting.
+(defmacro with-lock-context (&body body)
+  `(let* ((*locks-held* *locks-held*)
+          (*locks-pending* *locks-pending*)
+          (*lock-conses* *lock-conses*))
+    ,@body))
+
 (defmacro with-lock-grabbed ((lock &optional
                                    (whostate "Lock"))
                              &body body)
   "Wait until a given lock can be obtained, then evaluate its body with
 the lock held."
   (declare (ignore whostate))
-  `(with-recursive-lock (,lock) ,@body))
+  `(with-lock-context
+    (with-recursive-lock (,lock) ,@body)))
 
 (defmacro with-lock-grabbed-maybe ((lock &optional
 					 (whostate "Lock"))
 				   &body body)
   (declare (ignore whostate))
-  `(with-recursive-lock-maybe (,lock) ,@body))
+  `(with-lock-context
+    (with-recursive-lock-maybe (,lock) ,@body)))
 
 (defmacro with-standard-abort-handling (abort-message &body body)
   (let ((stream (gensym)))
@@ -3011,24 +3020,26 @@ Return the pointer."
   "Wait until a given lock is available for read-only access, then evaluate
 its body with the lock held."
   (let* ((p (gensym)))
-    `(let* ((,p ,lock))
-      (unwind-protect
-           (progn
-             (read-lock-rwlock ,p)
-             ,@body)
-        (unlock-rwlock ,p)))))
+    `(with-lock-context
+      (let* ((,p ,lock))
+        (unwind-protect
+             (progn
+               (read-lock-rwlock ,p)
+               ,@body)
+          (unlock-rwlock ,p))))))
 
 
 (defmacro with-write-lock ((lock) &body body)
   "Wait until the given lock is available for write access, then execute
 its body with the lock held."
   (let* ((p (gensym)))
-    `(let* ((,p ,lock))
-      (unwind-protect
-           (progn
-             (write-lock-rwlock ,p)
-             ,@body)
-        (unlock-rwlock ,p)))))
+    `(with-lock-context
+      (let* ((,p ,lock))
+        (unwind-protect
+             (progn
+               (write-lock-rwlock ,p)
+               ,@body)
+          (unlock-rwlock ,p))))))
 
 
 
