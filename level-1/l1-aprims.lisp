@@ -43,6 +43,11 @@
 (def-standard-initial-binding *package*)
 (def-standard-initial-binding *gensym-counter* 0)
 (def-standard-initial-binding *random-state* (initialize-random-state #xFBF1 9))
+(def-standard-initial-binding *locks-held* ())
+(def-standard-initial-binding *locks-pending* ())
+(def-standard-initial-binding *lock-conses* (make-list 20))
+
+
 
 
 (defun %badarg (arg type)
@@ -123,15 +128,7 @@
 
 
 
-(defun make-list (size &key initial-element)
-  "Constructs a list with size elements each set to value"
-  (unless (and (typep size 'fixnum)
-               (>= (the fixnum size) 0))
-    (report-bad-arg size '(and fixnum unsigned-byte)))
-  (locally (declare (fixnum size))
-    (do* ((result '() (cons initial-element result)))
-        ((zerop size) result)
-      (decf size))))
+
 
 
 ; copy-list
