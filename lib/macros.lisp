@@ -3063,7 +3063,9 @@ may cause an exception.)"
   `(let* ((*interrupt-level* -1))
     (%check-deferred-gc)
     ,@body))
-  
+
+(defmacro defer-gc ()
+  `(setq *interrupt-level* -2))
 
 
 (defmacro with-pointer-to-ivector ((ptr ivector) &body body)
