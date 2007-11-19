@@ -371,6 +371,9 @@ mark_root(LispObj n)
         if (prefix_nodes > element_count) {
           Bug(NULL, "Function 0x%lx trashed",n);
         }
+        if (prefix_nodes == 0) {
+          return;
+        }
       }
       base += (1+element_count);
 
@@ -428,8 +431,8 @@ mark_ephemeral_root(LispObj n)
 
 /*
   This wants to be in assembler even more than "mark_root" does.
-  For now, it does link-inversion: hard as that is to express in C,
-  reliable stack-overflow detection may be even harder ...
+  It tries to do recursive marking as long as stack space exists,
+  then reverts to link-inversion.
 */
 void
 rmark(LispObj n)
@@ -537,8 +540,13 @@ rmark(LispObj n)
       nmark = element_count;
 
       if (subtag == subtag_function) {
-        if ((int)base[1] >= nmark) {
+	natural prefix_nodes = (natural) ((int) deref(base,1));
+
+        if (prefix_nodes >= nmark) {
           Bug(NULL,"Bad function at 0x%lx",n);
+        }
+        if (prefix_nodes == 0) {
+          return;
         }
 	nmark -= (int)base[1];
       }
@@ -621,6 +629,10 @@ rmark(LispObj n)
        boundary word is encountered.  The displacement stored in the boundary
        word is added to the aligned address of the  boundary word (restoring
        the original 'this' pointer, and we climb.
+
+       If the boundary word is 0 or the immediate-word-count is 0, we
+       climb: the function's being initialized and doesn't have any
+       embedded lisp pointers yet.
 
        Not that bad.
     */
@@ -774,7 +786,10 @@ rmark(LispObj n)
       else
         element_count -= 1;
     }
-
+    if (boundary[0] != function_boundary_marker) {
+      this = (LispObj) boundary;
+      goto MarkFunctionDone;
+    }
     this = (LispObj)(base) + (tag_of(this))  + ((element_count+1) << node_shift);
     goto MarkVectorLoop;
 
