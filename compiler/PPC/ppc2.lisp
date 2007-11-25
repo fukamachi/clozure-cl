@@ -40,7 +40,7 @@
 (defun ppc2-immediate-operand (x)
   (if (eq (acode-operator x) (%nx1-operator immediate))
     (cadr x)
-    (error "~&Bug: not an immediate: ~s" x)))
+    (compiler-bug "~&Bug: not an immediate: ~s" x)))
 
 (defmacro with-ppc-p2-declarations (declsform &body body)
   `(let* ((*ppc2-tail-allow* *ppc2-tail-allow*)
@@ -236,7 +236,7 @@
         (cell top (lcell-parent cell)))
        ((eq cell bottom) res)
     (if (null cell)
-      (error "Horrible compiler bug.")
+      (compiler-bug "Horrible compiler bug.")
       (if (eq (lcell-kind cell) kind)
         (push cell res)))))
 
@@ -569,7 +569,7 @@
                         (lap-label (if label (vinsn-label-info label))))
                    (if lap-label
                      (lap-label-address lap-label)
-                     (error "Missing or bad ~s label: ~s" 
+                     (compiler-bug "Missing or bad ~s label: ~s" 
                        (if start-p 'start 'end) sym)))))
           (destructuring-bind (var sym startlab endlab) info
             (let* ((ea (var-ea var))
@@ -1007,12 +1007,12 @@
             (dolist (f (%cdr form) (ppc2-branch seg xfer nil))
               (ppc2-form seg nil nil f ))
             (apply fn seg vreg xfer (%cdr form)))
-          (error "ppc2-form ? ~s" form))))))
+          (compiler-bug "ppc2-form ? ~s" form))))))
 
 ;;; dest is a float reg - form is acode
 (defun ppc2-form-float (seg freg xfer form)
   (declare (ignore xfer))
-  (when (or (nx-null form)(nx-t form))(error "ppc2-form to freg ~s" form))
+  (when (or (nx-null form)(nx-t form))(compiler-bug "ppc2-form to freg ~s" form))
   (when (and (= (get-regspec-mode freg) hard-reg-class-fpr-mode-double)
              (ppc2-form-typep form 'double-float))
     ; kind of screwy - encoding the source type in the dest register spec
@@ -1021,7 +1021,7 @@
     (if (and (consp form)
              (setq fn (svref *ppc2-specials* (%ilogand #.operator-id-mask (acode-operator form)))))      
       (apply fn seg freg nil (%cdr form))
-      (error "ppc2-form ? ~s" form))))
+      (compiler-bug "ppc2-form ? ~s" form))))
 
 
 
@@ -1143,7 +1143,7 @@
 
 (defun ppc2-set-NARGS (seg n)
   (if (> n call-arguments-limit)
-    (error "~s exceeded." call-arguments-limit)
+    (compiler-bug "~s exceeded." call-arguments-limit)
     (with-ppc-local-vinsn-macros (seg)
       (! set-nargs n))))
 
@@ -1273,7 +1273,7 @@
 (defun ppc2-box-s64 (seg node-dest s64-src)
   (with-ppc-local-vinsn-macros (seg)
     (if (target-arch-case
-         (:ppc32 (error "Bug!"))
+         (:ppc32 (compiler-bug "Bug!"))
          (:ppc64 *ppc2-open-code-inline*))
       (! s64->integer node-dest s64-src)
       (let* ((arg_z ($ ppc::arg_z))
@@ -1297,7 +1297,7 @@
 (defun ppc2-box-u64 (seg node-dest u64-src)
   (with-ppc-local-vinsn-macros (seg)
     (if (target-arch-case
-         (:ppc32 (error "Bug!"))
+         (:ppc32 (compiler-bug "Bug!"))
          (:ppc64 *ppc2-open-code-inline*))
       (! u64->integer node-dest u64-src)
       (let* ((arg_z ($ ppc::arg_z))
@@ -2354,7 +2354,7 @@
               a-reg (ppc2-register-constant-p func)))
       (when tail-p
         #-no-compiler-bugs
-        (unless (or immp symp lfunp (typep fn 'lreg) (fixnump fn)) (error "Well, well, well.  How could this have happened ?"))
+        (unless (or immp symp lfunp (typep fn 'lreg) (fixnump fn)) (compiler-bug "Well, well, well.  How could this have happened ?"))
         (when a-reg
           (ppc2-copy-register seg destreg a-reg))
         (unless spread-p
@@ -2751,7 +2751,7 @@
              (if (= mode hard-reg-class-gpr-mode-node)
                ($ ppc::arg_z)
                (make-wired-lreg ppc::imm0 :mode mode)))
-            (t (error "Unknown register class for reg ~s" reg))))))
+            (t (compiler-bug "Unknown register class for reg ~s" reg))))))
 
 ;;; The compiler often generates superfluous pushes & pops.  Try to
 ;;; eliminate them.
@@ -3085,7 +3085,7 @@
         (dolist (var inherited-args)
           (let* ((root-var (nx-root-var var))
                  (other-guy 
-                  (dolist (v own-inhvars #|(error "other guy not found")|# root-var)
+                  (dolist (v own-inhvars #|(compiler-bug "other guy not found")|# root-var)
                     (when (eq root-var (nx-root-var v)) (return v)))))
             (push (make-acode (%nx1-operator inherited-arg) other-guy) inhforms)))
         (dolist (form inhforms)
@@ -3321,7 +3321,7 @@
              (dest-mode (get-regspec-mode dest))
              (dest-crf (backend-ea-physical-reg dest hard-reg-class-crf)))
         (if (and dest-gpr (eql dest-gpr ppc::rzero))
-          (break "Bad destination register: ~s" dest-gpr))
+          (compiler-bug "Bad destination register: ~s" dest-gpr))
         (if (null src)
           (if dest-gpr
             (! load-nil dest-gpr)
@@ -3787,7 +3787,7 @@
         t)
       (progn
         (when (%ilogbitp $vbitpunted bits)
-          (error "bind-var: var ~s was punted" var))
+          (compiler-bug "bind-var: var ~s was punted" var))
         (when make-vcell
           (with-node-temps () (vcell closed)
             (ppc2-stack-to-register seg vloc closed)
@@ -3819,7 +3819,7 @@
                (or (logbitp $vbitspecial bits)
                    (not (logbitp $vbitpunted bits))))
       (let ((endnote (%car (%cdddr (assq var *ppc2-recorded-symbols*)))))
-        (unless endnote (error "ppc2-close-var for ~s ?" (var-name var)))
+        (unless endnote (compiler-bug "ppc2-close-var for ~s ?" (var-name var)))
         (setf (vinsn-note-class endnote) :end-variable-scope)
         (append-dll-node (vinsn-note-label endnote) seg)))))
 
@@ -5013,7 +5013,7 @@
            (doadlword (dpb nkeys (byte 8 16) (dpb numopt (byte 8 8) (dpb numreq (byte 8 0) 0 )))))
       (declare (fixnum numopt nkeys numreq vtotal doadlword))
       (when (or (> numreq 255) (> numopt 255) (> nkeys 255))
-        (error "A lambda list can contain a maximum of 255 required, 255 optional, and 255 keywords args"))
+        (compiler-bug "A lambda list can contain a maximum of 255 required, 255 optional, and 255 keywords args"))
       (if (fixnump listform)
         (ppc2-store-ea seg listform listreg)
         (ppc2-one-targeted-reg-form seg listform listreg))
@@ -5105,7 +5105,7 @@
     (labels ((parse-operand-form (valform)
                (cond ((typep valform 'keyword)
                       (or (assq valform unique-labels)
-                          (error "unknown vinsn label ~s" valform)))
+                          (compiler-bug "unknown vinsn label ~s" valform)))
                      ((atom valform) valform)
                      ((atom (cdr valform)) (svref vp (car valform)))
                      (t (let* ((op-vals (cdr valform))
@@ -5142,12 +5142,12 @@
                  (:and (dolist (pred (cadr f) t)
                          (unless (eval-predicate pred)
                            (return nil))))
-                 (t (error "Unknown predicate: ~s" f))))
+                 (t (compiler-bug "Unknown predicate: ~s" f))))
              (expand-form (f)
                (if (keywordp f)
                  (emit-lap-label (assq f unique-labels))
                  (if (atom f)
-                   (error "Invalid form in vinsn body: ~s" f)
+                   (compiler-bug "Invalid form in vinsn body: ~s" f)
                    (if (atom (car f))
                      (expand-insn-form f)
                      (if (eval-predicate (car f))
@@ -5524,7 +5524,7 @@
 
 (defppc2 ppc2-%primitive %primitive (seg vreg xfer &rest ignore)
   (declare (ignore seg vreg xfer ignore))
-  (error "You're probably losing big: using %primitive ..."))
+  (compiler-bug "You're probably losing big: using %primitive ..."))
 
 (defppc2 ppc2-consp consp (seg vreg xfer cc form)
   (if (null vreg)
@@ -5990,7 +5990,7 @@
           (if (ppc2-ensure-lcell-offset cell (logand ea-or-form #xffff))
             (and nil (format t "~& could use cell ~s for var ~s" cell (var-name varnode)))
             (if (logbitp ppc2-debug-verbose-bit *ppc2-debug-mask*)
-              (break "wrong ea for lcell for var ~s: got ~d, expected ~d" 
+              (compiler-bug "wrong ea for lcell for var ~s: got ~d, expected ~d" 
                      (var-name varnode) (calc-lcell-offset cell) (logand ea-or-form #xffff))))
           (if (not cell)
             (when (memory-spec-p ea-or-form)
@@ -5998,13 +5998,13 @@
                 (format t "~& no lcell for ~s." (var-name varnode))))))
         
         (unless (or (typep ea-or-form 'lreg) (fixnump ea-or-form))
-          (break "bogus ref to var ~s (~s) : ~s " varnode (var-name varnode) ea-or-form))
+          (compiler-bug "bogus ref to var ~s (~s) : ~s " varnode (var-name varnode) ea-or-form))
         (ppc2-do-lexical-reference seg vreg ea-or-form)
         (^)))))
 
 (defppc2 ppc2-setq-lexical setq-lexical (seg vreg xfer varspec form)
   (let* ((ea (var-ea varspec)))
-    ;(unless (fixnump ea) (break "setq lexical is losing BIG"))
+    ;(unless (fixnump ea) (compiler-bug "setq lexical is losing BIG"))
     (let* ((valreg (ppc2-one-untargeted-reg-form seg form (if (and (register-spec-p ea) 
                                                                    (or (null vreg) (eq ea vreg)))
                                                             ea
@@ -6024,7 +6024,7 @@
         (ppc2-absolute-natural seg vreg xfer value)
         (if (= class hard-reg-class-crf)
           (progn
-            ;(break "Would have clobbered a GPR!")
+            ;(compiler-bug "Would have clobbered a GPR!")
             (ppc2-branch seg (ppc2-cd-true xfer) nil))
           (progn
             (ensuring-node-target (target vreg)
@@ -7846,7 +7846,7 @@
     (ppc2-form seg nil xfer form)
     (progn
       (unless (logbitp (hard-regspec-value vreg) ppc-imm-regs)
-        (error "I give up.  When will I get this right ?"))
+        (compiler-bug "I give up.  When will I get this right ?"))
       (let* ((natural-reg (ppc2-one-targeted-reg-form seg 
                                                       form
                                                       ($ vreg :mode :natural))))
