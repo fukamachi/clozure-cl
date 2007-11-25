@@ -414,7 +414,9 @@ binding of that symbol is used - or an integer index into the frame's set of loc
 (defun break (&optional string &rest args)
   "Print a message and invoke the debugger without allowing any possibility
    of condition handling occurring."
-  (apply #'%break-in-frame (%get-frame-ptr) string args))
+  (if *batch-flag*
+    (apply #'error string args)
+    (apply #'%break-in-frame (%get-frame-ptr) string args)))
 
 (defun %break-in-frame (fp &optional string &rest args)
   (flet ((do-break-loop ()
