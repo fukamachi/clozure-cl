@@ -27,21 +27,21 @@
 
 (defun find-class-cell (type create?)
   (declare (ignore create?))
-  (cons type nil))
+  (make-class-cell type))
 
 (defun builtin-typep (form cell)
-  (typep form (car cell)))
+  (typep form (class-cell-name cell)))
 
 (defun class-cell-typep (arg class-cell)
-  (typep arg (car class-cell)))
+  (typep arg (class-cell-name class-cell)))
 
 (defun class-cell-find-class (class-cell errorp)
   (declare (ignore errorp)) ; AARGH can't be right
   ;(dbg-paws #x100)
-  (let ((class (cdr class-cell)))
+  (let ((class (and class-cell (class-cell-class class-cell))))
     (or class 
         (if  (fboundp 'find-class)
-          (find-class (car class-cell) nil)))))
+          (find-class (class-cell-name class-cell) nil)))))
 
 (defun %require-type-builtin (form foo)
   (declare (ignore foo))
