@@ -1301,7 +1301,16 @@
   open-character
   open-binary
   file-stream)
-  
+
+
+(def-accessors (class-cell) uvref
+  nil                                   ; 'class-cell
+  class-cell-name
+  class-cell-class
+  class-cell-instantiate
+  )
+
+(defmacro make-class-cell (name) `(%istruct 'class-cell ,name nil '%make-instance))
 
 
 (provide "LISPEQU")
