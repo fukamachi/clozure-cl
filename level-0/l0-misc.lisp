@@ -52,7 +52,7 @@
   (require "X8664-LINUX-SYSCALLS")
   (declaim (inline %lock-futex %unlock-futex)))
 
-; Miscellany.
+;;; Miscellany.
 
 (defun memq (item list)
   (do* ((tail list (%cdr tail)))
@@ -528,51 +528,74 @@
       (%atomic-incf-node 1 '*spin-lock-timeouts* target::symbol.vcell)
       (yield))))
 
+(eval-when (:compile-toplevel :execute)
+  (declaim (inline note-lock-wait note-lock-held note-lock-released)))
+
+(defun note-lock-wait (lock)
+  (setq *locks-pending* (%lock-cons lock *locks-pending*)))
+
+(defun note-lock-held ()
+  (let* ((p *locks-pending*))
+    (setq *locks-pending* (cdr *locks-pending*))
+    (rplacd p *locks-held*)
+    (setq *locks-held* p)))
+
+(defun note-lock-released ()
+  (setf (car *locks-held*) nil
+        *locks-held* (cdr *locks-held*)))
+
 #-futex
-(defun %lock-recursive-lock (lock &optional flag)
-  (with-macptrs ((p)
-		 (owner (%get-ptr lock target::lockptr.owner))
-		 (signal (%get-ptr lock target::lockptr.signal))
-                 (spin (%inc-ptr lock target::lockptr.spinlock)))
-    (%setf-macptr-to-object p (%current-tcr))
-    (if (istruct-typep flag 'lock-acquisition)
-      (setf (lock-acquisition.status flag) nil)
-      (if flag (report-bad-arg flag 'lock-acquisition)))
-    (loop
-      (without-interrupts
-       (when (eql p owner)
-         (incf (%get-natural lock target::lockptr.count))
-         (when flag
-           (setf (lock-acquisition.status flag) t))
-         (return t))
-       (%get-spin-lock spin)
-       (when (eql 1 (incf (%get-natural lock target::lockptr.avail)))
-         (setf (%get-ptr lock target::lockptr.owner) p
-               (%get-natural lock target::lockptr.count) 1)
-         (setf (%get-natural spin 0) 0)
-         (if flag
-           (setf (lock-acquisition.status flag) t))
-         (return t))
-       (setf (%get-natural spin 0) 0))
-      (%process-wait-on-semaphore-ptr signal 1 0 "waiting for lock"))))
+(defun %lock-recursive-lock-object (lock &optional flag)
+  (let* ((ptr (recursive-lock-ptr lock)))
+    (with-macptrs ((p)
+                   (owner (%get-ptr ptr target::lockptr.owner))
+                   (signal (%get-ptr ptr target::lockptr.signal))
+                   (spin (%inc-ptr ptr target::lockptr.spinlock)))
+      (%setf-macptr-to-object p (%current-tcr))
+      (if (istruct-typep flag 'lock-acquisition)
+        (setf (lock-acquisition.status flag) nil)
+        (if flag (report-bad-arg flag 'lock-acquisition)))
+      (note-lock-wait lock)
+      (loop
+        (without-interrupts
+         (when (eql p owner)
+           (incf (%get-natural ptr target::lockptr.count))
+           (note-lock-held)
+           (when flag
+             (setf (lock-acquisition.status flag) t))
+           (return t))
+         (%get-spin-lock spin)
+         (when (eql 1 (incf (%get-natural ptr target::lockptr.avail)))
+           (setf (%get-ptr ptr target::lockptr.owner) p
+                 (%get-natural ptr target::lockptr.count) 1)
+           (setf (%get-natural spin 0) 0)
+           (note-lock-held)
+           (if flag
+             (setf (lock-acquisition.status flag) t))
+           (return t))
+         (setf (%get-natural spin 0) 0))
+        (%process-wait-on-semaphore-ptr signal 1 0 (recursive-lock-whostate lock))))))
+
+
 
 #+futex
-(defun futex-wait (p val)
-  (syscall syscalls::futex p FUTEX-WAIT val (%null-ptr) (%null-ptr) 0))
+(defun futex-wait (p val whostate)
+  (with-process-whostate (whostate)
+    (syscall syscalls::futex p FUTEX-WAIT val (%null-ptr) (%null-ptr) 0)))
 
 #+futex
 (defun futex-wake (p n)
   (syscall syscalls::futex p FUTEX-WAKE n (%null-ptr) (%null-ptr) 0))
 
 #+futex
-(defun %lock-futex (p wait-level)
+(defun %lock-futex (p wait-level whostate)
   (let* ((val (%ptr-store-conditional p futex-avail futex-locked)))
     (declare (fixnum val))
     (or (eql val futex-avail)
         (loop
           (if (eql val futex-contended)
             (let* ((*interrupt-level* wait-level))
-              (futex-wait p val))
+              (futex-wait p val whostate))
             (setq val futex-contended))
           (when (eql futex-avail (xchgl val p))
             (return t))))))
@@ -584,47 +607,39 @@
     (futex-wake p #$INT_MAX)))
 
 
+
+
 #+futex
-(defun %lock-recursive-lock (lock &optional flag)
+(defun %lock-recursive-lock-object (lock &optional flag)
   (if (istruct-typep flag 'lock-acquisition)
     (setf (lock-acquisition.status flag) nil)
     (if flag (report-bad-arg flag 'lock-acquisition)))
   (let* ((self (%current-tcr))
-         (level *interrupt-level*))
+         (level *interrupt-level*)
+         (ptr (recursive-lock-ptr lock)))
     (declare (fixnum self val))
+    (note-lock-wait lock)
     (without-interrupts
-     (cond ((eql self (%get-object lock target::lockptr.owner))
-            (incf (%get-natural lock target::lockptr.count)))
-           (t (%lock-futex lock level)
-              (%set-object lock target::lockptr.owner self)
-              (setf (%get-natural lock target::lockptr.count) 1)))
+     (cond ((eql self (%get-object ptr target::lockptr.owner))
+            (incf (%get-natural ptr target::lockptr.count)))
+           (t (%lock-futex ptr level (recursive-lock-whostate lock))
+              (%set-object ptr target::lockptr.owner self)
+              (setf (%get-natural ptr target::lockptr.count) 1)))
+     (note-lock-held)
      (when flag
        (setf (lock-acquisition.status flag) t))
      t)))
 
           
 
-;;; Locking the exception lock to inhibit GC (from other threads)
-;;; is probably a bad idea, though it does simplify some issues.
-;;; (One bad consequence is that it means that only one hash table
-;;; can be accessed at a time.)
-#+bad-idea
-(defun %lock-gc-lock ()
-  (with-macptrs ((lock))
-    (%get-kernel-global-ptr exception-lock lock)
-    (%lock-recursive-lock lock)))
 
-#+bad-idea
-(defun %unlock-gc-lock ()
-  (with-macptrs ((lock))
-    (%get-kernel-global-ptr exception-lock lock)
-    (%unlock-recursive-lock lock)))
+
 
 #-futex
-(defun %try-recursive-lock (lock &optional flag)
+(defun %try-recursive-lock-object (lock &optional flag)
   (with-macptrs ((p)
-		 (owner (%get-ptr lock target::lockptr.owner))
-                 (spin (%inc-ptr lock target::lockptr.spinlock)))
+		 (owner (%get-ptr ptr target::lockptr.owner))
+                 (spin (%inc-ptr ptr target::lockptr.spinlock)))
     (%setf-macptr-to-object p (%current-tcr))
     (if flag
       (if (istruct-typep flag 'lock-acquisition)
@@ -632,76 +647,91 @@
         (report-bad-arg flag 'lock-acquisition)))
     (without-interrupts
      (cond ((eql p owner)
-            (incf (%get-natural lock target::lockptr.count))
+            (incf (%get-natural ptr target::lockptr.count))
+            (setq *locks-held* (%lock-cons lock *locks-held*))
             (if flag (setf (lock-acquisition.status flag) t))
             t)
            (t
             (let* ((win nil))
               (%get-spin-lock spin)
-              (when (setq win (eql 1 (incf (%get-natural lock target::lockptr.avail))))
-                (setf (%get-ptr lock target::lockptr.owner) p
-                      (%get-natural lock target::lockptr.count) 1)
+              (when (setq win (eql 1 (incf (%get-natural ptr target::lockptr.avail))))
+                (setf (%get-ptr ptr target::lockptr.owner) p
+                      (%get-natural ptr target::lockptr.count) 1)
+                (setq *locks-held* (%lock-cons lock *locks-held*))
                 (if flag (setf (lock-acquisition.status flag) t)))
               (setf (%get-ptr spin) (%null-ptr))
               win))))))
 
+
+
 #+futex
-(defun %try-recursive-lock (lock &optional flag)
-  (let* ((self (%current-tcr)))
+(defun %try-recursive-lock-object (lock &optional flag)
+  (let* ((self (%current-tcr))
+         (ptr (recursive-lock-ptr lock)))
     (declare (fixnum self))
     (if flag
       (if (istruct-typep flag 'lock-acquisition)
         (setf (lock-acquisition.status flag) nil)
         (report-bad-arg flag 'lock-acquisition)))
     (without-interrupts
-     (cond ((eql (%get-object lock target::lockptr.owner) self)
-            (incf (%get-natural lock target::lockptr.count))
+     (cond ((eql (%get-object ptr target::lockptr.owner) self)
+            (incf (%get-natural ptr target::lockptr.count))
+            (setq *locks-held* (%lock-cons lock *locks-held*))
             (if flag (setf (lock-acquisition.status flag) t))
             t)
            (t
-            (when (eql 0 (%ptr-store-conditional lock futex-avail futex-locked))
-              (%set-object lock target::lockptr.owner self)
-              (setf (%get-natural lock target::lockptr.count) 1)
+            (when (eql 0 (%ptr-store-conditional ptr futex-avail futex-locked))
+              (%set-object ptr target::lockptr.owner self)
+              (setf (%get-natural ptr target::lockptr.count) 1)              
+              (setq *locks-held* (%lock-cons lock *locks-held*))
               (if flag (setf (lock-acquisition.status flag) t))
               t))))))
 
 
 
+
+
 #-futex
-(defun %unlock-recursive-lock (lock)
-  (with-macptrs ((signal (%get-ptr lock target::lockptr.signal))
-                 (spin (%inc-ptr lock target::lockptr.spinlock)))
-    (unless (eql (%get-object lock target::lockptr.owner) (%current-tcr))
+(defun %unlock-recursive-lock-object (lock)
+  (let* ((ptr (%svref lock target::lock._value-cell)))
+    (with-macptrs ((signal (%get-ptr ptr target::lockptr.signal))
+                   (spin (%inc-ptr ptr target::lockptr.spinlock)))
+      (unless (eql (%get-object ptr target::lockptr.owner) (%current-tcr))
+        (error 'not-lock-owner :lock lock))
+      (without-interrupts
+       (when (eql 0 (decf (the fixnum
+                            (%get-natural ptr target::lockptr.count))))
+         (note-lock-released)
+         (%get-spin-lock spin)
+         (setf (%get-ptr ptr target::lockptr.owner) (%null-ptr))
+         (let* ((pending (+ (the fixnum
+                              (1- (the fixnum (%get-fixnum ptr target::lockptr.avail))))
+                            (the fixnum (%get-fixnum ptr target::lockptr.waiting)))))
+           (declare (fixnum pending))
+           (setf (%get-natural ptr target::lockptr.avail) 0
+                 (%get-natural ptr target::lockptr.waiting) 0)
+           (decf pending)
+           (if (> pending 0)
+             (setf (%get-natural ptr target::lockptr.waiting) pending))
+           (setf (%get-ptr spin) (%null-ptr))
+           (if (>= pending 0)
+             (%signal-semaphore-ptr signal)))))))
+  nil)
+
+
+
+#+futex
+(defun %unlock-recursive-lock-object (lock)
+  (let* ((ptr (%svref lock target::lock._value-cell)))
+    (unless (eql (%get-object ptr target::lockptr.owner) (%current-tcr))
       (error 'not-lock-owner :lock lock))
     (without-interrupts
      (when (eql 0 (decf (the fixnum
-                          (%get-natural lock target::lockptr.count))))
-       (%get-spin-lock spin)
-       (setf (%get-ptr lock target::lockptr.owner) (%null-ptr))
-       (let* ((pending (+ (the fixnum
-                            (1- (the fixnum (%get-fixnum lock target::lockptr.avail))))
-                          (the fixnum (%get-fixnum lock target::lockptr.waiting)))))
-         (declare (fixnum pending))
-         (setf (%get-natural lock target::lockptr.avail) 0
-               (%get-natural lock target::lockptr.waiting) 0)
-         (decf pending)
-         (if (> pending 0)
-           (setf (%get-natural lock target::lockptr.waiting) pending))
-         (setf (%get-ptr spin) (%null-ptr))
-         (if (>= pending 0)
-           (%signal-semaphore-ptr signal))))))
-    nil)
-
-#+futex
-(defun %unlock-recursive-lock (lock)
-  (unless (eql (%get-object lock target::lockptr.owner) (%current-tcr))
-    (error 'not-lock-owner :lock lock))
-  (without-interrupts
-   (when (eql 0 (decf (the fixnum
-                        (%get-natural lock target::lockptr.count))))
-     (setf (%get-natural lock target::lockptr.owner) 0)
-     (%unlock-futex lock)))
-    nil)
+                          (%get-natural ptr target::lockptr.count))))
+    (note-lock-released)
+    (setf (%get-natural ptr target::lockptr.owner) 0)
+    (%unlock-futex ptr))))
+  nil)
 
 
 
@@ -792,7 +822,7 @@
 ;;; and we abort out of the semaphore wait ?  If the writer semaphore is
 ;;; signaled before we abandon interest in it
 #-futex
-(defun %write-lock-rwlock-ptr (ptr &optional flag)
+(defun %write-lock-rwlock-ptr (ptr lock &optional flag)
   (with-macptrs ((write-signal (%get-ptr ptr target::rwlock.writer-signal)) )
     (if (istruct-typep flag 'lock-acquisition)
       (setf (lock-acquisition.status flag) nil)
@@ -800,18 +830,21 @@
     (let* ((level *interrupt-level*)
            (tcr (%current-tcr)))
       (declare (fixnum tcr))
+      (note-lock-wait lock)
       (without-interrupts
        (%get-spin-lock ptr)               ;(%get-spin-lock (%inc-ptr ptr target::rwlock.spin))
        (if (eq (%get-object ptr target::rwlock.writer) tcr)
          (progn
            (incf (%get-signed-natural ptr target::rwlock.state))
            (setf (%get-natural ptr target::rwlock.spin) 0)
+           (note-lock-held)
            (if flag
              (setf (lock-acquisition.status flag) t))
            t)
          (do* ()
               ((eql 0 (%get-signed-natural ptr target::rwlock.state))
                ;; That wasn't so bad, was it ?  We have the spinlock now.
+               (note-lock-held)
                (setf (%get-signed-natural ptr target::rwlock.state) 1
                      (%get-natural ptr target::rwlock.spin) 0)
                (%set-object ptr target::rwlock.writer tcr)
@@ -821,10 +854,10 @@
            (incf (%get-natural ptr target::rwlock.blocked-writers))
            (setf (%get-natural ptr target::rwlock.spin) 0)
            (let* ((*interrupt-level* level))
-                  (%process-wait-on-semaphore-ptr write-signal 1 0 "write lock wait"))
+                  (%process-wait-on-semaphore-ptr write-signal 1 0 (rwlock-write-whostate lock)))
            (%get-spin-lock ptr)))))))
 #+futex
-(defun %write-lock-rwlock-ptr (ptr &optional flag)
+(defun %write-lock-rwlock-ptr (ptr lock &optional flag)
   (with-macptrs ((write-signal (%INC-ptr ptr target::rwlock.writer-signal)) )
     (if (istruct-typep flag 'lock-acquisition)
       (setf (lock-acquisition.status flag) nil)
@@ -832,18 +865,21 @@
     (let* ((level *interrupt-level*)
            (tcr (%current-tcr)))
       (declare (fixnum tcr))
+      (note-lock-wait lock)
       (without-interrupts
-       (%lock-futex ptr level)               ;(%get-spin-lock (%inc-ptr ptr target::rwlock.spin))
+       (%lock-futex ptr level "futex wait")               ;(%get-spin-lock (%inc-ptr ptr target::rwlock.spin))
        (if (eq (%get-object ptr target::rwlock.writer) tcr)
          (progn
            (incf (%get-signed-natural ptr target::rwlock.state))
            (%unlock-futex ptr)
+           (note-lock-held)
            (if flag
              (setf (lock-acquisition.status flag) t))
            t)
          (do* ()
               ((eql 0 (%get-signed-natural ptr target::rwlock.state))
                ;; That wasn't so bad, was it ?  We have the spinlock now.
+               (note-lock-held)
                (setf (%get-signed-natural ptr target::rwlock.state) 1)
                (%unlock-futex ptr)
                (%set-object ptr target::rwlock.writer tcr)
@@ -853,15 +889,16 @@
            (incf (%get-natural ptr target::rwlock.blocked-writers))
            (let* ((waitval (%get-natural write-signal 0)))
              (%unlock-futex ptr)
-             (let* ((*interrupt-level* level))
-               (futex-wait write-signal waitval)))
-           (%lock-futex ptr level)
+             (with-process-whostate ((rwlock-write-whostate lock))
+               (let* ((*interrupt-level* level))
+                 (futex-wait write-signal waitval (rwlock-write-whostate lock)))))
+           (%lock-futex ptr level "futex wait")
            (decf (%get-natural ptr target::rwlock.blocked-writers))))))))
 
 
 
 (defun write-lock-rwlock (lock &optional flag)
-  (%write-lock-rwlock-ptr (read-write-lock-ptr lock) flag))
+  (%write-lock-rwlock-ptr (read-write-lock-ptr lock) lock flag))
 
 #-futex
 (defun %read-lock-rwlock-ptr (ptr lock &optional flag)
@@ -872,11 +909,13 @@
     (let* ((level *interrupt-level*)
            (tcr (%current-tcr)))
       (declare (fixnum tcr))
+      (note-lock-wait lock)
       (without-interrupts
        (%get-spin-lock ptr)             ;(%get-spin-lock (%inc-ptr ptr target::rwlock.spin))
        (if (eq (%get-object ptr target::rwlock.writer) tcr)
          (progn
            (setf (%get-natural ptr target::rwlock.spin) 0)
+           (setq *locks-pending* (cdr *locks-pending*))
            (error 'deadlock :lock lock))
          (do* ((state
                 (%get-signed-natural ptr target::rwlock.state)
@@ -886,6 +925,7 @@
                (setf (%get-signed-natural ptr target::rwlock.state)
                      (the fixnum (1- state))
                      (%get-natural ptr target::rwlock.spin) 0)
+               (note-lock-held)
                (if flag
                  (setf (lock-acquisition.status flag) t))
                t)
@@ -893,7 +933,7 @@
            (incf (%get-natural ptr target::rwlock.blocked-readers))
            (setf (%get-natural ptr target::rwlock.spin) 0)
            (let* ((*interrupt-level* level))
-             (%process-wait-on-semaphore-ptr read-signal 1 0 "read lock wait"))
+             (%process-wait-on-semaphore-ptr read-signal 1 0 (rwlock-read-whostate lock)))
            (%get-spin-lock ptr)))))))
 
 #+futex
@@ -905,11 +945,13 @@
     (let* ((level *interrupt-level*)
            (tcr (%current-tcr)))
       (declare (fixnum tcr))
+      (note-lock-wait lock)
       (without-interrupts
-       (%lock-futex ptr level)
+       (%lock-futex ptr level "futex wait")
        (if (eq (%get-object ptr target::rwlock.writer) tcr)
          (progn
            (%unlock-futex ptr)
+           (setq *locks-pending* (cdr *locks-pending*))
            (error 'deadlock :lock lock))
          (do* ((state
                 (%get-signed-natural ptr target::rwlock.state)
@@ -918,6 +960,7 @@
                ;; That wasn't so bad, was it ?  We have the spinlock now.
                (setf (%get-signed-natural ptr target::rwlock.state)
                      (the fixnum (1- state)))
+               (note-lock-held)
                (%unlock-futex ptr)
                (if flag
                  (setf (lock-acquisition.status flag) t))
@@ -927,8 +970,8 @@
            (let* ((waitval (%get-natural reader-signal 0)))
              (%unlock-futex ptr)
              (let* ((*interrupt-level* level))
-               (futex-wait reader-signal waitval)))
-           (%lock-futex ptr level)
+               (futex-wait reader-signal waitval (rwlock-read-whostate lock))))
+           (%lock-futex ptr level "futex wait")
            (decf (%get-natural ptr target::rwlock.blocked-readers))))))))
 
 
@@ -936,42 +979,7 @@
 (defun read-lock-rwlock (lock &optional flag)
   (%read-lock-rwlock-ptr (read-write-lock-ptr lock) lock flag))
 
-;;; If the current thread already owns the lock for writing, increment
-;;; the lock's state.  Otherwise, try to lock the lock for reading.
-(defun %ensure-at-least-read-locked (lock &optional flag)
-  (if (istruct-typep flag 'lock-acquisition)
-    (setf (lock-acquisition.status flag) nil)
-    (if flag (report-bad-arg flag 'lock-acquisition)))
-  (let* ((ptr (read-write-lock-ptr lock))
-         (tcr (%current-tcr))
-         #+futex (level *interrupt-level*))
-    (declare (fixnum tcr))
-    (or
-     (without-interrupts
-      #+futex
-      (%lock-futex ptr level)
-      #-futex
-      (%get-spin-lock ptr)
-      (let* ((state (%get-signed-natural ptr target::rwlock.state)))
-        (declare (fixnum state))
-        (let ((win
-               (cond ((<= state 0)
-                      (setf (%get-signed-natural ptr target::rwlock.state)
-                            (the fixnum (1- state)))
-                      t)
-                     ((%ptr-eql (%get-ptr ptr target::rwlock.writer) tcr)
-                      (setf (%get-signed-natural ptr target::rwlock.state)
-                            (the fixnum (1+ state)))
-                      t))))
-          #+futex
-          (%unlock-futex ptr)
-          #-futex
-          (setf (%get-natural ptr target::rwlock.spin) 0)
-          (when win
-            (if flag
-              (setf (lock-acquisition.status flag) t))
-            t))))
-       (%read-lock-rwlock-ptr ptr lock flag))))
+
 
 #-futex
 (defun %unlock-rwlock-ptr (ptr lock)
@@ -1012,6 +1020,7 @@
          ;; Both the "blocked-writers" and "blocked-readers" fields
          ;; are cleared here (they can't be changed from another thread
          ;; until this thread releases the spinlock.)
+         (note-lock-released)
          (setf (%get-signed-natural ptr target::rwlock.writer) 0)
          (let* ((nwriters (%get-natural ptr target::rwlock.blocked-writers))
                 (nreaders (%get-natural ptr target::rwlock.blocked-readers)))
@@ -1034,7 +1043,7 @@
     (let* ((signal nil)
            (wakeup 0))
     (without-interrupts
-     (%lock-futex ptr -1)
+     (%lock-futex ptr -1 "futex wait")
      (let* ((state (%get-signed-natural ptr target::rwlock.state))
             (tcr (%current-tcr)))
        (declare (fixnum state tcr))
@@ -1048,6 +1057,7 @@
                 (error 'not-locked :lock lock)))
        (setf (%get-signed-natural ptr target::rwlock.state) state)
        (when (zerop state)
+         (note-lock-released)
          (setf (%get-signed-natural ptr target::rwlock.writer) 0)
          (let* ((nwriters (%get-natural ptr target::rwlock.blocked-writers))
                 (nreaders (%get-natural ptr target::rwlock.blocked-readers)))
@@ -1084,7 +1094,7 @@
            (tcr (%current-tcr)))
       (without-interrupts
        #+futex
-       (%lock-futex ptr level)
+       (%lock-futex ptr level "futex wait")
        #-futex
        (%get-spin-lock ptr)
        (let* ((state (%get-signed-natural ptr target::rwlock.state)))
