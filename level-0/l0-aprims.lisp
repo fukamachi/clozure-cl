@@ -135,7 +135,7 @@
 (defun make-lock (&optional name)
   "Create and return a lock object, which can be used for synchronization
 between threads."
-  (gvector :lock (%make-recursive-lock-ptr) 'recursive-lock 0 name))
+  (gvector :lock (%make-recursive-lock-ptr) 'recursive-lock 0 name nil nil))
 
 (defun lock-name (lock)
   (uvref (require-type lock 'lock) target::lock.name-cell))
@@ -146,6 +146,15 @@ between threads."
     (%svref r target::lock._value-cell)
     (report-bad-arg r 'recursive-lock)))
 
+(defun recursive-lock-whostate (r)
+  (if (and (eq target::subtag-lock (typecode r))
+           (eq (%svref r target::lock.kind-cell) 'recursive-lock))
+    (or (%svref r target::lock._value-cell)
+        (setf (%svref r target::lock._value-cell)
+              (format nil "Lock ~s wait" r)))
+    (report-bad-arg r 'recursive-lock)))
+
+
 (defun read-write-lock-ptr (rw)
   (if (and (eq target::subtag-lock (typecode rw))
            (eq (%svref rw target::lock.kind-cell) 'read-write-lock))
@@ -155,8 +164,24 @@ between threads."
 (defun make-read-write-lock ()
   "Create and return a read-write lock, which can be used for
 synchronization between threads."
-  (gvector :lock (%make-rwlock-ptr) 'read-write-lock 0 nil))
+  (gvector :lock (%make-rwlock-ptr) 'read-write-lock 0 nil nil nil))
 
+(defun rwlock-read-whostate (rw)
+  (if (and (eq target::subtag-lock (typecode rw))
+           (eq (%svref rw target::lock.kind-cell) 'read-write-lock))
+    (or (%svref rw target::lock.whostate-cell)
+        (setf (%svref rw target::lock.whostate-cell)
+              (format nil "Read lock ~s wait" rw)))
+    (report-bad-arg rw 'read-write-lock)))
+
+(defun rwlock-write-whostate (rw)
+  (if (and (eq target::subtag-lock (typecode rw))
+           (eq (%svref rw target::lock.kind-cell) 'read-write-lock))
+    (or (%svref rw target::lock.whostate-2-cell)
+        (setf (%svref rw target::lock.whostate-2-cell)
+              (format nil "Read lock ~s wait" rw)))
+    (report-bad-arg rw 'read-write-lock)))
+  
 
 (defun %make-semaphore-ptr ()
   (let* ((p (ff-call (%kernel-import target::kernel-import-new-semaphore)
