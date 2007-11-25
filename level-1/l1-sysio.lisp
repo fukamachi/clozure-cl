@@ -512,7 +512,7 @@ is :UNIX.")
 		  file-ioblock
 		  (file-octet-filepos file-ioblock))))
     (unless (eql newpos curpos)
-      (break "Expected newpos to be ~d, fd is at ~d" newpos curpos))
+      (error "Expected newpos to be ~d, fd is at ~d" newpos curpos))
     (setf (file-ioblock-octet-pos file-ioblock) newpos)
     (fd-stream-advance stream file-ioblock read-p)))
 
@@ -527,7 +527,7 @@ is :UNIX.")
       (file-ioblock-seek file-ioblock curpos)
       (fd-stream-force-output stream file-ioblock count nil))
     (unless (eql newpos (file-octet-filepos file-ioblock))
-      (break "Expected newpos to be ~d, fd is at ~d"
+      (error "Expected newpos to be ~d, fd is at ~d"
 	     newpos (file-octet-filepos file-ioblock)))
     (setf (file-ioblock-octet-pos file-ioblock) newpos)
     (fd-stream-advance stream file-ioblock read-p)))
@@ -537,7 +537,7 @@ is :UNIX.")
   ;; Check to see if we're where we think we should be.
   (let* ((curpos (file-ioblock-octet-pos file-ioblock)))
     (unless (eql curpos (file-octet-filepos file-ioblock))
-      (break "Expected newpos to be ~d, fd is at ~d"
+      (error "Expected newpos to be ~d, fd is at ~d"
 	     curpos (file-octet-filepos file-ioblock)))
     (let* ((n (fd-stream-force-output stream file-ioblock count finish-p)))
       (incf (file-ioblock-octet-pos file-ioblock) (or n 0))
