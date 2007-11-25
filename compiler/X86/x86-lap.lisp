@@ -31,7 +31,7 @@
      (if data
        (progn
          (when (null (list-length data))
-           (break "frag-vector freelist is circular"))
+           (compiler-bug "frag-vector freelist is circular"))
          (setf (pool.data *x86-lap-frag-vector-freelist*) (cdr data))
          (rplacd data nil))
        (cons (make-array 24 :element-type '(unsigned-byte 8)) nil)))))
