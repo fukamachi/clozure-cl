@@ -159,7 +159,7 @@
   (declaim (inline %needs-rehashing-p))
   (declaim (inline compute-hash-code))
   (declaim (inline eq-hash-find eq-hash-find-for-put))
-  (declaim (inline lock-hash-table unlock-hash-table)))
+  (declaim (inline read-lock-hash-table write-lock-hash-table  unlock-hash-table)))
 
 (defun %cons-hash-table (rehash-function keytrans-function compare-function vector
                                          threshold rehash-ratio rehash-size address-based find find-new owner)
@@ -569,33 +569,31 @@ before doing so.")
 
 (defvar *continue-from-readonly-hashtable-lock-error* nil)
 
-(defun signal-read-only-hash-table-error (hash write-p)
+(defun signal-read-only-hash-table-error (hash)
   (cond (*continue-from-readonly-hashtable-lock-error*
          (cerror "Make the hash-table writable. DANGEROUS! CONTINUE ONLY IF YOU KNOW WHAT YOU'RE DOING!"
                  "Hash-table ~s is readonly" hash)
          (assert-hash-table-writeable hash)
-         (lock-hash-table hash write-p))
+         (write-lock-hash-table hash))
         (t (error "Hash-table ~s is readonly" hash))))
 
-(defun lock-hash-table (hash write-p)
-  (if (nhash.read-only hash)
-    (if write-p
-        (signal-read-only-hash-table-error hash write-p)
-      :readonly)
-    (let* ((lock (nhash.exclusion-lock hash)))
-      (if lock
-        (write-lock-rwlock lock)
-        (progn (unless (eq (nhash.owner hash) *current-process*)
-                 (error "Not owner of hash table ~s" hash)))))))
-
-(defun lock-hash-table-for-map (hash)
+(defun read-lock-hash-table (hash)
   (if (nhash.read-only hash)
     :readonly
     (let* ((lock (nhash.exclusion-lock hash)))
       (if lock
+        (read-lock-rwlock lock)
+        (unless (eq (nhash.owner hash) *current-process*)
+          (error "Not owner of hash table ~s" hash))))))
+
+(defun write-lock-hash-table (hash)
+  (if (nhash.read-only hash)
+    (signal-read-only-hash-table-error hash)
+    (let* ((lock (nhash.exclusion-lock hash)))
+      (if lock
         (write-lock-rwlock lock)
-        (progn (unless (eq (nhash.owner hash) *current-process*)
-                 (error "Not owner of hash table ~s" hash)))))))
+        (unless (eq (nhash.owner hash) *current-process*)
+          (error "Not owner of hash table ~s" hash))))))
 
 
 (defun unlock-hash-table (hash was-readonly)
@@ -612,30 +610,30 @@ before doing so.")
   (unless (hash-table-p hash)
     (report-bad-arg hash 'hash-table))
   (with-lock-context
-  (without-interrupts
-   (lock-hash-table hash t)
-   (let* ((vector (nhash.vector hash))
-          (size (nhash.vector-size vector))
-          (count (+ size size))
-          (index $nhash.vector_overhead))
-     (declare (fixnum size count index))
-     (dotimes (i count)
-       (setf (%svref vector index) (%unbound-marker))
-       (incf index))
-     (incf (the fixnum (nhash.grow-threshold hash))
-           (the fixnum (+ (the fixnum (nhash.count hash))
-                          (the fixnum (nhash.vector.deleted-count vector)))))
-     (setf (nhash.count hash) 0
-           (nhash.vector.cache-key vector) (%unbound-marker)
-           (nhash.vector.cache-value vector) nil
-           (nhash.vector.finalization-alist vector) nil
-           (nhash.vector.free-alist vector) nil
-           (nhash.vector.weak-deletions-count vector) 0
-           (nhash.vector.deleted-count vector) 0
-           (nhash.vector.flags vector) (logand $nhash_weak_flags_mask
-                                               (nhash.vector.flags vector))))
-   (unlock-hash-table hash nil)
-   hash)))
+    (without-interrupts
+     (write-lock-hash-table hash)
+     (let* ((vector (nhash.vector hash))
+            (size (nhash.vector-size vector))
+            (count (+ size size))
+            (index $nhash.vector_overhead))
+       (declare (fixnum size count index))
+       (dotimes (i count)
+         (setf (%svref vector index) (%unbound-marker))
+         (incf index))
+       (incf (the fixnum (nhash.grow-threshold hash))
+             (the fixnum (+ (the fixnum (nhash.count hash))
+                            (the fixnum (nhash.vector.deleted-count vector)))))
+       (setf (nhash.count hash) 0
+             (nhash.vector.cache-key vector) (%unbound-marker)
+             (nhash.vector.cache-value vector) nil
+             (nhash.vector.finalization-alist vector) nil
+             (nhash.vector.free-alist vector) nil
+             (nhash.vector.weak-deletions-count vector) 0
+             (nhash.vector.deleted-count vector) 0
+             (nhash.vector.flags vector) (logand $nhash_weak_flags_mask
+                                                 (nhash.vector.flags vector))))
+     (unlock-hash-table hash nil)
+     hash)))
 
 (defun index->vector-index (index)
   (declare (fixnum index))
@@ -702,7 +700,11 @@ before doing so.")
          (foundp nil))
     (with-lock-context
       (without-interrupts
-       (setq readonly (eq (lock-hash-table hash nil) :readonly))
+       (setq readonly (eq #+notyet (read-lock-hash-table hash)
+                          #-notyet (if (nhash.read-only hash)
+                                     :readonly
+                                     (write-lock-hash-table hash))
+                          :readonly))
        (let* ((vector (nhash.vector hash)))
          (if (and (eq key (nhash.vector.cache-key vector))
                   ;; Check twice: the GC might nuke the cached key/value pair
@@ -744,21 +746,13 @@ before doing so.")
   (let* ((foundp nil))
     (with-lock-context
       (without-interrupts
-       (lock-hash-table hash t)
+       (write-lock-hash-table hash)
        (%lock-gc-lock)
        (when (%needs-rehashing-p hash)
          (%rehash hash))    
        (let* ((vector (nhash.vector hash)))
          (if (eq key (nhash.vector.cache-key vector))
            (progn
-             (do* ((iterator (nhash.iterator hash) (hti.prev-iterator iterator)))
-                  ((null iterator))
-               (unless (= (the fixnum (hti.index iterator))
-                          (the fixnum (nhash.vector.cache-idx vector))) 
-                 (unlock-hash-table hash nil)
-                 (%unlock-gc-lock)
-                 (error "Can't remove key ~s during iteration on hash-table ~s"
-                        key hash)))
              (setf (nhash.vector.cache-key vector) free-hash-key-marker
                    (nhash.vector.cache-value vector) nil)
              (let ((vidx (index->vector-index (nhash.vector.cache-idx vector))))
@@ -772,14 +766,6 @@ before doing so.")
              (declare (fixnum vector-index))
              (when (setq foundp (and (not (eq vector-key free-hash-key-marker))
                                      (not (eq vector-key deleted-hash-key-marker))))
-               (do* ((iterator (nhash.iterator hash) (hti.prev-iterator iterator)))
-                    ((null iterator))
-                 (unless (= (the fixnum (hti.index iterator))
-                            (the fixnum (vector-index->index vector-index)))
-                   (unlock-hash-table hash nil)
-                   (%unlock-gc-lock)
-                   (error "Can't remove key ~s during iteration on hash-table ~s"
-                          key hash)))
                ;; always clear the cache cause I'm too lazy to call the
                ;; comparison function and don't want to keep a possibly
                ;; deleted key from being GC'd
@@ -820,23 +806,11 @@ before doing so.")
     (without-interrupts
      (block protected
        (tagbody
-          (lock-hash-table hash t)
+          (write-lock-hash-table hash)
         AGAIN
           (%lock-gc-lock)
           (when (%needs-rehashing-p hash)
             (%rehash hash))
-          (do* ((iterator (nhash.iterator hash) (hti.prev-iterator iterator)))
-               ((null iterator))
-            (let* ((vector (hti.vector iterator))
-                   (index (index->vector-index (hti.index iterator)))
-                   (test (hash-table-test hash)))
-              (declare (fixnum index))
-              (when (and (< index (the fixnum (uvsize vector)))
-                         (not (funcall test (%svref vector index) key)))
-                (unlock-hash-table hash nil)
-                (%unlock-gc-lock)
-                (error "Can't add key ~s during iteration on hash-table ~s"
-                       key hash))))
           (let ((vector (nhash.vector  hash)))     
             (when (eq key (nhash.vector.cache-key vector))
               (let* ((idx (nhash.vector.cache-idx vector)))
@@ -1714,7 +1688,7 @@ before doing so.")
   (or (nhash.read-only hash)
       (with-lock-context
         (without-interrupts
-         (lock-hash-table hash t)
+         (write-lock-hash-table hash)
          (let* ((flags (nhash.vector.flags (nhash.vector hash))))
            (declare (fixnum flags))
            (when (or (logbitp $nhash_track_keys_bit flags)
@@ -1745,7 +1719,7 @@ before doing so.")
     (report-bad-arg hash 'hash-table))
   (with-lock-context
     (without-interrupts
-     (let* ((readonly (eq (lock-hash-table hash nil) :readonly)))
+     (let* ((readonly (eq (read-lock-hash-table hash) :readonly)))
        (do* ((in (nhash.vector hash))
              (in-idx $nhash.vector_overhead (+ in-idx 2))
              (insize (uvsize in))
@@ -1761,4 +1735,3 @@ before doing so.")
                        (eq val deleted-hash-key-marker))
              (setf (%svref out out-idx) val)
              (incf out-idx))))))))
-  
