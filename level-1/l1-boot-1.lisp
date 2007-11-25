@@ -95,6 +95,9 @@
               pair)))
       trans))))
 
+(defun set-ccl-directory (path)
+  (replace-base-translation "ccl:" (translate-logical-pathname path)))
+
 
 
 
