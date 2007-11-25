@@ -2699,6 +2699,9 @@ _spentry(makestackblock0)
 _endsubp(makestackblock0)
 
 _spentry(makestacklist)
+        __(movq $((1<<63)|fixnummask),%imm0)
+        __(testq %imm0,%arg_y)
+        __(jne 9f)
 	__(movq %arg_y,%imm0)
 	__(addq %imm0,%imm0)
 	__(rcmpq(%imm0,$tstack_alloc_limit))
@@ -2723,6 +2726,7 @@ _spentry(makestacklist)
 	__(jge 3b)
 	__(movq %temp1,%arg_z)
 	__(ret)
+9:      __(uuo_error_reg_not_type(Rarg_y,error_object_not_unsigned_byte))
 _endsubp(makestacklist)
 
 /* subtype (boxed) vpushed before initial values. (Had better be a   */
