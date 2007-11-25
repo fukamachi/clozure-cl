@@ -1455,7 +1455,8 @@ unsigned IP address."
                  (res ()))
                 ((%null-ptr-p q) (nreverse res))
              (let* ((addr (pref q :ifaddrs.ifa_addr)))
-               (when (eql (pref addr :sockaddr.sa_family) #$AF_INET)
+               (when (and (not (%null-ptr-p addr))
+                          (eql (pref addr :sockaddr.sa_family) #$AF_INET))
                  (push (make-ip-interface
 				   :name (%get-cstring (pref q :ifaddrs.ifa_name))
 				   :addr (pref addr :sockaddr_in.sin_addr.s_addr)
