@@ -461,6 +461,13 @@
 (define-condition floating-point-inexact (arithmetic-error))
 (define-condition floating-point-invalid-operation (arithmetic-error))
 
+(define-condition compiler-bug (simple-error)
+  ()
+  (:report (lambda (c stream)
+                  (format stream "Compiler bug or inconsistency:~%")
+                  (apply #'format stream (simple-condition-format-control c)
+                         (simple-condition-format-arguments c)))))
+                         
 (defun restartp (thing) 
   (istruct-typep thing 'restart))
 (setf (type-predicate 'restart) 'restartp)
