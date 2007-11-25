@@ -2480,7 +2480,7 @@
                                (funcall (cadar def) stream firstchar))
                               ((functionp (car def))
                                (funcall (car def) stream firstchar))
-                              (t (break "Bogus default dispatch fn: ~S" (car def)) nil)))))))
+                              (t (error "Bogus default dispatch fn: ~S" (car def)) nil)))))))
         (declare (dynamic-extent vals)
                  (list vals))
         (if (null vals)
