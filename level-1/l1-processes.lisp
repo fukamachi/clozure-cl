@@ -422,15 +422,15 @@ a given process."
 
 (defun grab-lock (lock &optional flag)
   "Wait until a given lock can be obtained, then obtain it."
-  (%lock-recursive-lock (recursive-lock-ptr lock) flag))
+  (%lock-recursive-lock-object lock flag))
 
 (defun release-lock (lock)
   "Relinquish ownership of a given lock."
-  (%unlock-recursive-lock (recursive-lock-ptr lock)))
+  (%unlock-recursive-lock-object lock))
 
 (defun try-lock (lock &optional flag)
   "Obtain the given lock, but only if it is not necessary to wait for it."
-  (%try-recursive-lock (recursive-lock-ptr lock) flag))
+  (%try-recursive-lock-object lock flag))
 
 (defun lock-acquisition-status (thing)
   (if (istruct-typep thing 'lock-acquisition)
@@ -675,3 +675,9 @@ had invoked abort."
     (cond ((car result) (values-list (cdr result)))
           (defaultp default)
           (t (error "Failed to join ~s" p)))))
+
+(defmethod process-locks-held ((p process))
+  (copy-list (symbol-value-in-process '*locks-held* p)))
+
+(defmethod process-locks-pending ((p process))
+  (copy-list (symbol-value-in-process '*locks-pending* p)))
