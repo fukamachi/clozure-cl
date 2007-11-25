@@ -203,12 +203,11 @@
 
 
 
+(defun compiler-bug (format &rest args)
+  (error (make-condition 'compiler-bug
+                         :format-control format
+                         :format-arguments args)))
 
-
-
-
-#+ppc-target
-(require "PPC2")
 
 (defparameter *nx-end* (cons nil nil))
 (provide 'nx)
