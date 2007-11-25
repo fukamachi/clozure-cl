@@ -2467,6 +2467,14 @@ _spentry(spreadargz)
 	__(je 3b)
 	__(jmp *%ra0)
 /* Discard everything that's been pushed already, complain   */
+
+8:     	__(lea (%rsp,%imm0),%rsp)
+	__(movq %arg_y,%arg_z)	/* recover original   */
+	__(movq $XTMINPS,%arg_y)
+	__(set_nargs(2))
+        __(push %ra0)
+	__(jmp _SPksignalerr)
+/* Discard everything that's been pushed already, complain   */
 9:	__(lea (%rsp,%imm0),%rsp)
 	__(movq %arg_y,%arg_z)	/* recover original   */
 	__(movq $XNOSPREAD,%arg_y)
