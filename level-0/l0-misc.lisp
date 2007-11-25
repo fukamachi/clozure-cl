@@ -637,30 +637,31 @@
 
 #-futex
 (defun %try-recursive-lock-object (lock &optional flag)
-  (with-macptrs ((p)
-		 (owner (%get-ptr ptr target::lockptr.owner))
-                 (spin (%inc-ptr ptr target::lockptr.spinlock)))
-    (%setf-macptr-to-object p (%current-tcr))
-    (if flag
-      (if (istruct-typep flag 'lock-acquisition)
-        (setf (lock-acquisition.status flag) nil)
-        (report-bad-arg flag 'lock-acquisition)))
-    (without-interrupts
-     (cond ((eql p owner)
-            (incf (%get-natural ptr target::lockptr.count))
-            (setq *locks-held* (%lock-cons lock *locks-held*))
-            (if flag (setf (lock-acquisition.status flag) t))
-            t)
-           (t
-            (let* ((win nil))
-              (%get-spin-lock spin)
-              (when (setq win (eql 1 (incf (%get-natural ptr target::lockptr.avail))))
-                (setf (%get-ptr ptr target::lockptr.owner) p
-                      (%get-natural ptr target::lockptr.count) 1)
-                (setq *locks-held* (%lock-cons lock *locks-held*))
-                (if flag (setf (lock-acquisition.status flag) t)))
-              (setf (%get-ptr spin) (%null-ptr))
-              win))))))
+  (let* ((ptr (recursive-lock-ptr lock)))
+    (with-macptrs ((p)
+                   (owner (%get-ptr ptr target::lockptr.owner))
+                   (spin (%inc-ptr ptr target::lockptr.spinlock)))
+      (%setf-macptr-to-object p (%current-tcr))
+      (if flag
+        (if (istruct-typep flag 'lock-acquisition)
+          (setf (lock-acquisition.status flag) nil)
+          (report-bad-arg flag 'lock-acquisition)))
+      (without-interrupts
+       (cond ((eql p owner)
+              (incf (%get-natural ptr target::lockptr.count))
+              (setq *locks-held* (%lock-cons lock *locks-held*))
+              (if flag (setf (lock-acquisition.status flag) t))
+              t)
+             (t
+              (let* ((win nil))
+                (%get-spin-lock spin)
+                (when (setq win (eql 1 (incf (%get-natural ptr target::lockptr.avail))))
+                  (setf (%get-ptr ptr target::lockptr.owner) p
+                        (%get-natural ptr target::lockptr.count) 1)
+                  (setq *locks-held* (%lock-cons lock *locks-held*))
+                  (if flag (setf (lock-acquisition.status flag) t)))
+                (setf (%get-ptr spin) (%null-ptr))
+                win)))))))
 
 
 
