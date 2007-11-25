@@ -182,11 +182,7 @@
 ;;; locking under Darwin.
 
 
-(defun lock-file (path)
-  (break "lock-file ? ~s" path))
 
-(defun unlock-file (path)
-  (break "unlock-file ? ~s" path))
 
 (defun create-directory (path &key (mode #o777))
   (let* ((pathname (translate-logical-pathname (merge-pathnames path)))
