@@ -48,8 +48,6 @@
 (def-standard-initial-binding *lock-conses* (make-list 20))
 
 
-
-
 (defun %badarg (arg type)
   (%err-disp $XWRONGTYPE arg type))
 
