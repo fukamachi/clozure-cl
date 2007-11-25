@@ -916,7 +916,7 @@ Generic-function's   : ~s~%" method (or (generic-function-name gf) gf) (flatten-
         (declare (list cell))
         (unless found (return))
         (when (cdr cell)
-          (funcall function name (cdr cell)))))))
+          (funcall function name (class-cell-class cell)))))))
 
 
 
@@ -1169,32 +1169,31 @@ Generic-function's   : ~s~%" method (or (generic-function-name gf) gf) (flatten-
 (defparameter *class-type-class* (new-type-class 'class))
 
 
+
+
                         
 ;;;;;;;;;;;;;;;;;;;;;;;;  Instances and classes ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defvar %find-classes% (make-hash-table :test 'eq))
 
 (defun class-cell-typep (form class-cell)
-  (unless (listp class-cell)(error "puke"))
-  (locally (declare (type list class-cell))
-    (let ((class (cdr class-cell)))
+  (unless (istruct-typep  class-cell 'class-cell)
+    (report-bad-arg class-cell 'class-cell))
+  (locally (declare (type class-cell  class-cell))
+    (let ((class (class-cell-class class-cell)))
       (when (not class)
-        (setq class (find-class (car class-cell) nil))
-        (when class (rplacd class-cell class)))
+        (setq class (find-class (class-cell-name class-cell) nil))
+        (when class (setf (class-cell-class class-cell) class)))
       (if class
         (not (null (memq class (%inited-class-cpl (class-of form)))))
-        (if (fboundp 'typep)(typep form (car class-cell)) t)))))
+        (if (fboundp 'typep)(typep form (class-cell-name class-cell)) t)))))
 
 
 
 (defun %require-type-class-cell (arg class-cell)
-  ; sort of weird  
-  (if (or ;(not *type-system-initialized*)
-          (not (listp class-cell)))  ; bootstrapping prob no longer
-    arg ; (progn (pushnew class-cell puke) arg)
-    (if (class-cell-typep arg class-cell)
-      arg
-      (%kernel-restart $xwrongtype arg (car class-cell)))))
+  (if (class-cell-typep arg class-cell)
+    arg
+    (%kernel-restart $xwrongtype arg (car class-cell))))
 
 
 
@@ -1202,13 +1201,13 @@ Generic-function's   : ~s~%" method (or (generic-function-name gf) gf) (flatten-
   (let ((cell (gethash name %find-classes%)))
     (or cell
         (and create?
-             (setf (gethash name %find-classes%) (cons name nil))))))
+             (setf (gethash name %find-classes%) (make-class-cell name))))))
 
 
 (defun find-class (name &optional (errorp t) environment)
   (let* ((cell (find-class-cell name nil)))
-    (declare (list cell))
-    (or (cdr cell)
+    (declare (type class-cell cell))
+    (or (and cell (class-cell-class cell))
         (let ((defenv (and environment (definition-environment environment))))
           (when defenv
             (dolist (class (defenv.classes defenv))
@@ -1223,7 +1222,7 @@ Generic-function's   : ~s~%" method (or (generic-function-name gf) gf) (flatten-
     (when cell
       (if (eq name (%class.name class))
         (setf (info-type-kind name) :instance))
-      (setf (cdr (the cons cell)) class))
+      (setf (class-cell-class cell) class))
     class))
 
 
@@ -1262,8 +1261,8 @@ to replace that class with ~s" name old-class new-class)
  (defun set-find-class (name class)
    (setq name (require-type name 'symbol))
    (let ((cell (find-class-cell name class)))
-     (declare (type list cell))
-       (let ((old-class (cdr cell)))
+     (declare (type class-cell cell))
+       (let ((old-class (class-cell-class cell)))
          (when old-class
            (when (eq (%class.name old-class) name)
              (setf (info-type-kind name) nil)
@@ -1272,7 +1271,7 @@ to replace that class with ~s" name old-class new-class)
              (check-setf-find-class-protected-class old-class class name))))
      (when (null class)
        (when cell
-         (setf (cdr cell) nil))
+         (setf (class-cell-class cell) nil))
        (return-from set-find-class nil))
      (setq class (require-type class 'class))
      (when (built-in-type-p name)
@@ -1285,7 +1284,7 @@ to replace that class with ~s" name old-class new-class)
                  `(find-class ',name) name 'deftype)
          (%deftype name nil nil))
        (setf (info-type-kind name) :instance))
-     (setf (cdr cell) class)))
+     (setf (class-cell-class cell) class)))
  )                                      ; end of queue-fixup
 
 
@@ -1679,7 +1678,7 @@ to replace that class with ~s" name old-class new-class)
   (make-built-in-class 'negation-ctype *ctype-class*)
   (make-built-in-class 'intersection-ctype *ctype-class*)
   
-
+  (make-built-in-class 'class-cell *istruct-class*)
   (make-built-in-class 'complex (find-class 'number))
   (make-built-in-class 'real (find-class 'number))
   (defstatic *float-class* (make-built-in-class 'float (find-class 'real)))
@@ -1778,17 +1777,17 @@ to replace that class with ~s" name old-class new-class)
   (make-built-in-class 'xcode-vector)
 
   (defun class-cell-find-class (class-cell errorp)
-    (unless (listp class-cell)
-      (setq class-cell (%kernel-restart $xwrongtype class-cell 'list)))
-    (locally (declare (type list class-cell))
-      (let ((class (cdr class-cell)))
+    (unless (istruct-typep class-cell 'class-cell)
+      (setq class-cell (%kernel-restart $xwrongtype class-cell 'class-cell)))
+    (locally (declare (type class-cell class-cell))
+      (let ((class (class-cell-class class-cell)))
         (or class
             (and 
-             (setq class (find-class (car class-cell) nil))
+             (setq class (find-class (class-cell-name class-cell) nil))
              (when class 
-               (rplacd class-cell class)
+               (setf (class-cell-class class-cell) class)
                class))
-            (if errorp (error "Class ~s not found." (car class-cell)) nil)))))
+            (if errorp (error "Class ~s not found." (class-cell-name class-cell)) nil)))))
 
 ;;; (%wrapper-class (instance.class-wrapper frob))
 
@@ -2392,7 +2391,7 @@ to replace that class with ~s" name old-class new-class)
 (defun %make-instance (class-cell &rest initargs)
   (declare (dynamic-extent initargs))
   (apply #'make-instance
-         (or (cdr class-cell) (car (the list class-cell)))
+         (or (class-cell-class class-cell) (class-cell-name  (the class-cell class-cell)))
          initargs))
 
 
