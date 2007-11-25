@@ -47,7 +47,7 @@
 (defun x862-immediate-operand (x)
   (if (eq (acode-operator x) (%nx1-operator immediate))
     (cadr x)
-    (error "~&Bug: not an immediate: ~s" x)))
+    (compiler-bug "not an immediate: ~s" x)))
 
 (defmacro with-x86-p2-declarations (declsform &body body)
   `(let* ((*x862-tail-allow* *x862-tail-allow*)
@@ -250,7 +250,7 @@
         (cell top (lcell-parent cell)))
        ((eq cell bottom) res)
     (if (null cell)
-      (error "Horrible compiler bug.")
+      (compiler-bug "Horrible compiler bug.")
       (if (eq (lcell-kind cell) kind)
         (push cell res)))))
 
@@ -346,7 +346,7 @@
 
 (defun x862-reverse-cr-bit (cr-bit)
   (or (svref *x862-reversed-cr-bits* cr-bit)
-      (error "Can't reverse CR bit ~d" cr-bit)))
+      (compiler-bug "Can't reverse CR bit ~d" cr-bit)))
 
 
 (defun acode-condition-to-x86-cr-bit (cond)
@@ -656,8 +656,8 @@
                          (lap-label (if label (vinsn-label-info label))))
                     (if lap-label
                       (x86-lap-label-address lap-label)
-                      (error "Missing or bad ~s label: ~s" 
-                             (if start-p 'start 'end) sym)))
+                      (compiler-bug "Missing or bad ~s label: ~s" 
+                                    (if start-p 'start 'end) sym)))
                   x8664::fulltag-function)))
           (destructuring-bind (var sym startlab endlab) info
             (let* ((ea (var-ea var))
@@ -1099,12 +1099,12 @@
             (dolist (f (%cdr form) (x862-branch seg xfer))
               (x862-form seg nil nil f ))
             (apply fn seg vreg xfer (%cdr form)))
-          (error "x862-form ? ~s" form))))))
+          (compiler-bug "x862-form ? ~s" form))))))
 
 ;;; dest is a float reg - form is acode
 (defun x862-form-float (seg freg xfer form)
   (declare (ignore xfer))
-  (when (or (nx-null form)(nx-t form))(error "x862-form to freg ~s" form))
+  (when (or (nx-null form)(nx-t form))(compiler-bug "x862-form to freg ~s" form))
   (when (and (= (get-regspec-mode freg) hard-reg-class-fpr-mode-double)
              (x862-form-typep form 'double-float))
     ;; kind of screwy - encoding the source type in the dest register spec
@@ -1113,7 +1113,7 @@
     (if (and (consp form)
              (setq fn (svref *x862-specials* (%ilogand #.operator-id-mask (acode-operator form)))))      
       (apply fn seg freg nil (%cdr form))
-      (error "x862-form ? ~s" form))))
+      (compiler-bug "x862-form ? ~s" form))))
 
 
 
@@ -2482,7 +2482,7 @@
               a-reg (x862-register-constant-p func)))
       (when tail-p
         #-no-compiler-bugs
-        (unless (or immp symp lfunp (typep fn 'lreg) (fixnump fn)) (error "Well, well, well.  How could this have happened ?"))
+        (unless (or immp symp lfunp (typep fn 'lreg) (fixnump fn)) (compiler-bug "Well, well, well.  How could this have happened ?"))
         (when a-reg
           (x862-copy-register seg destreg a-reg))
         (unless spread-p
@@ -2504,7 +2504,7 @@
         (if (not tail-p)
           (if (x862-mvpass-p xfer)
             (let* ((call-reg (if symp ($ x8664::fname) ($ x8664::temp0))))
-              (unless mvpass-label (error "bug: no label for mvpass"))
+              (unless mvpass-label (compiler-bug "no label for mvpass"))
               (if label-p
                 (x862-copy-register seg call-reg ($ x8664::fn))
                 (if a-reg
@@ -2876,7 +2876,7 @@
              (if (= mode hard-reg-class-gpr-mode-node)
                ($ x8664::arg_z)
                (make-wired-lreg x8664::imm0 :mode mode)))
-            (t (error "Unknown register class for reg ~s" reg))))))
+            (t (compiler-bug "Unknown register class for reg ~s" reg))))))
 
 ;;; The compiler often generates superfluous pushes & pops.  Try to
 ;;; eliminate them.
@@ -3962,7 +3962,7 @@
         t)
       (progn
         (when (%ilogbitp $vbitpunted bits)
-          (error "bind-var: var ~s was punted" var))
+          (compiler-bug "bind-var: var ~s was punted" var))
         (when make-vcell
           (with-node-target (x8664::allocptr) closed
             (with-node-target (x8664::allocptr closed) vcell
@@ -3998,7 +3998,7 @@
                (or (logbitp $vbitspecial bits)
                    (not (logbitp $vbitpunted bits))))
       (let ((endnote (%car (%cdddr (assq var *x862-recorded-symbols*)))))
-        (unless endnote (error "x862-close-var for ~s" (var-name var)))
+        (unless endnote (compiler-bug "x862-close-var for ~s" (var-name var)))
         (setf (vinsn-note-class endnote) :end-variable-scope)
         (append-dll-node (vinsn-note-label endnote) seg)))))
 
@@ -4707,7 +4707,7 @@
       (multiple-value-setq (target current-cstack current-vstack)
                            (x862-decode-stack (aref *x862-undo-stack* target-catch))))
     (if (%i< 0 (setq diff (%i- current-cstack target-cstack)))
-      (error "Bug: adjust foreign stack ?"))
+      (compiler-bug "Bug: adjust foreign stack ?"))
     (if (%i< 0 (setq diff (%i- current-vstack target-vstack)))
       (with-x86-local-vinsn-macros (seg)
         (! vstack-discard (ash diff (- *x862-target-fixnum-shift*)))))
@@ -4982,7 +4982,7 @@
                 (if (eq reason $undo-x86-c-frame)
                   (incf num-c-frames))
                 (if (%i> cstack target-cstack)
-                  (error "bug: adjust foreign stack ??"))
+                  (compiler-bug "bug: adjust foreign stack ??"))
                 ;; else what's going on? $sp-stkcons, for one thing
                 (setq cstack target-cstack)))
             (pop-temp-frames)
@@ -5023,7 +5023,7 @@
            (doadlword (dpb nkeys (byte 8 16) (dpb numopt (byte 8 8) (dpb numreq (byte 8 0) 0 )))))
       (declare (fixnum numopt nkeys numreq vtotal doadlword))
       (when (or (> numreq 255) (> numopt 255) (> nkeys 255))
-        (error "A lambda list can contain a maximum of 255 required, 255 optional, and 255 keywords args"))
+        (compiler-bug "A lambda list can contain a maximum of 255 required, 255 optional, and 255 keywords args"))
       (if (fixnump listform)
         (x862-store-ea seg listform argreg)
         (x862-one-targeted-reg-form seg listform argreg))
@@ -5266,7 +5266,7 @@
                       (if (eq valform :rcontext)
                         (backend-lisp-context-register *target-backend*)
                         (or (assq valform unique-labels)
-                            (error
+                            (compiler-bug
                              "unknown vinsn label ~s" valform))))
                      ((atom valform) valform)
                      ((atom (cdr valform)) (svref vp (car valform)))
@@ -5316,7 +5316,7 @@
                  (:and (dolist (pred (cadr f) t)
                          (unless (eval-predicate pred)
                            (return nil))))
-                 (t (error "Unknown predicate: ~s" f))))
+                 (t (compiler-bug "Unknown predicate: ~s" f))))
              (expand-pseudo-op (f)
                (destructuring-bind (directive arg) f
                  (setq arg (parse-operand-form arg))
@@ -5344,7 +5344,7 @@
                                 (setq reloctype :expr32))
                          (:quad (frag-list-push-64 frag-list 0)
                                 (setq reloctype :expr64))
-                         ((:align :talign) (error "~s expression ~s not constant" directive arg)))
+                         ((:align :talign) (compiler-bug "~s expression ~s not constant" directive arg)))
                        (when reloctype
                          (push
                           (make-reloc :type reloctype
@@ -5357,7 +5357,7 @@
                (if (keywordp f)
                  (emit-x86-lap-label frag-list (assq f unique-labels))
                  (if (atom f)
-                   (error "Invalid form in vinsn body: ~s" f)
+                   (compiler-bug "Invalid form in vinsn body: ~s" f)
                    (if (atom (car f))
                      (if (keywordp (car f))
                        (expand-pseudo-op f)
@@ -5739,7 +5739,7 @@
 
 (defx862 x862-%primitive %primitive (seg vreg xfer &rest ignore)
   (declare (ignore seg vreg xfer ignore))
-  (error "You're probably losing big: using %primitive ..."))
+  (compiler-bug "You're probably losing big: using %primitive ..."))
 
 (defx862 x862-consp consp (seg vreg xfer cc form)
   (if (null vreg)
@@ -6224,21 +6224,20 @@
           (if (x862-ensure-lcell-offset cell (logand ea-or-form #xffff))
             (and nil (format t "~& could use cell ~s for var ~s" cell (var-name varnode)))
             (if (logbitp x862-debug-verbose-bit *x862-debug-mask*)
-              (break "wrong ea for lcell for var ~s: got ~d, expected ~d" 
-                     (var-name varnode) (calc-lcell-offset cell) (logand ea-or-form #xffff))))
+              (compiler-bug "wrong ea for lcell for var ~s: got ~d, expected ~d" 
+                            (var-name varnode) (calc-lcell-offset cell) (logand ea-or-form #xffff))))
           (if (not cell)
             (when (memory-spec-p ea-or-form)
               (if (logbitp x862-debug-verbose-bit *x862-debug-mask*)
-                (format t "~& no lcell for ~s." (var-name varnode))))))
-        
+                (compiler-bug "no lcell for ~s." (var-name varnode))))))
         (unless (or (typep ea-or-form 'lreg) (fixnump ea-or-form))
-          (break "bogus ref to var ~s (~s) : ~s " varnode (var-name varnode) ea-or-form))
+          (compiler-bug "bogus ref to var ~s (~s) : ~s " varnode (var-name varnode) ea-or-form))
         (x862-do-lexical-reference seg vreg ea-or-form)
         (^)))))
 
 (defx862 x862-setq-lexical setq-lexical (seg vreg xfer varspec form)
   (let* ((ea (var-ea varspec)))
-    ;(unless (fixnump ea) (break "setq lexical is losing BIG"))
+    ;(unless (fixnump ea) compiler-bug "setq lexical is losing BIG"))
     (let* ((valreg (x862-one-untargeted-reg-form seg form (if (and (register-spec-p ea) 
                                                                    (or (null vreg) (eq ea vreg)))
                                                             ea
@@ -6267,7 +6266,7 @@
         (x862-absolute-natural seg vreg xfer value)
         (if (= class hard-reg-class-crf)
           (progn
-            ;(break "Would have clobbered a GPR!")
+            ;compiler-bug "Would have clobbered a GPR!")
             (x862-branch seg (x862-cd-true xfer)))
           (progn
             (ensuring-node-target (target vreg)
@@ -8076,7 +8075,7 @@
     (x862-form seg nil xfer form)
     (progn
       (unless (logbitp (hard-regspec-value vreg) *backend-imm-temps*)
-        (error "I give up.  When will I get this right ?"))
+        (compiler-bug "I give up.  When will I get this right ?"))
       (let* ((natural-reg (x862-one-targeted-reg-form seg 
                                                       form
                                                       ($ vreg :mode :natural))))
