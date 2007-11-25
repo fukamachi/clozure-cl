@@ -75,15 +75,14 @@
 (declare-arch-specific-macro hashed-by-identity)
           
 	 
-  
-
-; state is #(index vector hash-table saved-lock)
+;; state is #(hash-table index key-vector count)  
 (def-accessors %svref
-  hti.index
-  hti.vector
-  hti.hash-table
-  hti.lock
-  hti.prev-iterator)
+  nhti.hash-table
+  nhti.index
+  nhti.keys
+  nhti.nkeys)
+
+
 
 
 
