@@ -1656,6 +1656,10 @@ printed using \"#:\" syntax.  NIL means no prefix is printed.")
   (print-unreadable-object (fv stream :identity t :type t)
     (format stream "for ")
     (%lfun-name-string (%function-vector-to-function fv) stream)))
+
+(defmethod print-object ((c class-cell) stream)
+  (print-unreadable-object (c stream :type t :identity t)
+    (format stream "for ~s" (class-cell-name c))))
   
             
 
