@@ -288,8 +288,10 @@ given is that of a group to which the current user belongs."
      stat)))
 
 
-;;; Returns: (values t mode size mtime inode uid) on success,
-;;;          (values nil nil nil nil nil nil) otherwise
+;;; Returns: (values t mode size mtime inode uid blksize) on success,
+;;;          (values nil nil nil nil nil nil nil) otherwise
+;;; NAME should be a "native namestring", e.g,, have all lisp pathname
+;;; escaping removed.
 (defun %stat (name &optional link-p)
   (rlet ((stat :stat))
     (if link-p
@@ -313,8 +315,7 @@ given is that of a group to which the current user belongs."
 	    (t :special)))))
 
 (defun %unix-file-kind (path &optional check-for-link)
-  (%file-kind (nth-value 1 (%stat (native-translated-namestring path)
-                                  check-for-link))))
+  (%file-kind (nth-value 1 (%stat (native-translated-namestring path) check-for-link))))
 
 (defun %unix-fd-kind (fd)
   (if (isatty fd)
