@@ -209,65 +209,26 @@
 ;;
 
 
-(defun start-hash-table-iterator (hash state)
-  (let (vector locked)
-    (unless (hash-table-p hash)
-      (setf (hti.hash-table state) nil)         ; for finish-hash-table-iterator
-      (report-bad-arg hash 'hash-table))
 
-    (without-interrupts
-     (setf (hti.hash-table state) hash)
-     (setf (hti.lock state) (setq locked (not (eq :readonly (lock-hash-table-for-map hash)))))
-     (when locked (%lock-gc-lock))
-     (setq vector (nhash.vector hash))
-     (setf (hti.vector state) vector)
-     (setf (hti.index state) (nhash.vector-size vector))
-     (setf (hti.prev-iterator state) (nhash.iterator hash)
-           (nhash.iterator hash) state)
-     (when (%needs-rehashing-p hash)
-       (%rehash hash)))))
- 
-;;; this is as fast as the lappy version
+(defun next-hash-table-iteration (state)
+  (do* ((hash (nhti.hash-table state))
+        (index (nhti.index state) (1+ index))
+        (keys (nhti.keys state))
+        (nkeys (nhti.nkeys state))
+        (missing (cons nil nil)))
+       ((>= index nkeys)
+        (setf (nhti.index state) nkeys)
+        (values nil nil nil))
+    (declare (fixnum index nkeys)
+             (simple-vector keys)
+             (dynamic-extent missing))
+    (let* ((key (svref keys index))
+           (value (gethash key hash missing)))
+      (unless (eq value missing)
+        (setf (nhti.index state) (1+ index))
+        (return (values t key value))))))
 
-(defun do-hash-table-iteration (state)
-  (let ((vector (hti.vector state))
-        (index (hti.index state))
-        key value)
-    (declare (optimize (speed 3) (safety 0)))
-    (if (setf (hti.index state)
-              (if index
-                (loop
-                  (if (eq index 0)(return (setq index nil)))
-                  (locally (declare (fixnum index))
-                    (setq index (- index 1))
-                    (let* ((vector-index (index->vector-index index)))
-                      (declare (fixnum vector-index))
-                      (setq key (%svref vector vector-index))
-                      (unless (or (eq key (%unbound-marker))
-                                  (eq key (%slot-unbound-marker)))
-                        (setq value (%svref vector (the fixnum (1+ vector-index))))
-                        (return index)))))))
-      (let* ((hash (hti.hash-table state)))
-        (setf (nhash.vector.cache-idx (setq vector (nhash.vector hash))) index
-              (nhash.vector.cache-key vector) key
-              (nhash.vector.cache-value vector) value)
-        (values t key value)))))
 
-(defun finish-hash-table-iterator (state)
-  (without-interrupts
-   (let ((hash (hti.hash-table state))
-         (locked (hti.lock state)))
-     (when hash
-       (setf (hti.hash-table state) nil)
-       (when locked
-         (unlock-hash-table hash nil)
-         (%unlock-gc-lock))
-       (when (eq state (nhash.iterator hash))
-         (setf (nhash.iterator hash) (hti.prev-iterator state)))
-       (setf
-        (hti.index state)  nil
-        (hti.vector state) nil
-        (hti.lock state)   nil)))))
 
 (defun maphash (function hash-table)
   "For each entry in HASH-TABLE, call the designated two-argument function
