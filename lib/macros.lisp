@@ -2347,15 +2347,29 @@ has immediate effect."
   "Wait until a given lock can be obtained, then evaluate its body with
 the lock held."
   (declare (ignore whostate))
-  `(with-lock-context
-    (with-recursive-lock (,lock) ,@body)))
+    (let* ((locked (gensym))
+           (l (gensym)))
+      `  (with-lock-context
+           (let ((,locked (make-lock-acquisition))
+             (,l ,lock))
+        (declare (dynamic-extent ,locked))
+        (unwind-protect
+             (progn
+               (%lock-recursive-lock-object ,l ,locked )
+               ,@body)
+          (when (lock-acquisition.status ,locked) (%unlock-recursive-lock-object ,l)))))))
 
 (defmacro with-lock-grabbed-maybe ((lock &optional
 					 (whostate "Lock"))
 				   &body body)
   (declare (ignore whostate))
-  `(with-lock-context
-    (with-recursive-lock-maybe (,lock) ,@body)))
+  (let* ((l (gensym)))
+    `(with-lock-context
+      (let* ((,l ,lock))
+        (when (%try-recursive-lock-object ,l)
+          (unwind-protect
+               (progn ,@body)
+            (%unlock-recursive-lock-object ,l)))))))
 
 (defmacro with-standard-abort-handling (abort-message &body body)
   (let ((stream (gensym)))
@@ -2600,15 +2614,7 @@ defcallback returns the callback pointer, e.g., the value of name."
             ,string))
      nil))
 
-(defmacro with-hash-write-lock ((hash) &body body)
-  `(with-write-lock ((nhash.exclusion-lock ,hash))
-    ,@body))
 
-;;; To ... er, um, ... expedite implementation, we lock the hash
-;;; table exclusively whenever touching it.  For now.
-
-(defmacro with-exclusive-hash-lock ((hash) &body body)
-  `(with-hash-write-lock (,hash) ,@body))
 
 (defmacro with-hash-table-iterator ((mname hash-table) &body body &environment env)
   "WITH-HASH-TABLE-ITERATOR ((function hash-table) &body body)
@@ -2617,18 +2623,16 @@ defcallback returns the callback pointer, e.g., the value of name."
    invocation, returns one or three values. The first value tells whether
    any objects remain in the hash table. When the first value is non-NIL,
    the second and third values are the key and the value of the next object."
-  (let ((state (gensym))
-        (htab (gensym)))
-    (multiple-value-bind (body decls) (parse-body body env)
-      `(let* ((,htab ,hash-table)
-              (,state (vector nil nil nil
-                              nil nil)))
-	(declare (dynamic-extent ,state))
-        (unwind-protect
-             (macrolet ((,mname () `(do-hash-table-iteration ,',state)))
-               (start-hash-table-iterator ,htab ,state)
-               (locally ,@decls ,@body))
-          (finish-hash-table-iterator ,state))))))
+  (let* ((hash (gensym))
+         (keys (gensym))
+         (state (gensym)))
+    `(let* ((,hash ,hash-table)
+            (,keys (make-array (the fixnum (hash-table-count ,hash))))
+            (,state (vector ,hash 0 ,keys (enumerate-hash-keys ,hash ,keys))))
+      (declare (dynamic-extent ,keys ,state))
+      (macrolet ((,mname () `(next-hash-table-iteration ,',state)))
+        ,@body))))
+
 
 (eval-when (compile load eval)
 (defmacro pprint-logical-block ((stream-symbol list
@@ -2989,32 +2993,9 @@ Return the pointer."
              ,@body)
         (setf (%process-whostate ,p) ,old-whostate)))))
 
-(defmacro %with-recursive-lock-ptr ((lockptr) &body body)
-  (let* ((locked (gensym)))
-    `(let ((,locked (make-lock-acquisition)))
-      (declare (dynamic-extent ,locked))
-      (unwind-protect
-           (progn
-             (%lock-recursive-lock ,lockptr ,locked )
-             ,@body)
-        (when (lock-acquisition.status ,locked) (%unlock-recursive-lock ,lockptr))))))
-
-(defmacro %with-recursive-lock-ptr-maybe ((lockptr) &body body)
-  `(when (%try-recursive-lock ,lockptr)
-    (unwind-protect
-	 (progn ,@body)
-      (%unlock-recursive-lock ,lockptr))))
 
 
-(defmacro with-recursive-lock ((lock) &body body)
-  (let* ((p (gensym)))
-    `(let* ((,p (recursive-lock-ptr ,lock)))
-      (%with-recursive-lock-ptr (,p) ,@body))))
 
-(defmacro with-recursive-lock-maybe ((lock) &body body)
-  (let* ((p (gensym)))
-    `(let* ((,p (recursive-lock-ptr ,lock)))
-      (%with-recursive-lock-ptr-maybe (,p) ,@body))))
 
 (defmacro with-read-lock ((lock) &body body)
   "Wait until a given lock is available for read-only access, then evaluate
@@ -3035,11 +3016,11 @@ its body with the lock held."
   (let* ((p (gensym)))
     `(with-lock-context
       (let* ((,p ,lock))
-        (unwind-protect
-             (progn
-               (write-lock-rwlock ,p)
-               ,@body)
-          (unlock-rwlock ,p))))))
+      (unwind-protect
+           (progn
+             (write-lock-rwlock ,p)
+             ,@body)
+        (unlock-rwlock ,p))))))
 
 
 
