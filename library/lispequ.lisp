@@ -1308,9 +1308,10 @@
   class-cell-name
   class-cell-class
   class-cell-instantiate
+  class-cell-extra                      ; wrapper in some cases
   )
 
-(defmacro make-class-cell (name) `(%istruct 'class-cell ,name nil '%make-instance))
+(defmacro make-class-cell (name) `(%istruct 'class-cell ,name nil '%make-instance nil))
 
 
 (provide "LISPEQU")
