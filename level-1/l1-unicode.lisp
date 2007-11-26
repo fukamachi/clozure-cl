@@ -359,7 +359,7 @@ codes map to their Unicode equivalents. "
 ;;; Unicode characters that are commonly used in some locale.  (Sometimes
 ;;; the break is at #x80 instead of #xa0).
 
-(defparameter *iso-8859-2-to-unicode*
+(defstatic *iso-8859-2-to-unicode*
   #(
   ;; #xa0
   #\u+00a0 #\u+0104 #\u+02d8 #\u+0141 #\u+00a4 #\u+013d #\u+015a #\u+00a7
@@ -381,7 +381,7 @@ codes map to their Unicode equivalents. "
   #\u+0159 #\u+016f #\u+00fa #\u+0171 #\u+00fc #\u+00fd #\u+0163 #\u+02d9
 ))
 
-(defparameter *unicode-00a0-0180-to-iso-8859-2*
+(defstatic *unicode-00a0-0180-to-iso-8859-2*
   #(
     #xa0 nil nil nil #xa4 nil nil #xa7 ; #xa0-#xa7 
     #xa8 nil nil nil nil #xad nil nil ; #xa8-#xaf 
@@ -414,7 +414,7 @@ codes map to their Unicode equivalents. "
     nil #xac #xbc #xaf #xbf #xae #xbe nil ; #x178-#x17f 
     ))
 
-(defparameter *unicode-00c0-00e0-to-iso-8859-2*
+(defstatic *unicode-00c0-00e0-to-iso-8859-2*
   #(
     nil nil nil nil nil nil nil #xb7  ; #xc0-#xc7 
     nil nil nil nil nil nil nil nil     ; #xc8-#xcf 
@@ -526,7 +526,7 @@ languages used in Central/Eastern Europe."
   :encode-literal-char-code-limit #xa0
   )
 
-(defparameter *iso-8859-3-to-unicode*
+(defstatic *iso-8859-3-to-unicode*
   #(
     ;; #xa0 
     #\u+00a0 #\u+0126 #\u+02d8 #\u+00a3 #\u+00a4 #\u+fffd #\u+0124 #\u+00a7
@@ -548,7 +548,7 @@ languages used in Central/Eastern Europe."
     #\u+011d #\u+00f9 #\u+00fa #\u+00fb #\u+00fc #\u+016d #\u+015d #\u+02d9
     ))
 
-(defparameter *unicode-a0-100-to-iso-8859-3*
+(defstatic *unicode-a0-100-to-iso-8859-3*
   #(
     #xa0 nil nil #xa3 #xa4 nil nil #xa7 ; #xa0-#xa7 
     #xa8 nil nil nil nil #xad nil nil   ; #xa8-#xaf 
@@ -564,7 +564,7 @@ languages used in Central/Eastern Europe."
     nil #xf9 #xfa #xfb #xfc nil nil nil ; #xf8-#xff 
     ))
 
-(defparameter *unicode-108-180-to-iso-8859-3*
+(defstatic *unicode-108-180-to-iso-8859-3*
   #(
     #xc6 #xe6 #xc5 #xe5 #x00 #x00 #x00 #x00 ; #x108-#x10f 
     nil nil nil nil nil nil nil nil     ; #x110-#x117 
@@ -583,7 +583,7 @@ languages used in Central/Eastern Europe."
     nil nil nil #xaf #xbf nil nil nil   ; #x178-#x17f 
     ))
 
-(defparameter *unicode-2d8-2e0-to-iso-8859-3*
+(defstatic *unicode-2d8-2e0-to-iso-8859-3*
   #(
     #xa2 #xff nil nil nil nil nil nil   ; #x2d8-#x2df 
     ))
@@ -706,7 +706,7 @@ languages used in Southern Europe."
   )
 
 
-(defparameter *iso-8859-4-to-unicode*
+(defstatic *iso-8859-4-to-unicode*
   #(
     ;; #xa0 
     #\u+00a0 #\u+0104 #\u+0138 #\u+0156 #\u+00a4 #\u+0128 #\u+013b #\u+00a7
@@ -729,7 +729,7 @@ languages used in Southern Europe."
     ))
 
 
-(defparameter *unicode-a0-180-to-iso-8859-4*
+(defstatic *unicode-a0-180-to-iso-8859-4*
   #(
     #xa0 nil nil nil #xa4 nil nil #xa7  ; #xa0-#xa7 
     #xa8 nil nil nil nil #xad nil #xaf  ; #xa8-#xaf 
@@ -761,7 +761,7 @@ languages used in Southern Europe."
     nil nil nil nil nil #xae #xbe nil   ; #x178-#x17f 
     ))
 
-(defparameter *unicode-2c0-2e0-to-iso-8859-4*
+(defstatic *unicode-2c0-2e0-to-iso-8859-4*
   #(
     nil nil nil nil nil nil nil #xb7    ; #x2c0-#x2c7
     nil nil nil nil nil nil nil nil     ; #x2c8-#x2cf
@@ -877,7 +877,7 @@ languages used in Northern Europe."
   :encode-literal-char-code-limit #xa0  
   )
 
-(defparameter *iso-8859-5-to-unicode*
+(defstatic *iso-8859-5-to-unicode*
   #(
     ;; #xa0
     #\u+00a0 #\u+0401 #\u+0402 #\u+0403 #\u+0404 #\u+0405 #\u+0406 #\u+0407
@@ -900,13 +900,13 @@ languages used in Northern Europe."
     ))
 
 
-(defparameter *unicode-a0-b0-to-iso-8859-5*
+(defstatic *unicode-a0-b0-to-iso-8859-5*
   #(
     #xa0 nil nil nil nil nil nil #xfd   ; #xa0-#xa7
     nil nil nil nil nil #xad nil nil    ; #xa8-#xaf
     ))
 
-(defparameter *unicode-400-460-to-iso-8859-5*
+(defstatic *unicode-400-460-to-iso-8859-5*
   #(
     nil #xa1 #xa2 #xa3 #xa4 #xa5 #xa6 #xa7 ; #x400-#x407
     #xa8 #xa9 #xaa #xab #xac nil #xae #xaf ; #x408-#x40f
@@ -1029,7 +1029,7 @@ Cyrillic alphabet."
   :encode-literal-char-code-limit #xa0
   )
 
-(defparameter *iso-8859-6-to-unicode*
+(defstatic *iso-8859-6-to-unicode*
   #(
     ;; #xa0 
     #\u+00a0 #\u+fffd #\u+fffd #\u+fffd #\u+00a4 #\u+fffd #\u+fffd #\u+fffd
@@ -1051,14 +1051,14 @@ Cyrillic alphabet."
     #\u+fffd #\u+fffd #\u+fffd #\u+fffd #\u+fffd #\u+fffd #\u+fffd #\u+fffd
     ))
 
-(defparameter *unicode-a0-b0-to-iso-8859-6*
+(defstatic *unicode-a0-b0-to-iso-8859-6*
   #(
     0xa0 nil nil nil 0xa4 nil nil nil   ; #xa0-#xa7
     nil nil nil nil nil #xad nil nil    ; #xa8-#xaf
     ))
 
 
-(defparameter *unicode-608-658-to-iso-8859-6*
+(defstatic *unicode-608-658-to-iso-8859-6*
   #(
     nil nil nil nil #xac nil nil nil    ; #x608-#x60f
     nil nil nil nil nil nil nil nil     ; #x610-#x617
@@ -1178,7 +1178,7 @@ Arabic alphabet."
   :encode-literal-char-code-limit #xa0  
   )
 
-(defparameter *iso-8859-7-to-unicode*
+(defstatic *iso-8859-7-to-unicode*
   #(
     ;; #xa0
     #\u+00a0 #\u+2018 #\u+2019 #\u+00a3 #\u+20ac #\u+20af #\u+00a6 #\u+00a7
@@ -1200,7 +1200,7 @@ Arabic alphabet."
     #\u+03c8 #\u+03c9 #\u+03ca #\u+03cb #\u+03cc #\u+03cd #\u+03ce #\u+fffd
     ))
 
-(defparameter *unicode-a0-c0-to-iso-8859-7*
+(defstatic *unicode-a0-c0-to-iso-8859-7*
   #(
     #xa0 nil nil #xa3 nil nil #xa6 #xa7 ; #xa0-#xa7
     #xa8 #xa9 nil #xab #xac #xad nil nil ; #xa8-#xaf
@@ -1208,7 +1208,7 @@ Arabic alphabet."
     nil nil nil #xbb nil #xbd nil nil   ; #xb8-#xbf
     ))
 
-(defparameter *unicode-378-3d0-to-iso-8859-7*
+(defstatic *unicode-378-3d0-to-iso-8859-7*
   #(
     nil nil #xaa nil nil nil nil nil    ; #x378-#x37f 
     nil nil nil nil #xb4 #xb5 #xb6 nil  ; #x380-#x387 
@@ -1223,13 +1223,13 @@ Arabic alphabet."
     #xf8 #xf9 #xfa #xfb #xfc #xfd #xfe nil ; #x3c8-#x3cf 
     ))
 
-(defparameter *unicode-2010-2020-to-iso-8859-7*
+(defstatic *unicode-2010-2020-to-iso-8859-7*
   #(
     nil nil nil nil nil #xaf nil nil    ; #x2010-#x2017 
     #xa1 #xa2 nil nil nil nil nil nil   ; #x2018-#x201f 
     ))
 
-(defparameter *unicode-20ac-20b0-to-iso-8859-7*
+(defstatic *unicode-20ac-20b0-to-iso-8859-7*
   #(
     #xa4 nil nil #xa5
     ))
@@ -1358,7 +1358,7 @@ Greek alphabet."
   :encode-literal-char-code-limit #xa0  
   )
 
-(defparameter *iso-8859-8-to-unicode*
+(defstatic *iso-8859-8-to-unicode*
   #(
     ;; #xa0
     #\u+00a0 #\u+fffd #\u+00a2 #\u+00a3 #\u+00a4 #\u+00a5 #\u+00a6 #\u+00a7
@@ -1380,7 +1380,7 @@ Greek alphabet."
     #\u+05e8 #\u+05e9 #\u+05ea #\u+fffd #\u+fffd #\u+200e #\u+200f #\u+fffd
     ))
 
-(defparameter *unicode-a0-f8-to-iso-8859-8*
+(defstatic *unicode-a0-f8-to-iso-8859-8*
   #(
     #xa0 nil #xa2 #xa3 #xa4 #xa5 #xa6 #xa7 ; #xa0-#xa7 
     #xa8 #xa9 nil #xab #xac #xad #xae #xaf ; #xa8-#xaf 
@@ -1395,7 +1395,7 @@ Greek alphabet."
     nil nil nil nil nil nil nil #xba    ; #xf0-#xf7 
     ))
 
-(defparameter *unicode-5d0-5f0-to-iso-8859-8*
+(defstatic *unicode-5d0-5f0-to-iso-8859-8*
   #(
     #xe0 #xe1 #xe2 #xe3 #xe4 #xe5 #xe6 #xe7 ; #x5d0-#x5d7
     #xe8 #xe9 #xea #xeb #xec #xed #xee #xef ; #x5d8-#x5df
@@ -1403,7 +1403,7 @@ Greek alphabet."
     #xf8 #xf9 #xfa nil nil nil nil nil  ; #x5e8-#x5ef
     ))
 
-(defparameter *unicode-2008-2018-to-iso-8859-8*
+(defstatic *unicode-2008-2018-to-iso-8859-8*
   #(
     nil nil nil nil nil nil #xfd #xfe   ; #x2008-#x200f 
     nil nil nil nil nil nil nil #xdf    ; #x2010-#x2017 
@@ -1524,7 +1524,7 @@ Hebrew alphabet."
   :encode-literal-char-code-limit #xa0  
   )
 
-(defparameter *iso-8859-9-to-unicode*
+(defstatic *iso-8859-9-to-unicode*
   #(
     ;; #xd0
     #\u+011e #\u+00d1 #\u+00d2 #\u+00d3 #\u+00d4 #\u+00d5 #\u+00d6 #\u+00d7
@@ -1537,7 +1537,7 @@ Hebrew alphabet."
     #\u+00f8 #\u+00f9 #\u+00fa #\u+00fb #\u+00fc #\u+0131 #\u+015f #\u+00ff
     ))
 
-(defparameter *unicode-d0-100-to-iso-8859-9*
+(defstatic *unicode-d0-100-to-iso-8859-9*
   #(
     nil #xd1 #xd2 #xd3 #xd4 #xd5 #xd6 #xd7 ; #xd0-#xd7
     #xd8 #xd9 #xda #xdb #xdc nil nil #xdf ; #xd8-#xdf
@@ -1547,7 +1547,7 @@ Hebrew alphabet."
     #xf8 #xf9 #xfa #xfb #xfc nil nil #xff ; #xf8-#xff
     ))
 
-(defparameter *unicode-118-160-to-iso-8859-9*
+(defstatic *unicode-118-160-to-iso-8859-9*
   #(
     nil nil nil nil nil nil #xd0 #xf0   ; #x118-#x11f 
     nil nil nil nil nil nil nil nil     ; #x120-#x127 
@@ -1667,7 +1667,7 @@ Turkish alphabet."
   :encode-literal-char-code-limit #xa0
   )
 
-(defparameter *iso-8859-10-to-unicode*
+(defstatic *iso-8859-10-to-unicode*
   #(
     ;; #xa0
     #\u+00a0 #\u+0104 #\u+0112 #\u+0122 #\u+012a #\u+0128 #\u+0136 #\u+00a7
@@ -1689,7 +1689,7 @@ Turkish alphabet."
     #\u+00f8 #\u+0173 #\u+00fa #\u+00fb #\u+00fc #\u+00fd #\u+00fe #\u+0138
     ))
 
-(defparameter *unicode-a0-180-to-iso-8859-10*
+(defstatic *unicode-a0-180-to-iso-8859-10*
   #(
     #xa0 nil nil nil nil nil nil #xa7   ; #xa0-#xa7 
     nil nil nil nil nil #xad nil nil    ; #xa8-#xaf 
@@ -1929,7 +1929,7 @@ alphabet."
 
 ;;; There is no iso-8859-12 encoding.
 
-(defparameter *iso-8859-13-to-unicode*
+(defstatic *iso-8859-13-to-unicode*
   #(
     ;; #xa0
     #\u+00a0 #\u+201d #\u+00a2 #\u+00a3 #\u+00a4 #\u+201e #\u+00a6 #\u+00a7
@@ -1951,7 +1951,7 @@ alphabet."
     #\u+0173 #\u+0142 #\u+015b #\u+016b #\u+00fc #\u+017c #\u+017e #\u+2019
     ))
 
-(defparameter *unicode-a0-180-to-iso-8859-13*
+(defstatic *unicode-a0-180-to-iso-8859-13*
   #(
     #xa0 nil #xa2 #xa3 #xa4 nil #xa6 #xa7 ; #xa0-#xa7
     nil #xa9 nil #xab #xac #xad #xae nil ; #xa8-#xaf
@@ -1983,7 +1983,7 @@ alphabet."
     nil #xca #xea #xdd #xfd #xde #xfe nil ; #x178-#x17f
     ))
 
-(defparameter *unicode-2018-2020-to-iso-8859-13*
+(defstatic *unicode-2018-2020-to-iso-8859-13*
   #(
     nil #xff nil nil #xb4 #xa1 #xa5 nil ; #x2018-#x201f */
     ))
@@ -2097,7 +2097,7 @@ alphabets."
   :encode-literal-char-code-limit #xa0  
   )
 
-(defparameter *iso-8859-14-to-unicode*
+(defstatic *iso-8859-14-to-unicode*
   #(
     ;; #xa0
     #\u+00a0 #\u+1e02 #\u+1e03 #\u+00a3 #\u+010a #\u+010b #\u+1e0a #\u+00a7
@@ -2119,7 +2119,7 @@ alphabets."
     #\u+00f8 #\u+00f9 #\u+00fa #\u+00fb #\u+00fc #\u+00fd #\u+0177 #\u+00ff
     ))
 
-(defparameter *unicode-a0-100-to-iso-8859-14*
+(defstatic *unicode-a0-100-to-iso-8859-14*
   #(
     #xa0 nil nil #xa3 nil nil nil #xa7  ; #xa0-#xa7
     nil #xa9 nil nil nil #xad #xae nil  ; #xa8-#xaf
@@ -2135,7 +2135,7 @@ alphabets."
     #xf8 #xf9 #xfa #xfb #xfc #xfd nil #xff ; #xf8-#xff
     ))
 
-(defparameter *unicode-108-128-to-iso-8859-14*
+(defstatic *unicode-108-128-to-iso-8859-14*
   #(
     nil nil #xa4 #xa5 nil nil nil nil   ; #x108-#x10f
     nil nil nil nil nil nil nil nil     ; #x110-#x117
@@ -2143,13 +2143,13 @@ alphabets."
     #xb2 #xb3 nil nil nil nil nil nil   ; #x120-#x127
     ))
 
-(defparameter *unicode-170-180-to-iso-8859-14*
+(defstatic *unicode-170-180-to-iso-8859-14*
   #(
     nil nil nil nil #xd0 #xf0 #xde #xfe ; #x170-#x177
     #xaf nil nil nil nil nil nil nil    ; #x178-#x17f
     ))    
 
-(defparameter *unicode-1e00-1e88-to-iso-8859-14*
+(defstatic *unicode-1e00-1e88-to-iso-8859-14*
   #(
     nil nil #xa1 #xa2 nil nil nil nil   ; #x1e00-#x1e07
     nil nil #xa6 #xab nil nil nil nil   ; #x1e08-#x1e0f
@@ -2170,7 +2170,7 @@ alphabets."
     #xa8 #xb8 #xaa #xba #xbd #xbe nil nil ; #x1e80-#x1e87
     ))
 
-(defparameter *unicode-1ef0-1ef8-to-iso-8859-14*
+(defstatic *unicode-1ef0-1ef8-to-iso-8859-14*
   #(
     nil nil #xac #xbc nil nil nil nil   ; #x1ef0-#x1ef7
     ))
@@ -2306,7 +2306,7 @@ languages."
   :encode-literal-char-code-limit #xa0  
   )
 
-(defparameter *iso-8859-15-to-unicode*
+(defstatic *iso-8859-15-to-unicode*
   #(
     ;; #xa0
     #\u+00a0 #\u+00a1 #\u+00a2 #\u+00a3 #\u+20ac #\u+00a5 #\u+0160 #\u+00a7
@@ -2332,7 +2332,7 @@ languages."
     #\u+00f8 #\u+00f9 #\u+00fa #\u+00fb #\u+00fc #\u+00fd #\u+00fe #\u+00ff 
     ))
 
-(defparameter *unicode-a0-100-to-iso-8859-15*
+(defstatic *unicode-a0-100-to-iso-8859-15*
   #(
     #xa0 #xa1 #xa2 #xa3 nil #xa5 nil #xa7 ; #xa0-#xa7
     nil #xa9 #xaa #xab #xac #xad #xae #xaf ; #xa8-#xaf
@@ -2348,7 +2348,7 @@ languages."
     #xf8 #xf9 #xfa #xfb #xfc #xfd #xfe #xff ; #xf8-#xff
     ))
 
-(defparameter *unicode-150-180-to-iso-8859-15*
+(defstatic *unicode-150-180-to-iso-8859-15*
   #(
     nil nil #xbc #xbd nil nil nil nil   ; #x150-#x157
     nil nil nil nil nil nil nil nil     ; #x158-#x15f
@@ -2466,7 +2466,7 @@ missing from ISO-8859-1."
   :encode-literal-char-code-limit #xa0  
   )
 
-(defparameter *iso-8859-16-to-unicode*
+(defstatic *iso-8859-16-to-unicode*
   #(
     ;; #xa0
     #\u+00a0 #\u+0104 #\u+0105 #\u+0141 #\u+20ac #\u+201e #\u+0160 #\u+00a7
@@ -2488,7 +2488,7 @@ missing from ISO-8859-1."
     #\u+0171 #\u+00f9 #\u+00fa #\u+00fb #\u+00fc #\u+0119 #\u+021b #\u+00ff
     ))
 
-(defparameter *unicode-a0-180-to-iso-8859-16*
+(defstatic *unicode-a0-180-to-iso-8859-16*
   #(
     #xa0 nil nil nil nil nil nil #xa7   ; #xa0-#xa7 
     nil #xa9 nil #xab nil #xad nil nil  ; #xa8-#xaf 
@@ -2520,12 +2520,12 @@ missing from ISO-8859-1."
     #xbe #xac #xae #xaf #xbf #xb4 #xb8 nil ; #x178-#x17f 
     ))
 
-(defparameter *unicode-218-220-to-iso-8859-16*
+(defstatic *unicode-218-220-to-iso-8859-16*
   #(
     #xaa #xba #xde #xfe nil nil nil nil ; #x218-#x21f
     ))
 
-(defparameter *unicode-2018-2020-to-iso-8859-16*
+(defstatic *unicode-2018-2020-to-iso-8859-16*
   #(
     nil nil nil nil nil #xb5 #xa5 nil   ; #x2018-#x201f
     ))
@@ -2647,6 +2647,272 @@ European languages."
   :encode-literal-char-code-limit #xa0  
   )
 
+(defstatic *macintosh-to-unicode*
+  #(
+    ;; #x80 
+    #\u+00c4 #\u+00c5 #\u+00c7 #\u+00c9 #\u+00d1 #\u+00d6 #\u+00dc #\u+00e1
+    #\u+00e0 #\u+00e2 #\u+00e4 #\u+00e3 #\u+00e5 #\u+00e7 #\u+00e9 #\u+00e8
+    ;; #x90 
+    #\u+00ea #\u+00eb #\u+00ed #\u+00ec #\u+00ee #\u+00ef #\u+00f1 #\u+00f3
+    #\u+00f2 #\u+00f4 #\u+00f6 #\u+00f5 #\u+00fa #\u+00f9 #\u+00fb #\u+00fc
+    ;; #xa0 
+    #\u+2020 #\u+00b0 #\u+00a2 #\u+00a3 #\u+00a7 #\u+2022 #\u+00b6 #\u+00df
+    #\u+00ae #\u+00a9 #\u+2122 #\u+00b4 #\u+00a8 #\u+2260 #\u+00c6 #\u+00d8
+    ;; #xb0 
+    #\u+221e #\u+00b1 #\u+2264 #\u+2265 #\u+00a5 #\u+00b5 #\u+2202 #\u+2211
+    #\u+220f #\u+03c0 #\u+222b #\u+00aa #\u+00ba #\u+2126 #\u+00e6 #\u+00f8
+    ;; #xc0 
+    #\u+00bf #\u+00a1 #\u+00ac #\u+221a #\u+0192 #\u+2248 #\u+2206 #\u+00ab
+    #\u+00bb #\u+2026 #\u+00a0 #\u+00c0 #\u+00c3 #\u+00d5 #\u+0152 #\u+0153
+    ;; #xd0 
+    #\u+2013 #\u+2014 #\u+201c #\u+201d #\u+2018 #\u+2019 #\u+00f7 #\u+25ca
+    #\u+00ff #\u+0178 #\u+2044 #\u+00a4 #\u+2039 #\u+203a #\u+fb01 #\u+fb02
+    ;; #xe0 
+    #\u+2021 #\u+00b7 #\u+201a #\u+201e #\u+2030 #\u+00c2 #\u+00ca #\u+00c1
+    #\u+00cb #\u+00c8 #\u+00cd #\u+00ce #\u+00cf #\u+00cc #\u+00d3 #\u+00d4
+    ;; #xf0 
+    #\u+f8ff #\u+00d2 #\u+00da #\u+00db #\u+00d9 #\u+0131 #\u+02c6 #\u+02dc
+    #\u+00af #\u+02d8 #\u+02d9 #\u+02da #\u+00b8 #\u+02dd #\u+02db #\u+02c7
+    ))
+
+
+(defstatic *unicode-a0-100-to-macintosh*
+  #(
+    #xca #xc1 #xa2 #xa3 #xdb #xb4 nil #xa4 ; #xa0-#xa7 
+    #xac #xa9 #xbb #xc7 #xc2 nil #xa8 #xf8 ; #xa8-#xaf 
+    #xa1 #xb1 nil nil #xab #xb5 #xa6 #xe1 ; #xb0-#xb7 
+    #xfc nil #xbc #xc8 nil nil nil #xc0 ; #xb8-#xbf 
+    #xcb #xe7 #xe5 #xcc #x80 #x81 #xae #x82 ; #xc0-#xc7 
+    #xe9 #x83 #xe6 #xe8 #xed #xea #xeb #xec ; #xc8-#xcf 
+    nil #x84 #xf1 #xee #xef #xcd #x85 nil ; #xd0-#xd7 
+    #xaf #xf4 #xf2 #xf3 #x86 nil nil #xa7 ; #xd8-#xdf 
+    #x88 #x87 #x89 #x8b #x8a #x8c #xbe #x8d ; #xe0-#xe7 
+    #x8f #x8e #x90 #x91 #x93 #x92 #x94 #x95 ; #xe8-#xef 
+    nil #x96 #x98 #x97 #x99 #x9b #x9a #xd6 ; #xf0-#xf7 
+    #xbf #x9d #x9c #x9e #x9f nil nil #xd8 ; #xf8-#xff 
+    ))
+
+(defstatic *unicode-130-198-to-macintosh*
+  #(
+    nil #xf5 nil nil nil nil nil nil ; #x130-#x137 
+    nil nil nil nil nil nil nil nil ; #x138-#x13f 
+    nil nil nil nil nil nil nil nil ; #x140-#x147 
+    nil nil nil nil nil nil nil nil ; #x148-#x14f 
+    nil nil #xce #xcf nil nil nil nil ; #x150-#x157 
+    nil nil nil nil nil nil nil nil ; #x158-#x15f 
+    nil nil nil nil nil nil nil nil ; #x160-#x167 
+    nil nil nil nil nil nil nil nil ; #x168-#x16f 
+    nil nil nil nil nil nil nil nil ; #x170-#x177 
+    #xd9 nil nil nil nil nil nil nil ; #x178-#x17f 
+    nil nil nil nil nil nil nil nil ; #x180-#x187 
+    nil nil nil nil nil nil nil nil ; #x188-#x18f 
+    nil nil #xc4 nil nil nil nil nil ; #x190-#x197 
+    ))
+
+(defstatic *unicode-2c0-2e0-to-macintosh*
+  #(
+    nil nil nil nil nil nil #xf6 #xff   ; #x2c0-#x2c7 
+    nil nil nil nil nil nil nil nil     ; #x2c8-#x2cf 
+    nil nil nil nil nil nil nil nil     ; #x2d0-#x2d7 
+    #xf9 #xfa #xfb #xfe #xf7 #xfd nil nil ; #x2d8-#x2df 
+    ))
+
+(defstatic *unicode-2010-2048-to-macintosh*
+  #(
+  nil nil nil #xd0 #xd1 nil nil nil ; #x2010-#x2017 
+  #xd4 #xd5 #xe2 nil #xd2 #xd3 #xe3 nil ; #x2018-#x201f 
+  #xa0 #xe0 #xa5 nil nil nil #xc9 nil ; #x2020-#x2027 
+  nil nil nil nil nil nil nil nil ; #x2028-#x202f 
+  #xe4 nil nil nil nil nil nil nil ; #x2030-#x2037 
+  nil #xdc #xdd nil nil nil nil nil ; #x2038-#x203f 
+  nil nil nil nil #xda nil nil nil ; #x2040-#x2047 
+    ))
+
+(defstatic *unicode-2120-2128-to-macintosh*
+  #(
+    nil nil #xaa nil nil nil #xbd nil   ; #x2120-#x2127
+    ))
+
+(defstatic *unicode-2200-2268-to-macintosh*
+  #(
+    nil nil #xb6 nil nil nil #xc6 nil   ; #x2200-#x2207 
+    nil nil nil nil nil nil nil #xb8    ; #x2208-#x220f 
+    nil #xb7 nil nil nil nil nil nil    ; #x2210-#x2217 
+    nil nil #xc3 nil nil nil #xb0 nil   ; #x2218-#x221f 
+    nil nil nil nil nil nil nil nil     ; #x2220-#x2227 
+    nil nil nil #xba nil nil nil nil    ; #x2228-#x222f 
+    nil nil nil nil nil nil nil nil     ; #x2230-#x2237 
+    nil nil nil nil nil nil nil nil     ; #x2238-#x223f 
+    nil nil nil nil nil nil nil nil     ; #x2240-#x2247 
+    #xc5 nil nil nil nil nil nil nil    ; #x2248-#x224f 
+    nil nil nil nil nil nil nil nil     ; #x2250-#x2257 
+    nil nil nil nil nil nil nil nil     ; #x2258-#x225f 
+    #xad nil nil nil #xb2 #xb3 nil nil  ; #x2260-#x2267 
+    ))
+
+(defstatic *unicode-fb00-fb08-to-macintosh*
+  #(
+    nil #xde #xdf nil nil nil nil nil ; #xfb00-#xfb07
+    ))
+
+(define-character-encoding :macintosh
+    "An 8-bit, fixed-width character encoding in which codes #x00-#x7f
+map to their Unicode equivalents and other codes map to other Unicode
+character values.  Traditionally used on Classic MacOS to encode characters
+used in western languages."
+  :aliases '(:macos-roman :macosroman :mac-roman :macroman)
+
+  :stream-encode-function
+  (nfunction
+   macintosh-stream-encode
+   (lambda (char write-function stream)
+     (let* ((code (char-code char))
+            (c2 (cond ((< code #x80) code)
+                      ((and (>= code #xa0) (< code #x100)
+                       (svref *unicode-a0-100-to-macintosh*
+                              (the fixnum (- code #xa0)))))
+                      ((and (>= code #x130) (< code #x198))
+                       (svref *unicode-130-198-to-macintosh*
+                              (the fixnum (- code #x130))))
+                      ((and (>= code #x2c0) (< code #x2e0))
+                       (svref *unicode-2c0-2e0-to-macintosh*
+                              (the fixnum (- code #x2c0))))
+                      ((= code #x3c0) #xb9)
+                      ((and (>= code #x2010) (< code #x2048))
+                       (svref *unicode-2010-2048-to-macintosh*
+                              (the fixnum (- code #x2010))))
+                      ((and (>= code #x2120) (< code #x2128))
+                       (svref *unicode-2120-2128-to-macintosh*
+                              (the fixnum (- code #x2120))))
+                      ((and (>= code #x2200) (< code #x2268))
+                       (svref *unicode-2200-2268-to-macintosh*
+                              (the fixnum (- code #x2200))))
+                      ((= code #x25ca) #xd7)
+                      ((and (>= code #xfb00) (< code #xfb08))
+                       (svref *unicode-fb00-fb08-to-macintosh*
+                              (the fixnum (- code #xfb00))))
+                      ((= code #xf8ff) #xf0))))
+       (declare (type (mod #x110000) code))
+       (funcall write-function stream (or c2 (char-code #\Sub)))
+       1)))
+  :stream-decode-function
+  (nfunction
+   macintosh-stream-decode
+   (lambda (1st-unit next-unit-function stream)
+     (declare (ignore next-unit-function stream)
+              (type (unsigned-byte 8) 1st-unit))
+     (if (< 1st-unit #x80)
+       (code-char 1st-unit)
+       (svref *macintosh-to-unicode* (the fixnum (- 1st-unit #x80))))))
+  :vector-encode-function
+  (nfunction
+   macintosh-vector-encode
+   (lambda (string vector idx start end)
+     (declare (type (simple-array (unsigned-byte 8) (*)) vector)
+              (fixnum idx))
+     (do* ((i start (1+ i)))
+          ((>= i end) idx)
+       (let* ((char (schar string i))
+              (code (char-code char))
+            (c2 (cond ((< code #x80) code)
+                      ((and (>= code #xa0) (< code #x100)
+                       (svref *unicode-a0-100-to-macintosh*
+                              (the fixnum (- code #xa0)))))
+                      ((and (>= code #x130) (< code #x198))
+                       (svref *unicode-130-198-to-macintosh*
+                              (the fixnum (- code #x130))))
+                      ((and (>= code #x2c0) (< code #x2e0))
+                       (svref *unicode-2c0-2e0-to-macintosh*
+                              (the fixnum (- code #x2c0))))
+                      ((= code #x3c0) #xb9)
+                      ((and (>= code #x2010) (< code #x2048))
+                       (svref *unicode-2010-2048-to-macintosh*
+                              (the fixnum (- code #x2010))))
+                      ((and (>= code #x2120) (< code #x2128))
+                       (svref *unicode-2120-2128-to-macintosh*
+                              (the fixnum (- code #x2120))))
+                      ((and (>= code #x2200) (< code #x2268))
+                       (svref *unicode-2200-2268-to-macintosh*
+                              (the fixnum (- code #x2200))))
+                      ((= code #x25ca) #xd7)
+                      ((and (>= code #xfb00) (< code #xfb08))
+                       (svref *unicode-fb00-fb08-to-macintosh*
+                              (the fixnum (- code #xfb00))))
+                      ((= code #xf8ff) #xf0))))
+         (declare (type (mod #x110000) code))
+         (setf (aref vector idx) (or c2 (char-code #\Sub)))
+         (incf idx)))))
+  :vector-decode-function
+  (nfunction
+   macintosh-vector-decode
+   (lambda (vector idx noctets string)
+     (declare (type (simple-array (unsigned-byte 8) (*)) vector))
+     (do* ((i 0 (1+ i))
+           (index idx (1+ index)))
+          ((>= i noctets) index)
+       (let* ((1st-unit (aref vector index)))
+         (declare (type (unsigned-byte 8) 1st-unit))
+         (setf (schar string i)
+               (if (< 1st-unit #x80)
+                 (code-char 1st-unit)
+                 (svref *macintosh-to-unicode* (the fixnum (- 1st-unit #x80)))))))))
+  :memory-encode-function
+  (nfunction
+   macintosh-memory-encode
+   (lambda (string pointer idx start end)
+     (do* ((i start (1+ i)))
+          ((>= i end) idx)
+       (let* ((code (char-code (schar string i)))
+            (c2 (cond ((< code #x80) code)
+                      ((and (>= code #xa0) (< code #x100)
+                       (svref *unicode-a0-100-to-macintosh*
+                              (the fixnum (- code #xa0)))))
+                      ((and (>= code #x130) (< code #x198))
+                       (svref *unicode-130-198-to-macintosh*
+                              (the fixnum (- code #x130))))
+                      ((and (>= code #x2c0) (< code #x2e0))
+                       (svref *unicode-2c0-2e0-to-macintosh*
+                              (the fixnum (- code #x2c0))))
+                      ((= code #x3c0) #xb9)
+                      ((and (>= code #x2010) (< code #x2048))
+                       (svref *unicode-2010-2048-to-macintosh*
+                              (the fixnum (- code #x2010))))
+                      ((and (>= code #x2120) (< code #x2128))
+                       (svref *unicode-2120-2128-to-macintosh*
+                              (the fixnum (- code #x2120))))
+                      ((and (>= code #x2200) (< code #x2268))
+                       (svref *unicode-2200-2268-to-macintosh*
+                              (the fixnum (- code #x2200))))
+                      ((= code #x25ca) #xd7)
+                      ((and (>= code #xfb00) (< code #xfb08))
+                       (svref *unicode-fb00-fb08-to-macintosh*
+                              (the fixnum (- code #xfb00))))
+                      ((= code #xf8ff) #xf0))))
+         (declare (type (mod #x110000) code))
+         (setf (%get-unsigned-byte pointer idx) (or c2 (char-code #\Sub)))
+         (incf idx)))))
+  :memory-decode-function
+  (nfunction
+   macintosh--memory-decode
+   (lambda (pointer noctets idx string)
+     (do* ((i 0 (1+ i))
+           (index idx (1+ index)))
+          ((>= i noctets) index)
+       (let* ((1st-unit (%get-unsigned-byte pointer index)))
+         (declare (type (unsigned-byte 8) 1st-unit))
+         (setf (schar string i)
+               (if (< 1st-unit #x80)
+                 (code-char 1st-unit)
+                 (svref *macintosh-to-unicode* (the fixnum (- 1st-unit #xa0)))))))))
+  :octets-in-string-function
+  #'8-bit-fixed-width-octets-in-string
+  :length-of-vector-encoding-function
+  #'8-bit-fixed-width-length-of-vector-encoding
+  :length-of-memory-encoding-function 
+  #'8-bit-fixed-width-length-of-memory-encoding
+  :decode-literal-code-unit-limit #x80
+  :encode-literal-char-code-limit #x80  
+  )
 
 ;;; UTF-8.  Decoding checks for malformed sequences; it might be faster (and
 ;;; would certainly be simpler) if it didn't.
