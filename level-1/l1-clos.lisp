@@ -1865,6 +1865,79 @@ changing its name to ~s may have serious consequences." class new))
                              (gf.dcode f) #'reader-variable-location-dcode)))))))))))                       
 
 
+;;; Return a lambda form or NIL.
+(defun make-instantiate-lambda-for-class-cell (cell)
+  (let* ((class (class-cell-class cell)))
+    (when (and (typep class 'standard-class)
+               (null (cdr (compute-applicable-methods #'allocate-instance (list class))))
+               (let* ((proto (class-prototype class)))
+                 (and (null (cdr (compute-applicable-methods #'initialize-instance (list proto))))
+                      (null (cdr (compute-applicable-methods #'shared-initialize (list proto t)))))))
+      (let* ((slotds (sort (copy-list (class-slots class)) #'< :key #'slot-definition-location))
+             (default-initargs (class-default-initargs class)))
+        ;; Punt if any slot has multiple initargs
+        (when (dolist (slot slotds t)
+                (when (cdr (slot-definition-initargs slot))
+                  (return nil)))
+          (collect ((keys)
+                    (binds)
+                    (forms))
+            (dolist (slot slotds)
+              (let* ((initarg (car (slot-definition-initargs slot)))
+                     (initfunction (slot-definition-initfunction slot))
+                     (initform (slot-definition-initform slot))
+                     (name (slot-definition-name slot))
+                     (initial-value-form (if initfunction
+                                           (if (self-evaluating-p initform)
+                                             initform
+                                             `(funcall ,initfunction))
+                                           `(%slot-unbound-marker)))
+                     (type (slot-definition-type slot)))
+                (if initarg
+                  (keys (list
+                         (list initarg name)
+                         (let* ((default (assq initarg default-initargs)))
+                           (if default
+                             (destructuring-bind (form function)
+                                 (cdr default)
+                               (if (self-evaluating-p form)
+                                 form
+                                 `(funcall ,function)))
+                             initial-value-form))))
+                  (binds (list name initial-value-form)))
+                (if (eq type t)
+                  (forms name)
+                  (forms `(require-type ,name ',type)))))
+            (let* ((cell (make-symbol "CLASS-CELL"))
+                   (slots (make-symbol "SLOTS"))
+                   (instance (make-symbol "INSTANCE")))
+              (binds `(,slots (gvector :slot-vector nil ,@(forms))))
+              (binds `(,instance (gvector :instance 0 (class-cell-extra ,cell) ,slots)))
+              `(lambda (,cell &key ,@(keys))
+                (let* (,@(binds))
+                  (setf (instance.hash ,instance) (strip-tag-to-fixnum ,instance)
+                        (%svref ,slots 0) ,instance))))))))))
+
+(defun optimize-make-instance-for-class-cell (cell)
+  (setf (class-cell-instantiate cell) '%make-instance)
+  (let* ((lambda (make-instantiate-lambda-for-class-cell cell)))
+    (when lambda
+      (setf (class-cell-instantiate cell) (compile nil lambda)
+            (class-cell-extra cell) (%class.own-wrapper
+                                     (class-cell-class cell)))
+      t)))
+
+(defun optimize-make-instance-for-class-name (class-name)
+  (optimize-make-instance-for-class-cell (find-class-cell class-name t)))
+
+(defun optimize-named-class-make-instance-methods ()
+  (maphash (lambda (class-name class-cell)
+             (handler-case (optimize-make-instance-for-class-cell class-cell)
+               (error (c)
+                      (warn "error optimizing make-instance for ~s:~&~a"
+                            class-name c))))
+           %find-classes%))
+
 ;;; Iterate over all known GFs; try to optimize their dcode in cases
 ;;; involving reader methods.
 
@@ -1880,3 +1953,4 @@ changing its name to ~s may have serious consequences." class new))
       (when (%snap-reader-method f)
         (incf nwin)))
     (values ngf nwin 0)))
+
