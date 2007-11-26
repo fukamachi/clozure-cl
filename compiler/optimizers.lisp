@@ -780,8 +780,9 @@
            (eq (car class) 'quote)
            (symbolp (cadr class))
            (null (cddr class)))
-    `(%make-instance (load-time-value (find-class-cell ,class t))
-                     ,@initargs)
+    (let* ((cell (gensym)))
+      `(let* ((,cell (load-time-value (find-class-cell ,class t))))
+        (funcall (class-cell-instantiate ,cell) ,cell ,@initargs)))
     call))
 
 
