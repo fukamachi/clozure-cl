@@ -502,6 +502,30 @@ debug_show_symbol(ExceptionInformation *xp, siginfo_t *info, int arg)
   return debug_continue;
 }
 
+debug_command_return
+debug_thread_info(ExceptionInformation *xp, siginfo_t *info, int arg)
+{
+  TCR * tcr = get_tcr(false);
+  
+  if (tcr) {
+    area *vs_area = tcr->vs_area, *cs_area = tcr->cs_area;
+
+    fprintf(stderr, "Current Thread Context Record (tcr) = 0x%lx\n", tcr);
+    fprintf(stderr, "Control (C) stack area:  low = 0x%lx, high = 0x%lx\n",
+            cs_area->low, cs_area->high);
+    fprintf(stderr, "Value (lisp) stack area: low = 0x%lx, high = 0x%lx\n",
+            vs_area->low, vs_area->high);
+    fprintf(stderr, "Exception stack pointer = 0x%lx\n",
+#ifdef PPC
+            xpGPR(xp,1)
+#endif
+#ifdef X86
+            xpGPR(xp,Isp)
+#endif
+            );
+  }
+  return debug_continue;
+}
       
 
 debug_command_return
@@ -718,6 +742,11 @@ debug_command_entry debug_command_entries[] =
    0,
    NULL,
    'B'},
+  {debug_thread_info,
+   "Show info about current thread",
+   0,
+   NULL,
+   'T'},
   {debug_win,
    "Exit from this debugger, asserting that any exception was handled",
    0,
