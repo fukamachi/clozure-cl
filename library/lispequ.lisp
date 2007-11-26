@@ -1303,7 +1303,7 @@
   file-stream)
 
 
-(def-accessors (class-cell) uvref
+(def-accessors (class-cell) %svref
   nil                                   ; 'class-cell
   class-cell-name
   class-cell-class
