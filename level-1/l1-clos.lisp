@@ -1894,20 +1894,23 @@ changing its name to ~s may have serious consequences." class new))
                                            `(%slot-unbound-marker)))
                      (type (slot-definition-type slot)))
                 (if initarg
-                  (keys (list
-                         (list initarg name)
-                         (let* ((default (assq initarg default-initargs)))
-                           (if default
-                             (destructuring-bind (form function)
-                                 (cdr default)
-                               (if (self-evaluating-p form)
-                                 form
-                                 `(funcall ,function)))
-                             initial-value-form))))
-                  (binds (list name initial-value-form)))
-                (if (eq type t)
-                  (forms name)
-                  (forms `(require-type ,name ',type)))))
+                  (progn
+                    (keys (list
+                           (list initarg name)
+                           (let* ((default (assq initarg default-initargs)))
+                             (if default
+                               (destructuring-bind (form function)
+                                   (cdr default)
+                                 (if (self-evaluating-p form)
+                                   form
+                                   `(funcall ,function)))
+                               initial-value-form))))
+                    (if (eq type t)
+                      (forms name)
+                      (forms `(require-type ,name ',type))))
+                  (if (eq type t)
+                    (forms initial-value-form)
+                    (forms `(require-type ,initial-value-form ',type))))))
             (let* ((cell (make-symbol "CLASS-CELL"))
                    (slots (make-symbol "SLOTS"))
                    (instance (make-symbol "INSTANCE")))
