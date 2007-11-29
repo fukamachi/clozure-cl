@@ -3854,8 +3854,8 @@
   (addq (:$l constant) (:%q result)))
 
 (define-x8664-vinsn %natural-  (((result :u64))
-                               ((result :u64)
-                                (other :u64)))
+                                ((result :u64)
+                                 (other :u64)))
   (subq (:%q other) (:%q result)))
 
 (define-x8664-vinsn %natural--c (((result :u64))
