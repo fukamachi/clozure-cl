@@ -113,7 +113,7 @@
          (values (multiple-value-list
                   (%kernel-restart-internal
                    $xudfcall
-                   (list (xp-gpr-lisp xp ppc::fname) args)
+                   (list (maybe-setf-name (xp-gpr-lisp xp ppc::fname)) args)
                    frame-ptr)))
          (stack-argcnt (max 0 (- (length args) 3)))
          (vsp (%i+ (xp-gpr-lisp xp ppc::vsp) stack-argcnt))

@@ -54,7 +54,7 @@
          (values (multiple-value-list
                   (%kernel-restart-internal
                    $xudfcall
-                   (list (encoded-gpr-lisp xp x8664::fname) args)
+                   (list (maybe-setf-name (encoded-gpr-lisp xp x8664::fname)) args)
                    frame-ptr)))
          (f #'(lambda (values) (apply #'values values))))
     (setf (encoded-gpr-lisp xp x8664::arg_z) values
