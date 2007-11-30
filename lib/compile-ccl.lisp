@@ -562,3 +562,23 @@
           (funcall f dirname target)
           (format t "~%~%;[Parsing .ffi files again to resolve forward-referenced constants]")
           (funcall f dirname target))))))
+
+(defun update-ccl ()
+  (let* ((cvs-update "cvs -q update -d -P")
+         (svn-update "svn update")
+         (use-cvs (probe-file "ccl:\.svnrev"))
+         (s (make-string-output-stream)))
+    (multiple-value-bind (status exit-code)
+        (external-process-status
+         (run-program "/bin/sh"
+                      (list "-c"
+                            (format nil "cd ~a && ~a"
+                                    (native-translated-namestring "ccl:")
+                                    (if use-cvs cvs-update svn-update)))
+                      :output s))
+      (when (and (eq status :exited)
+                 (eql exit-code 0))
+        (format t "~&~a" (get-output-stream-string s))
+        t))))
+
+                           
