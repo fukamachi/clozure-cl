@@ -420,11 +420,11 @@
              (setq dir '(:relative)))
             ((and dir default-dir
                   (eq (car dir) :absolute) (eq (car default-dir) :absolute))
-                                        ; maybe make it relative to defaults
+             ;; maybe make it relative to defaults             
              (do ((p1 (cdr dir) (cdr p1))
                   (p2 (cdr default-dir) (cdr p2)))
                  ((or (null p2) (null p1) (not (equalp (car p1) (car p2))))
-                  (when (and (null p2) (neq p1 (cdr dir)))
+                  (when (and (null p2) (or t (neq p1 (cdr dir))))
                     (setq dir (cons :relative p1)))))))
       (setq dir (%directory-list-namestring dir logical-p))
       ;; enough-file-namestring
