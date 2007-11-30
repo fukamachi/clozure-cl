@@ -8727,12 +8727,12 @@
             (with-imm-target () (xreg :natural)
               (with-imm-target (xreg) (yreg :natural)
                 (x862-two-targeted-reg-forms seg x xreg y yreg)
-                (! %natural- xreg xreg yreg))
+                (! %natural- xreg  yreg))
               (<- xreg))
             (progn
               (with-imm-target () (xreg :natural)
                 (x862-one-targeted-reg-form seg x xreg)
-                (! %natural--c xreg xreg u31y)
+                (! %natural--c xreg u31y)
                 (<- xreg))))
           (^))))))
 
