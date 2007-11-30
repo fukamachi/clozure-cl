@@ -1867,8 +1867,11 @@ changing its name to ~s may have serious consequences." class new))
 
 ;;; Return a lambda form or NIL.
 (defun make-instantiate-lambda-for-class-cell (cell)
-  (let* ((class (class-cell-class cell)))
+  (let* ((class (class-cell-class cell)))   
     (when (and (typep class 'standard-class)
+               (progn (unless (class-finalized-p class)
+                        (finalize-inheritance class))
+                      t)
                (null (cdr (compute-applicable-methods #'allocate-instance (list class))))
                (let* ((proto (class-prototype class)))
                  (and (null (cdr (compute-applicable-methods #'initialize-instance (list proto))))
@@ -1944,11 +1947,15 @@ changing its name to ~s may have serious consequences." class new))
 ;;; Iterate over all known GFs; try to optimize their dcode in cases
 ;;; involving reader methods.
 
-(defun snap-reader-methods (&key known-sealed-world (check-conflicts t))
+(defun snap-reader-methods (&key known-sealed-world
+                                 (check-conflicts t)
+                                 (optimize-make-instance t))
   (declare (ignore check-conflicts))
   (unless known-sealed-world
     (cerror "Proceed, if it's known that no new classes or methods will be defined."
             "Optimizing reader methods in this way is only safe if it's known that no new classes or methods will be defined."))
+  (when optimize-make-instance
+    (optimize-named-class-make-instance-methods))
   (let* ((ngf 0)
          (nwin 0))
     (dolist (f (population.data %all-gfs%))
