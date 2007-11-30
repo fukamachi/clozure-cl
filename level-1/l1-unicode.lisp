@@ -2893,7 +2893,7 @@ used in western languages."
          (incf idx)))))
   :memory-decode-function
   (nfunction
-   macintosh--memory-decode
+   macintosh-memory-decode
    (lambda (pointer noctets idx string)
      (do* ((i 0 (1+ i))
            (index idx (1+ index)))
