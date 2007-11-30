@@ -978,20 +978,19 @@ function to the indicated name is true.")
 (defun nx1-punt-var (var initform)
   (let* ((bits (nx-var-bits var))
          (mask (%ilogior (%ilsl $vbitsetq 1) (ash -1 $vbitspecial) (%ilsl $vbitclosed 1)))
-         ;(count (%i+ (%ilogand $vrefmask bits) (%ilsr 8 (%ilogand $vsetqmask bits))))
          (nrefs (%ilogand $vrefmask bits))
          (val (nx-untyped-form initform))
          (op (if (acode-p val) (acode-operator val))))
     (when (%izerop (%ilogand mask bits))
       (if
         (or 
-         ;(%izerop count)  ; unreferenced vars can still have side effects
          (nx-t val)
          (nx-null val)
-         (and (eql nrefs 1) ( acode-absolute-ptr-p val t))
+         (and (eql nrefs 1) (not (logbitp $vbitdynamicextent bits)) ( acode-absolute-ptr-p val t))
          (eq op (%nx1-operator fixnum))
          (eq op (%nx1-operator immediate)))
-        (nx-set-var-bits var (%ilogior (%ilsl $vbitpuntable 1) bits))))
+        (progn
+          (nx-set-var-bits var (%ilogior (%ilsl $vbitpuntable 1) bits)))))
     (when (and (%ilogbitp $vbitdynamicextent bits)
                (or (eq op (%nx1-operator closed-function))
                    (eq op (%nx1-operator simple-function))))
@@ -1218,7 +1217,6 @@ function to the indicated name is true.")
            (varbits     (nx-var-bits var))
            (boundtobits (nx-var-bits boundto)))
       (declare (fixnum varbits boundtobits))
-
       (unless (eq (%ilogior
                     (%ilsl $vbitsetq 1)
                     (%ilsl $vbitclosed 1))
@@ -1227,7 +1225,7 @@ function to the indicated name is true.")
                       (%ilsl $vbitsetq 1)
                       (%ilsl $vbitclosed 1))
                     boundtobits))
-        ; Can't happen -
+        ;; Can't happen -
         (unless (%izerop (%ilogand (%ilogior
                                      (%ilsl $vbitsetq 1) 
                                      (ash -1 $vbitspecial)
