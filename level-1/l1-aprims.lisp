@@ -228,12 +228,21 @@ terminate the list"
 
 
 (defvar %setf-function-names% (make-hash-table :weak t :test 'eq))
+(defvar %setf-function-name-inverses% (make-hash-table :weak t :test 'eq))
 
 (defun setf-function-name (sym)
    (or (gethash sym %setf-function-names%)
-       (setf (gethash sym %setf-function-names%) (construct-setf-function-name sym))))
+       (progn
+         (let* ((setf-package-sym (construct-setf-function-name sym)))
+           (setf (gethash setf-package-sym %setf-function-name-inverses%) sym
+                 (gethash sym %setf-function-names%) setf-package-sym)))))
 
 
+(defun maybe-setf-name (sym)
+  (let* ((other (gethash sym %setf-function-name-inverses%)))
+    (if other
+      `(setf ,other)
+      sym)))
 
                      
 
@@ -246,7 +255,7 @@ terminate the list"
       (gentemp sym *setf-package*)
       (values
        (intern
-        ;I wonder, if we didn't check, would anybody report it as a bug?
+        ;;I wonder, if we didn't check, would anybody report it as a bug?
         (if (not (%str-member #\: (setq pkg (package-name pkg))))
           (%str-cat pkg "::" sym)
           (%str-cat (prin1-to-string pkg) "::" (princ-to-string sym)))
