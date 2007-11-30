@@ -387,6 +387,10 @@ binding of that symbol is used - or an integer index into the frame's set of loc
 (defmethod application-error ((a lisp-development-system) condition error-pointer)
   (break-loop-handle-error condition error-pointer))
 
+(defun abnormal-application-exit ()
+  (print-call-history)
+  (quit -1))
+
 (defun break-loop-handle-error (condition error-pointer)
   (multiple-value-bind (bogus-globals newvals oldvals) (%check-error-globals)
     (dolist (x bogus-globals)
@@ -396,20 +400,20 @@ binding of that symbol is used - or an integer index into the frame's set of loc
             (*debugger-hook* nil))
         (funcall hook condition hook)))
     (%break-message "Error" condition error-pointer)
-    (with-terminal-input
-      (let* ((s *error-output*))
-	(dolist (bogusness bogus-globals)
-	  (let ((oldval (pop oldvals)))
-	    (format s "~&;  NOTE: ~S was " bogusness)
-	    (if (eq oldval (%unbound-marker-8))
-	      (format s "unbound")
-	      (format s "~s" oldval))
-	    (format s ", was reset to ~s ." (symbol-value bogusness)))))
-      (if (and *break-on-errors* (not *batch-flag*))
-	(break-loop condition error-pointer)
-        (if *batch-flag*
-          (quit -1)
-          (abort))))))
+    (let* ((s *error-output*))
+      (dolist (bogusness bogus-globals)
+        (let ((oldval (pop oldvals)))
+          (format s "~&;  NOTE: ~S was " bogusness)
+          (if (eq oldval (%unbound-marker-8))
+            (format s "unbound")
+            (format s "~s" oldval))
+          (format s ", was reset to ~s ." (symbol-value bogusness)))))
+    (if (and *break-on-errors* (not *batch-flag*))
+      (with-terminal-input
+          (break-loop condition error-pointer))
+      (if *batch-flag*
+        (abnormal-application-exit)
+        (abort)))))
 
 (defun break (&optional string &rest args)
   "Print a message and invoke the debugger without allowing any possibility
