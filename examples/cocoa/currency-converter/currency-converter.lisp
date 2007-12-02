@@ -42,7 +42,8 @@ building the app:
   (require "build-application")
   (ccl::build-application :name "CurrencyConverter"
                           :main-nib-name "CurrencyConverter"
-                          :nibfiles '(#P"/Users/mikel/Valise/clozure/openmcl/example-code/currency-converter/CurrencyConverter.nib")))
+			  :directory "/Users/mikel/Desktop/"
+                          :nibfiles '(#P"/usr/local/openmcl/trunk/ccl/examples/cocoa/currency-converter/CurrencyConverter.xib")))
 
 TODO NOTES:
 

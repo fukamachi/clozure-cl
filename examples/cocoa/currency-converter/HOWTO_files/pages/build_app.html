@@ -18,10 +18,10 @@
       do is to build the application executable into a Cocoa
       application bundle. Apple's tutorial relies on XCode to build
       the application from Objective C source files; we will use the
-      OpenMCL IDE to build it from our Lisp source file.</p>
+      Clozure CL IDE to build it from our Lisp source file.</p>
 
       <p>We build the application using the optional
-      BUILD-APPLICATION feature, distributed as part of OpenMCL. The
+      BUILD-APPLICATION feature, distributed as part of Clozure CL. The
       steps to build the Cocoa application are:</p>
 
       <ul>
@@ -30,7 +30,7 @@
         <li><p>Run BUILD_APPLICATION with the proper arguments</p></li>
       </ul>
 
-      <p>This sequence of steps causes OpenMCL to construct a Cocoa
+      <p>This sequence of steps causes Clozure CL to construct a Cocoa
       application bundle and write out the application executable to
       it, then quit. If all goes well, you should be able to run the
       application by double-clicking it, and use the UI you built in
@@ -43,7 +43,7 @@
 
     <div class="body-text">
       <ol>
-        <li><p>Launch the OpenMCL IDE. It's safest to build the
+        <li><p>Launch the Clozure CL IDE. It's safest to build the
         application with a fresh IDE session, so if you have it
         running, you may wish to quit and relaunch before following
         the rest of the steps.</p></li>
@@ -65,7 +65,8 @@
 
         <li><p>Run BUILD-APPLICATION (be sure to correct the pathname
         to your CurrencyConverter nibfile. It is safest to use a full,
-        absolute pathname):</p>
+        absolute pathname&mdash;not the relative pathname you see
+        below):</p>
           <p><pre>
 (ccl::build-application :name "CurrencyConverter"
                         :main-nib-name "CurrencyConverter"
@@ -118,7 +119,7 @@
     <div class="body-text">
       <p>You'll notice when you run the application that, even though
       you named it CurrencyConverter, the name in the main menu
-      appears as "OpenMCL". That's because OS X takes the
+      appears as "Clozure CL". That's because OS X takes the
       application's name, not from the application bundle's name, nor
       from the running code, but from an InfoPlist.strings file hidden
       inside the application bundle. To make the name appear
@@ -127,7 +128,7 @@
       <p>CurrencyConverter.app/Contents/Resources/English.lproj/InfoPlist.strings</p>
 
       <p>Find the entry named "CFBundleName" and change its value
-      from "OpenMCL" to "CurrencyConverter". The application's name
+      from "Clozure CL" to "CurrencyConverter". The application's name
       in the main menu bar should now appear correctly, as
       "CurrencyConverter". You may also want to change the other
       strings in the "InfoPlist.strings" file.</p>

@@ -32,6 +32,13 @@ body {
 	text-indent: 3em;
 }
 
+.note {
+	font: 12pt Georgia, "Times New Roman", Times, serif;
+	margin-left: 6em;
+	margin-right: 6em;
+	text-indent: 0em;
+}
+
 .inline-image {
 	text-align: center;
 }

@@ -18,14 +18,14 @@
 
     <div class="body-text">
       <p>This HOWTO is distributed with example files that include a
-      working nibfile and a Lisp source file, named
-      "CurrencyConverter.nib" and "CurrencyConverter.lisp",
-      respectively. You can build a working copy of
-      the example application by using these files, but, if you wish
-      to understand how to build your own Lisp application projects,
-      you should probably follow the instructions here to create your
-      own source file and nibfile, and use the example files only for
-      reference in case something goes wrong.</p>
+      working <em>nibfile</em> (a file of user-interface objects,
+      named "CurrencyConverter.nib") and a Lisp source file (named
+      "CurrencyConverter.lisp"). You can build a working copy of the
+      example application by using these files, but you probably
+      shouldn't. If you want to understand how to build your own Lisp
+      application projects, you should follow the instructions here to
+      create your own source file and nibfile, and use the example
+      files only for reference in case something goes wrong.</p>
     </div>
 
     <div class="section-head">
@@ -35,12 +35,12 @@
     <div class="body-text">
       <p>First, create a project folder to hold the files you are
       going to create. When your project is complete, the folder will
-      contain a <em>nibfile</em> that defines the user interface, and
+      contain a nibfile that defines the user interface, and
       a Lisp source file that defines the behavior of the
       application. Those two files are really all there is to a Lisp
       application, though not all applications are as simple as this
       currency converter. For more complex applications it makes sense
-      to split you UI into several nibfiles, and to split your
+      to split your UI into several nibfiles, and to split your
       implementation into several source files. The basic principle
       remains the same, however: nibfiles define your user interface,
       and Lisp files define your application's behavior.</p>

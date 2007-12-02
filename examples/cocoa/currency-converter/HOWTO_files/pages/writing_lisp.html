@@ -14,17 +14,17 @@
 
     <div class="body-text">
       <p>In this section we'll write Lisp code that duplicates the
-      features provided by the Objective C code in Apple's example. In
-      Apple's example, the explanation of the Objective C code begins
-      with the
-      section <a href="http://developer.apple.com/documentation/Cocoa/Conceptual/ObjCTutorial/chapter04/chapter_4_section_1.html">Implementing
-      Currency Converter</a>.</p>
+      features provided by the Objective C code in Apple's
+      tutorial. In Apple's tutorial, the explanation of the Objective
+      C code begins with the
+      section <a href="http://developer.apple.com/documentation/Cocoa/Conceptual/ObjCTutorial/06Controller/chapter_6_section_1.html#//apple_ref/doc/uid/TP40000863-CH8-SW1">Bridging
+      the Model and View: The Controller</a>.</p>
 
       <p>The Lisp code in this section of the HOWTO is considerably
       simpler than the corresponding Objective C code, in part
       because we can ignore the conventions that XCode uses for
       laying out source files. We can just write all our definitions
-      into a single Lisp source file, and load that file into OpenMCL
+      into a single Lisp source file, and load that file into Clozure CL
       when we are ready to build the application.</p>
 
     <div class="section-head">
@@ -36,7 +36,7 @@
       
       <pre>(in-package "CCL")</pre> 
 
-      <p>OpenMCL's Objective C bridge code is defined in the "CCL"
+      <p>Clozure CL's Objective C bridge code is defined in the "CCL"
       package. Usually, when building an application, you'll create a
       package for that application and import the definitions you need
       to use. In order to keep the discussion short in this simple
@@ -67,11 +67,11 @@
       <p>This is an ordinary CLOS class definition, with a couple of
       simple wrinkles. First, the superclass it inherits from is the
       NS-OBJECT class in the "NS" package. NS-OBJECT is an Objective C
-      class, the ancestor of all Objective C objects. This CLOSE
+      class, the ancestor of all Objective C objects. This CLOS
       definition actually creates a new Objective C class named
       "Converter".</p>
 
-      <p>We tell OpenMCL how to build the right kind of class object
+      <p>We tell Clozure CL how to build the right kind of class object
       by including the :METACLASS option in the definition:</p>
 
       <pre>
@@ -93,7 +93,7 @@
 
       <p>This is the method that actually does the currency
       conversion. It's very simple&mdash;really, it just multiples
-      currency times rate. Most of the text in the definition is
+      <code>currency</code> times <code>rate</code>. Most of the text in the definition is
       Objective C bridge code that links the definition to the right
       class with the right argument and return types.</p>
 
@@ -101,16 +101,18 @@
       creates Objective C method definitions.</p>
 
       <p>The syntax <code>#/convertCurrency:atRate:</code> uses the
-      "#/" reader macro to read a symbol in mixed case, so that you
-      can see in your code the same name that Objective C uses for the
-      method, without worrying about how the name might be converted
-      between Lisp and Objective C conventions. The number of
-      arguments to an Objective C method is the number of colons in
-      the name, plus one. Each colon indicates an argument, and there
-      is always an extra "self" argument that refers to the object
-      that receives the message. These are normal Objective C
-      conventions, but we perhaps need to emphasize the details, since
-      we are using Lisp code to call the Objective C methods.</p>
+      "#/" reader macro to read a symbol with case preserved, so that
+      you can see in your code the same name that Objective C uses for
+      the method, without worrying about how the name might be
+      converted between Lisp and Objective C conventions.</p>
+
+      <p>The number of arguments to an Objective C method is the
+      number of colons in the name, plus one. Each colon indicates an
+      argument, and there is always an extra "self" argument that
+      refers to the object that receives the message. These are normal
+      Objective C conventions, but we perhaps need to emphasize the
+      details, since we are using Lisp code to call the Objective C
+      methods.</p>
 
       <p>We indicate the return type and the types of arguments in
       the method definition by surrounding parameters and the method
@@ -168,12 +170,20 @@
       foreign (Objective C) class.</p>
 
       <p>Each field in the definition of the ConverterController class
-      corresponds to one of the UI fields that you created in
-      InterfaceBuilder. For example, <code>amount-field</code>
-      corresponds to the "Amount in Other Currency" text field. The
-      exception is the <code>converter</code> field, which at launch
-      time contains a reference to the Converter object, whose class
-      definition is in the previous section.</p>
+      is an outlet that will be used to store a reference to one of
+      the UI fields that you created in InterfaceBuilder. For
+      example, <code>amount-field</code> will be connected to the
+      "Amount" text field.</p> 
+
+      <p>Why did we spell the name "amount-field" in Lisp code, and
+      "amountField" when creating the outlet in InterfaceBuilder?  The
+      Objective C bridge automatically converts Lisp-style field names
+      (like "amount-field") to Objective C-style field names (like
+      "amountField"), when handling class definitions.</p>
+
+      <p>The <code>converter</code> field at launch time contains a
+      reference to the Converter object, whose class definition is in
+      the previous section.</p>
 
       <p>The final piece of the implementation is a definition of the
       "convert:" method. This is the method that is called when a
@@ -196,7 +206,7 @@
       and rate values, and passes them to the
       "convertCurrency:atRate:" method of the Converter class. It then
       sets the text of the amount-field to reflect the result of the
-      conversion. The only singificant difference between this
+      conversion. The only significant difference between this
       implementation and Apple's is that the code is written in Lisp
       rather than Objective C.</p>
 
@@ -207,7 +217,7 @@
     </div>
 
     <div class="nav">
-      <p><a href="../../HOWTO.html">start</a>|<a href="build_app.html">next</a></p>
+      <p><a href="../../HOWTO.html">start</a>|<a href="create_lisp.html">previous</a>|<a href="build_app.html">next</a></p>
     </div>
 
   </body>
