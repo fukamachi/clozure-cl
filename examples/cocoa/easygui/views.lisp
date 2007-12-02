@@ -10,6 +10,9 @@ according to initargs."))
 (defgeneric add-1-subview (view super-view)
   (:documentation "Adds a subview to another view in the view hierarchy."))
 
+(defgeneric remove-1-subview (view super-view)
+  (:documentation "Removes a view from its superview, possibly deallocating it.
+To avoid deallocation, use RETAINING-OBJECTS"))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; mixins
@@ -146,7 +149,7 @@ according to initargs."))
 (defclass form-cell-view (view editable-mixin view-text-via-stringvalue-mixin)
      ())
 
-(defclass box-view (content-view-mixin view) ())
+(defclass box-view (content-view-mixin view-text-via-title-mixin view) ())
 
 (defclass drawing-view (view)
      (
@@ -305,6 +308,20 @@ according to initargs."))
     (add-1-subview subview superview))
   superview)
 
+(defmethod remove-1-subview ((view view) (cw-view content-view-mixin))
+  (remove-1-subview view (content-view cw-view)))
+
+(defmethod remove-1-subview ((view view) (super-view view))
+  (assert (eql (cocoa-ref super-view) (#/superview (cocoa-ref view))))
+  (maybe-invalidating-object (view)
+    (#/removeFromSuperview (cocoa-ref view))))
+
+(defun remove-subviews (superview subview &rest subviews)
+  (remove-1-subview subview superview)
+  (dolist (subview subviews)
+    (remove-1-subview subview superview))
+  superview)
+
 (defmethod window-show ((window window))
   (dcc (#/makeKeyAndOrderFront: (cocoa-ref window) nil))
   window)
@@ -322,7 +339,11 @@ according to initargs."))
          (dcc (#/setAutosizesCells: (cocoa-ref view)
                                     (slot-value view 'autosize-cells-p)))))
 
+(defmethod cell-count ((view form-view))
+  (dcc (#/numberOfRows (cocoa-ref view))))
+
 (defmethod nth-cell (index view)
+  (assert (< index (cell-count view)))
   (let ((cocoa-cell (dcc (#/cellAtIndex: (cocoa-ref view) index))))
     (when cocoa-cell
       (make-instance 'form-cell-view :cocoa-ref cocoa-cell))))

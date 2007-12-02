@@ -49,9 +49,22 @@
   (rectangle (ns:ns-rect-x r) (ns:ns-rect-y r)
              (ns:ns-rect-width r) (ns:ns-rect-height r)))
 
-;;;
+;;; Base class for all Cocoa-based Easygui objects:
 (defclass easy-cocoa-object ()
-     ((ref :initarg :cocoa-ref :accessor cocoa-ref)))
+     ((ref :initarg :cocoa-ref)
+      (ref-valid-p :initform t :accessor cocoa-ref-valid-p)))
+
+(defgeneric cocoa-ref (eg-object)
+  (:method ((eg-object easy-cocoa-object))
+     (if (cocoa-ref-valid-p eg-object)
+         (slot-value eg-object 'ref)
+         (error "Attempting to access an invalidated Cocoa object on ~A!"
+                eg-object))))
+  
+(defgeneric (setf cocoa-ref) (new eg-object)
+  (:method (new (eg-object easy-cocoa-object))
+     (setf (cocoa-ref-valid-p eg-object) t
+	   (slot-value eg-object 'ref) new)))
 
 (defvar *window-position-default-x* 200)
 (defvar *window-position-default-y* 200)
@@ -80,6 +93,29 @@
 
 (defun key-mask (keyword)
   (or (cdr (assoc keyword *key-to-mask-alist*)) 0))
+
+;;; Memory management helpers:
+
+(defmacro maybe-invalidating-object ((eg-object) &body body)
+  `(if (= 1 (#/retainCount (cocoa-ref ,eg-object)))
+       (multiple-value-prog1 (progn ,@body)
+                             (setf (cocoa-ref-valid-p ,eg-object) nil))
+       (progn ,@body)))
+
+(defmethod retain-object ((o easy-cocoa-object))
+  (#/retain (cocoa-ref o)))
+
+(defmethod release-object ((o easy-cocoa-object))
+  (#/release (cocoa-ref o)))
+
+(defmacro retaining-objects ((&rest eg-objects) &body body)
+  "Retains EG-OBJECTS, runs BODY forms and releases them after control
+has left BODY."
+  (let ((objects (gensym)))
+    `(let ((,objects (list ,@eg-objects)))
+       (mapc #'retain-object ,objects)
+       (unwind-protect (progn ,@body)
+         (mapc #'release-object ,objects)))))
 
 ;;; debug macro for #/ funcalls:
 

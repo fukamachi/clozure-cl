@@ -4,6 +4,8 @@
   (:export #:point #:range #:rectangle #:window
            #:point-x #:point-y #:rectangle-x #:rectangle-y #:rectangle-width
            #:rectangle-height
+           ;; cocoa stuff
+           #:retain-object #:release-object #:retaining-objects
            ;; view classes
            #:view #:static-text-view #:text-input-view #:password-input-view
            #:push-button-view
@@ -12,12 +14,12 @@
            #:mouse-down #:mouse-dragged #:mouse-up
            ;; operators
            #:cocoa-ref
-           #:add-subviews #:window-show #:set-window-title
+           #:add-subviews #:remove-subviews #:window-show #:set-window-title
            #:content-view
            #:initialize-view #:action #:view-text
            #:add-entry #:add-entries #:editable-p
            #:draw-view-rectangle
-           #:entry-text #:nth-cell #:selection #:redisplay
+           #:entry-text #:cell-count #:nth-cell #:selection #:redisplay
            #:string-value-of #:integer-value-of #:float-value-of
            #:double-value-of))
 

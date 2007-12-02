@@ -21,12 +21,15 @@
   nil)
 
 (defsystem easygui
-    :depends-on (cocoa.asd)
-    :components ((:file "package")
-                 (:file "new-cocoa-bindings" :depends-on ("package"))
-                 (:file "events" :depends-on ("new-cocoa-bindings"))
-                 (:file "views" :depends-on ("events"))
-                 (:file "action-targets" :depends-on ("views"))
-                 ;;; example:
-                 (:file "tiny" :depends-on ("action-targets"))
-                 (:file "currency-converter" :depends-on ("action-targets"))))
+  :depends-on (cocoa.asd)
+  :components ((:file "package")
+               (:file "new-cocoa-bindings" :depends-on ("package"))
+               (:file "events" :depends-on ("new-cocoa-bindings"))
+               (:file "views" :depends-on ("events"))
+               (:file "action-targets" :depends-on ("views"))
+               (:module "example"
+                        :depends-on ("action-targets")
+                        :components
+                        ((:file "tiny")
+                         (:file "currency-converter")
+                         (:file "view-hierarchy")))))
