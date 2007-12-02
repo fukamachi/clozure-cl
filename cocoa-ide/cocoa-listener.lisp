@@ -1,10 +1,8 @@
-;;-*- Mode: LISP; Package: CCL -*-
+;;;-*-Mode: LISP; Package: GUI -*-
+;;;
+;;;   Copyright (C) 2007 Clozure Associates
 
-(in-package "CCL")
-
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (require "COCOA-EDITOR")
-  (require "PTY"))
+(in-package "GUI")
 
 (def-cocoa-default *listener-input-font* :font #'(lambda ()
 						   (#/fontWithName:size:
@@ -60,29 +58,29 @@
   
 
 (defun new-cocoa-listener-process (procname input-fd output-fd peer-fd window buffer)
-  (let* ((input-stream (make-selection-input-stream
+  (let* ((input-stream (ccl::make-selection-input-stream
                         input-fd
                         :peer-fd peer-fd
                         :elements-per-buffer (#_fpathconf
                                               input-fd
                                               #$_PC_MAX_INPUT)
                         :encoding :utf-8))
-         (output-stream (make-fd-stream output-fd :direction :output
-                                        :sharing :lock
-                                        :elements-per-buffer
-                                        (#_fpathconf
-                                         output-fd
-                                         #$_PC_MAX_INPUT)
-                                        :encoding :utf-8))
-         (peer-stream (make-fd-stream peer-fd :direction :output
-                                      :sharing :lock
-                                      :elements-per-buffer
-                                      (#_fpathconf
-                                         peer-fd
-                                         #$_PC_MAX_INPUT)
-                                      :encoding :utf-8))
+         (output-stream (ccl::make-fd-stream output-fd :direction :output
+					     :sharing :lock
+					     :elements-per-buffer
+					     (#_fpathconf
+					      output-fd
+					      #$_PC_MAX_INPUT)
+					     :encoding :utf-8))
+         (peer-stream (ccl::make-fd-stream peer-fd :direction :output
+					   :sharing :lock
+					   :elements-per-buffer
+					   (#_fpathconf
+					    peer-fd
+					    #$_PC_MAX_INPUT)
+					   :encoding :utf-8))
          (proc
-          (make-mcl-listener-process 
+          (ccl::make-mcl-listener-process 
            procname
            input-stream
            output-stream
@@ -99,8 +97,8 @@
                     nil))))
            :initial-function
            #'(lambda ()
-               (setq *listener-autorelease-pool* (create-autorelease-pool))
-               (listener-function))
+               (setq ccl::*listener-autorelease-pool* (create-autorelease-pool))
+               (ccl::listener-function))
            :class 'cocoa-listener-process)))
     (setf (slot-value proc 'input-stream) input-stream)
     (setf (slot-value proc 'output-stream) output-stream)
@@ -113,6 +111,7 @@
 (defclass hemlock-listener-frame (hemlock-frame)
     ()
   (:metaclass ns:+ns-object))
+(declaim (special hemlock-listener-frame))
 
 
 (defclass hemlock-listener-window-controller (hemlock-editor-window-controller)
@@ -124,7 +123,7 @@
      )
   (:metaclass ns:+ns-object)
   )
-
+(declaim (special hemlock-listener-window-controller))
 
 ;;; Listener documents are never (or always) ediited.  Don't cause their
 ;;; close boxes to be highlighted.
@@ -183,12 +182,12 @@
         (#/getBytes:range: data target (ns:make-ns-range 0 data-length)))
       (let* ((total (+ n data-length)))
         (multiple-value-bind (nchars noctets-used)
-            (funcall (character-encoding-length-of-memory-encoding-function encoding)
+            (funcall (ccl::character-encoding-length-of-memory-encoding-function encoding)
                      xlate
                      total
                      0)
           (let* ((string (make-string nchars)))
-            (funcall (character-encoding-memory-decode-function encoding)
+            (funcall (ccl::character-encoding-memory-decode-function encoding)
                      xlate
                      noctets-used
                      0
@@ -234,6 +233,7 @@
 (defclass hemlock-listener-document (hemlock-editor-document)
     ()
   (:metaclass ns:+ns-object))
+(declaim (special hemlock-listener-document))
 
 (defmethod update-buffer-package ((doc hemlock-listener-document) buffer)
   (declare (ignore buffer)))
@@ -412,15 +412,15 @@
           (#/showWindow: (backtrace-controller-for-context context) sender))))))
 
 (defun restarts-controller-for-context (context)
-  (or (car (bt.restarts context))
-      (setf (car (bt.restarts context))
-            (let* ((tcr (bt.tcr context))
+  (or (car (ccl::bt.restarts context))
+      (setf (car (ccl::bt.restarts context))
+            (let* ((tcr (ccl::bt.tcr context))
                    (tsp-range (inspector::make-tsp-stack-range tcr context))
                    (vsp-range (inspector::make-vsp-stack-range tcr context))
                    (csp-range (inspector::make-csp-stack-range tcr context))
-                   (process (tcr->process (bt.tcr context))))
+                   (process (context-process context)))
               (make-instance 'sequence-window-controller
-                             :sequence (cdr (bt.restarts context))
+                             :sequence (cdr (ccl::bt.restarts context))
                              :result-callback #'(lambda (r)
                                                   (process-interrupt
                                                    process
@@ -434,7 +434,7 @@
                              :title (format nil "Restarts for ~a(~d), break level ~d"
                                             (process-name process)
                                             (process-serial-number process)
-                                            (bt.break-level context)))))))
+                                            (ccl::bt.break-level context)))))))
                             
 (objc:defmethod (#/restarts: :void) ((self hemlock-listener-document) sender)
   (let* ((buffer (hemlock-document-buffer self))
@@ -481,7 +481,7 @@
              (values
               t
               (and context
-                   (find 'continue (cdr (bt.restarts context))
+                   (find 'continue (cdr (ccl::bt.restarts context))
                          :key #'restart-name)))))
           ((or (eql action (@selector #/backtrace:))
                (eql action (@selector #/exitBreak:))
@@ -547,7 +547,7 @@
 
 
 (defun hemlock::evaluate-input-selection (selection)
-  (application-ui-operation *application* :eval-selection selection))
+  (ccl::application-ui-operation *application* :eval-selection selection))
   
 (defmethod ui-object-choose-listener-for-selection ((app ns:ns-application)
 						    selection)

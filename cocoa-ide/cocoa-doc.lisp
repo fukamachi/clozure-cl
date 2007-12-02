@@ -1,4 +1,8 @@
-(in-package "CCL")
+;;;-*-Mode: LISP; Package: GUI -*-
+;;;
+;;;   Copyright (C) 2007 Clozure Associates
+
+(in-package "GUI")
 
 (def-cocoa-default *hyperspec-url-string* :string "http://www.lispworks.com/documentation/HyperSpec/" "HTTP URL for HyperSpec lookup")
 

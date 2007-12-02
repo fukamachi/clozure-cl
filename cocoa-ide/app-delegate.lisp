@@ -1,9 +1,8 @@
-(in-package "CCL")
+;;;-*-Mode: LISP; Package: GUI -*-
+;;;
+;;;   Copyright (C) 2007 Clozure Associates
 
-(require "COCOA-DEFAULTS")
-(require "PREFERENCES")
-(require "PROCESSES-WINDOW")
-(require "APROPOS-WINDOW")
+(in-package "GUI")
 
 (defclass lisp-application-delegate (ns:ns-object)
     ()

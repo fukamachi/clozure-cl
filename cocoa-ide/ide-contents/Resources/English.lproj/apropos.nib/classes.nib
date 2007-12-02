@@ -11,6 +11,10 @@
 				<string>id</string>
 				<key>inspectSelectedSymbol</key>
 				<string>id</string>
+				<key>setPackage</key>
+				<string>id</string>
+				<key>toggleShowsExternalSymbols</key>
+				<string>id</string>
 			</dict>
 			<key>CLASS</key>
 			<string>AproposWindowController</string>
@@ -20,11 +24,28 @@
 			<dict>
 				<key>arrayController</key>
 				<string>id</string>
+				<key>comboBox</key>
+				<string>id</string>
+				<key>externalSymbolsCheckbox</key>
+				<string>id</string>
 				<key>tableView</key>
+				<string>id</string>
+				<key>textView</key>
 				<string>id</string>
 			</dict>
 			<key>SUPERCLASS</key>
 			<string>NSWindowController</string>
+		</dict>
+		<dict>
+			<key>CLASS</key>
+			<string>PackageComboBox</string>
+			<key>LANGUAGE</key>
+			<string>ObjC</string>
+			<key>OUTLETS</key>
+			<dict>
+				<key>dataSource</key>
+				<string>id</string>
+			</dict>
 		</dict>
 	</array>
 	<key>IBVersion</key>

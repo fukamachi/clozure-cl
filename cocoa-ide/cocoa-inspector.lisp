@@ -1,4 +1,6 @@
-(in-package "CCL")
+;;;-*-Mode: LISP; Package: GUI -*-
+
+(in-package "GUI")
 
 #|
 (cinspect <thing>)
@@ -54,14 +56,12 @@ I'd rather set up this file to be
 - a couple of load-file forms that populate the new package and have the bulk of the following code
 |#
 
-(require "COCOA")
-
 ;;; This is useful when @ won't work, dynamically creating a NSString
 ;;; pointer from a string.
 
 (defun nsstringptr (string)
-  (objc-constant-string-nsstringptr
-   (ns-constant-string string)))
+  (ccl::objc-constant-string-nsstringptr
+   (ccl::ns-constant-string string)))
 
 #+old
 (defmacro handler-case-for-cocoa (id form)

@@ -1,21 +1,15 @@
-;;;-*- Mode: LISP; Package: CCL -*-
+;;;-*-Mode: LISP; Package: GUI -*-
+;;;
+;;;   Copyright (C) 2007 Clozure Associates
 
-
-(in-package "CCL")
-
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (require "COCOA-WINDOW")
-  (require "HEMLOCK"))
-
-(eval-when (:compile-toplevel :execute)
-  (use-interface-dir :cocoa))
+(in-package "GUI")
 
 ;;; In the double-float case, this is probably way too small.
 ;;; Traditionally, it's (approximately) the point at which
 ;;; a single-float stops being able to accurately represent
 ;;; integral values.
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (defconstant large-number-for-text (float 1.0f7 +cgfloat-zero+)))
+  (defconstant large-number-for-text (cgfloat 1.0f7)))
 
 (def-cocoa-default *editor-font* :font #'(lambda ()
 					   (#/fontWithName:size:
@@ -30,14 +24,16 @@
 (def-cocoa-default *wrap-lines-to-window* :bool nil
 		   "Soft wrap lines to window width")
 
+(def-cocoa-default *use-screen-fonts* :bool t "Use bitmap screen fonts when available")
+
 (defmacro nsstring-encoding-to-nsinteger (n)
-  (target-word-size-case
-   (32 `(u32->s32 ,n))
+  (ccl::target-word-size-case
+   (32 `(ccl::u32->s32 ,n))
    (64 n)))
 
 (defmacro nsinteger-to-nsstring-encoding (n)
-  (target-word-size-case
-   (32 `(s32->u32 ,n))
+  (ccl::target-word-size-case
+   (32 `(ccl::s32->u32 ,n))
    (64 n)))
 
 ;;; Create a paragraph style, mostly so that we can set tabs reasonably.
@@ -428,6 +424,7 @@
      (styles :foreign-type :id)
      (selection-set-by-search :foreign-type :<BOOL>))
   (:metaclass ns:+ns-object))
+(declaim (special hemlock-text-storage))
 
 
 ;;; This is only here so that calls to it can be logged for debugging.
@@ -661,8 +658,8 @@
                                        (lambda (tv)
                                          (let* ((w (#/window tv))
                                                 (proc (slot-value w 'command-thread)))
-                                           (process-interrupt proc #'dbg))))
-      (dbg))
+                                           (process-interrupt proc #'ccl::dbg))))
+      (ccl::dbg))
     (let* ((attrs (#/attributesAtIndex:effectiveRange: mirror index rangeptr)))
       (when (eql 0 (#/count attrs))
         (#_NSLog #@"No attributes ?")
@@ -808,6 +805,7 @@
      (blink-enabled :foreign-type :<BOOL> :accessor text-view-blink-enabled)
      (peer :foreign-type :id))
   (:metaclass ns:+ns-object))
+(declaim (special hemlock-textstorage-text-view))
 
 
 (defmethod assume-not-editing ((tv hemlock-textstorage-text-view))
@@ -932,22 +930,22 @@
   (when (eql length 0)
     (update-blink self))
   (rlet ((range :ns-range :location pos :length length))
-	(%call-next-objc-method self
-				hemlock-textstorage-text-view
-				(@selector #/setSelectedRange:affinity:stillSelecting:)
-				'(:void :<NSR>ange :<NSS>election<A>ffinity :<BOOL>)
-				range
-				affinity
-				nil)
-	(assume-not-editing self)
-	(#/scrollRangeToVisible: self range)
-	(when (> length 0)
-	  (let* ((ts (#/textStorage self)))
-	    (with-slots (selection-set-by-search) ts
-	      (when (prog1 (eql #$YES selection-set-by-search)
-		      (setq selection-set-by-search #$NO))
-		(highlight-search-selection self pos length)))))
-))
+    (ccl::%call-next-objc-method self
+				 hemlock-textstorage-text-view
+				 (@selector #/setSelectedRange:affinity:stillSelecting:)
+				 '(:void :<NSR>ange :<NSS>election<A>ffinity :<BOOL>)
+				 range
+				 affinity
+				 nil)
+    (assume-not-editing self)
+    (#/scrollRangeToVisible: self range)
+    (when (> length 0)
+      (let* ((ts (#/textStorage self)))
+	(with-slots (selection-set-by-search) ts
+	  (when (prog1 (eql #$YES selection-set-by-search)
+		  (setq selection-set-by-search #$NO))
+	    (highlight-search-selection self pos length)))))
+    ))
 
 (defloadvar *can-use-show-find-indicator-for-range*
     (#/instancesRespondToSelector: ns:ns-text-view (@selector "showFindIndicatorForRange:")))
@@ -1085,7 +1083,7 @@
   (unwind-protect
       (progn
 	(#/setUsesFontPanel: self t)
-	(%call-next-objc-method
+	(ccl::%call-next-objc-method
 	 self
 	 hemlock-textstorage-text-view
          (@selector #/changeColor:)
@@ -1529,7 +1527,7 @@
       #+suffer
       (#/setTypesetter: layout (make-instance 'hemlock-ats-typesetter))
       (#/addLayoutManager: textstorage layout)
-      (#/setUsesScreenFonts: layout t)
+      (#/setUsesScreenFonts: layout *use-screen-fonts*)
       (#/release layout)
       (let* ((contentsize (#/contentSize scrollview)))
         (ns:with-ns-size (containersize large-number-for-text large-number-for-text)
@@ -1716,6 +1714,7 @@
                                         :with-container-size
                                         containersize))))
         (#/addLayoutManager: textstorage layout)
+	(#/setUsesScreenFonts: layout *use-screen-fonts*)
         (#/addTextContainer: layout container)
         (#/release layout)
         (let* ((echo (make-instance 'echo-area-view
@@ -1763,6 +1762,7 @@
      (echo-area-buffer :initform nil :accessor hemlock-frame-echo-area-buffer)
      (echo-area-stream :initform nil :accessor hemlock-frame-echo-area-stream))
   (:metaclass ns:+ns-object))
+(declaim (special hemlock-frame))
 
 (defun double-%-in (string)
   ;; Replace any % characters in string with %%, to keep them from
@@ -1807,7 +1807,7 @@
   (let* ((semaphore (make-semaphore))
          (message (nsstring-for-lisp-condition condition))
          (sem-value (make-instance 'ns:ns-number
-                                   :with-unsigned-long (%ptr-to-int (semaphore.value semaphore)))))
+                                   :with-unsigned-long (%ptr-to-int (ccl::semaphore.value semaphore)))))
     #+debug
     (#_NSLog #@"created semaphore with value %lx" :address (semaphore.value semaphore))
     (rlet ((paramptrs (:array :id 2)))
@@ -2141,7 +2141,7 @@
 
 (defun size-of-char-in-font (f)
   (let* ((sf (#/screenFont f))
-         (screen-p t))
+         (screen-p *use-screen-fonts*))
     (if (%null-ptr-p sf) (setq sf f screen-p nil))
     (let* ((layout (#/autorelease (#/init (#/alloc ns:ns-layout-manager)))))
       (#/setUsesScreenFonts: layout screen-p)
@@ -2163,10 +2163,10 @@
                       height)
       (when has-vertical-scroller 
 	(#/setVerticalLineScroll: scrollview char-height)
-	(#/setVerticalPageScroll: scrollview +cgfloat-zero+ #|char-height|#))
+	(#/setVerticalPageScroll: scrollview (cgfloat 0.0) #|char-height|#))
       (when has-horizontal-scroller
 	(#/setHorizontalLineScroll: scrollview char-width)
-	(#/setHorizontalPageScroll: scrollview +cgfloat-zero+ #|char-width|#))
+	(#/setHorizontalPageScroll: scrollview (cgfloat 0.0) #|char-width|#))
       (let* ((sv-size (#/frameSizeForContentSize:hasHorizontalScroller:hasVerticalScroller:borderType: ns:ns-scroll-view tv-size has-horizontal-scroller has-vertical-scroller (#/borderType scrollview)))
              (pane-frame (#/frame pane))
              (margins (#/contentViewMargins pane)))
@@ -2201,6 +2201,17 @@
             (if (= ns #$kCFStringEncodingInvalidId)
               (#/defaultCStringEncoding ns:ns-string)
               ns)))))))
+
+(defclass hemlock-document-controller (ns:ns-document-controller)
+    ((last-encoding :foreign-type :<NSS>tring<E>ncoding))
+  (:metaclass ns:+ns-object))
+(declaim (special hemlock-document-controller))
+
+(objc:defmethod #/init ((self hemlock-document-controller))
+  (prog1
+      (call-next-method)
+    (setf (slot-value self 'last-encoding) 0)))
+
 
 ;;; The HemlockEditorDocument class.
 
@@ -2679,15 +2690,6 @@
    t))
 
 
-(defclass hemlock-document-controller (ns:ns-document-controller)
-    ((last-encoding :foreign-type :<NSS>tring<E>ncoding))
-  (:metaclass ns:+ns-object))
-
-(objc:defmethod #/init ((self hemlock-document-controller))
-  (prog1
-      (call-next-method)
-    (setf (slot-value self 'last-encoding) 0)))
-
 (defun iana-charset-name-of-nsstringencoding (ns)
   (#_CFStringConvertEncodingToIANACharSetName
    (#_CFStringConvertNSStringEncodingToEncoding ns)))
@@ -2703,7 +2705,7 @@
 ;;; Return a list of :<NSS>tring<E>ncodings, sorted by the
 ;;; (localized) name of each encoding.
 (defun supported-nsstring-encodings ()
-  (collect ((ids))
+  (ccl::collect ((ids))
     (let* ((ns-ids (#/availableStringEncodings ns:ns-string)))
       (unless (%null-ptr-p ns-ids)
         (do* ((i 0 (1+ i)))
@@ -2875,7 +2877,7 @@
 
 
 (defun hi::edit-definition (name)
-  (let* ((info (get-source-files-with-types&classes name)))
+  (let* ((info (ccl::get-source-files-with-types&classes name)))
     (when (null info)
       (let* ((seen (list name))
 	     (found ())
@@ -2883,7 +2885,7 @@
 	(dolist (pkg (list-all-packages))
 	  (let ((sym (find-symbol pname pkg)))
 	    (when (and sym (not (member sym seen)))
-	      (let ((new (get-source-files-with-types&classes sym)))
+	      (let ((new (ccl::get-source-files-with-types&classes sym)))
 		(when new
 		  (setq info (append new info))
 		  (push sym found)))
@@ -3013,7 +3015,7 @@
           ((or (typep arg 'string)
                (typep arg 'pathname))
            (unless (probe-file arg)
-             (touch arg))
+             (ccl::touch arg))
            (with-autorelease-pool
              (let* ((url (pathname-to-url arg))
                     (signature (#/methodSignatureForSelector:
@@ -3037,11 +3039,10 @@
                   (@selector #/invoke)
                   +null-ptr+
                   t)))))
-          ((valid-function-name-p arg)
+          ((ccl::valid-function-name-p arg)
            (hi::edit-definition arg))
-          (t (report-bad-arg arg '(or null string pathname (satisifies valid-function-name-p)))))
+          (t (report-bad-arg arg '(or null string pathname (satisfies ccl::valid-function-name-p)))))
     t))
 
 (setq ccl::*resident-editor-hook* 'cocoa-edit)
 
-(provide "COCOA-EDITOR")

@@ -1,4 +1,8 @@
-(in-package "CCL")
+;;;-*-Mode: LISP; Package: GUI -*-
+;;;
+;;;   Copyright (C) 2007 Clozure Associates
+
+(in-package "GUI")
 
 (defclass processes-window-controller (ns:ns-window-controller)
   ((table-view :foreign-type :id :reader processes-window-table-view)

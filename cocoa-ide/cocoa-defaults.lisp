@@ -1,4 +1,4 @@
-;;;-*-Mode: LISP; Package: CCL -*-
+;;;-*-Mode: LISP; Package: GUI -*-
 ;;;
 ;;;   Copyright (C) 2004 Clozure Associates
 ;;;   This file is part of OpenMCL.  
@@ -14,14 +14,7 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
-(in-package "CCL")
-
-(eval-when (:compile-toplevel :execute)
-  (use-interface-dir :cocoa)
-  #+nomore
-  (use-interface-dir :carbon))
-
-(require "OBJC-SUPPORT")
+(in-package "GUI")
 
 (defstruct cocoa-default
   symbol                                ; a lisp special variable
@@ -45,7 +38,7 @@
 
 (defun set-cocoa-default (name string type value doc &optional change-hook)
   (check-type name symbol)
-  (check-type string objc-constant-string)
+  (check-type string ccl::objc-constant-string)
   (check-type type keyword)
   (check-type doc (or null string))
   (%remove-cocoa-default name)
@@ -61,15 +54,15 @@
 
 ;;; Names which contain #\* confuse Cocoa Bindings.
 (defun objc-default-key (name)
-  (ns-constant-string (lisp-to-objc-message (list (make-symbol (remove #\* (string name)))))))
+  (ccl::ns-constant-string (ccl::lisp-to-objc-message (list (make-symbol (remove #\* (string name)))))))
   
 
 (defun %define-cocoa-default (name type value doc &optional change-hook)
   (proclaim `(special ,name))
   ;; Make the variable "GLOBAL": its value can be changed, but it can't
   ;; have a per-thread binding.
-  (%symbol-bits name (logior (ash 1 $sym_vbit_global)
-                             (the fixnum (%symbol-bits name))))
+  (ccl::%symbol-bits name (logior (ash 1 ccl::$sym_vbit_global)
+				  (the fixnum (ccl::%symbol-bits name))))
   (record-source-file name 'variable)
   (setf (documentation name 'variable) doc)
   (set name (set-cocoa-default name (objc-default-key name) type value doc change-hook))
@@ -80,7 +73,7 @@
 (defmacro def-cocoa-default (name type value  doc &optional change-hook &environment env)
   `(progn
      (eval-when (:compile-toplevel)
-       (note-variable-info ',name :global ,env))
+       (ccl::note-variable-info ',name :global ,env))
     (declaim (special ,name))
     (defloadvar ,name nil)
     (%define-cocoa-default ',name  ',type ,value ',doc ,change-hook)))
@@ -95,7 +88,7 @@
   (dolist (d defaults)
     (let* ((name (cocoa-default-symbol d))
            (type (cocoa-default-type d)) 
-           (key (objc-constant-string-nsstringptr (cocoa-default-string d))))
+           (key (ccl::objc-constant-string-nsstringptr (cocoa-default-string d))))
       (let* ((hook (cocoa-default-change-hook d))
              (old-value (symbol-value name)))
         (case type
@@ -135,4 +128,4 @@
                                (:bool (if value #@"YES" #@"NO"))
                                (t
                                 (%make-nsstring (format nil "~a" (cocoa-default-value d)))))
-                             (objc-constant-string-nsstringptr (cocoa-default-string d)))))))
+                             (ccl::objc-constant-string-nsstringptr (cocoa-default-string d)))))))

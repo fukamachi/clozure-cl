@@ -1,4 +1,4 @@
-;;;-*-Mode: LISP; Package: CCL -*-
+;;;-*-Mode: LISP; Package: GUI -*-
 ;;;
 ;;;   Copyright (C) 2004 Clozure Associates
 ;;;   This file is part of OpenMCL.  
@@ -14,11 +14,7 @@
 ;;;   The LLGPL is also available online at
 ;;;   http://opensource.franz.com/preamble.html
 
-(in-package "CCL")
-
-(eval-when (:compile-toplevel :execute)
-  (use-interface-dir :cocoa))
-
+(in-package "GUI")
 
 (defloadvar *lisp-preferences-panel* nil)
 
@@ -43,13 +39,14 @@
   ;; making a font ?
   (#/displayName (make-instance ns:ns-font
                                 :with-name value
-                                :size (float 12.0 +cgfloat-zero+))))
+                                :size (cgfloat 12.0))))
 
 
 
 (defclass lisp-preferences-window-controller (ns:ns-window-controller)
     ()
   (:metaclass ns:+ns-object))
+(declaim (special lisp-preferences-window-controller))
 
 (objc:defmethod (#/fontPanelForDefaultFont: :void)
     ((self lisp-preferences-window-controller) sender)

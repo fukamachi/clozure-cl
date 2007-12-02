@@ -1,9 +1,6 @@
-; -*- Mode: Lisp; Package: CCL; -*-
+; -*- Mode: Lisp; Package: GUI; -*-
 
-(in-package "CCL")
-
-(eval-when (:compile-toplevel :execute)
-  (use-interface-dir :cocoa))
+(in-package "GUI")
 
 (defclass sequence-window-controller (ns:ns-window-controller)
     ((table-view :foreign-type :id :reader sequence-window-controller-table-view)
@@ -15,11 +12,14 @@
 
 
 (objc:defmethod #/init ((self sequence-window-controller))
+  (call-next-method)
   (let* ((w (new-cocoa-window :activate nil))
          (contentview (#/contentView w))
          (contentframe (#/frame contentview))
          (scrollview (make-instance 'ns:ns-scroll-view :with-frame contentframe)))
     (#/setWindow: self w)
+    (#/setDelegate: w self)
+    (#/setWindowController: w self)
     (#/setHasVerticalScroller: scrollview t)
     (#/setHasHorizontalScroller: scrollview t)
     (#/setAutohidesScrollers: scrollview t)
@@ -30,12 +30,14 @@
     (#/setAutoresizesSubviews: (#/contentView scrollview) t)
     (let* ((table-view (make-instance 'ns:ns-table-view)))
       (#/setDocumentView: scrollview table-view)
+      (#/release table-view)
       (#/setColumnAutoresizingStyle: table-view #$NSTableViewUniformColumnAutoresizingStyle)
       (setf (slot-value self 'table-view) table-view)
       (let* ((column (make-instance 'ns:ns-table-column :with-identifier #@"")))
         (#/setEditable: column nil)
 	(#/setResizingMask: column #$NSTableColumnAutoresizingMask)
-        (#/addTableColumn: table-view column))
+        (#/addTableColumn: table-view column)
+	(#/release column))
       (#/setAutoresizingMask: table-view (logior
                                           #$NSViewWidthSizable
                                           #$NSViewHeightSizable))
@@ -46,7 +48,16 @@
       (#/setUsesAlternatingRowBackgroundColors: table-view t)
       (#/setDoubleAction: table-view (@selector #/sequenceDoubleClick:))
       (#/addSubview: contentview scrollview)
+      (#/release scrollview)
       self)))
+
+(objc:defmethod (#/dealloc :void) ((self sequence-window-controller))
+  (call-next-method))
+
+(objc:defmethod (#/windowWillClose: :void) ((self sequence-window-controller)
+					    notification)
+  (declare (ignore notification))
+  (#/autorelease self))
 
 (objc:defmethod (#/sequenceDoubleClick: :void)
     ((self sequence-window-controller) sender)
@@ -65,8 +76,9 @@
     ((self sequence-window-controller) view column (row :<NSI>nteger))
   (declare (ignore column view))
   (with-slots (display sequence) self
-    (%make-nsstring (with-output-to-string (s)
-                      (funcall display (elt sequence row) s)))))
+    (#/autorelease
+     (%make-nsstring (with-output-to-string (s)
+		       (funcall display (elt sequence row) s))))))
 
 (defmethod initialize-instance :after ((self sequence-window-controller) &key &allow-other-keys)
   (let* ((window (#/window self)))
@@ -85,12 +97,15 @@
                  :file-url-with-path
                  (%make-nsstring (native-translated-namestring pathname))))
 
+(defun cgfloat (number)
+  (float number ccl::+cgfloat-zero+))
+
 (defun color-values-to-nscolor (red green blue alpha)
   (#/colorWithCalibratedRed:green:blue:alpha: ns:ns-color
-                                              (float red +cgfloat-zero+)
-                                              (float green +cgfloat-zero+)
-                                              (float blue +cgfloat-zero+)
-                                              (float alpha +cgfloat-zero+)))
+                                              (cgfloat red)
+                                              (cgfloat green)
+                                              (cgfloat blue)
+                                              (cgfloat alpha)))
 
 (defun windows ()
   (let* ((win-arr (#/orderedWindows *NSApp*))

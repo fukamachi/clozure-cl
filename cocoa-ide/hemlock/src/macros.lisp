@@ -547,7 +547,7 @@
     (editor-error "I doubt that you really want a window with no height"))
   (let ((stream (gensym)))
     `(let ()
-       (let ((,stream (ccl::typeout-stream ,title)))
+       (let ((,stream (gui::typeout-stream ,title)))
          (clear-output ,stream)
        (unwind-protect
 	   (progn

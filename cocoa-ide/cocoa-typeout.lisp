@@ -1,7 +1,8 @@
-(in-package "CCL")
+;;;-*-Mode: LISP; Package: GUI -*-
+;;;
+;;;   Copyright (C) 2007 Clozure Associates
 
-(eval-when (:compile-toplevel :execute)
-  (use-interface-dir :cocoa))
+(in-package "GUI")
 
 ;;
 ;; a typeout window is just an ns-window containing a scroll-view
@@ -9,7 +10,7 @@
 ;;
 ;; the window is implicitly bound to a stream, and text written to
 ;; the stream is written into the text-view object. The stream is 
-;; available via the function (ccl::typeout-stream)
+;; available via the function (gui::typeout-stream)
 ;;
 
 ;; @class typeout-view
@@ -18,10 +19,12 @@
   ((scroll-view :foreign-type :id :reader typeout-view-scroll-view)
    (text-view :foreign-type :id :reader typeout-view-text-view))
   (:metaclass ns:+ns-object))
+(declaim (special typeout-view))
 
 (defclass typeout-text-view (ns:ns-text-view)
     ()
   (:metaclass ns:+ns-object))
+(declaim (special typeout-text-view))
 
 (objc:defmethod (#/clearAll: :void) ((self typeout-text-view))
   (#/selectAll: self +null-ptr+)
@@ -76,6 +79,7 @@
 (defclass typeout-window (ns:ns-window)
     ((typeout-view :foreign-type :id :accessor typeout-window-typeout-view))
   (:metaclass ns:+ns-object))
+(declaim (special typeout-window))
 
 (defloadvar *typeout-windows* ())
 (defstatic *typeout-windows-lock* (make-lock))

@@ -27,71 +27,53 @@
 ;;; in future, we may add options to suppress the copying of
 ;;; dev-environment nibfiles.
 
+#|
+temporarily removed for debugging
+(save-application image-path
+                      :application-class application-class
+                      :toplevel-function toplevel-function
+                      :prepend-kernel t)
+|#
+
 (defun build-application (&key
                           (name "MyApplication")
                           (type-string "APPL")
                           (creator-string "OMCL")
                           (directory (current-directory))
                           (nibfiles nil) ; a list of user-specified nibfiles
-                                         ; to be copied into the app bundle
-                          (main-nib-name); the name of the nib that is to be loaded
-                                         ; as the app's main. this name gets written
-                                         ; into the Info.plist on the "NSMainNibFile" key
-                          (application-class 'cocoa-application)
-                          (toplevel-function nil)
-                          (swank-loader nil)
-                          (autostart-swank-on-port nil))
-  ;;; if the path to swank-loader.lisp is given, then load
-  ;;; swank before building the application
-  (when swank-loader
-    (assert (probe-file swank-loader)(swank-loader)
-            "Swank loader not found at path '~A'" swank-loader)
-    (load swank-loader)
-    ;; when autostart-swank-on-port is also given, setup
-    ;; swank to start up on launch (still don't know how
-    ;; we're actually going to do this)
-    (when autostart-swank-on-port
-      (assert (integerp autostart-swank-on-port)(autostart-swank-on-port)
-              "The port for :autostart-swank-on-port must be an integer or nil, not '~S'"
-              autostart-swank-on-port)
-      ;; if we get this far, setup the swank autostart
-      ;; (however we're going to do that...)
-      ))
-  ;;; build the application
+                                        ; to be copied into the app bundle
+                          (main-nib-name) ; the name of the nib that is to be loaded
+                                        ; as the app's main. this name gets written
+                                        ; into the Info.plist on the "NSMainNibFile" key
+                          (application-class 'gui::cocoa-application)
+                          (toplevel-function nil))
+
   (let* ((ide-bundle (#/mainBundle ns:ns-bundle))
          (ide-bundle-path-nsstring (#/bundlePath ide-bundle))
          (ide-bundle-path (pathname 
                            (ensure-directory-pathname 
                             (lisp-string-from-nsstring ide-bundle-path-nsstring))))
+         ;; create the bundle directory
          (app-bundle (make-application-bundle name type-string creator-string directory
                                               :main-nib-name main-nib-name))
          (image-path (namestring (path app-bundle "Contents" "MacOS" name))))
-
-    ;; copy IDE resources into the application bundle
+    ;; copy IDE resources to the bundle
     (recursive-copy-directory (path ide-bundle-path "Contents" "Resources/")
                               (path app-bundle  "Contents" "Resources/")
-			      :if-exists :overwrite)
-    ;; copy user-supplied nibfiles into the bundle
+                              :if-exists :overwrite)
+    ;; copy user nibfiles into the bundle
     (when nibfiles
       (let ((nib-paths (mapcar #'pathname nibfiles)))
-        (assert (and (every #'probe-file nib-paths)
-                     (every #'directoryp nib-paths))
+        (assert (and (every #'probe-file nib-paths))
                 (nibfiles)
-                "The nibfiles parameter must be a list of valid pathnames to existing directories")
-        ;; for each input nibfile, construct the destination path and copy it to that path
-        ;; checking first whether doing so would clobber an existing nib. if it would,
-        ;; signal an error
+                "The nibfiles parameter must be a list of valid pathnames to existing files or directories")
         (dolist (n nib-paths)
-          ;; TODO: handle cases where there are nibs for languages other than English
-          (let ((dest (path app-bundle  "Contents" "Resources" "English.lproj/" (namestring (basename n)))))
-            (if (probe-file dest)
-                (error "The destination nibfile '~A' already exists" dest)
-                (recursive-copy-directory n dest :if-exists :overwrite))))))
-    ;; save the application image
+          (let ((dest (path app-bundle  "Contents" "Resources" "English.lproj/")))
+            (copy-nibfile n dest :if-exists :overwrite)))))
+    ;; save the application image into the bundle
     (save-application image-path
                       :application-class application-class
                       :toplevel-function toplevel-function
                       :prepend-kernel t)))
-
 
 

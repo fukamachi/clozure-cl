@@ -1,104 +1,80 @@
-July 22, 2007
+November 20, 2007
 
 This directory contains sources and other resources needed to build
-a Cocoa-based IDE for OpenMCL on OSX.
+a Cocoa-based IDE for Clozure CL on OSX.
 
 The IDE uses the ObjC bridge (in ccl/objc-bridge/) to communicate
 with the ObjC runtime.
 
-"./OpenMCL.app" is a skeletal application bundle which contains nib
-files, icons, and other resources used by the IDE.
+The "./ide-contents" directory contains nib files, icons and other
+resources used by the IDE.  These are copied to the application bundle
+by the build process.
 
 The "./hemlock" directory contains a hacked up version of Portable
-Hemlock (forked from the main Portable Hemlock tree a few years ago.)
+Hemlock (forked from the main Portable Hemlock tree some years ago.)
 Hemlock is public domain Emacs-like editor that comes with CMUCL;
 Portable Hemlock is an attempt to "free Hemlock from its CMUCL prison"
 (e.g., remove dependencies on CMUCL).  Hemlock (and Portable Hemlock)
 were designed to use CLX for display and event processing; the version
-distributed here tries to use the Cocoa text system for that
-functionality. Much of the initial work on Portable Hemlock was done
-by Gilbert Baumann.
+distributed here uses the Cocoa text system for that functionality.
+Much of the initial work on Portable Hemlock was done by Gilbert Baumann.
 
-To run the IDE from within an OpenMCL session (a shell, Emacs shell
+To run the IDE from within a ccl command-line session (a shell, Emacs shell
 buffer, under SLIME or ILisp or ...), do:
 
 ? (require "COCOA")
 
-The first time this is run, it'll compile the Hemlock sources; that'll
-take several seconds and generate lots of compiler warnings.  You'll
-also see messages noting that various new ObjC-callable methods are
-being define.  When the loading process completes, you should see
-a new menubar, an OpenMCL Dock icon (an aqua-colored Lambda originally
-contributed by Brendan Burns), and a Listener window.  The listener
-process from which the REQUIRE was issued will remain active; you
-may see warning/diagnostic/error messages from the IDE directed to
+The first time this is run, it'll compile the sources, generating lots
+of compiler warnings.  You'll also see messages noting that various
+new ObjC-callable methods are being defined.  When the loading process
+completes, it creates a temporary application bundle in "ccl:temp
+bundle.app" and activates it.  You should see a new menubar, a
+listener window, and a Clozure CL icon in the Dock. The non-GUI
+listener process from which the REQUIRE was issued will remain active;
+you may see warning/diagnostic/error messages from the IDE directed to
 the standard output/error streams associated with that listener.
 (Under SLIME, these messages might appear in the *inferior lisp*
 buffer.)
 
-It's also possible to populate the "OpenMCL.app" application bundle,
-effectively making it a double-clickable application.  To do this,
-you can do:
+It's also possible to save the loaded IDE in a populated bundle,
+effectively making it a double-clickable application.  To do this, you
+can do:
 
 ? (require "COCOA-APPLICATION")
 
-which will do what (REQUIRE "COCOA") does, then save an executable
-lisp image inside the "OpenMCL.app" bundle.  Double-clicking on
+which will create an application bundle in "ccl:Clozure CL.app"
+and save an executable lisp image inside it. Double-clicking on
 that bundle in the Finder will launch the IDE; any diagnostic
-messages/warnings/etc. will be written to /var/log/system.log.
-(Probably; this may depend on OS version.)
+messages/warnings/etc. will be written to the system log, which
+can be examined with the Console application.
 
 The IDE depends on functionality introduced in OSX 10.4 (Tiger).
 
-Note: CCL directory and IDE, preferences changes.
 
-The IDE uses the value of a key in the application's preferences
-database in order to find the "ccl" directory (and to thereby
-enable M-. to find source files and to enable the FFI and ObjC
-bridge to find interface definitions, among other things.)  
 
-(Unlike some earlier versions, the IDE application itself shouldn't
-need access to interfaces at runtime.)
+*Note: CCL directory and IDE Preferences
 
-The key can be set via the "CCL Directory" entry in the "Paths" pane
-of the Preferences dialog.  (The text associated with that entry is
-static; the "Select ..." button near that entry can be used to
-invoke a directory-selection dialog.)
+Normally, the IDE assumes it is located at the top level of the "CCL"
+directory.  It uses the CCL directory to enable Meta-. to find the
+system source files and require'd modules, among other things.  If you
+want to move the IDE somewhere else, e.g. to put it in the
+Applications folder, but still want to be able to Meta-. and require
+stuff from the CCL directory, you can set the "CCL Directory" entry in
+the "Paths" pane of the Preferences dialog to the absolute path of the
+directory containing the system sources.
 
 The values of changed application preferences are stored in
-"~/Library/Preferences/com.clozure.OpenMCL.plist"; if you have
+"~/Library/Preferences/com.clozure.Clozure CL.plist"; if you have
 an old version of this file, it might be desirable to delete it
 before invoking the IDE for the first time.
 
 
-Note: rebuilding Hemlock
+*Note: Interface files
 
-All of the Hemlock sources that are used in the IDE basically
-have to be recompiled whenever any of them change; some of the
-Hemlock files have load-time side-effects and can only be
-loaded once, and some files have to have been loaded in order
-for others to compile.  (Yes, this is possibly a job for
-ASDF or some other DEFSYSTEM-like thing.)
-
-To rebuild Hemlock (from the "tty" environment), do:
-
-? (require "COMPILE-HEMLOCK")
-
-? (ccl::compile-hemlock t)
-
-That'll compile all of the Hemlock sources that the IDE uses, then
-concatenate the resulting FASL files into a single
-"ccl:cocoa-ide;hemlock.FASL" (where "FASL" denotes the
-platform-specific FASL file extension.)
-
-This happens automatically when HEMLOCK is REQUIREd and
-"ccl:cocoa-ide;hemlock.lisp" is newer than the corresponding FASL (or
-the FASL is missing); if the Hemlock FASL is present, it'll be used
-(even if it's out-of-date with respect to the
-ccl:cocoa-ide;hemlock;src;*lisp" files from which it's derived.)
-
-In previous OpenMCL releases, "hemlock" and "OpenMCL" were both
-at top-level in the "ccl" tree, and many of the files in the
-"cocoa-ide" and "objc-bridge" directories were in "ccl:examples;".
-
-Note: This README file should be much longer.
+The standalone IDE bundle contains a copy of the FFI/ObjC interface
+definition databases (i.e. the .cdb files) for its target platform in
+Clozure CL.app/Contents/Resources/xxx-headers.  If you create
+additional databases that you want the IDE to access, you can just
+copy them into the bundle.  Conversely, if you'd rather use the
+interface definitions in the CCL directory, just delete the ones in
+the bundle.

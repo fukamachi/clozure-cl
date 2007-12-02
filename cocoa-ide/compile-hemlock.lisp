@@ -103,3 +103,6 @@
                     :if-exists :supersede)
   (provide "HEMLOCK")
   )
+
+
+(provide "COMPILE-HEMLOCK")

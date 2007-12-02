@@ -1,6 +1,8 @@
-; -*- Mode: Lisp; Package: CCL; -*-
+;;;-*-Mode: LISP; Package: GUI -*-
+;;;
+;;;   Copyright (C) 2007 Clozure Associates
 
-(in-package "CCL")
+(in-package "GUI")
 
 (defclass ns-lisp-string (ns:ns-string)
     ((lisp-string :initarg :string :reader ns-lisp-string-string))
@@ -59,6 +61,9 @@
 (def-cocoa-default *backtrace-font-size* :float 9.0f0 "Size of font used in backtrace views")
 
 
+(defun context-process (context)
+  (and context (ccl::tcr->process (ccl::bt.tcr context))))
+
 (objc:defmethod (#/windowDidLoad :void) ((self backtrace-window-controller))
   (let* ((outline (slot-value self 'outline-view))
          (font (default-font :name *backtrace-font-name* :size *backtrace-font-size*)))
@@ -91,7 +96,7 @@
     (let* ((window (#/window  self)))
       (unless (%null-ptr-p window)
         (let* ((context (backtrace-controller-context self))
-               (process (tcr->process (bt.tcr context)))
+               (process (context-process context))
                (listener-window (if (typep process 'cocoa-listener-process)
                                   (cocoa-listener-process-window process))))
           (when listener-window
@@ -106,18 +111,18 @@
                                 (format nil "Backtrace for ~a(~d), break level ~d"
                                         (process-name process)
                                         (process-serial-number process)
-                                        (bt.break-level context)))))))))
+                                        (ccl::bt.break-level context)))))))))
 
 (objc:defmethod (#/continue: :void) ((self backtrace-window-controller) sender)
   (declare (ignore sender))
   (let* ((context (backtrace-controller-context self))
-         (process (and context (tcr->process (bt.tcr context)))))
+         (process (context-process context)))
     (when process (process-interrupt process #'continue))))
 
 (objc:defmethod (#/exitBreak: :void) ((self backtrace-window-controller) sender)
   (declare (ignore sender))
   (let* ((context (backtrace-controller-context self))
-         (process (and context (tcr->process (bt.tcr context)))))
+         (process (context-process context)))
     (when process (process-interrupt process #'abort-break))))
 
 (objc:defmethod (#/restarts: :void) ((self backtrace-window-controller) sender)
@@ -190,7 +195,7 @@
                                   (let* ((value 
                                           (inspector::line-n inspector index)))
                                     (if value
-                                      (%lfun-name-string value)
+                                      (ccl::%lfun-name-string value)
                                       ":kernel")))))
              label))
           ((our-frame-label-p self item)
@@ -233,8 +238,8 @@
         (make-instance 'inspector::stack-inspector :context (backtrace-controller-context self) :update-line-count t)))
 
 (defun backtrace-controller-for-context (context)
-  (or (bt.dialog context)
-      (setf (bt.dialog context)
+  (or (ccl::bt.dialog context)
+      (setf (ccl::bt.dialog context)
             (make-instance 'backtrace-window-controller
                            :with-window-nib-name #@"backtrace"
                            :context context))))
@@ -256,11 +261,11 @@
       (when (eq context (car (cocoa-listener-process-backtrace-contexts proc)))
         (setf (cocoa-listener-process-backtrace-contexts proc)
               (cdr (cocoa-listener-process-backtrace-contexts proc)))
-        (let* ((btwindow (prog1 (bt.dialog context)
-                           (setf (bt.dialog context) nil)))
+        (let* ((btwindow (prog1 (ccl::bt.dialog context)
+                           (setf (ccl::bt.dialog context) nil)))
                (restartswindow
-                (prog1 (car (bt.restarts context))
-                           (setf (bt.restarts context) nil))))
+                (prog1 (car (ccl::bt.restarts context))
+                           (setf (ccl::bt.restarts context) nil))))
           (when btwindow
             (#/performSelectorOnMainThread:withObject:waitUntilDone: btwindow (@selector #/close)  +null-ptr+ t))
           (when restartswindow

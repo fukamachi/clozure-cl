@@ -28,6 +28,21 @@
 		   app)
 	 app))
 
+(defun copy-nibfile (srcnib dest-directory &key (if-exists :overwrite))
+  (setq if-exists (require-type if-exists '(member :overwrite :error)))
+  (let* ((basename (basename srcnib))
+         (dest (path dest-directory basename)))
+    (if (probe-file dest)
+        (case if-exists
+          (:overwrite (progn
+                        (if (directoryp dest)
+                            (recursive-delete-directory dest)
+                            (delete-file dest))))
+          (:error (error "The nibfile '~A' already exists" dest))))
+    (if (directoryp srcnib)
+        (recursive-copy-directory srcnib dest)
+        (copy-file srcnib dest))))
+
 ;;; BASENAME path
 ;;; returns the final component of a pathname--that is, the
 ;;; filename (with type extension) if it names a file, or the

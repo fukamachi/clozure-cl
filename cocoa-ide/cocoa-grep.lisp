@@ -1,6 +1,8 @@
-; -*- Mode: Lisp; Package: CCL; -*-
+;;;-*-Mode: LISP; Package: GUI -*-
+;;;
+;;;   Copyright (C) 2007 Clozure Associates
 
-(in-package "CCL")
+(in-package "GUI")
 
 (defvar *grep-program* "grep")
 
@@ -111,7 +113,7 @@
 					   "--line-number"
                                            "--no-messages"
 					   "-e" pattern
-					   (native-untranslated-namestring directory)))
+					   (ccl::native-untranslated-namestring directory)))
 			      :input nil
 			      :output stream)))
       (multiple-value-bind (status exit-code) (external-process-status proc)

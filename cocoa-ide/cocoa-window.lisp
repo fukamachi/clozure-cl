@@ -1,6 +1,6 @@
-;;;-*-Mode: LISP; Package: CCL -*-
+;;;-*-Mode: LISP; Package: GUI -*-
 ;;;
-;;;   Copyright (C) 2002-2003 Clozure Associates
+;;;   Copyright (C) 2002-2007 Clozure Associates
 ;;;   This file is part of OpenMCL.  
 ;;;
 ;;;   OpenMCL is licensed under the terms of the Lisp Lesser GNU Public
@@ -15,24 +15,12 @@
 ;;;   http://opensource.franz.com/preamble.html
 
 
-(in-package "CCL")			; for now.
+(in-package "GUI")
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (require "OBJC-SUPPORT")
-  ;;
-  ;;  this stuff should all be integrated with a preferences file in ~/Library/OpenMCL/
-  ;; (Um, it -is- integrated with the preferences file.)
-  ;;
-  (require "COCOA-DEFAULTS")
   (def-cocoa-default *default-font-name* :string "Courier" "Name of font to use in editor windows")
   (def-cocoa-default *default-font-size* :float 12.0f0 "Size of font to use in editor windows, as a positive SINGLE-FLOAT")
-  (def-cocoa-default *tab-width* :int 8 "Width of editor tab stops, in characters")
-  (require "COCOA-PREFS")
-  (require "COCOA-TYPEOUT"))
-
-(eval-when (:compile-toplevel :execute)
-  (use-interface-dir #+apple-objc  :cocoa #+gnu-objc :gnustep))
-
+  (def-cocoa-default *tab-width* :int 8 "Width of editor tab stops, in characters"))
 
 (defun init-cocoa-application ()
   (with-autorelease-pool
@@ -114,32 +102,32 @@
 
 (defparameter *event-process-reported-conditions* () "Things that we've already complained about on this event cycle.")
 
-(defmethod process-debug-condition ((process appkit-process) condition frame-pointer)
+(defmethod ccl::process-debug-condition ((process appkit-process) condition frame-pointer)
   "Better than nothing.  Not much better."
   (when *debug-in-event-process*
-    (let* ((c (if (typep condition 'ns-lisp-exception)
-                (ns-lisp-exception-condition condition)
+    (let* ((c (if (typep condition 'ccl::ns-lisp-exception)
+                (ccl::ns-lisp-exception-condition condition)
                 condition)))
       (unless (member c *event-process-reported-conditions*)
         (push c *event-process-reported-conditions*)
         (catch 'need-a-catch-frame-for-backtrace
           (let* ((*debug-in-event-process* nil)
-                 (context (new-backtrace-info nil
-                                              frame-pointer
-                                              (if *backtrace-contexts*
-                                                (or (child-frame
-                                                     (bt.youngest (car *backtrace-contexts*))
-                                                     nil)
-                                                    (last-frame-ptr))
-                                                (last-frame-ptr))
-                                              (%current-tcr)
-                                              condition
-                                              (%current-frame-ptr)
-                                              #+ppc-target *fake-stack-frames*
-                                              #+x86-target (%current-frame-ptr)
-                                              (db-link)
-                                              (1+ *break-level*)))
-                 (*backtrace-contexts* (cons context *backtrace-contexts*)))  
+                 (context (ccl::new-backtrace-info nil
+						   frame-pointer
+						   (if ccl::*backtrace-contexts*
+						       (or (ccl::child-frame
+							    (ccl::bt.youngest (car ccl::*backtrace-contexts*))
+							    nil)
+							   (ccl::last-frame-ptr))
+						       (ccl::last-frame-ptr))
+						   (ccl::%current-tcr)
+						   condition
+						   (ccl::%current-frame-ptr)
+						   #+ppc-target ccl::*fake-stack-frames*
+						   #+x86-target (ccl::%current-frame-ptr)
+						   (ccl::db-link)
+						   (1+ ccl::*break-level*)))
+                 (ccl::*backtrace-contexts* (cons context ccl::*backtrace-contexts*)))  
             (format t "~%~%*** Error in event process: ~a~%~%" condition)
             (print-call-history :context context :detailed-p t :count 20 :origin frame-pointer)
             (format t "~%~%~%")
@@ -184,8 +172,8 @@
 	(#_NSLog #@"Error in event loop: %@" :address nsstr)))))
 
 
-(defmethod process-exit-application ((process appkit-process) thunk)
-  (when (eq process *initial-process*)
+(defmethod ccl::process-exit-application ((process appkit-process) thunk)
+  (when (eq process ccl::*initial-process*)
     (%set-toplevel thunk)
     (#/terminate: *NSApp* +null-ptr+)))
 
@@ -211,9 +199,9 @@
 	   (process-run-function "housekeeping"
 				 #'(lambda ()
 				     (loop
-                                       (%nanosleep *periodic-task-seconds*
-                                                   *periodic-task-nanoseconds*)
-                                       (housekeeping))))
+                                       (ccl::%nanosleep ccl::*periodic-task-seconds*
+							ccl::*periodic-task-nanoseconds*)
+                                       (ccl::housekeeping))))
 	   
            (with-autorelease-pool
              (enable-foreground)
@@ -221,10 +209,10 @@
              (let* ((icon (#/imageNamed: ns:ns-image #@"NSApplicationIcon")))
                (unless (%null-ptr-p icon)
                  (#/setApplicationIconImage: *NSApp* icon)))
-             (setf (application-ui-object *application*) *NSApp*)
+             (setf (ccl::application-ui-object *application*) *NSApp*)
              (when application-proxy-class-name
-               (let* ((classptr (%objc-class-classptr
-                                 (load-objc-class-descriptor application-proxy-class-name)))
+               (let* ((classptr (ccl::%objc-class-classptr
+                                 (ccl::load-objc-class-descriptor application-proxy-class-name)))
                       (instance (#/init (#/alloc classptr))))
 
                  (#/setDelegate: *NSApp* instance))))
@@ -256,7 +244,7 @@
 			  (size *default-font-size*)
 			  (attributes ()))
 				
-  (setq size (float size +cgfloat-zero+))
+  (setq size (cgfloat size))
   (with-cstrs ((name name))
     (with-autorelease-pool
 	(rletz ((matrix (:array :<CGF>loat 6)))
@@ -297,7 +285,7 @@
     ;; Clear existing tab stops.
     (#/setTabStops: p (#/array ns:ns-array))
     ;; And set the "default tab interval".
-    (#/setDefaultTabInterval: p (float (* *tab-width* charwidth) +cgfloat-zero+))
+    (#/setDefaultTabInterval: p (cgfloat (* *tab-width* charwidth)))
     p))
     
 (defun create-text-attributes (&key (font (default-font))
