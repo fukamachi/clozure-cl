@@ -276,10 +276,6 @@ congruent with lambda lists of existing methods." lambda-list gf)))
 (declaim (inline %find-nth-arg-combined-method))
 
 
-; for calls from outside - e.g. stream-reader
-(defun find-1st-arg-combined-method (gf arg)
-  (declare (optimize (speed 3)(safety 0)))
-  (%find-1st-arg-combined-method (%gf-dispatch-table gf) arg))
 
 
 (defun %find-1st-arg-combined-method (dt arg)
@@ -316,6 +312,12 @@ congruent with lambda lists of existing methods." lambda-list gf)))
                    (return (1st-arg-combined-method-trap (%gf-dispatch-table-gf dt) wrapper arg))) ; the only difference?
                   (setq flag 0 index -2)))
               (setq index (+ 2 index)))))))))
+
+;;; for calls from outside - e.g. stream-reader
+(defun find-1st-arg-combined-method (gf arg)
+  (declare (optimize (speed 3)(safety 0)))
+  (%find-1st-arg-combined-method (%gf-dispatch-table gf) arg))
+
 
 ;;; more PC - it it possible one needs to go round more than once? -
 ;;; seems unlikely
@@ -1754,9 +1756,9 @@ congruent with lambda lists of existing methods." lambda-list gf)))
           (rplaca (cdr magic) (if (not cdr)(car next-methods) cdr))
           (apply-with-method-context magic (%method.function (car next-methods)) args))))))
 
-; may be simpler to blow another cell so magic looks like
-; (cnm-cm/nil next-methods . args) - done
-; and also use first cell to mean heap-consed if itsa cons
+;;; may be simpler to blow another cell so magic looks like
+;;; (cnm-cm/nil next-methods . args) - done
+;;; and also use first cell to mean heap-consed if itsa cons
 
 (defun %call-next-method-with-args (magic &rest args)
   (declare (dynamic-extent args))
