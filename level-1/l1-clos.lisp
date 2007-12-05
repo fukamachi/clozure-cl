@@ -1864,43 +1864,80 @@ changing its name to ~s may have serious consequences." class new))
                              
                              (gf.dcode f) #'reader-variable-location-dcode)))))))))))                       
 
+;;; Return a list of :after methods for INITIALIZE-INSTANCE on the
+;;; class's prototype, and a boolean that's true if no other qualified
+;;; methods are defined.
+(defun initialize-instance-after-methods (proto class)
+  (let* ((method-list (compute-method-list (sort-methods
+                            (compute-applicable-methods #'initialize-instance (list proto))
+                            (list (class-precedence-list class))))))
+    (if (atom method-list)
+      (values nil t)
+      (if (null (car method-list))
+        (values (cadr method-list) t)
+        ;; :around or :before methods, give up
+        (values nil nil)))))
+             
 
 ;;; Return a lambda form or NIL.
 (defun make-instantiate-lambda-for-class-cell (cell)
-  (let* ((class (class-cell-class cell)))   
+  (let* ((class (class-cell-class cell))
+         (after-methods nil))
     (when (and (typep class 'standard-class)
                (progn (unless (class-finalized-p class)
                         (finalize-inheritance class))
                       t)
                (null (cdr (compute-applicable-methods #'allocate-instance (list class))))
                (let* ((proto (class-prototype class)))
-                 (and (null (cdr (compute-applicable-methods #'initialize-instance (list proto))))
+                 (and (multiple-value-bind (afters ok)
+                          (initialize-instance-after-methods proto class)
+                        (when ok
+                          (setq after-methods afters)
+                          t))
                       (null (cdr (compute-applicable-methods #'shared-initialize (list proto t)))))))
       (let* ((slotds (sort (copy-list (class-slots class)) #'(lambda (x y) (if (consp x) x (if (consp y) y (< x y)))) :key #'slot-definition-location))
              (default-initargs (class-default-initargs class)))
-        ;; Punt if any slot has multiple initargs
-        (when (dolist (slot slotds t)
-                (when (cdr (slot-definition-initargs slot))
-                  (return nil)))
-          (collect ((keys)
-                    (binds)
-                    (class-slot-inits)
-                    (forms))
+        (collect ((keys)
+                  (binds)
+                  (ignorable)
+                  (class-slot-inits)
+                  (after-method-forms)
+                  (forms))
+          (flet ((generate-type-check (form type &optional spvar)
+                   (let* ((ctype (ignore-errors (specifier-type type))))
+                     (if (or (null ctype)
+                             (eq ctype *universal-type*)
+                             (typep ctype 'unknown-ctype))
+                       form
+                       (if spvar
+                         `(if ,spvar
+                           (require-type .form ',type)
+                           (%slot-unbound-marker))
+                         `(require-type ,form ',type))))))
             (dolist (slot slotds)
               (let* ((initarg (car (slot-definition-initargs slot)))
                      (initfunction (slot-definition-initfunction slot))
                      (initform (slot-definition-initform slot))
                      (location (slot-definition-location slot))
                      (name (slot-definition-name slot))
+                     (spvar nil)
+                     (type (slot-definition-type slot))
                      (initial-value-form (if initfunction
                                            (if (self-evaluating-p initform)
                                              initform
                                              `(funcall ,initfunction))
-                                           `(%slot-unbound-marker)))
-                     (type (slot-definition-type slot)))
+                                           (progn
+                                             (when initarg
+                                               (setq spvar (make-symbol
+                                                            (concatenate
+                                                             'string
+                                                             (string name)
+                                                             "-P"))))
+                                             `(%slot-unbound-marker)))))
+                (when spvar (ignorable spvar))
                 (if initarg
                   (progn
-                    (keys (list
+                    (keys (list*
                            (list initarg name)
                            (let* ((default (assq initarg default-initargs)))
                              (if default
@@ -1909,24 +1946,37 @@ changing its name to ~s may have serious consequences." class new))
                                  (if (self-evaluating-p form)
                                    form
                                    `(funcall ,function)))
-                               initial-value-form))))
+                               initial-value-form))
+                           (if spvar (list spvar))))
                     (if (consp location)
-                      (class-slot-inits `(when (eq (%slot-unbound-marker) (cdr ',location))(setf (cdr ',location) (require-type ,name ',type))))
-                      (forms `(require-type ,name ',type))))
-                  (if (consp location)
-                    (class-slot-inits `(when (eq (%slot-unbound-marker) (cdr ',location))(setf (cdr ',location) (require-type ,initial-value-form ',type))))
+                      (class-slot-inits `(unless (eq ,name (%slot-unbound-marker)) (when (eq (%slot-unbound-marker) (cdr ',location))(setf (cdr ',location) ,(generate-type-check name type)))))
+                      (forms `,(generate-type-check name type spvar))))
+                  (progn
+                    (when initfunction
+                      (setq initial-value-form (generate-type-check initial-value-form type)))
+                    (if (consp location)
+                      (if initfunction
+                        (class-slot-inits `(when (eq (%slot-unbound-marker) (cdr ',location))(setf (cdr ',location) ,initial-value-form))))
                     
-                    (forms `(require-type ,initial-value-form ',type))))))
-            (let* ((cell (make-symbol "CLASS-CELL"))
-                   (slots (make-symbol "SLOTS"))
-                   (instance (make-symbol "INSTANCE")))
-              (binds `(,slots (gvector :slot-vector nil ,@(forms))))
-              (binds `(,instance (gvector :instance 0 (class-cell-extra ,cell) ,slots)))
-              `(lambda (,cell &key ,@(keys))
-                ,@(class-slot-inits)
-                (let* (,@(binds))
-                  (setf (instance.hash ,instance) (strip-tag-to-fixnum ,instance)
-                        (%svref ,slots 0) ,instance))))))))))
+                      (forms initial-value-form)))))))
+          (let* ((cell (make-symbol "CLASS-CELL"))
+                 (args (make-symbol "ARGS"))
+                 (slots (make-symbol "SLOTS"))
+                 (instance (make-symbol "INSTANCE")))
+            (dolist (after after-methods)
+              (after-method-forms `(apply ,(method-function after) ,instance ,args)))
+            (when after-methods
+              (after-method-forms instance))
+            (binds `(,slots (gvector :slot-vector nil ,@(forms))))
+            (binds `(,instance (gvector :instance 0 (class-cell-extra ,cell) ,slots)))
+            `(lambda (,cell ,@(when after-methods `(&rest ,args)) &key ,@(keys) ,@(when after-methods '(&allow-other-keys)))
+              (declare (ignorable ,@(ignorable)))
+              ,@(when after-methods `((declare (dynamic-extent ,args))))
+              ,@(class-slot-inits)
+              (let* (,@(binds))
+                (setf (instance.hash ,instance) (strip-tag-to-fixnum ,instance)
+                      (%svref ,slots 0) ,instance)
+                ,@(after-method-forms)))))))))
 
 (defun optimize-make-instance-for-class-cell (cell)
   (setf (class-cell-instantiate cell) '%make-instance)
