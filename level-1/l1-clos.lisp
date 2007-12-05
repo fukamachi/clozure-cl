@@ -1911,7 +1911,7 @@ changing its name to ~s may have serious consequences." class new))
                        form
                        (if spvar
                          `(if ,spvar
-                           (require-type .form ',type)
+                           (require-type ,form ',type)
                            (%slot-unbound-marker))
                          `(require-type ,form ',type))))))
             (dolist (slot slotds)
