@@ -302,12 +302,14 @@
 
 
 
-;This is like check-type, except it returns the value rather than setf'ing
-;anything, and so can be done entirely out-of-line.
-(defun require-type (arg type)  
-  (if (typep  arg type)
-    arg
-    (%kernel-restart $xwrongtype arg type)))
+;;; This is like check-type, except it returns the value rather than setf'ing
+;;; anything, and so can be done entirely out-of-line.
+(defun require-type (arg type)
+  (multiple-value-bind (win sure)
+      (ctypep  arg (specifier-type type))
+    (if (or win (not sure))
+      arg
+      (%kernel-restart $xwrongtype arg type))))
 
 ;;; Might want to use an inverted mapping instead of (satisfies ccl::obscurely-named)
 (defun %require-type (arg predsym)
