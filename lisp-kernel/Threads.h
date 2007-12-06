@@ -36,11 +36,16 @@
 #include <mach/task.h>
 #include <mach/semaphore.h>
 #endif
+
 #include <limits.h>
+
 #ifdef FREEBSD
 #include <pthread_np.h>
 #endif
+
+#ifndef WINDOWS
 #include <sched.h>
+#endif
 
 #include "lisp.h"
 #include "lisp_globals.h"
@@ -51,7 +56,9 @@
 #include <sys/syscall.h>
 #endif
 
+#ifndef WINDOWS
 #include <syslog.h>
+#endif
 
 Boolean extern threads_initialized;
 Boolean extern log_tcr_info;

@@ -29,6 +29,19 @@
 #endif
 
 
+#include <stdint.h>
+
+#ifdef WIN64
+#include <windows.h>
+typedef long long s64_t;
+typedef unsigned long long u64_t;
+typedef signed long s32_t;
+typedef unsigned long u32_t;
+typedef signed short s16_t;
+typedef unsigned short u16_t;
+typedef signed char s8_t;
+typedef unsigned char u8_t;
+#else
 #ifdef SOLARIS
 /* Solaris doesn't laugh and play like the other children */
 typedef int64_t s64_t;
@@ -48,6 +61,7 @@ typedef int16_t s16_t;
 typedef u_int16_t u16_t;
 typedef int8_t s8_t;
 typedef u_int8_t u8_t;
+#endif
 #endif
 
 #if WORD_SIZE == 64
@@ -160,6 +174,10 @@ typedef struct __ucontext ExceptionInformation;
 
 #ifdef SOLARIS
 typedef struct ucontext ExceptionInformation;
+#endif
+
+#ifdef WIN64
+typedef EXCEPTION_POINTERS ExceptionInformation;
 #endif
 
 typedef u32_t lisp_char_code;

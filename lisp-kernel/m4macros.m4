@@ -27,6 +27,7 @@ changecom([/* ],[*/])
 
 define([BSDstabs],[1])
 define([ELFstabs],[2])
+define([COFFstabs],[3])
 undefine([EABI])
 undefine([POWEROPENABI])
 undefine([rTOC])
@@ -68,6 +69,10 @@ ifdef([SOLARIS],[define([SYSstabs],[ELFstabs])
 	       define([StartTextLabel],[.Ltext0])
 	       define([EndTextLabel],[.Letext])])
 
+ifdef([WIN64],[define([SYSstabs],[COFFstabs])
+               define([CNamesNeedUnderscores],[])
+               define([LocalLabelPrefix],[L])])
+
 
 /*  Names exported to (or imported from) C may need leading underscores.  */
 /*  Still.  After all these years.  Why ?  */
@@ -97,12 +102,21 @@ define([_emit_ELF_source_line_stab],[
 [.LM]_linecounter_:
 ])
 
+define([_emit_COFF_source_line_stab],[
+        .loc 1 $1 0
+])
 
 
 define([emit_source_line_stab],[
-	ifelse(eval(SYSstabs),eval(BSDstabs),
-	[_emit_BSD_source_line_stab($1)],
-	[_emit_ELF_source_line_stab($1)])])
+	ifelse(eval(SYSstabs),
+               eval(BSDstabs),
+  	      [_emit_BSD_source_line_stab($1)],
+              eval(SYSstabs),
+              eval(ELFstabs),
+              [_emit_ELF_source_line_stab($1)],
+              [_emit_COFF_source_line_stab($1)])])
+
+
 
 
 
@@ -137,7 +151,10 @@ define([__pwd__],substr(pwd0,0,decr(len(pwd0)))[/])
 /*   starts .text section  */
 
 
-define([_beginfile],[
+define([_beginfile],[ifdef([WIN64],[
+        .file 1 "__file__"
+        .text
+],[
 	.stabs "__pwd__",N_SO,0,0,StartTextLabel()
 	.stabs "__file__",N_SO,0,0,StartTextLabel()
 ifdef([PPC64],[
@@ -147,12 +164,15 @@ ifdef([DARWIN],[
 	.text
 StartTextLabel():
 # __line__ "__file__"
-])
+])])
 
 define([_endfile],[
+ifdef([WIN64],[
+],[
 	.stabs "",N_SO,0,0,EndTextLabel()
 EndTextLabel():
 # __line__
+])
 ])
 
 define([_startfn],[define([__func_name],$1)
@@ -161,9 +181,14 @@ define([_startfn],[define([__func_name],$1)
 	.type $1,@function
 ])
 $1:
+ifdef([WIN64],[
+	.def	$1;	.scl	2;	.type	32;	.endef
+],[
         .stabd 68,0,__line__
 	.stabs "$1:F1",36,0,__line__,$1
+])
 	.set func_start,$1
+        
 ])
 
 
@@ -179,12 +204,16 @@ ifdef([LINUX],[
 # __line__
 ])
 
+
 define([_endfn],[
 LocalLabelPrefix[]__func_name[999]:
+ifdef([WIN64],[
+],[
 	.stabs "",36,0,0,LocalLabelPrefix[]__func_name[999]-__func_name
 	.line __line__
 	ifelse(eval(SYSstabs),eval(ELFstabs),[
         .size __func_name,LocalLabelPrefix[]__func_name[999]-__func_name
+])
 ])
 	undefine([__func_name])
 ])
@@ -291,6 +320,7 @@ equate_if_defined([DARWIN])
 equate_if_defined([LINUX])
 equate_if_defined([FREEBSD])
 equate_if_defined([SOLARIS])
+equate_if_defined([WIN64])
 equate_if_defined([PPC64])
 equate_if_defined([X8664])
 

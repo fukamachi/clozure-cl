@@ -24,7 +24,9 @@
 #include "ppc-constants.h"
 #endif
 #include <signal.h>
+#ifndef WINDOWS
 #include <ucontext.h>
+#endif
 
 int
 ProtectMemory(LogicalAddress, int);

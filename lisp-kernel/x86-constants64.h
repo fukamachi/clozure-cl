@@ -56,6 +56,27 @@
 #define REG_RSP 23
 #endif
 
+#ifdef WIN64
+/* DWORD64 indices in CONTEXT */
+#define REG_RAX     15
+#define REG_RCX     16
+#define REG_RDX     17
+#define REG_RBX     18
+#define REG_RSP     19
+#define REG_RBP     20
+#define REG_RSI     21
+#define REG_RDI     22
+#define REG_R8      23
+#define REG_R9      24
+#define REG_R10     25
+#define REG_R11     26
+#define REG_R12     27
+#define REG_R13     28
+#define REG_R14     29
+#define REG_R15     30
+#define REG_RIP     31
+#define REG_EFL      8  /* In the high 32 bits of the 64-bit word at index 8 */
+#endif
 /* Define indices of the GPRs in the mcontext component of a ucontext */
 #define Itemp0      REG_RBX
 #define Iarg_y      REG_RDI

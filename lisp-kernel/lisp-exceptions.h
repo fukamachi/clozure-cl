@@ -29,6 +29,10 @@ typedef enum {
 } ErrAction;
 
 
+#ifdef WINDOWS
+otypedef EXCEPTION_RECORD siginfo_t;  /* Not even close to being the right thing to do */
+#endif
+
 
 void
 zero_page(BytePtr);
