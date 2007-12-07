@@ -1862,8 +1862,78 @@ changing its name to ~s may have serious consequences." class new))
                        (setf (%svref dt %gf-dispatch-table-first-data)
                              alist
                              
-                             (gf.dcode f) #'reader-variable-location-dcode)))))))))))                       
+                             (gf.dcode f) #'reader-variable-location-dcode)))))))))))
 
+;;; Hack-o-rama: GF has nothing but primary methods, first (and only non-T)
+;;; specializers are all EQL specializers whose objects are symbols.
+;;; The effective method applicable for each symbol is stored on the
+;;; plist of the symbol under a property EQ to the dispatch table (which
+;;; is mostly ignored, otherwise.)
+(defun %%1st-arg-eql-method-hack-dcode (dt args)
+  (let* ((sym (if (listp args) (car args)(%lexpr-ref args (%lexpr-count args) 0)))
+         (mf (if (symbolp sym) (get args dt))))
+    (if mf
+      (if (listp args)
+        (apply mf args)
+        (%apply-lexpr-tail-wise mf args))
+      ;;; Let %%1st-arg-dcode deal with it.
+      (%%1st-arg-dcode dt args))))
+
+(defun %%1st-two-arg-eql-method-hack-dcode (dt arg1 arg2)
+  (let* ((mf (if (typep arg1 'symbol) (get arg1 dt))))
+    (if mf
+      (funcall mf arg1 arg2)
+      (%%1st-two-arg-dcode dt arg1 arg2))))
+
+(defun %%one-arg-eql-method-hack-dcode (dt arg)
+  (let* ((mf (if (typep arg 'symbol) (get arg dt))))
+    (if mf
+      (funcall mf arg))))
+
+(defun install-eql-method-hack-dcode (gf)
+  (let* ((bits (inner-lfun-bits gf))
+         (nreq (ldb $lfbits-numreq bits))
+         (other-args? (or (not (eql 0 (ldb $lfbits-numopt bits)))
+                          (logbitp $lfbits-rest-bit bits)
+                          (logbitp $lfbits-restv-bit bits)
+                          (logbitp $lfbits-keys-bit bits)
+                          (logbitp $lfbits-aok-bit bits))))
+    (setf (%gf-dcode gf)
+          (cond ((and (eql nreq 1) (null other-args?))
+                 #'%%one-arg-eql-method-hack-dcode)
+                ((and (eql nreq 2) (null other-args?))
+                 #'%%1st-two-arg-eql-method-hack-dcode)
+                (t
+                 #'%%1st-arg-eql-method-hack-dcode)))))
+
+  
+  
+
+
+(defun maybe-hack-eql-methods (gf)
+  (let* ((methods (generic-function-methods gf)))
+    (when (and methods
+               (every #'(lambda (method)
+                          (let* ((specializers (method-specializers method))
+                                      (first (car specializers)))
+                                 (and (typep first 'eql-specializer)
+                                      (typep (eql-specializer-object first) 'symbol)
+                                      (dolist (s (cdr specializers) t)
+                                        (unless (eq s *t-class*)
+                                          (return nil)))
+                                      (null (cdr (compute-applicable-methods gf (cons (eql-specializer-object first) (make-list (length (cdr specializers))))))))))
+                      methods))
+      (let* ((dt (%gf-dispatch-table gf)))
+        (dolist (m methods)
+          (let* ((sym (eql-specializer-object (car (method-specializers m))))
+                 (f (method-function m)))
+            (setf (get sym dt) f)))
+        (install-eql-method-hack-dcode gf)
+        t))))
+
+
+            
+                            
 ;;; Return a list of :after methods for INITIALIZE-INSTANCE on the
 ;;; class's prototype, and a boolean that's true if no other qualified
 ;;; methods are defined.
