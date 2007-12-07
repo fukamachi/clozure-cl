@@ -22,6 +22,10 @@
 #include "memprotect.h"
 #include "gc.h"
 
+#ifdef WINDOWS
+#include <windows.h>
+#endif
+
 typedef enum {
   kDebugger,
   kContinue,
@@ -30,7 +34,7 @@ typedef enum {
 
 
 #ifdef WINDOWS
-otypedef EXCEPTION_RECORD siginfo_t;  /* Not even close to being the right thing to do */
+typedef EXCEPTION_RECORD siginfo_t;  /* Not even close to being the right thing to do */
 #endif
 
 
