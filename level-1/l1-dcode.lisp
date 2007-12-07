@@ -185,10 +185,11 @@ congruent with lambda lists of existing methods." lambda-list gf)))
   "Returns T if the new value can be stored in DT at INDEX, replacing a NIL.
    Returns NIL - without storing anything - if the value already in DT
    at INDEX is non-NIL at the time of the store."
-  (%store-node-conditional (+ (ash (%i+ index %gf-dispatch-table-first-data)
-                                   target::word-shift)
-                              target::misc-data-offset)
-                           dt nil new))
+  (let ((offset (+ (ash (%i+ index %gf-dispatch-table-first-data)
+                        target::word-shift)
+                   target::misc-data-offset)))
+    (or (%store-node-conditional offset dt nil new)
+        (%store-node-conditional offset dt *gf-dispatch-bug* new))))
 
 (defun grow-gf-dispatch-table (gf-or-cm wrapper table-entry &optional obsolete-wrappers-p)
   ;; Grow the table associated with gf and insert table-entry as the value for
@@ -681,10 +682,7 @@ congruent with lambda lists of existing methods." lambda-list gf)))
               (if (eql 0 (%wrapper-hash-index wrapper))
                 (setf contains-obsolete-wrappers-p t
                       (%gf-dispatch-table-ref dt index) *obsolete-wrapper*
-                      (%gf-dispatch-table-ref dt (1+ index))
-                      #'(lambda (&rest rest) 
-                          (declare (ignore rest))
-                          (error "Generic-function dispatch bug.")))
+                      (%gf-dispatch-table-ref dt (1+ index)) *gf-dispatch-bug*)
                 (setq count (%i+ count 1)))))
           (setq index (%i+ index 2)))
         (when (> count max-count)
@@ -853,11 +851,11 @@ congruent with lambda lists of existing methods." lambda-list gf)))
   (let ((table (%gf-dispatch-table gf))
         (combined-method (compute-1st-arg-combined-method gf arg wrapper)))
     (multiple-value-bind (index obsolete-wrappers-p)
-                         (find-gf-dispatch-table-index table wrapper)
+        (find-gf-dispatch-table-index table wrapper)
       (if index
-        (if (%gf-dispatch-table-store-conditional table (%i+ index 1) combined-method)
-          (setf (%gf-dispatch-table-ref table index) wrapper))
-        (grow-gf-dispatch-table gf wrapper combined-method obsolete-wrappers-p)))
+          (if (%gf-dispatch-table-store-conditional table (%i+ index 1) combined-method)
+            (setf (%gf-dispatch-table-ref table index) wrapper))
+          (grow-gf-dispatch-table gf wrapper combined-method obsolete-wrappers-p)))
     combined-method))
 
 (defvar *cpl-classes* nil)
@@ -1248,10 +1246,10 @@ congruent with lambda lists of existing methods." lambda-list gf)))
        gf-or-cm (%gf-dispatch-table-methods table) argnum args
        wrapper)
     (multiple-value-bind (index obsolete-wrappers-p)
-        ( find-gf-dispatch-table-index table wrapper)
+        (find-gf-dispatch-table-index table wrapper)
       (if index
         (if (%gf-dispatch-table-store-conditional table (%i+ index 1) combined-method)
-           (setf (%gf-dispatch-table-ref table index) wrapper))
+          (setf (%gf-dispatch-table-ref table index) wrapper))
         (grow-gf-dispatch-table gf-or-cm wrapper combined-method obsolete-wrappers-p)))
     (if sub-dispatch?
       (let ((table (%combined-method-methods combined-method)))
@@ -1335,9 +1333,47 @@ congruent with lambda lists of existing methods." lambda-list gf)))
   (nreverse res))
 
 
+(defun compute-eql-combined-method-hash-table-threshold (&optional (iters 1000000) (max 200))
+  (flet ((time-assq (cnt iters)
+           (let ((alist (loop for i from 1 to cnt collect (cons i i)))
+                 (start-time (get-internal-run-time))
+                 (j 0)
+                 res)
+             (declare (fixnum j))
+             (dotimes (i iters)
+               (declare (fixnum i))
+               (setq res (cdr (assq j alist)))
+               (when (>= (incf j) cnt) (setq j 0)))
+             (values (- (get-internal-run-time) start-time) res)))
+         (time-hash (cnt iters)
+           (let ((hash (make-hash-table :test 'eq))
+                 start-time
+                 (j 0)
+                 res)
+             (declare (fixnum j))
+             (dotimes (i cnt)
+               (setf (gethash i hash) i))
+             (assert-hash-table-readonly hash)
+             (setq start-time (get-internal-run-time))
+             (dotimes (i iters)
+               (declare (fixnum i))
+               (setq res (gethash i hash))
+               (when (>= (incf j) cnt) (setq j 0)))
+             (values (- (get-internal-run-time) start-time) res))))
+    (dotimes (i max)
+      (let ((time-assq (time-assq i iters))
+            (time-hash (time-hash i iters)))
+        (format t "i: ~d, assq: ~d, hash: ~d~%" i time-assq time-hash)
+        (when (> time-assq time-hash) (return i))))))
 
-;;; This needs to be updated to use a linear search in a vector changing to
-;;; a hash table when the number of entries crosses some threshold.
+;; Value computed on a dual-core 2.4 GHz AMD Opteron running FC3
+;; This isn't the result of compute-eql-combined-method-hash-table-threshold,
+;; it's the value at which assq takes 3/4 the time of hash, which weights
+;; towards the worst case of the eql method, not the average for uniform inputs.
+(defparameter *eql-combined-method-hash-table-threshold* 45)
+
+;;; A vector might be a little faster than an alist, but the hash table case
+;;; will speed up large numbers of methods.
 (defun make-eql-combined-method (eql-methods methods cpls gf argnum sub-dispatch? &optional
                                              (method-combination *standard-method-combination*))
   (let ((eql-ms (copy-list eql-methods))
@@ -1407,14 +1443,20 @@ congruent with lambda lists of existing methods." lambda-list gf)))
                               (compute-effective-method-function
                                real-gf method-combination methods)))))
       (if eql-method-alist
-        (%cons-combined-method 
-         gf (cons argnum (cons eql-method-alist default-method))
-         (if can-use-eq? 
-           #'%%assq-combined-method-dcode
-           #'%%assoc-combined-method-dcode))
+        (if (> (length eql-method-alist) *eql-combined-method-hash-table-threshold*)
+          (let ((hash (make-hash-table :test (if can-use-eq? 'eq 'eql))))
+            (dolist (pair eql-method-alist)
+              (setf (gethash (car pair) hash) (cdr pair)))
+            (assert-hash-table-readonly hash)
+            (%cons-combined-method 
+             gf (cons argnum (cons hash default-method))
+             #'%%hash-table-combined-method-dcode))
+          (%cons-combined-method
+           gf (cons argnum (cons eql-method-alist default-method))
+           (if can-use-eq? 
+               #'%%assq-combined-method-dcode
+               #'%%assoc-combined-method-dcode)))
         default-method))))
-
-
 
 
 (defun %%assq-combined-method-dcode (stuff args)
@@ -1459,6 +1501,22 @@ congruent with lambda lists of existing methods." lambda-list gf)))
         (if thing 
           (%apply-lexpr (cdr thing) args)
           (%apply-lexpr (cddr stuff) args))))))
+
+
+(defun %%hash-table-combined-method-dcode (stuff args)
+  ;; stuff is (argnum eql-hash-table . default-method)
+  ;(declare (dynamic-extent args))
+  (if (listp args)
+    (let* ((args-len (list-length args))
+           (argnum (car stuff)))
+      (when (>= argnum args-len)(signal-program-error "Too few args to ~s." (%method-gf (cddr stuff))))
+      (let* ((arg (nth argnum args)))
+        (apply (gethash arg (cadr stuff) (cddr stuff)) args)))
+    (let* ((args-len (%lexpr-count args))
+           (argnum (car stuff)))
+      (when (>= argnum args-len)(signal-program-error "Too few args to ~s." (%method-gf (cddr stuff))))
+      (let* ((arg (%lexpr-ref args args-len argnum)))
+        (%apply-lexpr (gethash arg (cadr stuff) (cddr stuff)) args)))))
 
 
 ;;; Assumes the two methods have the same number of specializers and
