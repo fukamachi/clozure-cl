@@ -329,6 +329,7 @@
            (null (cddr fn))
            (eq (cadr fn) 'make-instance)
            (consp arg0)
+           (eq (car arg0) 'quote)
            (consp (cdr arg0))
            (symbolp (cadr arg0)))
     (let* ((name (cadr arg0))
