@@ -69,6 +69,11 @@ pthread_mutex_t *mach_exception_lock;
 #endif
 #endif
 
+#ifdef WIN64
+#define xpGPRvector(x) ((DWORD64 *)((x)->ContextRecord))
+#define xpGPR(x,gprno) (xpGPRvector(x)[gprno])
+#define xpPC(x) xpGPR(x,Iip);
+#endif
 
 #ifdef DARWIN
 #define SIGNAL_FOR_PROCESS_INTERRUPT SIGEMT
