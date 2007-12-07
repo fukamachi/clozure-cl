@@ -1871,7 +1871,7 @@ changing its name to ~s may have serious consequences." class new))
 ;;; is mostly ignored, otherwise.)
 (defun %%1st-arg-eql-method-hack-dcode (dt args)
   (let* ((sym (if (listp args) (car args)(%lexpr-ref args (%lexpr-count args) 0)))
-         (mf (if (symbolp sym) (get args dt))))
+         (mf (if (symbolp sym) (get sym dt))))
     (if mf
       (if (listp args)
         (apply mf args)
