@@ -318,23 +318,40 @@
       call)))
 
 (define-compiler-macro apply  (&whole call &environment env fn arg0 &rest args)
-  (let ((original-fn fn))
-    (if (and arg0 
-             (null args)
-             (consp fn)
-             (eq (%car fn) 'function)
-             (null (cdr (%cdr fn)))
-             (consp (setq fn (%cadr fn)))
-             (eq (%car fn) 'lambda))
-      (destructuring-bind (lambda-list &body body) (%cdr fn)
-        `(destructuring-bind ,lambda-list ,arg0 ,@body))
-      (let ((last (%car (last (push arg0 args)))))
-        (if (and (consp last) (memq (%car last) '(cons list* list)))
-          (cons (if (eq (%car last) 'list) 'funcall 'apply)
-                (cons
-                 original-fn
-                 (nreconc (cdr (reverse args)) (%cdr last))))
-          call)))))
+  ;; Special-case (apply #'make-instance 'name ...)
+  ;; Might be good to make this a little more general, e.g., there
+  ;; may be other things that can be strength-reduced even if we can't
+  ;; get rid of the APPLY.
+  (if (and (consp fn)
+           (or (eq (car fn) 'quote)
+               (eq (car fn) 'function))
+           (consp (cdr fn))
+           (null (cddr fn))
+           (eq (cadr fn) 'make-instance)
+           (consp arg0)
+           (consp (cdr arg0))
+           (symbolp (cadr arg0)))
+    (let* ((name (cadr arg0))
+           (class-cell (gensym)))
+      `(let* ((,class-cell (load-time-value (find-class-cell ',name t))))
+        (apply (class-cell-instantiate ,class-cell) ,class-cell ,@args)))
+    (let ((original-fn fn))
+      (if (and arg0 
+               (null args)
+               (consp fn)
+               (eq (%car fn) 'function)
+               (null (cdr (%cdr fn)))
+               (consp (setq fn (%cadr fn)))
+               (eq (%car fn) 'lambda))
+        (destructuring-bind (lambda-list &body body) (%cdr fn)
+          `(destructuring-bind ,lambda-list ,arg0 ,@body))
+        (let ((last (%car (last (push arg0 args)))))
+          (if (and (consp last) (memq (%car last) '(cons list* list)))
+            (cons (if (eq (%car last) 'list) 'funcall 'apply)
+                  (cons
+                   original-fn
+                   (nreconc (cdr (reverse args)) (%cdr last))))
+            call))))))
 
 
 
