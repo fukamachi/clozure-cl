@@ -787,10 +787,6 @@ congruent with lambda lists of existing methods." lambda-list gf)))
                          :fn (combined-method-gf cm-or-gf))))
 
 
-;;; arg passed is dispatch table - add a slot to it containing gf? -
-;;; later or pass the gf instead of the dispatch table (means adding
-;;; another constant to gf to contain the dispatch table- above is
-;;; clearer)
 
 (defun %%1st-arg-dcode (dt  args)
   ;(declare (dynamic-extent args))
