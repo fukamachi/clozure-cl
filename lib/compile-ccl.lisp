@@ -455,9 +455,10 @@
     (:freebsdx8664 "freebsdx8664")
     (:darwinx8664 "darwinx8664")))
 
-(defun rebuild-ccl (&key full clean kernel force (reload t) exit reload-arguments verbose)
+(defun rebuild-ccl (&key update full clean kernel force (reload t) exit reload-arguments verbose)
   (when full
     (setq clean t kernel t reload t))
+  (when update (update-ccl))
   (let* ((cd (current-directory)))
     (unwind-protect
          (progn
