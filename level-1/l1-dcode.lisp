@@ -452,7 +452,7 @@ congruent with lambda lists of existing methods." lambda-list gf)))
                                         0
                                         (%ilogior (%ilsl $lfbits-gfn-bit 1)
                                                   (%ilogand $lfbits-args-mask 0)))))
-	    (setf (gf.hash fn) (strip-tag-to-fixnum fn)
+	    (setf ;(gf.hash fn) (strip-tag-to-fixnum fn)
 		  (slot-vector.instance slots) fn
 		  (%gf-dispatch-table-gf dt) fn)
 	    (push fn (population.data %all-gfs%))

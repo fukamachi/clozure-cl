@@ -1569,7 +1569,7 @@ governs whether DEFCLASS makes that distinction or not.")
                                 0
                                 (logior (ash 1 $lfbits-gfn-bit)
                                         (ash 1 $lfbits-aok-bit)))))
-    (setf (gf.hash fn) (strip-tag-to-fixnum fn)
+    (setf 
 	  (slot-vector.instance slots) fn)
     (when dt
       (setf (%gf-dispatch-table-gf dt) fn))
@@ -1618,6 +1618,11 @@ governs whether DEFCLASS makes that distinction or not.")
 (defmethod make-load-form ((s slot-id) &optional env)
   (declare (ignore env))
   `(ensure-slot-id ,(slot-id.name s)))
+
+(defmethod make-load-form ((c class-cell) &optional env)
+  (declare (ignore env))
+  `(find-class-cell ,(class-cell-name c)))
+
 
 
 (defmethod (setf class-name) (new (class class))
