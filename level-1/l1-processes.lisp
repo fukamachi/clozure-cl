@@ -676,8 +676,11 @@ had invoked abort."
           (defaultp default)
           (t (error "Failed to join ~s" p)))))
 
+
 (defmethod process-locks-held ((p process))
+  #+lock-accounting
   (copy-list (symbol-value-in-process '*locks-held* p)))
 
 (defmethod process-locks-pending ((p process))
+  #+lock-accounting
   (copy-list (symbol-value-in-process '*locks-pending* p)))
