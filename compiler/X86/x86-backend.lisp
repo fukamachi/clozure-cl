@@ -315,8 +315,9 @@
                                (if (keywordp opname)
                                  (progn
                                    (list opname
-                                         (simplify-operand (car opvals)))
-                                   )
+                                         (if (eq opname :anchored-uuo)
+                                           (simplify-form (car opvals))
+                                           (simplify-operand (car opvals)))))
                                  (let* ((name (string opname)))
                                    (multiple-value-bind (opnum types)
                                        (funcall opcode-lookup form backend)

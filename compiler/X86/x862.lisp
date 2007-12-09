@@ -525,6 +525,7 @@
                  (format t "~%~%"))
             
                (with-dll-node-freelist ((frag-list make-frag-list) *frag-freelist*)
+                 (with-dll-node-freelist ((uuo-frag-list make-frag-list) *frag-freelist*)
                  (let* ((*x86-lap-labels* nil)
                         (instruction (x86::make-x86-instruction))
                         (end-code-tag (gensym))
@@ -536,7 +537,7 @@
                    (x86-lap-directive frag-list :byte 0) ;regsave ea
                    (x86-lap-directive frag-list :byte 0) ;regsave mask
 
-                   (x862-expand-vinsns vinsns frag-list instruction)
+                   (x862-expand-vinsns vinsns frag-list instruction uuo-frag-list)
                    (when (or *x862-double-float-constant-alist*
                              *x862-single-float-constant-alist*)
                      (x86-lap-directive frag-list :align 3)
@@ -604,7 +605,7 @@
                              (cross-create-x86-function fname frag-list *x862-constant-alist* bits debug-info))
                            #-x86-target
                            (cross-create-x86-function fname frag-list *x862-constant-alist* bits debug-info)))
-                   (x862-digest-symbols))))
+                   (x862-digest-symbols)))))
           (backend-remove-labels))))
     afunc))
 
@@ -5217,7 +5218,7 @@
     (x86-generate-instruction-code frag-list instruction)))
           
     
-(defun x862-expand-vinsns (header frag-list instruction)
+(defun x862-expand-vinsns (header frag-list instruction &optional uuo-frag-list)
   (let* ((immediate-operand (x86::make-x86-immediate-operand)))
     (do-dll-nodes (v header)
       (if (%vinsn-label-p v)
@@ -5226,7 +5227,9 @@
             (when (or t (vinsn-label-refs v))
               (setf (vinsn-label-info v) (emit-x86-lap-label frag-list v)))
             (x862-expand-note frag-list id)))
-        (x862-expand-vinsn v frag-list instruction immediate-operand))))
+        (x862-expand-vinsn v frag-list instruction immediate-operand uuo-frag-list)))
+    (when uuo-frag-list
+      (merge-dll-nodes frag-list uuo-frag-list)))
   ;;; This doesn't have too much to do with anything else that's
   ;;; going on here, but it needs to happen before the lregs
   ;;; are freed.  There really shouldn't be such a thing as a
@@ -5247,8 +5250,9 @@
 ;;; For now, we replace lregs in the operand vector with their values
 ;;; on entry, but it might be reasonable to make PARSE-OPERAND-FORM
 ;;; deal with lregs ...
-(defun x862-expand-vinsn (vinsn frag-list instruction immediate-operand)
+(defun x862-expand-vinsn (vinsn frag-list instruction immediate-operand &optional uuo-frag-list)
   (let* ((template (vinsn-template vinsn))
+         (main-frag-list frag-list)
          (vp (vinsn-variable-parts vinsn))
          (nvp (vinsn-template-nvp template))
          (unique-labels ()))
@@ -5318,40 +5322,57 @@
                            (return nil))))
                  (t (compiler-bug "Unknown predicate: ~s" f))))
              (expand-pseudo-op (f)
-               (destructuring-bind (directive arg) f
-                 (setq arg (parse-operand-form arg))
-                 (let* ((exp (parse-x86-lap-expression arg))
-                        (constantp (or (not (x86-lap-expression-p exp))
-                                       (constant-x86-lap-expression-p exp))))
-                   (if constantp
-                     (let* ((val (x86-lap-expression-value exp)))
-                       (ecase directive
-                         (:byte (frag-list-push-byte frag-list val))
-                         (:short (frag-list-push-16 frag-list val))
-                         (:long (frag-list-push-32 frag-list val))
-                         (:quad (frag-list-push-64 frag-list val))
-                         (:align (finish-frag-for-align frag-list val))
-                         (:talign (finish-frag-for-talign frag-list val))))
-                     (let* ((pos (frag-list-position frag-list))
-                            (frag (frag-list-current frag-list))
-                            (reloctype nil))
-                       (ecase directive
-                         (:byte (frag-list-push-byte frag-list 0)
-                                (setq reloctype :expr8))
-                         (:short (frag-list-push-16 frag-list 0)
-                                 (setq reloctype :expr16))
-                         (:long (frag-list-push-32 frag-list 0)
-                                (setq reloctype :expr32))
-                         (:quad (frag-list-push-64 frag-list 0)
-                                (setq reloctype :expr64))
-                         ((:align :talign) (compiler-bug "~s expression ~s not constant" directive arg)))
-                       (when reloctype
-                         (push
-                          (make-reloc :type reloctype
-                                      :arg exp
-                                      :pos pos
-                                      :frag frag)
-                          (frag-relocs frag))))))))
+               (case (car f)
+                 (:anchored-uuo-section
+                  (expand-form '(:uuo-section))
+                  (expand-form `(:long (:^ ,(cadr f)))))
+                 (:anchored-uuo
+                  (expand-form (cadr f))
+                  ;; add a trailing 0 byte after the uu0
+                  (frag-list-push-byte frag-list 0))
+                 ((:uuo :uuo-section)
+                      (if uuo-frag-list
+                        (progn
+                          (setq frag-list uuo-frag-list)
+                          (finish-frag-for-align frag-list 2))
+                        (compiler-bug "No frag-list for :uuo")))
+                 ((:main :main-section)
+                  (setq frag-list main-frag-list))
+                 (t
+                  (destructuring-bind (directive arg) f
+                     (setq arg (parse-operand-form arg))
+                     (let* ((exp (parse-x86-lap-expression arg))
+                            (constantp (or (not (x86-lap-expression-p exp))
+                                           (constant-x86-lap-expression-p exp))))
+                       (if constantp
+                         (let* ((val (x86-lap-expression-value exp)))
+                           (ecase directive
+                             (:byte (frag-list-push-byte frag-list val))
+                             (:short (frag-list-push-16 frag-list val))
+                             (:long (frag-list-push-32 frag-list val))
+                             (:quad (frag-list-push-64 frag-list val))
+                             (:align (finish-frag-for-align frag-list val))
+                             (:talign (finish-frag-for-talign frag-list val))))
+                         (let* ((pos (frag-list-position frag-list))
+                                (frag (frag-list-current frag-list))
+                                (reloctype nil))
+                           (ecase directive
+                             (:byte (frag-list-push-byte frag-list 0)
+                                    (setq reloctype :expr8))
+                             (:short (frag-list-push-16 frag-list 0)
+                                     (setq reloctype :expr16))
+                             (:long (frag-list-push-32 frag-list 0)
+                                    (setq reloctype :expr32))
+                             (:quad (frag-list-push-64 frag-list 0)
+                                    (setq reloctype :expr64))
+                             ((:align :talign) (compiler-bug "~s expression ~s not constant" directive arg)))
+                           (when reloctype
+                             (push
+                              (make-reloc :type reloctype
+                                          :arg exp
+                                          :pos pos
+                                          :frag frag)
+                              (frag-relocs frag))))))))))
                    
              (expand-form (f)
                (if (keywordp f)
@@ -6332,6 +6353,7 @@
     (dolist (form body)
       (if (eq (acode-operator form) tagop)
         (let ((tag (cddr form)))
+          (when (cddr tag) (! align-loop-head))
           (@ (car tag)))
         (x862-form seg nil nil form)))
     (x862-nil seg vreg xfer)))
