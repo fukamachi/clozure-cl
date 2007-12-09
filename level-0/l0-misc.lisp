@@ -22,9 +22,11 @@
 (defparameter *lock-conses* ())
 
 ;; Cold-load lossage.
+#+lock-accounting
 (setq *lock-conses* (make-list 20))
 
 ;;; Per-thread consing, for lock-ownership tracking.
+#+lock-accounting
 (defun %lock-cons (x y)
   (let* ((cell (prog1 *lock-conses*
                  (setq *lock-conses* (cdr *lock-conses*)))))
@@ -532,15 +534,19 @@
   (declaim (inline note-lock-wait note-lock-held note-lock-released)))
 
 (defun note-lock-wait (lock)
-  (setq *locks-pending* (%lock-cons lock *locks-pending*)))
+  #+lock-accounting
+  (setq *locks-pending* (%lock-cons lock *locks-pending*))
+  #-lock-accounting (declare (ignore lock)))
 
 (defun note-lock-held ()
+  #+lock-accounting
   (let* ((p *locks-pending*))
     (setq *locks-pending* (cdr *locks-pending*))
     (rplacd p *locks-held*)
     (setq *locks-held* p)))
 
 (defun note-lock-released ()
+  #+lock-accounting
   (setf (car *locks-held*) nil
         *locks-held* (cdr *locks-held*)))
 
@@ -649,6 +655,7 @@
       (without-interrupts
        (cond ((eql p owner)
               (incf (%get-natural ptr target::lockptr.count))
+              #+lock-accounting
               (setq *locks-held* (%lock-cons lock *locks-held*))
               (if flag (setf (lock-acquisition.status flag) t))
               t)
@@ -658,6 +665,7 @@
                 (when (setq win (eql 1 (incf (%get-natural ptr target::lockptr.avail))))
                   (setf (%get-ptr ptr target::lockptr.owner) p
                         (%get-natural ptr target::lockptr.count) 1)
+                  #+lock-accounting
                   (setq *locks-held* (%lock-cons lock *locks-held*))
                   (if flag (setf (lock-acquisition.status flag) t)))
                 (setf (%get-ptr spin) (%null-ptr))
@@ -677,13 +685,15 @@
     (without-interrupts
      (cond ((eql (%get-object ptr target::lockptr.owner) self)
             (incf (%get-natural ptr target::lockptr.count))
+            #+lock-accounting*
             (setq *locks-held* (%lock-cons lock *locks-held*))
             (if flag (setf (lock-acquisition.status flag) t))
             t)
            (t
             (when (eql 0 (%ptr-store-conditional ptr futex-avail futex-locked))
               (%set-object ptr target::lockptr.owner self)
-              (setf (%get-natural ptr target::lockptr.count) 1)              
+              (setf (%get-natural ptr target::lockptr.count) 1)
+              #+lock-accounting
               (setq *locks-held* (%lock-cons lock *locks-held*))
               (if flag (setf (lock-acquisition.status flag) t))
               t))))))
