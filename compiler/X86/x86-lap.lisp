@@ -1291,9 +1291,7 @@
                (nextaddr (frag-address next))
                (pad (- nextaddr (+ addr (frag-length frag)))))
           (unless (eql 0 pad)
-            (if (eq (car (frag-type frag)) :talign)
-              (frag-emit-nops frag pad)
-              (dotimes (i pad) (frag-push-byte frag #xcc)))))))))
+            (frag-emit-nops frag pad)))))))
 
 (defun show-frag-bytes (frag-list)
   (ccl::do-dll-nodes (frag frag-list)
