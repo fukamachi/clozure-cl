@@ -163,6 +163,20 @@
         (aref containing-object (the fixnum (+ byte-offset delta))))
       (%get-unsigned-byte (%int-to-ptr byte-offset) delta))))
 
+;;; If the byte following a uuo (which is "skip" bytes long, set
+;;; the xcf's relative PC to the value contained in the 32-bit
+;;; word preceding the current relative PC and return -1, else return skip.
+(defun %check-anchored-uuo (xcf skip)
+  (if (eql 0 (%get-xcf-byte xcf skip))
+    (let* ((new-rpc (+ target::tag-function
+                       (logior (ash (%get-xcf-byte xcf -1) 24)
+                               (ash (%get-xcf-byte xcf -2) 16)
+                               (ash (%get-xcf-byte xcf -3) 8)
+                               (%get-xcf-byte xcf -4)))))
+      (%set-object xcf x8664::xcf.relative-pc new-rpc)
+      -1)
+    skip))
+                            
                                   
 (defun decode-arithmetic-error (xp xcf)
   (declare (ignore xp xcf))
