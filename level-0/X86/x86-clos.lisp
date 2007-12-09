@@ -164,7 +164,10 @@
       ()
       (:fixed-constants (class-wrapper slots dispatch-table dcode hash))
       (:code-size x8664::gf-code-size)
-      (addq ($ x8664::fixnumone) (@ 'hash (% fn)))
+      #+count-gf-calls
+      (progn
+        (lock)
+        (addq ($ x8664::fixnumone) (@ 'hash (% fn))))
       (movq (@ (% rsp)) (% ra0))
       (save-frame-variable-arg-count)
       (push-argregs)
@@ -190,7 +193,10 @@
 (defx86lapfunction gag-one-arg ((arg arg_z))
   (:fixed-constants (class-wrapper slots dispatch-table dcode hash))
   (:code-size x8664::gf-code-size)
-  (addq ($ x8664::fixnumone) (@ 'hash (% fn)))
+  #+count-gf-calls
+  (progn
+    (lock)
+    (addq ($ x8664::fixnumone) (@ 'hash (% fn))))
   (check-nargs 1)
   (movq (@ 'dispatch-table (% fn)) (% arg_y))
   (set-nargs 2)
@@ -199,7 +205,10 @@
 (defx86lapfunction gag-two-arg ((arg0 arg_y) (arg1 arg_z))
   (:fixed-constants (class-wrapper slots dispatch-table dcode hash))
   (:code-size x8664::gf-code-size)
-  (addq ($ x8664::fixnumone) (@ 'hash (% fn)))
+  #+count-gf-calls
+  (progn
+    (lock)
+    (addq ($ x8664::fixnumone) (@ 'hash (% fn))))
   (check-nargs 2)
   (movq (@ 'dispatch-table (% fn)) (% arg_x))
   (set-nargs 3)
