@@ -2336,10 +2336,13 @@ has immediate effect."
 
 ;;; Bind per-thread specials which help with lock accounting.
 (defmacro with-lock-context (&body body)
+  #+lock-accounting
   `(let* ((*locks-held* *locks-held*)
           (*locks-pending* *locks-pending*)
           (*lock-conses* *lock-conses*))
-    ,@body))
+    ,@body)
+  #-lock-accounting
+  `(progn ,@body))
 
 (defmacro with-lock-grabbed ((lock &optional
                                    (whostate "Lock"))
