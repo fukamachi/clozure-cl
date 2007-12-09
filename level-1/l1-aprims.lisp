@@ -43,9 +43,11 @@
 (def-standard-initial-binding *package*)
 (def-standard-initial-binding *gensym-counter* 0)
 (def-standard-initial-binding *random-state* (initialize-random-state #xFBF1 9))
+#+lock-accounting
+(progn
 (def-standard-initial-binding *locks-held* ())
 (def-standard-initial-binding *locks-pending* ())
-(def-standard-initial-binding *lock-conses* (make-list 20))
+(def-standard-initial-binding *lock-conses* (make-list 20)))
 
 
 (defun %badarg (arg type)
