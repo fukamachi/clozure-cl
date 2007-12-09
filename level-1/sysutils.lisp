@@ -700,6 +700,20 @@
 
 (setq *type-system-initialized* t)
 
+#+count-gf-calls
+(progn
+;;; Call-counting for generic functions.  We overload the
+;;; (previously unused
+(defmethod generic-function-call-count ((gf generic-function))
+  (gf.hash gf))
 
+
+(defun (setf generic-function-call-count) (count gf)
+  (setf (gf.hash gf) (require-type count 'fixnum)))
+
+(defun clear-all-generic-function-call-counts ()
+  (dolist (gf (population.data %all-gfs%))
+    (setf (gf.hash gf) 0)))
+);#+count-gf-calls
 
 
