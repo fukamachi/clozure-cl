@@ -472,8 +472,8 @@ handle_error(TCR *tcr, ExceptionInformation *xp)
 {
   pc program_counter = (pc)xpPC(xp);
   unsigned char op0 = program_counter[0], op1 = program_counter[1];
-  LispObj rpc = (LispObj) program_counter, errdisp = nrs_ERRDISP.vcell,
-    save_rbp = xpGPR(xp,Irbp), save_vsp = xpGPR(xp,Isp), xcf;
+  LispObj rpc, errdisp = nrs_ERRDISP.vcell,
+    save_rbp = xpGPR(xp,Irbp), save_vsp = xpGPR(xp,Isp), xcf0;
   int skip;
 
   if ((fulltag_of(errdisp) == fulltag_misc) &&
@@ -482,8 +482,21 @@ handle_error(TCR *tcr, ExceptionInformation *xp)
     if ((op0 == 0xcd) && (op1 >= 0xc0) && (op1 <= 0xc2)) {
       finish_function_entry(xp);
     }
-    xcf = create_exception_callback_frame(xp);
-    skip = callback_to_lisp(tcr, errdisp, xp, xcf, 0, 0, 0, 0);
+    xcf0 = create_exception_callback_frame(xp);
+    skip = callback_to_lisp(tcr, errdisp, xp, xcf0, 0, 0, 0, 0);
+    if (skip == -1) {
+      xcf *xcf1 = (xcf *)xcf0;
+      LispObj container = xcf1->containing_uvector;
+      
+      rpc = xcf1->relative_pc >> fixnumshift;
+      if (container == lisp_nil) {
+        xpPC(xp) = rpc;
+      } else {
+        xpPC(xp) = (LispObj)((&(deref(container,1)))+rpc);
+      }
+        
+      skip = 0;
+    }
     xpGPR(xp,Irbp) = save_rbp;
     xpGPR(xp,Isp) = save_vsp;
     if ((op0 == 0xcd) && (op1 == 0xc7)) {
