@@ -30,8 +30,13 @@
 #define RELOCATABLE_FULLTAG_MASK \
   ((1<<fulltag_cons)|(1<<fulltag_misc))
 #else
+#ifdef X8664
+#define RELOCATABLE_FULLTAG_MASK \
+  ((1<<fulltag_cons)|(1<<fulltag_misc)|(1<<fulltag_symbol)|(1<<fulltag_function))
+#else
 #define RELOCATABLE_FULLTAG_MASK \
   ((1<<fulltag_cons)|(1<<fulltag_nil)|(1<<fulltag_misc))
+#endif
 #endif
 
 void
@@ -50,16 +55,20 @@ relocate_area_contents(area *a, LispObj bias)
     fulltag = fulltag_of(w0);
     if (immheader_tag_p(fulltag)) {
       start = (LispObj *)skip_over_ivector((natural)start, w0);
+    } else {
 #ifdef X8664
-    } else if (header_subtag(w0) == subtag_function) {
-      int skip = (int) start[1];
+      if (header_subtag(w0) == subtag_function) {
+        int skip = (int) start[1];
      
-      start += skip;
-      if (((LispObj)start) & node_size) {
-        --start;
+        start += skip;
+        if (((LispObj) start) & node_size) {
+          --start;
+        }
+        w0 = *start;
+        fulltag = fulltag_of(w0);
       }
 #endif
-    } else {
+
       if ((w0 >= low) && (w0 < high) &&
 	  ((1<<fulltag) & RELOCATABLE_FULLTAG_MASK)) {
 	*start = (w0+bias);
