@@ -2243,17 +2243,23 @@ _spentry(keyword_bind)
 	/* Now that we're sure that we have an even number of keywords and values  */
 	/* (in %imm1), copy all pairs to the temp stack   */
 local_label(even):
-	__(lea tsp_frame.fixed_overhead(%imm1),%arg_z)
+	/* Get the keyword vector into arg_x, and its length into arg_y.  */
+	__(movl function_data_offset(%fn),%imm0_l)
+	__(movq function_data_offset(%fn,%imm0,node_size),%arg_x)
+	__(vector_length(%arg_x,%arg_y))
+        __(testq %arg_y,%arg_y)
+        __(jne 1f)
+        __(btq $keyword_flags_aok_bit,%temp1)
+        __(jnc 1f)
+        __(jmp *%ra0)
+1:      
+       	__(lea tsp_frame.fixed_overhead(%imm1),%arg_z)
 	__(TSP_Alloc_Var(%arg_z,%imm0))
 2:	__(subq $node_size,%arg_z)
 	__(pop (%arg_z))
 	__(cmpq %arg_z,%imm0)
 	__(jne 2b)
-	/* Get the keyword vector into arg_x, and its length into arg_y.  */
 	/* Push arg_y pairs of NILs.   */
-	__(movl function_data_offset(%fn),%imm0_l)
-	__(movq function_data_offset(%fn,%imm0,node_size),%arg_x)
-	__(vector_length(%arg_x,%arg_y))
 	__(movq %arg_y,%imm0)
 	__(jmp 4f)
 3:	__(push $nil_value)
