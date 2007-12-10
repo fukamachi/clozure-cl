@@ -1783,6 +1783,38 @@ changing its name to ~s may have serious consequences." class new))
       (%slot-ref (instance.slots instance) location)
       (no-applicable-method (%gf-dispatch-table-gf dt) instance))))
 
+;;; Dcode for a GF whose methods are all reader-methods which access a
+;;; slot in one or more classes which have multiple subclasses, all of
+;;; which (by luck or design) have the same slot-definition location.
+;;; The number of classes is for which the method is applicable is
+;;; large, but all are subclasses of a single class
+(defun reader-constant-location-inherited-from-single-class-dcode (dt instance)
+  (declare (optimize (speed 3) (safety 0)))
+  (let* ((defining-class (%svref dt %gf-dispatch-table-first-data))
+         (location (%svref dt (1+ %gf-dispatch-table-first-data)))
+         (class (if (eq (typecode instance) target::subtag-instance)
+                  (%class-of-instance instance))))
+    (if (and class (memq defining-class (%inited-class-cpl class)))
+      (%slot-ref (instance.slots instance) location)
+      (no-applicable-method (%gf-dispatch-table-gf dt) instance))))
+
+;;; Dcode for a GF whose methods are all reader-methods which access a
+;;; slot in one or more classes which have multiple subclasses, all of
+;;; which (by luck or design) have the same slot-definition location.
+;;; The number of classes is for which the method is applicable is
+;;; large, but all are subclasses of one of a (small) set of defining classes.
+(defun reader-constant-location-inherited-from-multiple-classes-dcode (dt instance)
+  (declare (optimize (speed 3) (safety 0)))
+  (let* ((location (%svref dt (1+ %gf-dispatch-table-first-data)))
+         (class (if (eq (typecode instance) target::subtag-instance)
+                  (%class-of-instance instance)))
+         (cpl (if class (%inited-class-cpl class))))
+    (if (dolist (defining-class (%svref dt %gf-dispatch-table-first-data))
+          (when (memq defining-class cpl) (return t)))
+      (%slot-ref (instance.slots instance) location)
+      (no-applicable-method (%gf-dispatch-table-gf dt) instance))))
+
+
 ;;; Similar to the case above, but we use an alist to map classes
 ;;; to their non-constant locations.
 (defun reader-variable-location-dcode (dt instance)
@@ -1817,6 +1849,17 @@ changing its name to ~s may have serious consequences." class new))
                        (length (class-direct-subclasses c2))))
             :key #'car))))
 
+;;; Return a list of all classes in CLASS-LIST that aren't subclasses
+;;; of any other class in the list.
+(defun remove-subclasses-from-class-list (class-list)
+  (if (null (cdr class-list))
+    class-list
+    (collect ((unique))
+      (dolist (class class-list (unique))
+        (when (dolist (other class-list t)
+                (unless (eq class other)
+                  (when (subtypep class other) (return nil))))
+          (unique class))))))
 
 ;;; Try to replace gf dispatch with something faster in f.
 (defun %snap-reader-method (f)
@@ -1857,11 +1900,31 @@ changing its name to ~s may have serious consequences." class new))
                            (return)))
                        ;; All classes have the slot in the same location,
                        ;; by luck or design.
-                       (setf (%svref dt %gf-dispatch-table-first-data)
-                             (mapcar #'car alist)
-                             (%svref dt (1+ %gf-dispatch-table-first-data))
-                             loc
-                             (gf.dcode f) #'reader-constant-location-dcode))
+                       (cond
+                         ((< (length alist) 10)
+                          ;; Only a small number of classes, just do MEMQ
+                          (setf (%svref dt %gf-dispatch-table-first-data)
+                                (mapcar #'car alist)
+                                (%svref dt (1+ %gf-dispatch-table-first-data))
+                                loc
+                                (gf.dcode f) #'reader-constant-location-dcode))
+                         ((null (cdr (setq classes (remove-subclasses-from-class-list classes))))
+                          ;; Lots of classes, all subclasses of a single class
+                          (setf (%svref dt %gf-dispatch-table-first-data)
+                                (car classes)
+                                (%svref dt (1+ %gf-dispatch-table-first-data))
+                                loc
+                                (gf.dcode f)
+                                #'reader-constant-location-inherited-from-single-class-dcode))
+                         (t
+                          ;; Multple classes.  We should probably check
+                          ;; to see they're disjoint
+                          (setf (%svref dt %gf-dispatch-table-first-data)
+                                classes
+                                (%svref dt (1+ %gf-dispatch-table-first-data))
+                                loc
+                                (gf.dcode f)
+                                #'reader-constant-location-inherited-from-multiple-classes-dcode))))
                       (t
                        ;; Multiple classes; the slot's location varies.
                        (setf (%svref dt %gf-dispatch-table-first-data)
