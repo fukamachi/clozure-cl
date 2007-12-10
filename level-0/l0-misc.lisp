@@ -1133,10 +1133,14 @@
                     (if flag
                       (setf (lock-acquisition.status flag) t))
                     t)
-                  (progn
+                  (progn                    
+                    #+futex
+                    (%unlock-futex ptr)
+                    #-futex
+                    (setf (%get-natural ptr target::rwlock.spin) 0)
                     (%unlock-rwlock-ptr ptr lock)
                     (let* ((*interrupt-level* level))
-                      (%write-lock-rwlock-ptr ptr flag)))))))))))
+                      (%write-lock-rwlock-ptr ptr lock flag)))))))))))
                       
 
 
