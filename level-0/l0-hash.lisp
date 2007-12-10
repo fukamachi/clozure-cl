@@ -700,11 +700,7 @@ before doing so.")
          (foundp nil))
     (with-lock-context
       (without-interrupts
-       (setq readonly (eq #+notyet (read-lock-hash-table hash)
-                          #-notyet (if (nhash.read-only hash)
-                                     :readonly
-                                     (write-lock-hash-table hash))
-                          :readonly))
+       (setq readonly (eq (read-lock-hash-table hash) :readonly))
        (let* ((vector (nhash.vector hash)))
          (if (and (eq key (nhash.vector.cache-key vector))
                   ;; Check twice: the GC might nuke the cached key/value pair
@@ -728,9 +724,13 @@ before doing so.")
                                                              vector-index))
                       (return))
                      ((%needs-rehashing-p hash)
-                      (setq gc-locked t)
                       (%lock-gc-lock)
-                      (%rehash hash))
+                      (setq gc-locked t)
+                      (unless readonly
+                        (let* ((lock (nhash.exclusion-lock hash)))
+                          (when lock (%promote-rwlock lock))))
+                      (when (%needs-rehashing-p hash)
+                        (%rehash hash)))
                      (t (return)))))))
        (when gc-locked (%unlock-gc-lock))
        (unlock-hash-table hash readonly)))
