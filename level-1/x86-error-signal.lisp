@@ -96,7 +96,7 @@
                                               (ldb (byte 4 0) op1)))
                                        frame-ptr))
                   ((< op1 #xc0)
-                   (setq skip (%check-anchored-uuo skip 3))
+                   (setq skip (%check-anchored-uuo xcf 3))
                    (%err-disp-internal 
                     #.(car (rassoc 'type-error *kernel-simple-error-classes*))
                     (list (encoded-gpr-lisp
