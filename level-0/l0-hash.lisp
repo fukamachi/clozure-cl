@@ -1717,6 +1717,27 @@ before doing so.")
     (report-bad-arg hash 'hash-table))
   (nhash.read-only hash))
 
+(defun hash-table-owner (hash)
+  (unless (hash-table-p hash)
+    (report-bad-arg hash 'hash-table))
+  (nhash.owner hash))
+
+(defun claim-hash-table (hash &optional steal)
+  (unless (hash-table-p hash)
+    (report-bad-arg hash 'hash-table))
+  (let* ((owner (nhash.owner hash)))
+    (if owner
+      (or (eq owner *current-process*)
+          (when steal
+            (setf (nhash.owner hash) *current-process*)))
+      (progn
+        (write-lock-hash-table hash)
+        (setf (nhash.exclusion-lock hash) nil
+              (nhash.owner hash) *current-process*)
+        t))))
+
+  
+  
 (defun enumerate-hash-keys (hash out)
   (unless (hash-table-p hash)
     (report-bad-arg hash 'hash-table))
