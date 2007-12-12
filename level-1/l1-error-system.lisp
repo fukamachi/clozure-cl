@@ -1034,7 +1034,7 @@
     (simple-array single-float (* *))
     (mod #x110000)
     (array * (* *))                     ;2d array
-    (array * (* *))                     ;3d array
+    (array * (* * *))                   ;3d array
     (array t)
     (array bit)
     (array (signed-byte 8))
