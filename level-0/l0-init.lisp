@@ -89,6 +89,9 @@
     )
   "a list of symbols that describe features provided by the
    implementation")
+
+(defparameter *optional-features* () "Set by build process")
+
 (defparameter *load-verbose* nil
   "the default for the :VERBOSE argument to LOAD")
 
