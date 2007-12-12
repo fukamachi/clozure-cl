@@ -3671,7 +3671,6 @@
   :bad
   (:anchored-uuo (uuo-error-slot-unbound (:%q dest) (:%q instance) (:%q index))))
 
-#||
 (define-x8664-vinsn eep.address (((dest t))
 				 ((src (:lisp (:ne dest )))))
   (movq (:@ (+ (ash 1 x8664::word-shift) x8664::misc-data-offset) (:%q src))
@@ -3682,16 +3681,7 @@
   (:anchored-uuo-section :ok)
   :bad
   (:anchored-uuo (uuo-error-eep-unresolved (:%q src) (:%q dest))))
-||#
 
-(define-x8664-vinsn eep.address (((dest t))
-				 ((src (:lisp (:ne dest )))))
-  (movq (:@ (+ (ash 1 x8664::word-shift) x8664::misc-data-offset) (:%q src))
-        (:%q dest))
-  (cmpb (:$b x8664::fulltag-nil) (:%b dest))
-  (jne :ok)
-  (uuo-error-eep-unresolved (:%q src) (:%q dest))
-  :ok)
 
 (define-x8664-subprim-lea-jmp-vinsn (heap-cons-rest-arg) .SPheap-cons-rest-arg)
 
