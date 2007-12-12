@@ -1069,6 +1069,9 @@
               (fixnum (ash svnrev *xload-target-fixnumshift*))
               (string (xload-save-string svnrev))
               (t *xload-target-nil*))))
+    (let* ((experimental-features *build-time-optional-features*))
+      (setf (xload-symbol-value (xload-copy-symbol '*optional-features*))
+            (xload-save-list (mapcar #'xload-copy-symbol experimental-features))))
                               
     (when *xload-show-cold-load-functions*
       (format t "~&cold-load-functions list:")
