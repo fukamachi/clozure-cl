@@ -2018,7 +2018,9 @@ changing its name to ~s may have serious consequences." class new))
         (values (cadr method-list) t)
         ;; :around or :before methods, give up
         (values nil nil)))))
-             
+
+(defparameter *typecheck-slots-in-optimized-make-instance* nil)
+
 
 ;;; Return a lambda form or NIL.
 (defun make-instantiate-lambda-for-class-cell (cell)
@@ -2045,16 +2047,18 @@ changing its name to ~s may have serious consequences." class new))
                   (after-method-forms)
                   (forms))
           (flet ((generate-type-check (form type &optional spvar)
-                   (let* ((ctype (ignore-errors (specifier-type type))))
-                     (if (or (null ctype)
-                             (eq ctype *universal-type*)
-                             (typep ctype 'unknown-ctype))
-                       form
-                       (if spvar
-                         `(if ,spvar
-                           (require-type ,form ',type)
-                           (%slot-unbound-marker))
-                         `(require-type ,form ',type))))))
+                   (if (null *typecheck-slots-in-optimized-make-instance*)
+                     form
+                     (let* ((ctype (ignore-errors (specifier-type type))))
+                       (if (or (null ctype)
+                               (eq ctype *universal-type*)
+                               (typep ctype 'unknown-ctype))
+                         form
+                         (if spvar
+                           `(if ,spvar
+                             (require-type ,form ',type)
+                             (%slot-unbound-marker))
+                           `(require-type ,form ',type)))))))
             (dolist (slot slotds)
               (let* ((initarg (car (slot-definition-initargs slot)))
                      (initfunction (slot-definition-initfunction slot))
