@@ -290,7 +290,8 @@
       (values (mixup-hash-code key) nil)
       (if (eq typecode target::subtag-instance)
         (values (mixup-hash-code (instance.hash key)) nil)
-        (if (symbolp key)
+        (if #+hash-symbols-by-address nil
+            #-hash-symbols-by-address (symbolp key)
           (let* ((name (if key (%svref (symptr->symvector key) target::symbol.pname-cell) "NIL")))
             (values (mixup-hash-code (%pname-hash name (length name))) nil))
           (let ((hash (mixup-hash-code (strip-tag-to-fixnum key))))
@@ -1077,7 +1078,8 @@ before doing so.")
               (mixup-hash-code key)
               (if (eq typecode target::subtag-instance)
                 (mixup-hash-code (instance.hash key))
-                (if (symbolp key)
+                (if #+hash-symbols-by-address nil
+                    #-hash-symbols-by-address (symbolp key)
                   (let* ((name (if key (%svref
                                         (symptr->symvector key)
                                         target::symbol.pname-cell) "NIL")))
@@ -1126,7 +1128,8 @@ before doing so.")
               (mixup-hash-code key)
               (if (eq typecode target::subtag-instance)
                 (mixup-hash-code (instance.hash key))
-                (if (symbolp key)
+                (if #+hash-symbols-by-address nil
+                    #-hash-symbols-by-address (symbolp key)
                   (let* ((name (if key (%svref
                                         (symptr->symvector key)
                                         target::symbol.pname-cell) "NIL")))
