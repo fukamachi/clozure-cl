@@ -736,6 +736,7 @@
   @again
   (macptr-ptr arg_z imm1)
   (movq (@ '*spin-lock-tries* (% fn)) (% temp0))
+  (movq (@ '*spin-lock-timeouts* (% fn)) (% temp1))
   (movq (@ target::symbol.vcell (% temp0)) (% temp0))
   (movq (@ (% :rcontext) x8664::tcr.linear) (% arg_y))
   @try-swap
@@ -743,9 +744,14 @@
   (lock)
   (cmpxchgq (% arg_y) (@ (% imm1)))
   (je @done)
+  @spin
   (pause)
+  (cmpq ($ 0) (@ (% imm1)))
+  (je @try-swap)
   (subq ($ '1) (% temp0))
-  (jne @try-swap)
+  (jne @spin)
+  @wait
+  (addq ($ x8664::fixnumone) (@ x8664::symbol.vcell (% temp1)))
   (pushq (% arg_z))
   (call-symbol yield 0)
   (popq (% arg_z))
