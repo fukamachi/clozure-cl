@@ -1244,6 +1244,16 @@ Generic-function's   : ~s~%" method (or (generic-function-name gf) gf) (flatten-
               (defenv.classes defenv)))))
   name)
 
+(eval-when (:compile-toplevel :execute)
+(declaim (inline standard-instance-p))
+)
+
+
+
+
+(defun standard-instance-p (i)
+  (eq (typecode i) target::subtag-instance))
+
 (defun check-setf-find-class-protected-class (old-class new-class name)
   (when (and (standard-instance-p old-class)
 	     (%class.kernel-p old-class)
@@ -1421,15 +1431,6 @@ to replace that class with ~s" name old-class new-class)
       class)))
 
 
-(eval-when (:compile-toplevel :execute)
-(declaim (inline standard-instance-p))
-)
-
-
-
-
-(defun standard-instance-p (i)
-  (eq (typecode i) target::subtag-instance))
 
 
 
