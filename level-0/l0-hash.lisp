@@ -159,7 +159,27 @@
   (declaim (inline %needs-rehashing-p))
   (declaim (inline compute-hash-code))
   (declaim (inline eq-hash-find eq-hash-find-for-put))
-  (declaim (inline read-lock-hash-table write-lock-hash-table  unlock-hash-table)))
+  (declaim (inline read-lock-hash-table write-lock-hash-table  unlock-hash-table))
+  (declaim (inline %hash-symbol)))
+
+
+
+(defun %hash-symbol (sym)
+  (if sym    
+    (let* ((vector (%symptr->symvector sym))
+           (cell (%svref vector target::symbol.plist-cell)))
+      (or (car cell)
+          (let* ((pname (%svref vector target::symbol.pname-cell))
+                 (hash (mixup-hash-code (%pname-hash pname (uvsize pname)))))
+            (declare (type (simple-string pname)))
+            (if cell
+              (setf (car cell) hash)
+              (progn
+                (setf (%svref vector target::symbol.plist-cell)
+                      (cons hash nil))
+                hash)))))
+    +nil-hash+))
+              
 
 (defun %cons-hash-table (rehash-function keytrans-function compare-function vector
                                          threshold rehash-ratio rehash-size address-based find find-new owner)
@@ -290,10 +310,8 @@
       (values (mixup-hash-code key) nil)
       (if (eq typecode target::subtag-instance)
         (values (mixup-hash-code (instance.hash key)) nil)
-        (if #+hash-symbols-by-address nil
-            #-hash-symbols-by-address (symbolp key)
-          (let* ((name (if key (%svref (symptr->symvector key) target::symbol.pname-cell) "NIL")))
-            (values (mixup-hash-code (%pname-hash name (length name))) nil))
+        (if (symbolp key)
+          (values (%hash-symbol key) nil)
           (let ((hash (mixup-hash-code (strip-tag-to-fixnum key))))
             (if (immediate-p-macro key)
               (values hash nil)
@@ -1078,12 +1096,8 @@ before doing so.")
               (mixup-hash-code key)
               (if (eq typecode target::subtag-instance)
                 (mixup-hash-code (instance.hash key))
-                (if #+hash-symbols-by-address nil
-                    #-hash-symbols-by-address (symbolp key)
-                  (let* ((name (if key (%svref
-                                        (symptr->symvector key)
-                                        target::symbol.pname-cell) "NIL")))
-                    (mixup-hash-code (%pname-hash name (length name))))
+                (if (symbolp key)
+                  (%hash-symbol key)
                   (mixup-hash-code (strip-tag-to-fixnum key)))))))
          (length (uvsize vector))
          (count (- length $nhash.vector_overhead))
@@ -1128,12 +1142,8 @@ before doing so.")
               (mixup-hash-code key)
               (if (eq typecode target::subtag-instance)
                 (mixup-hash-code (instance.hash key))
-                (if #+hash-symbols-by-address nil
-                    #-hash-symbols-by-address (symbolp key)
-                  (let* ((name (if key (%svref
-                                        (symptr->symvector key)
-                                        target::symbol.pname-cell) "NIL")))
-                    (mixup-hash-code (%pname-hash name (length name))))
+                (if (symbolp key)
+                  (%hash-symbol key)
                   (progn
                     (unless (immediate-p-macro key)
                       (let* ((flags (nhash.vector.flags vector)))

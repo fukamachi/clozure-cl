@@ -745,7 +745,7 @@
       (let* ((str (xload-get-string (xload-%svref addr target::symbol.pname-cell))))
         (warn "Symbol at #x~x (~a): plist already set." addr str))
       (setf (xload-%svref addr target::symbol.plist-cell)
-            new))
+            (xload-make-cons *xload-target-nil* new)))
     new))
       
   

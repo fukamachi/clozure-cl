@@ -455,7 +455,7 @@
     (:freebsdx8664 "freebsdx8664")
     (:darwinx8664 "darwinx8664")))
 
-(defparameter *known-optional-features* '(:lock-accouting :count-gf-calls :hash-symbols-by-address))
+(defparameter *known-optional-features* '(:lock-accouting :count-gf-calls))
 (defvar *build-time-optional-features* nil)
 
 

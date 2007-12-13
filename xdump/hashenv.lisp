@@ -82,6 +82,7 @@
   nhti.keys
   nhti.nkeys)
 
+(defconstant +nil-hash+ (mixup-hash-code (%pname-hash "NIL" 3)))
 
 
 
