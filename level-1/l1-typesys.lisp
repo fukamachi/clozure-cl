@@ -1527,6 +1527,11 @@
 (defvar *empty-type* (define-named-ctype nil))
 (defvar *universal-type* (define-named-ctype t))
 
+(defun named-ctype-p (x)
+  (istruct-typep x 'named-ctype))
+
+(setf (type-predicate 'named-ctype) 'named-ctype-p)
+
 (define-type-method (named :simple-=) (type1 type2)
   (values (eq type1 type2) t))
 
@@ -2665,22 +2670,22 @@
 	       (if (eq (car dims) '*)
 		   (case eltype
 		     (bit 'bit-vector)
-		     (base-char 'base-string)
+		     ((character base-char) 'base-string)
 		     (* 'vector)
 		     (t `(vector ,eltype)))
 		   (case eltype
 		     (bit `(bit-vector ,(car dims)))
-		     (base-char `(base-string ,(car dims)))
+		     ((character base-char) `(base-string ,(car dims)))
 		     (t `(vector ,eltype ,(car dims)))))
 	       (if (eq (car dims) '*)
 		   (case eltype
 		     (bit 'simple-bit-vector)
-		     (base-char 'simple-base-string)
+		     ((base-char character) 'simple-base-string)
 		     ((t) 'simple-vector)
 		     (t `(simple-array ,eltype (*))))
 		   (case eltype
 		     (bit `(simple-bit-vector ,(car dims)))
-		     (base-char `(simple-base-string ,(car dims)))
+		     ((base-char character) `(simple-base-string ,(car dims)))
 		     ((t) `(simple-vector ,(car dims)))
 		     (t `(simple-array ,eltype ,dims))))))
 	    (t
