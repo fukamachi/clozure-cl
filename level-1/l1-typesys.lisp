@@ -3376,6 +3376,18 @@
 (defun class-ctype-p (x) (istruct-typep x 'class-ctype))
 (setf (type-predicate 'class-ctype) 'class-ctype-p)
 
+(defun args-ctype-p (x) (and (eql (typecode x) target::subtag-istruct)
+                             (member (%svref x 0)
+                                     '(args-ctype values-ctype function-ctype))))
+
+(defun function-ctype-p (x) (istruct-typep x 'function-ctype))
+(defun valuec-ctype-p (x) (istruct-typep x 'values-ctype))
+
+(setf (type-predicate 'args-ctype) 'args-ctype-p
+      (type-predicate 'function-ctype) 'function-ctype-p
+      (type-predicate 'values-ctype) 'values-ctype-p)
+
+
 ;;; Simple methods for TYPE= and SUBTYPEP should never be called when the two
 ;;; classes are equal, since there are EQ checks in those operations.
 ;;;
