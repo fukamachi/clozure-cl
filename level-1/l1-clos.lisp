@@ -1751,12 +1751,22 @@ changing its name to ~s may have serious consequences." class new))
 
 (defun optimize-generic-function-dispatching ()
   (dolist (gf (population.data %all-gfs%))
-    (when (eq #'%%one-arg-dcode (%gf-dcode gf))
+    (optimize-dispatching-for-gf gf)))
+
+(defun optimize-dispatching-for-gf (gf)
+  (let* ((dcode (%gf-dcode gf)))
+    (when (or (eq dcode #'%%one-arg-dcode)
+              (eq dcode #'%%nth-arg-dcode))
       (let ((methods (generic-function-methods gf)))
-        (when (eql 1 (length methods))
-          (override-one-method-one-arg-dcode gf (car methods)))))))
-
-
+        (when (and methods (null (cdr methods)))
+          (when (or (eq #'%%one-arg-dcode dcode)
+                    (and (eq #'%%nth-arg-dcode dcode)
+                         (let ((spec (method-specializers (car methods)))
+                               (argnum (%gf-dispatch-table-argnum
+                                        (%gf-dispatch-table gf))))
+                           (and (eql 2 (length spec))
+                                (and (eql argnum 1) (eq (car spec) *t-class*))))))
+            (override-one-method-one-arg-dcode gf (car methods))))))))
 
 ;;; dcode for a GF with a single reader method which accesses
 ;;; a slot in a class that has no subclasses (that restriction
