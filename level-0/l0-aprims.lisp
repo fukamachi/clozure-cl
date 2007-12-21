@@ -149,8 +149,8 @@ between threads."
 (defun recursive-lock-whostate (r)
   (if (and (eq target::subtag-lock (typecode r))
            (eq (%svref r target::lock.kind-cell) 'recursive-lock))
-    (or (%svref r target::lock._value-cell)
-        (setf (%svref r target::lock._value-cell)
+    (or (%svref r target::lock.whostate-cell)
+        (setf (%svref r target::lock.whostate-cell)
               (format nil "Lock ~s wait" r)))
     (report-bad-arg r 'recursive-lock)))
 

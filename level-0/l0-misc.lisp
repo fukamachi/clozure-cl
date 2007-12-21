@@ -585,23 +585,38 @@
 
 
 #+futex
-(defun futex-wait (p val whostate)
-  (with-process-whostate (whostate)
-    (syscall syscalls::futex p FUTEX-WAIT val (%null-ptr) (%null-ptr) 0)))
+(progn
+  #-monitor-futex-wait
+  (defun futex-wait (p val whostate)
+    (with-process-whostate (whostate)
+      (syscall syscalls::futex p FUTEX-WAIT val (%null-ptr) (%null-ptr) 0)))
+  #+monitor-futex-wait
+  (progn
+    (defparameter *total-futex-wait-calls* 0)
+    (defparameter *total-futex-wait-times* 0)
+    (defun futex-wait (p val whostate)
+      (with-process-whostate (whostate)
+        (let* ((start (get-internal-real-time)))
+          (incf *total-futex-wait-calls*)
+          (syscall syscalls::futex p FUTEX-WAIT val (%null-ptr) (%null-ptr) 0)
+          (incf *total-futex-wait-times* (- (get-internal-real-time) start)))))))
+    
+
+
 
 #+futex
 (defun futex-wake (p n)
   (syscall syscalls::futex p FUTEX-WAKE n (%null-ptr) (%null-ptr) 0))
 
 #+futex
-(defun %lock-futex (p wait-level whostate)
+(defun %lock-futex (p wait-level lock fwhostate)
   (let* ((val (%ptr-store-conditional p futex-avail futex-locked)))
     (declare (fixnum val))
     (or (eql val futex-avail)
         (loop
           (if (eql val futex-contended)
             (let* ((*interrupt-level* wait-level))
-              (futex-wait p val whostate))
+              (futex-wait p val (if fwhostate (funcall fwhostate lock) "futex wait")))
             (setq val futex-contended))
           (when (eql futex-avail (xchgl val p))
             (return t))))))
@@ -628,7 +643,7 @@
     (without-interrupts
      (cond ((eql self (%get-object ptr target::lockptr.owner))
             (incf (%get-natural ptr target::lockptr.count)))
-           (t (%lock-futex ptr level (recursive-lock-whostate lock))
+           (t (%lock-futex ptr level lock #'recursive-lock-whostate)
               (%set-object ptr target::lockptr.owner self)
               (setf (%get-natural ptr target::lockptr.count) 1)))
      (note-lock-held)
@@ -878,7 +893,7 @@
       (declare (fixnum tcr))
       (note-lock-wait lock)
       (without-interrupts
-       (%lock-futex ptr level "futex wait")               ;(%get-spin-lock (%inc-ptr ptr target::rwlock.spin))
+       (%lock-futex ptr level lock nil)
        (if (eq (%get-object ptr target::rwlock.writer) tcr)
          (progn
            (incf (%get-signed-natural ptr target::rwlock.state))
@@ -903,7 +918,7 @@
              (with-process-whostate ((rwlock-write-whostate lock))
                (let* ((*interrupt-level* level))
                  (futex-wait write-signal waitval (rwlock-write-whostate lock)))))
-           (%lock-futex ptr level "futex wait")
+           (%lock-futex ptr level lock nil)
            (decf (%get-natural ptr target::rwlock.blocked-writers))))))))
 
 
@@ -958,7 +973,7 @@
       (declare (fixnum tcr))
       (note-lock-wait lock)
       (without-interrupts
-       (%lock-futex ptr level "futex wait")
+       (%lock-futex ptr level lock nil)
        (if (eq (%get-object ptr target::rwlock.writer) tcr)
          (progn
            (%unlock-futex ptr)
@@ -982,7 +997,7 @@
              (%unlock-futex ptr)
              (let* ((*interrupt-level* level))
                (futex-wait reader-signal waitval (rwlock-read-whostate lock))))
-           (%lock-futex ptr level "futex wait")
+           (%lock-futex ptr level lock nil)
            (decf (%get-natural ptr target::rwlock.blocked-readers))))))))
 
 
@@ -1054,7 +1069,7 @@
     (let* ((signal nil)
            (wakeup 0))
     (without-interrupts
-     (%lock-futex ptr -1 "futex wait")
+     (%lock-futex ptr -1 lock nil)
      (let* ((state (%get-signed-natural ptr target::rwlock.state))
             (tcr (%current-tcr)))
        (declare (fixnum state tcr))
@@ -1105,7 +1120,7 @@
            (tcr (%current-tcr)))
       (without-interrupts
        #+futex
-       (%lock-futex ptr level "futex wait")
+       (%lock-futex ptr level lock nil)
        #-futex
        (%get-spin-lock ptr)
        (let* ((state (%get-signed-natural ptr target::rwlock.state)))
