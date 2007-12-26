@@ -438,14 +438,20 @@
   "Given a string and a non-negative integer index less than the length of
   the string, returns the character object representing the character at
   that position in the string."
- (if (stringp string)
-  (aref string index)
-  (report-bad-arg string 'string)))
+  (if (typep string 'simple-string)
+    (schar (the simple-string string) index)
+    (if (stringp string)
+      (multiple-value-bind (data offset) (array-data-and-offset string)
+        (schar (the simple-string data) (+ index offset)))
+      (report-bad-arg string 'string))))
 
 (defun set-char (string index new-el)
-  (if (stringp string)
-    (aset string index new-el)
-    (report-bad-arg string 'string)))
+  (if (typep string 'simple-string)
+    (setf (schar string index) new-el)
+    (if (stringp string)
+      (multiple-value-bind (data offset) (array-data-and-offset string)
+        (setf (schar (the simple-string data) (+ index offset)) new-el))
+      (report-bad-arg string 'string))))
 
 (defun equalp (x y)
   "Just like EQUAL, but more liberal in several respects.
