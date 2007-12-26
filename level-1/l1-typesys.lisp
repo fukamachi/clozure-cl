@@ -2624,7 +2624,9 @@
             dimensions
             complexp
             element-type
-            specialized-element-type))
+            specialized-element-type
+            (unless (eq specialized-element-type *wild-type*)
+              (ctype-subtype specialized-element-type))))
 
 (defun array-ctype-p (x) (istruct-typep x 'array-ctype))
 (setf (type-predicate 'array-ctype) 'array-ctype-p)
@@ -2829,17 +2831,18 @@
     character  short-float double-float))
 
 (defun specialize-array-type (type)
-  (let ((eltype (array-ctype-element-type type)))
+  (let* ((eltype (array-ctype-element-type type))
+         (specialized-type (if (eq eltype *wild-type*)
+                             *wild-type*
+                             (dolist (stype-name specialized-array-element-types
+                                      *universal-type*)
+                               (let ((stype (specifier-type stype-name)))
+                                 (when (csubtypep eltype stype)
+                                   (return stype)))))))
     
-    (setf (array-ctype-specialized-element-type type)
-          (if (eq eltype *wild-type*)
-	      *wild-type*
-	      (dolist (stype-name specialized-array-element-types
-                       *universal-type*)
-		(let ((stype (specifier-type stype-name)))
-		  (when (csubtypep eltype stype)
-		    (return stype))))))
-    
+    (setf (array-ctype-specialized-element-type type) specialized-type
+          (array-ctype-typecode type) (unless (eq specialized-type *wild-type*)
+                                        (ctype-subtype specialized-type)))
     type))
 
 
@@ -3581,6 +3584,87 @@
 	     specifier
 	     (specifier-type specifier))))
 
+(eval-when (:compile-toplevel)
+  (declaim (inline numeric-%%typep
+                   array-%%typep
+                   member-%%typep
+                   cons-%%typep)))
+
+(defun numeric-%%typep (object type)
+  (let ((pred (numeric-ctype-predicate type)))
+    (if pred
+      (funcall pred object)
+      (and (numberp object)
+           (let ((num (if (complexp object) (realpart object) object)))
+             (ecase (numeric-ctype-class type)
+               (integer (integerp num))
+               (rational (rationalp num))
+               (float
+                (ecase (numeric-ctype-format type)
+                  (single-float (typep num 'single-float))
+                  (double-float (typep num 'double-float))
+                  ((nil) (floatp num))))
+               ((nil) t)))
+           (flet ((bound-test (val)
+                    (let ((low (numeric-ctype-low type))
+                          (high (numeric-ctype-high type)))
+                      (and (cond ((null low) t)
+                                 ((listp low) (> val (car low)))
+                                 (t (>= val low)))
+                           (cond ((null high) t)
+                                 ((listp high) (< val (car high)))
+                                 (t (<= val high)))))))
+             (ecase (numeric-ctype-complexp type)
+               ((nil) t)
+               (:complex
+                (and (complexp object)
+                     (bound-test (realpart object))
+                     (bound-test (imagpart object))))
+               (:real
+                (and (not (complexp object))
+                     (bound-test object)))))))))
+
+(defun array-%%typep (object type)
+  (let* ((typecode (typecode object)))
+    (declare (type (unsigned-byte 8) typecode))
+    (and (>= typecode target::subtag-arrayH)
+         (ecase (array-ctype-complexp type)
+           ((t) (not (simple-array-p object)))
+           ((nil) (simple-array-p object))
+           ((* :maybe) t))
+         (let* ((ctype-dimensions (array-ctype-dimensions type))
+                (header-p (= typecode target::subtag-arrayH)))
+           (or (eq (array-ctype-dimensions type) '*)
+               (and (null (cdr ctype-dimensions)) (not header-p))
+               (and header-p
+                    (let* ((rank (%svref object target::arrayH.rank-cell)))
+                      (declare (fixnum rank))
+                      (and (= rank (length ctype-dimensions))
+                           (do* ((i 0 (1+ i))
+                                 (dim target::arrayH.dim0-cell (1+ dim))
+                                 (want (array-ctype-dimensions type) (cdr want))
+                                 (got (%svref object dim) (%svref object dim)))
+                                ((= i rank) t)
+                             (unless (or (eq (car want) '*)
+                                         (= (car want) got))
+                               (return nil)))))))
+           (or (eq (array-ctype-element-type type) *wild-type*)
+               (eql (array-ctype-typecode type)
+                    (if (> typecode target::subtag-vectorH)
+                      typecode
+                      (ldb target::arrayH.flags-cell-subtag-byte (the fixnum (%svref object target::arrayH.flags-cell)))))
+               (type= (array-ctype-specialized-element-type type)
+                      (specifier-type (array-element-type object))))))))
+
+
+(defun member-%%typep (object type)
+  (not (null (member object (member-ctype-members type)))))
+
+(defun cons-%%typep (object type) 
+  (and (consp object)
+       (%%typep (car object) (cons-ctype-car-ctype type))
+       (%%typep (cdr object) (cons-ctype-cdr-ctype type)))) 
+
 
 (defun %%typep (object type)
   ;(if (not (typep type 'ctype))(setq type (specifier-type type)))
@@ -3591,62 +3675,11 @@
          ((* t) t)
          ((nil) nil)))
       (numeric-ctype
-       (let ((pred (numeric-ctype-predicate type)))
-         (if Pred
-           (funcall pred object)
-           (and (numberp object)
-                (let ((num (if (complexp object) (realpart object) object)))
-                  (ecase (numeric-ctype-class type)
-                    (integer (integerp num))
-                    (rational (rationalp num))
-                    (float
-                     (ecase (numeric-ctype-format type)
-                       (single-float (typep num 'single-float))
-                       (double-float (typep num 'double-float))
-                       ((nil) (floatp num))))
-                    ((nil) t)))
-                (flet ((bound-test (val)
-                         (let ((low (numeric-ctype-low type))
-                               (high (numeric-ctype-high type)))
-                           (and (cond ((null low) t)
-                                      ((listp low) (> val (car low)))
-                                      (t (>= val low)))
-                                (cond ((null high) t)
-                                      ((listp high) (< val (car high)))
-                                      (t (<= val high)))))))
-                  (ecase (numeric-ctype-complexp type)
-                    ((nil) t)
-                    (:complex
-                     (and (complexp object)
-                          (bound-test (realpart object))
-                          (bound-test (imagpart object))))
-                    (:real
-                     (and (not (complexp object))
-                          (bound-test object)))))))))
+       (numeric-%%typep object type))
       (array-ctype
-       (and (arrayp object)
-            (ecase (array-ctype-complexp type)
-              ((t) (not (typep object 'simple-array)))
-              ((nil) (typep object 'simple-array))
-              ((* :maybe) t))
-            (or (eq (array-ctype-dimensions type) '*)
-                (let ((rank (array-rank object)))
-                  (declare (fixnum rank))
-                  (do* ((n 0 (1+ n))
-                        (want (array-ctype-dimensions type) (cdr want))
-                        (got (and (< n rank) (array-dimension object n))
-                             (and (< n rank) (array-dimension object n))))
-                       ((and (null want) (null got)) t)
-                    (declare (fixnum n))
-                    (unless (and want got
-                                 (or (eq (car want) '*)
-                                     (= (car want) got)))
-                      (return nil)))))
-            (or (eq (array-ctype-element-type type) *wild-type*)
-                (type= (array-ctype-specialized-element-type type)
-                       (specifier-type (array-element-type object))))))
+       (array-%%typep object type))
       (member-ctype
-       (if (member object (member-ctype-members type)) t))
+       (member-%%typep object type))
       (class-ctype
        (not (null (class-typep object (class-ctype-class type)))))
       (union-ctype
@@ -3654,12 +3687,10 @@
          (when (%%typep object type)
            (return t))))
       (intersection-ctype
-       (every (lambda (type) (%%typep object type))
-	      (intersection-ctype-types type)))
+       (dolist (type (intersection-ctype-types type) t)
+         (unless (%%typep object type) (return nil))))
       (cons-ctype
-       (and (consp object)
-            (%%typep (car object) (cons-ctype-car-ctype type))
-            (%%typep (cdr object) (cons-ctype-cdr-ctype type))))
+       (cons-%%typep object type))
       (unknown-ctype
        ;; Parse it again to make sure it's really undefined.
        (let ((reparse (specifier-type (unknown-ctype-specifier type))))
@@ -4130,6 +4161,56 @@
                      (union-ctype-types ctype))))))
 
 
+(defvar *simple-predicate-function-prototype*
+  #'(lambda (thing)
+      (%%typep thing #.(specifier-type t))))
+
+(defun make-simple-type-predicate (function datum)
+  #+ppc-target
+  (gvector :function
+           (uvref *simple-predicate-function-prototype* 0)
+           datum
+           function
+           nil
+           (dpb 1 $lfbits-numreq 0))
+  #+x86-target
+  (%clone-x86-function
+   *simple-predicate-function-prototype*
+   datum
+   function
+   nil
+   (dpb 1 $lfbits-numreq 0)))
+
+(defun check-ctypep (thing ctype)
+  (multiple-value-bind (win sure) (ctypep thing ctype)
+    (or win (not sure))))
+
+
+(defun generate-predicate-for-ctype (ctype)
+  (typecase ctype
+    (numeric-ctype
+     (or (numeric-ctype-predicate ctype)
+         (make-simple-type-predicate 'numeric-%%typep ctype)))
+    (array-ctype
+     (make-simple-type-predicate 'array-%%typep ctype))
+    (member-ctype
+     (make-simple-type-predicate 'member-%%typep ctype))
+    (named-ctype
+     (case (named-ctype-name ctype)
+       ((* t) #'true)
+       (t #'false)))
+    (cons-ctype
+     (make-simple-type-predicate 'cons-%%typep ctype))
+    (function-ctype
+     #'functionp)
+    (class-ctype
+     (make-simple-type-predicate 'class-cell-typep (find-class-cell (class-name (class-ctype-class ctype)) t)))
+    (t
+     (make-simple-type-predicate 'check-ctypep ctype))))
+    
+        
+
+   
 
 ;;; Ensure that standard EFFECTIVE-SLOT-DEFINITIONs have a meaningful
 ;;; type predicate, if we can.
@@ -4141,21 +4222,21 @@
   (let* ((type (slot-definition-type spec)))
     (setf (slot-value spec 'type-predicate)
 	  (or (and (typep type 'symbol)
+                   (not (eq type 't))
 		   (type-predicate type))
               (handler-case
                   (let* ((ctype (specifier-type type)))
-                    #'(lambda (value)
-			(multiple-value-bind (win sure) (ctypep value ctype)
-			  (or (not sure) win))))
+                    (unless (eq ctype *universal-type*)
+                      (generate-predicate-for-ctype ctype)))
                 (parse-unknown-type (c)
-                                    (declare (ignore c))
-                                    #'(lambda (value)
-                                        ;; If the type's now known, install a new predicate.
-                                        (let* ((nowctype (specifier-type type)))
-                                          (unless (typep nowctype 'unknown-ctype)
-                                            (setf (slot-value spec 'type-predicate)
-                                                  #'(lambda (value) (%%typep value nowctype))))
-                                          (multiple-value-bind (win sure)
-                                              (ctypep value nowctype)
-                                            (or (not sure) win))))))))))
+                   (declare (ignore c))
+                   #'(lambda (value)
+                       ;; If the type's now known, install a new predicate.
+                       (let* ((nowctype (specifier-type type)))
+                         (unless (typep nowctype 'unknown-ctype)
+                           (setf (slot-value spec 'type-predicate)
+                                 (generate-predicate-for-ctype nowctype)))
+                         (multiple-value-bind (win sure)
+                             (ctypep value nowctype)
+                           (or (not sure) win))))))))))
 
