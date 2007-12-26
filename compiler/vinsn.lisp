@@ -577,21 +577,21 @@
          (let* ((lab (aref *backend-labels* (backend-get-next-label))))
            (insert-dll-node-after lab current))))
       (:branch
-        (unless (eq prevtype :jump)
-          (let* ((lab
-		  (if (eq prevtype :label)
-		    (dll-node-succ current)
-		    (aref *backend-labels* (backend-get-next-label))))
-                 (jump (select-vinsn "JUMP" *backend-vinsns* (list lab))))
-            (unless (eq prevtype :label)
-	      (insert-dll-node-after lab current))
-            (insert-dll-node-after jump current))))
+       (unless (eq prevtype :jump)
+         (let* ((lab
+                 (if (eq prevtype :label)
+                   (dll-node-succ current)
+                   (aref *backend-labels* (backend-get-next-label))))
+                (jump (select-vinsn "JUMP" *backend-vinsns* (list lab))))
+           (unless (eq prevtype :label)
+             (insert-dll-node-after lab current))
+           (insert-dll-node-after jump current))))
       ((nil)
        (if (eq prevtype :label)
 	 (let* ((lab (dll-node-succ current)))
 	   (when (vinsn-label-p lab)
-	   (insert-dll-node-after
-	    (select-vinsn "JUMP" *backend-vinsns* (list lab))
+             (insert-dll-node-after
+              (select-vinsn "JUMP" *backend-vinsns* (list lab))
 	      current))))))))
 
 
@@ -646,6 +646,24 @@
 (defun branch-target-node (v)
   (dll-node-pred (svref (vinsn-variable-parts v) 0)))
 
+(defun replace-label-refs (vinsn old-label new-label)
+  (let ((vp (vinsn-variable-parts vinsn)))
+    (dotimes (i (length vp))
+      (when (eq (svref vp i) old-label)
+        (setf (svref vp i) new-label)))))
+  
+;;; Try to remove jumps/branches to jumps.
+(defun maximize-jumps (header)
+  (do* ((prev nil next)
+        (next (dll-header-first header) (dll-node-succ next)))
+       ((eq next header))
+    (when (and (vinsn-attribute-p next :jump)
+               (vinsn-label-p  prev))
+      (let* ((target (svref (vinsn-variable-parts next) 0)))
+        (unless (eq target prev)
+          (dolist (ref (vinsn-label-refs prev) (setf (vinsn-label-refs prev) nil))
+            (replace-label-refs ref prev target)
+            (push ref (vinsn-label-refs target))))))))
 
 (defun optimize-vinsns (header)
   ;; Delete unreferenced labels that the compiler might have emitted.
@@ -668,6 +686,7 @@
             (backend-merge-labels l succ)
             (setq repeat t)
             (return)))))
+    (maximize-jumps header)
     (delete-unreferenced-labels labels)
     (normalize-vinsns header)
   ))
