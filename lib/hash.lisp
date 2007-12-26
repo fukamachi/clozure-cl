@@ -210,23 +210,20 @@
 
 
 
-(defun next-hash-table-iteration (state)
-  (do* ((hash (nhti.hash-table state))
-        (index (nhti.index state) (1+ index))
+(defun next-hash-table-iteration-1 (state)
+  (do* ((index (nhti.index state) (1+ index))
         (keys (nhti.keys state))
-        (nkeys (nhti.nkeys state))
-        (missing (cons nil nil)))
+        (values (nhti.values state))
+        (nkeys (nhti.nkeys state)))
        ((>= index nkeys)
         (setf (nhti.index state) nkeys)
         (values nil nil nil))
     (declare (fixnum index nkeys)
-             (simple-vector keys)
-             (dynamic-extent missing))
+             (simple-vector keys))
     (let* ((key (svref keys index))
-           (value (gethash key hash missing)))
-      (unless (eq value missing)
+           (value (svref values index)))
         (setf (nhti.index state) (1+ index))
-        (return (values t key value))))))
+        (return (values t key value)))))
 
 
 
