@@ -1469,7 +1469,7 @@
                               (,tempcode (typecode ,temp)))
                         (or (and (eql ,tempcode ,typecode)
                              ,@(unless (eq (car dims) '*)
-                                       `((eq (uvize ,temp) ,(car dims)))))
+                                       `((eq (uvsize ,temp) ,(car dims)))))
                          (and (eql ,tempcode target::subtag-vectorH)
                           (eql (ldb target::arrayH.flags-cell-subtag-byte (the fixnum (%svref ,temp target::arrayH.flags-cell))) ,typecode)
                           ,@(unless (eq (car dims) '*)
