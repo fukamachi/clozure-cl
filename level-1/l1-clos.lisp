@@ -598,12 +598,14 @@
   (when (or finalizep
 	    (class-finalized-p class)
 	    (not (class-has-a-forward-referenced-superclass-p class)))
-    (update-cpl class (compute-class-precedence-list  class))
-    ;;; This -should- be made to work for structure classes
-    (update-slots class (compute-slots class))
-    (setf (%class-default-initargs class) (compute-default-initargs class))
-    (%flush-initargs-caches class)
-    )
+    (let* ((cpl (update-cpl class (compute-class-precedence-list  class))))
+      ;; This -should- be made to work for structure classes
+      (update-slots class (compute-slots class))
+      (setf (%class-default-initargs class) (compute-default-initargs class))
+      (%flush-initargs-caches class)
+      (let* ((wrapper (%class-own-wrapper class)))
+        (when wrapper
+          (setf (%wrapper-cpl wrapper) cpl)))))
   (unless finalizep
     (dolist (sub (%class-direct-subclasses class))
       (update-class sub nil))))
@@ -1102,8 +1104,8 @@ governs whether DEFCLASS makes that distinction or not.")
 		  :readers (slot-definition-location))
 		 (:name slot-id :initform nil :initfunction ,#'false
                   :readers (slot-definition-slot-id))
-		 (:name type-predicate :initform #'true
-		  :initfunction ,#'(lambda () #'true)
+		 (:name type-predicate :initform nil
+		  :initfunction ,#'false
 		  :readers (slot-definition-predicate))
 		 )
  
@@ -1191,9 +1193,10 @@ governs whether DEFCLASS makes that distinction or not.")
           (unless (memq c old-supers)
             (add-direct-subclass c class)))
         (setf (%class.local-supers class) new-supers)))
-    (unless (%class-own-wrapper class)
-      (setf (%class-own-wrapper class) (%cons-wrapper class)))
-    (update-cpl class (compute-cpl class))))
+    (let* ((wrapper (or (%class-own-wrapper class)
+                        (setf (%class-own-wrapper class) (%cons-wrapper class))))
+           (cpl (compute-cpl class)))
+      (setf (%wrapper-cpl wrapper) cpl))))
               
 
                                      
@@ -1714,7 +1717,8 @@ changing its name to ~s may have serious consequences." class new))
                  ;; an initarg for the slot was passed to this function
                  ;; Typecheck the new-value, then call
                  ;; (SETF SLOT-VALUE-USING-CLASS)
-                 (unless (funcall predicate new-value)
+                 (unless (or (null predicate)
+                             (funcall predicate new-value))
                    (error 'bad-slot-type-from-initarg
                           :slot-definition slotd
                           :instance instance
@@ -1734,7 +1738,8 @@ changing its name to ~s may have serious consequences." class new))
                  (let* ((initfunction (slot-definition-initfunction slotd)))
                    (if initfunction
                      (let* ((newval (funcall initfunction)))
-                       (unless (funcall predicate newval)
+                       (unless (or (null predicate)
+                                   (funcall predicate newval))
                          (error 'bad-slot-type-from-initform
                                 :slot-definition slotd
                                 :expected-type (slot-definition-type slotd)
@@ -2032,6 +2037,8 @@ changing its name to ~s may have serious consequences." class new))
 (defparameter *typecheck-slots-in-optimized-make-instance* nil)
 
 
+
+
 ;;; Return a lambda form or NIL.
 (defun make-instantiate-lambda-for-class-cell (cell)
   (let* ((class (class-cell-class cell))
@@ -2059,16 +2066,11 @@ changing its name to ~s may have serious consequences." class new))
           (flet ((generate-type-check (form type &optional spvar)
                    (if (null *typecheck-slots-in-optimized-make-instance*)
                      form
-                     (let* ((ctype (ignore-errors (specifier-type type))))
-                       (if (or (null ctype)
-                               (eq ctype *universal-type*)
-                               (typep ctype 'unknown-ctype))
-                         form
-                         (if spvar
-                           `(if ,spvar
-                             (require-type ,form ',type)
-                             (%slot-unbound-marker))
-                           `(require-type ,form ',type)))))))
+                     (if spvar
+                       `(if ,spvar
+                         (require-type ,form ',type)
+                         (%slot-unbound-marker))
+                       `(require-type ,form ',type)))))
             (dolist (slot slotds)
               (let* ((initarg (car (slot-definition-initargs slot)))
                      (initfunction (slot-definition-initfunction slot))
