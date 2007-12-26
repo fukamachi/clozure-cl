@@ -831,9 +831,9 @@ Will differ from *compiling-file* during an INCLUDE")
   (when *fcomp-toplevel-forms* (fcomp-compile-toplevel-forms env))
   (push (cons opcode args) *fcomp-output-list*))
 
-;Compile a lambda expression for the sole purpose of putting it in a fasl
-;file.  The result will not be funcalled.  This really shouldn't bother
-;making an lfun, but it's simpler this way...
+;;; Compile a lambda expression for the sole purpose of putting it in a fasl
+;;; file.  The result will not be funcalled.  This really shouldn't bother
+;;; making an lfun, but it's simpler this way...
 (defun fcomp-named-function (def name env)
   (let* ((env (new-lexical-environment env)))
     (multiple-value-bind (lfun warnings)
