@@ -412,6 +412,8 @@ given is that of a group to which the current user belongs."
 (defun timeval->milliseconds (tv)
     (+ (* 1000 (pref tv :timeval.tv_sec)) (round (pref tv :timeval.tv_usec) 1000)))
 
+(defun timeval->microseconds (tv)
+    (+ (* 1000000 (pref tv :timeval.tv_sec)) (pref tv :timeval.tv_usec)))
 
 (defun %add-timevals (result a b)
   (let* ((seconds (+ (pref a :timeval.tv_sec) (pref b :timeval.tv_sec)))
