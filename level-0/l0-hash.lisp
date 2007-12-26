@@ -359,18 +359,6 @@
         (%%eqhash key)
         (mixup-hash-code (strip-tag-to-fixnum primary))))))
 
-;; call %%eqlhash
-
-(defun string-hash (key start len)
-  (declare (fixnum start len))
-  (let* ((res len))
-    (dotimes (i len)
-      (let ((code (%scharcode key (%i+ i start))))
-	(setq code (mixup-hash-code code))
-	(setq res (%i+ (rotate-hash-code res) code))))
-    res))
-
-
 
 (defun %%equalhash (key)
   (let* ((id-p (hashed-by-identity key))
@@ -384,11 +372,11 @@
           ((immediate-p-macro key) (mixup-hash-code (strip-tag-to-fixnum key)))
           ((and hash (neq hash key)) hash)  ; eql stuff
           (t (typecase key
-                (simple-string (string-hash key 0 (length key)))
+                (simple-string (%pname-hash key (length key)))
                 (string
                  (let ((length (length key)))
                    (multiple-value-bind (data offset) (array-data-and-offset key)
-                     (string-hash data offset length))))
+                     (%string-hash offset data length))))
                 (bit-vector (bit-vector-hash key))
                 (cons
                  (let ((hash 0))
@@ -1032,6 +1020,7 @@ before doing so.")
 ;;;   index - the index in the vector for key (where it was or where
 ;;;           to insert if the current key at that index is deleted-hash-key-marker
 ;;;           or free-hash-key-marker)
+
 
 
 (defun %hash-probe (hash key update-hash-flags)
@@ -1748,6 +1737,8 @@ before doing so.")
 
   
   
+
+
 (defun enumerate-hash-keys (hash out)
   (unless (hash-table-p hash)
     (report-bad-arg hash 'hash-table))
@@ -1768,4 +1759,27 @@ before doing so.")
            (unless (or (eq val free-hash-key-marker)
                        (eq val deleted-hash-key-marker))
              (setf (%svref out out-idx) val)
+             (incf out-idx))))))))
+
+(defun enumerate-hash-keys-and-values (hash keys values)
+  (unless (hash-table-p hash)
+    (report-bad-arg hash 'hash-table))
+  (with-lock-context
+    (without-interrupts
+     (let* ((readonly (eq (read-lock-hash-table hash) :readonly)))
+       (do* ((in (nhash.vector hash))
+             (in-idx $nhash.vector_overhead (+ in-idx 2))
+             (insize (uvsize in))
+             (outsize (length keys))
+             (out-idx 0))
+            ((or (= in-idx insize)
+                 (= out-idx outsize))
+             (unlock-hash-table hash readonly)
+             out-idx)
+         (declare (fixnum in-idx insize out-idx outsize))
+         (let* ((key (%svref in in-idx)))
+           (unless (or (eq key free-hash-key-marker)
+                       (eq key deleted-hash-key-marker))
+             (setf (%svref keys out-idx) key)
+             (setf (%svref values out-idx) (%svref in (the fixnum (1+ in-idx))))
              (incf out-idx))))))))
