@@ -372,10 +372,10 @@ are running on, or NIL if we can't find any useful information."
    keyword arguments:
    :FORM              the form that was executed
    :RESULTS           a list of all values returned by the execution of FORM
-   :ELAPSED-TIME      total elapsed (real) time, in milliseconds
-   :USER-TIME         elapsed user time, in milliseconds
-   :SYSTEM-TIME       elapsed system time, in milliseconds
-   :GC-TIME           total real time spent in the GC, in milliseconds
+   :ELAPSED-TIME      total elapsed (real) time, in internal-time-units-per-second
+   :USER-TIME         elapsed user time, in internal-time-units-per-second
+   :SYSTEM-TIME       elapsed system time, in internal-time-units-per-second
+   :GC-TIME           total real time spent in the GC, in internal-time-units-per-second
    :BYTES-ALLOCATED   total bytes allocated
    :MINOR-PAGE-FAULTS minor page faults
    :MAJOR-PAGE-FAULTS major page faults
@@ -387,15 +387,23 @@ are running on, or NIL if we can't find any useful information."
                                   minor-page-faults major-page-faults
                                   swaps)
   (let* ((s *trace-output*)
+         (units
+          (ecase internal-time-units-per-second
+            (1000000 "microseconds")
+            (1000  "milliseconds")))
+         (width
+          (ecase internal-time-units-per-second
+            (1000000 6)
+            (100  3)))
          (cpu-count (cpu-count)))
-    (format s "~&~S took ~:D milliseconds (~,3F seconds) to run ~%~20twith ~D available CPU core~P."
-            form elapsed-time (/ elapsed-time internal-time-units-per-second) cpu-count cpu-count)
-    (format s "~&During that period, ~:D milliseconds (~,3F seconds) were spent in user mode" user-time (/ user-time internal-time-units-per-second))
-    (format s "~&                    ~:D milliseconds (~,3F seconds) were spent in system mode" system-time (/ system-time internal-time-units-per-second))
+    (format s "~&~S took ~:D ~a (~,vF seconds) to run ~%~20twith ~D available CPU core~P."
+            form elapsed-time units width (/ elapsed-time internal-time-units-per-second) cpu-count cpu-count)
+    (format s "~&During that period, ~:D ~a (~,vF seconds) were spent in user mode" user-time units width (/ user-time internal-time-units-per-second))
+    (format s "~&                    ~:D ~a (~,vF seconds) were spent in system mode" system-time units width(/ system-time internal-time-units-per-second))
     (unless (eql gc-time 0)
       (format s
-              "~%~:D milliseconds (~,3F seconds) was spent in GC."
-              gc-time (/ gc-time internal-time-units-per-second)))
+              "~%~:D ~a (~,vF seconds) was spent in GC."
+              gc-time units width (/ gc-time internal-time-units-per-second)))
     (unless (eql 0 bytes-allocated)
       (format s "~% ~:D bytes of memory allocated." bytes-allocated))
     (when (or (> minor-page-faults 0)
@@ -434,13 +442,17 @@ are running on, or NIL if we can't find any useful information."
 		    (%sub-timevals timediff
 				   (pref stop :rusage.ru_utime)
 				   (pref start :rusage.ru_utime))
-		    (timeval->milliseconds timediff)))
+                    (ecase internal-time-units-per-second
+                      (1000000 (timeval->microseconds timediff))
+                      (1000 (timeval->milliseconds timediff)))))
 		 (elapsed-system-time
 		  (progn
 		    (%sub-timevals timediff
 				   (pref stop :rusage.ru_stime)
 				   (pref start :rusage.ru_stime))
-		    (timeval->milliseconds timediff)))
+                    (ecase internal-time-units-per-second
+                      (1000000 (timeval->microseconds timediff))
+                      (1000 (timeval->milliseconds timediff)))))
 		 (elapsed-minor (- (pref stop :rusage.ru_minflt)
 				   (pref start :rusage.ru_minflt)))
 		 (elapsed-major (- (pref stop :rusage.ru_majflt)
