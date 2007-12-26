@@ -1177,16 +1177,19 @@ Generic-function's   : ~s~%" method (or (generic-function-name gf) gf) (flatten-
 (defvar %find-classes% (make-hash-table :test 'eq))
 
 (defun class-cell-typep (form class-cell)
-  (unless (istruct-typep  class-cell 'class-cell)
-    (report-bad-arg class-cell 'class-cell))
   (locally (declare (type class-cell  class-cell))
     (let ((class (class-cell-class class-cell)))
-      (when (not class)
-        (setq class (find-class (class-cell-name class-cell) nil))
-        (when class (setf (class-cell-class class-cell) class)))
-      (if class
-        (not (null (memq class (%inited-class-cpl (class-of form)))))
-        (if (fboundp 'typep)(typep form (class-cell-name class-cell)) t)))))
+      (loop
+        (if class
+          (let* ((wrapper (if (%standard-instance-p form)
+                            (instance.class-wrapper form)
+                            (instance-class-wrapper form))))
+            (return
+              (not (null (memq class (or (%wrapper-cpl wrapper)
+                                         (%inited-class-cpl (%wrapper-class wrapper))))))))
+          (if (setq class (find-class (class-cell-name class-cell) nil))
+            (setf (class-cell-class class-cell) class)
+            (return (typep form (class-cell-name class-cell)))))))))
 
 
 
@@ -1299,7 +1302,7 @@ to replace that class with ~s" name old-class new-class)
 
 
 
-#|
+#||
 ; This tended to cluster entries in gf dispatch tables too much.
 (defvar *class-wrapper-hash-index* 0)
 (defun new-class-wrapper-hash-index ()
@@ -1310,7 +1313,7 @@ to replace that class with ~s" name old-class new-class)
           ; The dispatch code will break if you change this.
           (%i+ index 3)                 ; '3 = 24 bytes = 6 longwords in lap.
           1))))
-|#
+||#
 
 
 
@@ -1381,8 +1384,11 @@ to replace that class with ~s" name old-class new-class)
     (dolist (sup supers)
       (setf (%class.subclasses sup) (cons class (%class.subclasses sup))))
     (setf (%class.local-supers class) supers)
-    (setf (%class.cpl class) (compute-cpl class))
-    (setf (%class.own-wrapper class) (%cons-wrapper class (new-class-wrapper-hash-index)))
+    (let* ((wrapper (%cons-wrapper class (new-class-wrapper-hash-index)))
+           (cpl (compute-cpl class)))
+      (setf (%class.cpl class) cpl)
+      (setf (%class.own-wrapper class) wrapper)
+      (setf (%wrapper-cpl wrapper) cpl))
     (setf (%class.ctype class)  (make-class-ctype class))
     (setf (find-class name) class)
     (dolist (sub (%class.subclasses class))   ; Only non-nil if redefining
@@ -2523,6 +2529,7 @@ to replace that class with ~s" name old-class new-class)
 	 (type (standard-effective-slot-definition.type slotd))
 	 (type-predicate (standard-effective-slot-definition.type-predicate slotd)))
     (unless (or (eq new (%slot-unbound-marker))
+                (null type-predicate)
 		(funcall type-predicate new))
       (error 'bad-slot-type
 	     :instance (slot-vector.instance slot-vector)
@@ -2751,6 +2758,7 @@ to replace that class with ~s" name old-class new-class)
                                    (%wrapper-class-slots wrapper)))))
      (when forwarding-info
        (setf (%wrapper-hash-index wrapper) 0
+             (%wrapper-cpl wrapper) nil
              (%wrapper-instance-slots wrapper) 0
              (%wrapper-forwarding-info wrapper) forwarding-info
 	     (%wrapper-slot-id->slotd wrapper) #'%slot-id-lookup-obsolete
@@ -3430,11 +3438,15 @@ to replace that class with ~s" name old-class new-class)
 
 (setf (fdefinition '%do-remove-direct-method) #'remove-direct-method)
 
+(defmethod instance-class-wrapper (x)
+  (%class.own-wrapper (class-of x)))
+
 (defmethod instance-class-wrapper ((instance standard-object))
   (if (%standard-instance-p instance)
     (instance.class-wrapper instance)
     (if (typep instance 'macptr)
-      (foreign-instance-class-wrapper instance))))
+      (foreign-instance-class-wrapper instance)
+      (%class.own-wrapper (class-of instance)))))
 
 (defmethod instance-class-wrapper ((instance standard-generic-function))
   (gf.instance.class-wrapper  instance))
