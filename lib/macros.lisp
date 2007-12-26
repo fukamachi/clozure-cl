@@ -2628,12 +2628,17 @@ defcallback returns the callback pointer, e.g., the value of name."
    the second and third values are the key and the value of the next object."
   (let* ((hash (gensym))
          (keys (gensym))
+         (values (gensym))
+         (count (gensym))
          (state (gensym)))
     `(let* ((,hash ,hash-table)
-            (,keys (make-array (the fixnum (hash-table-count ,hash))))
-            (,state (vector ,hash 0 ,keys (enumerate-hash-keys ,hash ,keys))))
-      (declare (dynamic-extent ,keys ,state))
-      (macrolet ((,mname () `(next-hash-table-iteration ,',state)))
+            (,count (hash-table-count ,hash))
+            (,keys (make-array ,count))
+            (,values (make-array ,count))
+            (,state (vector ,hash 0 ,keys ,values (enumerate-hash-keys-and-values ,hash ,keys ,values))))
+      (declare (dynamic-extent ,keys ,state)
+               (fixnum ,count))
+      (macrolet ((,mname () `(next-hash-table-iteration-1 ,',state)))
         ,@body))))
 
 
@@ -2986,15 +2991,8 @@ Return the pointer."
 
 
 (defmacro with-process-whostate ((whostate) &body body)
-  (let* ((p (gensym))
-         (old-whostate (gensym)))
-    `(let* ((,p *current-process*)
-            (,old-whostate (process-whostate ,p)))
-      (unwind-protect
-           (progn
-             (setf (%process-whostate ,p) ,whostate)
-             ,@body)
-        (setf (%process-whostate ,p) ,old-whostate)))))
+  `(let* ((*whostate* ,whostate))
+    ,@body))
 
 
 
