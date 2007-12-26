@@ -141,3 +141,22 @@
     (movq (% accum) (% arg_z))
     @done
     (single-value-return)))
+
+(defx86lapfunction %string-hash ((start arg_x) (str arg_y) (len arg_z))
+  (let ((accum imm0)
+        (offset imm1))
+    (unbox-fixnum start offset)
+    (xorq (% accum) (% accum))
+    (cmpq ($ 0) (% len))
+    (jz.pn @done)
+    @loop8
+    (roll ($ 5) (%l accum))
+    (xorl (@ x8664::misc-data-offset (% str) (% offset) 4) (%l accum))
+    (addq ($ 1) (% offset))    
+    (subq ($ '1) (% len))
+    (jnz @loop8)
+    (shlq ($ 5) (% accum))
+    (shrq ($ (- 5 x8664::fixnumshift)) (% accum))
+    (movq (% accum) (% arg_z))
+    @done
+    (single-value-return)))
