@@ -518,6 +518,8 @@
   ;;
   ;; The element type as it is specialized in this implementation.
   array-ctype-specialized-element-type
+  ;; The typecode of the specialize element type, or NIL.
+  array-ctype-typecode
 )
 
 ;;; MEMBER-ctype is a direct subclass of CTYPE.
@@ -928,6 +930,7 @@
   %wrapper-slot-definition-table        ; vector of nil || slot-definitions
   %wrapper-slot-id-value                ; "fast" SLOT-VALUE function
   %wrapper-set-slot-id-value            ; "fast" (SETF SLOT-VALUE) function
+  %wrapper-cpl                          ; cached cpl of %wrapper-class or NIL
 )
 
 ;; Use the wrapper-class-slots for info on obsolete & forwarded instances
@@ -954,7 +957,7 @@
 
 (defmacro %cons-wrapper (class &optional 
                                (hash-index '(new-class-wrapper-hash-index)))
-  `(%istruct 'class-wrapper ,hash-index ,class nil nil #'slot-id-lookup-no-slots nil nil #'%slot-id-ref-missing #'%slot-id-set-missing))
+  `(%istruct 'class-wrapper ,hash-index ,class nil nil #'slot-id-lookup-no-slots nil nil #'%slot-id-ref-missing #'%slot-id-set-missing nil))
 
 
 (defmacro %instance-class (instance)
