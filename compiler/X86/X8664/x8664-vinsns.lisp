@@ -523,7 +523,7 @@
 
 (define-x8664-vinsn compare-to-nil (()
                                     ((arg0 t)))
-  (cmpl (:$l x8664::nil-value) (:%l arg0)))
+  (cmpb (:$b x8664::fulltag-nil) (:%b arg0)))
 
 
 (define-x8664-vinsn ref-constant (((dest :lisp))
@@ -763,29 +763,43 @@
 
 (define-x8664-vinsn extract-tag (((tag :u8))
                                  ((object :lisp)))
-  (movzbl (:%b object) (:%l tag))
-  (andb (:$b x8664::tagmask) (:%b tag)))
+  (movl (:%l object) (:%l tag))
+  (andl (:$b x8664::tagmask) (:%l tag)))
 
 (define-x8664-vinsn extract-tag-fixnum (((tag :imm))
 					((object :lisp)))
-  (leal (:@ (:%q object) 8) (:%l tag))
+  ((:pred =
+          (:apply %hard-regspec-value tag)
+          (:apply %hard-regspec-value object))
+   (shll (:$ub x8664::fixnumshift) (:%l object)))
+  ((:not (:pred =
+          (:apply %hard-regspec-value tag)
+          (:apply %hard-regspec-value object)))
+   (imull (:$b x8664::fixnumone) (:%l object) (:%l tag)))
   (andl (:$b (ash x8664::tagmask x8664::fixnumshift)) (:%l tag)))
 
 (define-x8664-vinsn extract-fulltag (((tag :u8))
                                  ((object :lisp)))
-  (movzbl (:%b object) (:%l tag))
-  (andb (:$b x8664::fulltagmask) (:%b tag)))
+  (movl (:%l object) (:%l tag))
+  (andl (:$b x8664::fulltagmask) (:%l tag)))
 
 (define-x8664-vinsn extract-fulltag-fixnum (((tag :imm))
                                             ((object :lisp)))
-  (leal (:@ (:%q object) 8) (:%l tag))
+  ((:pred =
+          (:apply %hard-regspec-value tag)
+          (:apply %hard-regspec-value object))
+   (shll (:$ub x8664::fixnumshift) (:%l object)))
+  ((:not (:pred =
+          (:apply %hard-regspec-value tag)
+          (:apply %hard-regspec-value object)))
+   (imull (:$b x8664::fixnumone) (:%l object) (:%l tag)))
   (andl (:$b (ash x8664::fulltagmask x8664::fixnumshift)) (:%l tag)))
 
 (define-x8664-vinsn extract-typecode (((tag :u32))
                                       ((object :lisp)))
-  (movzbl (:%b object) (:%l tag))
-  (andb (:$b x8664::tagmask) (:%b tag))
-  (cmpb (:$b x8664::tag-misc) (:%b tag))
+  (movl (:%l object) (:%l tag))
+  (andl (:$b x8664::tagmask) (:%l tag))
+  (cmpl (:$b x8664::tag-misc) (:%l tag))
   (jne :have-tag)
   (movzbl (:@ x8664::misc-subtag-offset (:%q object)) (:%l tag))
   :have-tag)
@@ -799,7 +813,7 @@
   (jne :have-tag)
   (movzbl (:@ x8664::misc-subtag-offset (:%q object)) (:%l temp))
   :have-tag
-  (leal (:@ (:%q temp) 8) (:%l tag)))
+  (imulq (:$b x8664::fixnumone) (:%q temp) (:%q tag)))
 
 
 (define-x8664-vinsn compare-reg-to-zero (()
@@ -811,11 +825,11 @@
   (testb (:%b reg) (:%b reg)))
 
 (define-x8664-vinsn cr-bit->boolean (((dest :lisp))
-                                     ((crbit :u8const))
-                                     ((temp :u32)))
-  (movl (:$l x8664::t-value) (:%l temp))
-  (leaq (:@ (- x8664::t-offset) (:%q temp)) (:%q dest))
-  (cmovccl (:$ub crbit) (:%l temp) (:%l dest)))
+                                     ((crbit :u8const)))
+  (movl (:$l x8664::nil-value) (:%l dest))
+  (cmovccl (:$ub crbit) (:@ (+ x8664::t-offset x8664::symbol.vcell) (:%l dest)) (:%l dest)))
+
+
 
 
 
@@ -1228,17 +1242,23 @@
      ((unboxed (:s64 #.x8664::imm1))
       (header (:u64 #.x8664::imm0))
       (entry (:label 1))))
-  (jno.pt :done)
+  (jo :overflow)
+  :done
+  (:uuo-section)
   ((:not (:pred = x8664::arg_z
                 (:apply %hard-regspec-value val)))
+   :overflow
    (movq (:%q val) (:%q x8664::arg_z)))
   (:talign 4)
+  ((:pred = x8664::arg_z
+          (:apply %hard-regspec-value val))
+   :overflow)
   (call (:@ .SPfix-overflow))
   (leaq (:@ (:^ entry) (:% x8664::rip)) (:%q x8664::fn))
   ((:not (:pred = x8664::arg_z
                 (:apply %hard-regspec-value val)))
    (movq (:%q x8664::arg_z) (:%q val)))
-  :done)
+  (jmp :done))
 
 (define-x8664-vinsn (fix-fixnum-overflow-ool-and-branch :call)
     (((val :lisp))
@@ -1247,11 +1267,17 @@
      ((unboxed (:s64 #.x8664::imm1))
       (header (:u64 #.x8664::imm0))
       (entry (:label 1))))
-  (jno.pt lab)
+  (jo :overflow)
+  (jmp lab)
+  (:uuo-section)
   ((:not (:pred = x8664::arg_z
                 (:apply %hard-regspec-value val)))
+     :overflow
    (movq (:%q val) (:%q x8664::arg_z)))
   (:talign 4)
+  ((:pred = x8664::arg_z
+          (:apply %hard-regspec-value val))
+   :overflow)
   (call (:@ .SPfix-overflow))
   (leaq (:@ (:^ entry) (:% x8664::rip)) (:%q x8664::fn))
   ((:not (:pred = x8664::arg_z
@@ -1770,7 +1796,7 @@
     (leaq (:@ (:^ entry) (:% x8664::rip)) (:%q x8664::fn))))
 
 (defmacro define-x8664-subprim-jump-vinsn ((name &rest other-attrs) spno)
-  `(define-x8664-vinsn (,name :jump :jumpLR ,@other-attrs) (() ())
+  `(define-x8664-vinsn (,name :jumpLR ,@other-attrs) (() ())
     (jmp (:@ ,spno))))
 
 (define-x8664-vinsn (nthrowvalues :call :subprim-call) (()
@@ -2913,9 +2939,9 @@
   (testl (:$l x8664::fixnummask) (:%l object))
   (movq (:%q object) (:%q tag))
   (je.pt :ok-if-non-negative)
-  (andb (:$b x8664::fulltagmask) (:%b tag))
-  (cmpb (:$b x8664::fulltag-misc) (:%b tag))
-  (jne.pn :bad)
+  (andl (:$b x8664::fulltagmask) (:%l tag))
+  (cmpl (:$b x8664::fulltag-misc) (:%l tag))
+  (jne :bad)
   (cmpq (:$l x8664::two-digit-bignum-header) (:@ x8664::misc-header-offset (:%q object)))
   (je :two)
   (cmpq (:$l x8664::three-digit-bignum-header) (:@ x8664::misc-header-offset (:%q object)))
@@ -2946,7 +2972,7 @@
   (:anchored-uuo (uuo-error-reg-not-type (:%q object) (:$ub arch::error-object-not-mod-char-code-limit))))
 
 
-
+;;; set DEST to 
 (define-x8664-vinsn mask-base-char (((dest :u8))
                                     ((src :lisp)))
   (movzbl (:%b src) (:%l dest))) 
@@ -3417,14 +3443,15 @@
 ;;; a JUMP (to a possibly unknown destination).  If the destination's
 ;;; really known, it should probably be inlined (stack-cleanup, value
 ;;; transfer & jump ...)
-(define-x8664-vinsn (throw :jump :jump-unknown) (()
-						 ()
-                                                 ((entry (:label 1))))
+(define-x8664-vinsn (throw :jump-unknown) (()
+                                           ()
+                                           ((entry (:label 1))))
   (leaq (:@ (:^ :back) (:%q x8664::fn)) (:%q x8664::ra0))
   (:talign 4)
   (jmp (:@ .SPthrow))
   :back
-  (leaq (:@ (:^ entry) (:% x8664::rip)) (:%q x8664::fn)))
+  (leaq (:@ (:^ entry) (:% x8664::rip)) (:%q x8664::fn))
+  (uuo-error-reg-not-tag (:%q x8664::temp0) (:$ub x8664::subtag-catch-frame)))
 
 
 
