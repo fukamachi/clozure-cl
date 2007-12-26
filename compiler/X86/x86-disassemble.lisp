@@ -33,6 +33,10 @@
   op2
   )
 
+(defmethod print-object ((xdi x86-disassembled-instruction) stream)
+  (print-unreadable-object (xdi stream :type t :identity t)
+    (format stream "~a" (x86-di-mnemonic xdi))))
+
 (defstruct (x86-disassembly-state (:conc-name x86-ds-))
   (mode-64 t)
   (prefixes 0)
