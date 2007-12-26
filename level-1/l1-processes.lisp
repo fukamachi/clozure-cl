@@ -118,7 +118,6 @@
      (initial-form :initform (cons nil nil) :reader process-initial-form)
      (priority :initform 0 :initarg :priority :accessor process-priority)
      (persistent :initform nil :initarg :persistent :reader process-persistent)
-     (whostate :initform "Reset" :accessor %process-whostate)
      (splice :initform (cons nil nil) :accessor process-splice)
      (initial-bindings :initform nil :initarg :initial-bindings
 		       :accessor process-initial-bindings)
@@ -191,7 +190,6 @@
 	       "Initial"
 	       :thread *initial-lisp-thread*
 	       :priority 0)))
-      (setf (%process-whostate p) "Active")
       p))
 
 
@@ -218,9 +216,11 @@
   "Return a string which describes the status of a specified process."
   (if (process-exhausted-p p)
     "Exhausted"
-    (%process-whostate p)))
+    (symbol-value-in-process '*whostate* p)))
 
-
+(defun (setf process-whostate) (new p)
+  (unless (process-exhausted-p p)
+    (setf (symbol-value-in-process '*whostate* p) new)))
 
 
 
@@ -256,7 +256,6 @@
   (let* ((thread (process-thread p)))
     (do* ((total-wait wait (+ total-wait wait)))
 	 ((thread-enable thread (process-termination-semaphore p) (1- (integer-length (process-allocation-quantum p)))  wait)
-	  (setf (%process-whostate p) "Active")
 	  p)
       (cerror "Keep trying."
 	      "Unable to enable process ~s; have been trying for ~s seconds."
@@ -324,6 +323,7 @@ a given process."
 	    (multiple-value-bind (syms values)
 		(initial-bindings (process-initial-bindings process))
 	      (progv syms values
+                (setq *whostate* "Active")
 		(run-process-initial-form process initial-form)))))
       process
       initial-form)
@@ -355,8 +355,7 @@ a given process."
 	(process-initial-form-exited process (or kill t)))
       (progn
 	(thread-change-state (process-thread process) :run :reset)
-	(tcr-set-preset-state (process-tcr process))
-	(setf (%process-whostate process) "Reset")))
+	(tcr-set-preset-state (process-tcr process))))
     nil))
 
 ;;; Separated from run-process-initial-form just so I can change it easily.
@@ -365,13 +364,13 @@ a given process."
   (without-interrupts
    (if (eq kill :shutdown)
      (progn
-       (setf (%process-whostate process) "Shutdown")
+       (setq *whostate* "Shutdown")
        (add-to-shutdown-processes process)))
    (maybe-finish-process-kill process kill)))
 
 (defun maybe-finish-process-kill (process kill)
   (when (and kill (neq kill :shutdown))
-    (setf (%process-whostate process) "Dead")
+    (setf (process-whostate process) "Dead")
     (remove-from-all-processes process)
     (let ((thread (process-thread process)))
       (unless (or (eq thread *current-lisp-thread*)
