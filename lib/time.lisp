@@ -31,12 +31,16 @@
   (let* ((timeval-size (record-length :timeval)))
     (%stack-block ((copy (* timeval-size 5)))
       (#_memmove copy *total-gc-microseconds* (* timeval-size 5))
-      (values
-       (timeval->milliseconds copy)
-       (timeval->milliseconds (%incf-ptr copy timeval-size))
-       (timeval->milliseconds (%incf-ptr copy timeval-size))
-       (timeval->milliseconds (%incf-ptr copy timeval-size))
-       (timeval->milliseconds (%incf-ptr copy timeval-size))))))
+      (macrolet ((funk (arg)
+                   (ecase internal-time-units-per-second 
+                    (1000000 `(timeval->microseconds ,arg))
+                    (1000 `(timeval->milliseconds ,arg)))))
+        (values
+         (funk copy)
+         (funk (%incf-ptr copy timeval-size))
+         (funk (%incf-ptr copy timeval-size))
+         (funk (%incf-ptr copy timeval-size))
+         (funk (%incf-ptr copy timeval-size)))))))
 
 (defun get-universal-time ()
   "Return a single integer for the current time of
