@@ -48,7 +48,8 @@
 (def-standard-initial-binding *locks-held* ())
 (def-standard-initial-binding *locks-pending* ())
 (def-standard-initial-binding *lock-conses* (make-list 20)))
-
+(def-standard-initial-binding *whostate* "Reset")
+(setq *whostate* "Active")
 
 (defun %badarg (arg type)
   (%err-disp $XWRONGTYPE arg type))
