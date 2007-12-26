@@ -964,15 +964,16 @@
                ((type= (specifier-type type)
                        (specifier-type '(unsigned-byte 64)))
                 `(the (unsigned-byte 64) (require-u64 ,arg)))               
-               ((and (consp type)(memq (car type) '(signed-byte unsigned-byte integer)))
-                `(the ,type (%require-type-builtin ,arg 
-                                                   (load-time-value (find-builtin-cell ',type)))))
                ((and (symbolp type)
                      (let ((simpler (type-predicate type)))
                        (if simpler `(the ,type (%require-type ,arg ',simpler))))))
                ((and (symbolp type)(find-class type nil env))
                   `(%require-type-class-cell ,arg (load-time-value (find-class-cell ',type t))))
-               (t call)))
+               (t (let* ((val (gensym)))
+                    `(let* ((,val ,arg))
+                      (if (typep ,val ',type)
+                        ,val
+                        (%kernel-restart $xwrongtype ,val ',type)))))))
         (t call)))
 
 (define-compiler-macro proclaim (&whole call decl)
@@ -1387,57 +1388,152 @@
         (consp (%cdr form))
         (null (%cdr (%cdr form)))))
 
+
+;; Return a form that checks to see if THING is if type CTYPE, or
+;; NIL if we can't do that for some reason.
+(defun optimize-ctypep (thing ctype)
+  (when (eq *target-backend* *host-backend*)
+    (typecase ctype
+      (numeric-ctype
+       (cond ((eq :real (numeric-ctype-complexp ctype))
+              (let* ((low (numeric-ctype-low ctype))
+                     (high (numeric-ctype-high ctype))
+                     (class (numeric-ctype-class ctype))
+                     (format (numeric-ctype-format ctype))
+                     (type (if (eq class 'float)
+                             (or format class)
+                             class)))
+                (cond ((and low (eql low high) (or (not (eq class 'float))
+                                                   format))
+                       `(eql ,thing ,low))
+                      ((and (eq type 'float)
+                            (or low high)
+                            (or (null low)
+                                (typep low 'single-float)
+                                (not (null (ignore-errors
+                                             (coerce (if (atom low)
+                                                       low
+                                                       (car low))
+                                                     'single-float)))))
+                            (or (null high)
+                                (typep high 'single-float)
+                                (not (null (ignore-errors
+                                             (coerce (if (atom high)
+                                                       high
+                                                       (car high))
+                                                     'single-float))))))
+                       (let* ((temp (gensym)))
+                         (flet ((bounded-float (type low high)
+                                  `(,type
+                                    ,(if low
+                                         (if (listp low)
+                                           (list (coerce (car low) type))
+                                           (coerce low type))
+                                         '*)
+                                    ,(if high
+                                         (if (listp high)
+                                           (list (coerce (car high) type))
+                                           (coerce high type))
+                                         '*))))
+                         `(let* ((,temp ,thing))
+                           (or (typep ,temp ',(bounded-float 'single-float low high))
+                            (typep ,temp ',(bounded-float 'double-float low high)))))))
+                      (t
+                       (let* ((temp (gensym)))
+                         (if (and (typep low 'fixnum) (typep high 'fixnum))
+                           (setq type 'fixnum))
+                         (if (or low high)
+                           `(let* ((,temp ,thing))
+                             (and (typep ,temp ',type)
+                              ,@(if low `((,(if (consp low) '> '>=) (the ,type ,temp) ,(if (consp low) (car low) low))))
+                              ,@(if high `((,(if (consp high) '< '<=) (the ,type ,temp) ,(if (consp high) (car high) high))))))
+                           `(typep ,thing ',type)))))))
+             (t `(numeric-%%typep ,thing ,ctype))))
+      (array-ctype
+       (or
+        (let* ((typecode (array-ctype-typecode ctype))
+               (dims (array-ctype-dimensions ctype)))
+          (cond ((and typecode (consp dims) (null (cdr dims)))
+                 (case (array-ctype-complexp ctype)
+                   ((nil)
+                    (if (eq (car dims) '*)
+                      `(eql (typecode ,thing) ,typecode)
+                      (let* ((temp (gensym)))
+                        `(let* ((,temp ,thing))
+                          (and (eql (typecode ,temp) ,typecode)
+                           (eq (uvsize ,temp) ,(car dims)))))))
+                   ((* :maybe)
+                    (let* ((temp (gensym))
+                           (tempcode (gensym)))
+                      `(let* ((,temp ,thing)
+                              (,tempcode (typecode ,temp)))
+                        (or (and (eql ,tempcode ,typecode)
+                             ,@(unless (eq (car dims) '*)
+                                       `((eq (uvize ,temp) ,(car dims)))))
+                         (and (eql ,tempcode target::subtag-vectorH)
+                          (eql (ldb target::arrayH.flags-cell-subtag-byte (the fixnum (%svref ,temp target::arrayH.flags-cell))) ,typecode)
+                          ,@(unless (eq (car dims) '*)
+                                    `((eq (%svref ,temp target::vectorH.logsize-cell) ,(car dims)))))))))))))
+        `(array-%%typep ,thing ,ctype))))))
+
+                              
+  
 (defun optimize-typep (thing type env)
   ;; returns a new form, or nil if it can't optimize
-  (cond ((symbolp type)
-         (let ((typep (type-predicate type)))
-           (cond ((and typep
-                       (symbolp typep))
-                  `(,typep ,thing))
-                 ((%deftype-expander type)
-                  ;; recurse here, rather than returning the
-                  ;; partially-expanded form mostly since it doesn't
-                  ;; seem to further optimize the result otherwise
-                  (let ((expanded-type (type-expand type)))
-                    (or (optimize-typep thing expanded-type env)
-                        ;; at least do the first expansion
-                        `(typep ,thing ',expanded-type))))
-                 ((structure-class-p type env)
-                  `(structure-typep ,thing ',type))
-                 ((find-class type nil env)
-                  `(class-cell-typep ,thing (load-time-value (find-class-cell ',type t))))
-                 ((info-type-builtin type) ; bootstrap troubles here?
-                  `(builtin-typep ,thing (load-time-value (find-builtin-cell ',type))))
-                 (t nil))))
-        ((consp type)
-         (cond 
-          ((info-type-builtin type)  ; byte types
-           `(builtin-typep ,thing (load-time-value (find-builtin-cell ',type))))
-          (t 
-           (case (%car type)
-             (satisfies `(funcall ',(cadr type) ,thing))
-             (eql `(eql ,thing ',(cadr type)))
-             (member `(not (null (member ,thing ',(%cdr type)))))
-             (not `(not (typep ,thing ',(cadr type))))
-             ((or and)
-              (let ((thing-sym (gensym)))
-                `(let ((,thing-sym ,thing))
-                   (,(%car type)
-                    ,@(mapcar #'(lambda (type-spec)
-                                  (or (optimize-typep thing-sym type-spec env)
-                                      `(typep ,thing-sym ',type-spec)))
-                              (%cdr type))))))
-             ((signed-byte unsigned-byte integer mod)  ; more byte types
-              `(builtin-typep ,thing (load-time-value (find-builtin-cell ',type))))
-             (t nil)))))
-        (t nil)))
+  (let* ((ctype (ignore-errors (specifier-type type))))
+    (when (and ctype (not (typep ctype 'unknown-ctype)))
+      (let* ((type (type-specifier ctype))
+             (predicate (if (typep type 'symbol) (type-predicate type))))
+        (if (and predicate (symbolp predicate))
+          `(,predicate ,thing)
+          (or (optimize-ctypep thing ctype)
+              (cond ((symbolp type)
+                     (cond ((%deftype-expander type)
+                            ;; recurse here, rather than returning the
+                            ;; partially-expanded form mostly since it doesn't
+                            ;; seem to further optimize the result otherwise
+                            (let ((expanded-type (type-expand type)))
+                              (or (optimize-typep thing expanded-type env)
+                                  ;; at least do the first expansion
+                                  `(typep ,thing ',expanded-type))))
+                           ((structure-class-p type env)
+                            `(structure-typep ,thing ',type))
+                           ((find-class type nil env)
+                            `(class-cell-typep ,thing (load-time-value (find-class-cell ',type t))))
+                           ((info-type-builtin type) ; bootstrap troubles here?
+                            `(builtin-typep ,thing (load-time-value (find-builtin-cell ',type))))
+                           (t nil)))
+                    ((consp type)
+                     (cond 
+                       ((info-type-builtin type) ; byte types
+                        `(builtin-typep ,thing (load-time-value (find-builtin-cell ',type))))
+                       (t 
+                        (case (%car type)
+                          (satisfies `(funcall ',(cadr type) ,thing))
+                          (eql `(eql ,thing ',(cadr type)))
+                          (member `(not (null (member ,thing ',(%cdr type)))))
+                          (not `(not (typep ,thing ',(cadr type))))
+                          ((or and)
+                           (let ((thing-sym (gensym)))
+                             `(let ((,thing-sym ,thing))
+                               (,(%car type)
+                                ,@(mapcar #'(lambda (type-spec)
+                                              (or (optimize-typep thing-sym type-spec env)
+                                                  `(typep ,thing-sym ',type-spec)))
+                                          (%cdr type))))))
+                          ((signed-byte unsigned-byte integer mod) ; more byte types
+                           `(builtin-typep ,thing (load-time-value (find-builtin-cell ',type))))
+                          (t nil)))))
+                    (t nil))))))))
 
 (define-compiler-macro typep  (&whole call &environment env thing type &optional e)
   (declare (ignore e))
   (if (quoted-form-p type)
     (or (optimize-typep thing (%cadr type) env)
         call)
-    call))
+    (if (eq type t)
+      `(progn ,thing t)
+      call)))
 
 (define-compiler-macro true (&rest args)
   `(progn
@@ -1749,6 +1845,21 @@
 (define-compiler-macro simple-string-p (thing)
   `(simple-base-string-p ,thing))
 
+(define-compiler-macro stringp (thing)
+  `(base-string-p  ,thing))
+
+(define-compiler-macro base-string-p (thing)
+  (let* ((gthing (gensym))
+         (gtype (gensym)))
+    `(let* ((,gthing ,thing)
+            (,gtype (typecode ,thing)))
+      (declare (type (unsigned-byte 8) ,gtype))
+      (if (= ,gtype ,(nx-lookup-target-uvector-subtag :vector-header))
+        (= (the (unsigned-byte 8)
+             (ldb target::arrayH.flags-cell-subtag-byte (the fixnum (%svref ,gthing target::arrayH.flags-cell))))
+           ,(nx-lookup-target-uvector-subtag :simple-string))
+        (= ,gtype ,(nx-lookup-target-uvector-subtag :simple-string))))))
+
 
 (defsetf %misc-ref %misc-set)
 
@@ -1764,8 +1875,9 @@
          (bignum-tag (nx-lookup-target-uvector-subtag :bignum)))
     `(let* ((,typecode (typecode ,thing)))
       (declare (fixnum ,typecode))
-      (or (= ,typecode ,fixnum-tag)
-       (= ,typecode ,bignum-tag)))))
+      (if (= ,typecode ,fixnum-tag)
+        t
+        (= ,typecode ,bignum-tag)))))
        
 (define-compiler-macro %composite-pointer-ref (size pointer offset)
   (if (constantp size)
