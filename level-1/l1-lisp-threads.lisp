@@ -83,18 +83,20 @@
   INTERNAL-TIME-UNITS-PER-SECOND.) This is useful for finding elapsed time."
   (rlet ((tv :timeval))
     (#_gettimeofday tv (%null-ptr))
-    (let* ((micros (truncate (the fixnum (pref tv :timeval.tv_usec)) 1000))
+    (let* ((units (truncate (the fixnum (pref tv :timeval.tv_usec)) (/ 1000000 internal-time-units-per-second)))
            (initial *internal-real-time-session-seconds*))
       (if initial
         (locally
             (declare (type (unsigned-byte 32) initial))
-          (+ (* 1000 (the (unsigned-byte 32)
-                       (- (the (unsigned-byte 32) (pref tv :timeval.tv_sec))
-                          initial))) micros))
+          (+ (* internal-time-units-per-second
+                (the (unsigned-byte 32)
+                  (- (the (unsigned-byte 32) (pref tv :timeval.tv_sec))
+                     initial)))
+             units))
         (progn
           (setq *internal-real-time-session-seconds*
                 (pref tv :timeval.tv_sec))
-          micros)))))
+          units)))))
 
 (defun get-tick-count ()
   (values (floor (get-internal-real-time)
@@ -1097,8 +1099,8 @@ no longer being used."
   (let* ((thread (new-lisp-thread-from-tcr (%current-tcr) "foreign")))
     (setq *current-lisp-thread* thread
 	  *current-process*
-	  (make-process "foreign" :thread thread))
-    (setf (%process-whostate *current-process*) "Foreign thread callback")))
+	  (make-process "foreign" :thread thread)
+          *whostate* "Foreign thread callback")))
     
 ;;; Remove the foreign thread's lisp-thread and lisp process from
 ;;; the global lists.
