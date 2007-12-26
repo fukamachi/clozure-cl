@@ -39,7 +39,7 @@
 
 (defparameter *x862-operator-supports-u8-target* ())
 (defparameter *x862-operator-supports-push* ())
-
+(defparameter *x862-tos-reg* ())
 
 
 
@@ -66,11 +66,13 @@
          (labelnum-var (gensym))
          (retvreg-var (gensym))
          (label-var (gensym)))
-    `(macrolet ((! (,template-name-var &rest ,args-var)
+    `(macrolet ((! (,template-name-var &rest ,args-var)                 
                   (let* ((,template-temp (get-vinsn-template-cell ,template-name-var (backend-p2-vinsn-templates *target-backend*))))
                     (unless ,template-temp
                       (warn "VINSN \"~A\" not defined" ,template-name-var))
-                    `(%emit-vinsn ,',segvar ',,template-name-var (backend-p2-vinsn-templates *target-backend*) ,@,args-var))))
+                    `(prog1
+                      (%emit-vinsn ,',segvar ',,template-name-var (backend-p2-vinsn-templates *target-backend*) ,@,args-var)
+                      (setq *x862-tos-reg* nil)))))
        (macrolet ((<- (,retvreg-var)
                     `(x862-copy-register ,',segvar ,',vreg-var ,,retvreg-var))
                   (@  (,labelnum-var)
@@ -460,6 +462,7 @@
            (*x862-target-half-fixnum-type* `(signed-byte ,(- *x862-target-bits-in-word*
                                                             (1+ *x862-target-fixnum-shift*))))
            (*x862-target-dnode-size* (* 2 *x862-target-lcell-size*))
+           (*x862-tos-reg* nil)
            (*x862-all-lcells* ())
            (*x862-top-vstack-lcell* nil)
            (*x862-bottom-vstack-lcell* (x862-new-vstack-lcell :bottom 0 0 nil))
@@ -1238,7 +1241,11 @@
 
 (defun x862-stack-to-register (seg memspec reg)
   (with-x86-local-vinsn-macros (seg)
-    (! vframe-load reg (memspec-frame-address-offset memspec) *x862-vstack*)))
+    (let* ((offset (memspec-frame-address-offset memspec)))
+      (if (and *x862-tos-reg*
+               (= offset (- *x862-vstack* *x862-target-node-size*)))
+        (x862-copy-register seg reg *x862-tos-reg*)
+        (! vframe-load reg offset  *x862-vstack*)))))
 
 (defun x862-lcell-to-register (seg lcell reg)
   (with-x86-local-vinsn-macros (seg)
@@ -3289,9 +3296,12 @@
               (unless (or js32 (eq cr-bit x86::x86-e-bits))
                 (setq cr-bit (x862-reverse-cr-bit cr-bit)))
               (^ cr-bit true-p))
-            (if (and (eq cr-bit x86::x86-e-bits) 
+            (if (and ;(eq cr-bit x86::x86-e-bits) 
                      (or js32 is32))
-              (x862-test-reg-%izerop 
+              (progn
+                (unless (or js32 (eq cr-bit x86::x86-e-bits))
+                  (setq cr-bit (x862-reverse-cr-bit cr-bit)))
+              (x862-test-reg-%izerop
                seg 
                vreg 
                xfer 
@@ -3301,7 +3311,7 @@
                 x8664::arg_z) 
                cr-bit 
                true-p 
-               (or js32 is32))
+               (or js32 is32)))
               (multiple-value-bind (ireg jreg) (x862-two-untargeted-reg-forms seg i x8664::arg_y j x8664::arg_z)
                 (x862-compare-registers seg vreg xfer ireg jreg cr-bit true-p)))))))))
 
@@ -3494,6 +3504,7 @@
   (with-x86-local-vinsn-macros (seg)
     (prog1
       (! vpush-register src)
+      (setq *x862-tos-reg* src)
       (x862-new-vstack-lcell (or why :node) *x862-target-lcell-size* (or attr 0) info)
       (x862-adjust-vstack *x862-target-node-size*))))
 
@@ -7007,11 +7018,20 @@
 (defun x862-char-p (seg vreg xfer cc form)
   (with-x86-local-vinsn-macros (seg vreg xfer)
     (multiple-value-bind (cr-bit true-p) (acode-condition-to-x86-cr-bit cc)
-      (! mask-base-char x8664::imm0 (x862-one-untargeted-reg-form seg form x8664::arg_z))
-      (x862-test-reg-%izerop seg vreg xfer x8664::imm0 cr-bit true-p
-                             (target-arch-case
-                              
-                              (:x8664 x8664::subtag-character))))))
+      (! compare-u8-constant (x862-one-untargeted-reg-form seg form x8664::arg_z)
+         (target-arch-case
+          (:x8664 x8664::subtag-character)))
+      (setq cr-bit (x862-cr-bit-for-unsigned-comparison cr-bit))
+      (regspec-crf-gpr-case 
+       (vreg dest)
+       (^ cr-bit true-p)
+       (progn
+         (ensuring-node-target (target dest)
+           (if (not true-p)
+             (setq cr-bit (logxor 1 cr-bit)))
+           (! cr-bit->boolean target cr-bit))
+         (^))))))
+
 
 
 (defx862 x862-let* let* (seg vreg xfer vars vals body p2decls &aux
