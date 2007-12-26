@@ -132,13 +132,15 @@
     (#.(%nx1-operator %single-to-double) . double-float)
     (#.(%nx1-operator %fixnum-to-single) . single-float)
     (#.(%nx1-operator %fixnum-to-double) . double-float)
+    (#.(%nx1-operator char-code) . #.`(integer 0 (,char-code-limit)))
    ))
 
 (defparameter *nx-operator-result-types-by-name*
   '((%ilognot . fixnum)
     (%ilogxor . fixnum)
     (%ilogand . fixnum)
-    (%ilogior . fixnum)))
+    (%ilogior . fixnum)
+    (char-code . #. `(integer 0 (,char-code-limit)))))
 
 (setq *nx-known-declarations*
   '(special inline notinline type ftype function ignore optimize dynamic-extent ignorable
