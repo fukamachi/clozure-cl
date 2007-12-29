@@ -3732,7 +3732,7 @@
     (bla ,spno)))
 
 (defmacro define-ppc32-subprim-jump-vinsn ((name &rest other-attrs) spno)
-  `(define-ppc32-vinsn (,name :jump :jumpLR ,@other-attrs) (() ())
+  `(define-ppc32-vinsn (,name  :jumpLR ,@other-attrs) (() ())
     (ba ,spno)))
 
 (define-ppc32-subprim-jump-vinsn (restore-interrupt-level) .SPrestoreintlevel)
@@ -3865,7 +3865,7 @@
 ;;; a JUMP (to a possibly unknown destination).  If the destination's
 ;;; really known, it should probably be inlined (stack-cleanup, value
 ;;; transfer & jump ...)
-(define-ppc32-vinsn (throw :jump :jump-unknown) (()
+(define-ppc32-vinsn (throw :jump-unknown) (()
                                                  ())
   (bla .SPthrow))
 
