@@ -151,3 +151,28 @@
     (slri accum accum 5)
     (srri arg_z accum (- 5 target::fixnumshift))
     (blr)))
+
+(defppclapfunction %string-hash ((start arg_x) (str arg_y) (len arg_z))
+  (let ((nextw imm1)
+        (accum imm0)
+        (offset imm2))
+    (cmpwi cr0 len 0)
+    #+32-bit-target
+    (la offset target::misc-data-offset start)
+    #+64-bit-target
+    (progn
+      (srwi offset start 1)
+      (la offset target::misc-data-offset offset))
+    (li accum 0)
+    (beqlr- cr0)    
+    @loop
+    (cmpri cr1 len '1)
+    (subi len len '1)
+    (lwzx nextw str offset)
+    (addi offset offset 4)
+    (rotlwi accum accum 5)
+    (xor accum accum nextw)
+    (bne cr1 @loop)
+    (slri accum accum 5)
+    (srri arg_z accum (- 5 target::fixnumshift))
+    (blr)))
