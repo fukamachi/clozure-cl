@@ -184,8 +184,6 @@
 
               (when restp
                 (push (if lexprp '&lexpr '&rest) res)
-                (when nkeys
-                  (when (> idx nkeys) (decf idx nkeys)))
                 (push (if (> idx 0) (elt map (decf idx)) 'the-rest) res))                  (when nkeys
                 (push '&key res)
                 (let ((keyvect (lfun-keyvect lfun)))
