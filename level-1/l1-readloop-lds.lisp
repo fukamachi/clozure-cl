@@ -460,8 +460,8 @@ binding of that symbol is used - or an integer index into the frame's set of loc
         (*print-array* nil)
         (*print-escape* t)
         (*print-gensym* t)
-        (*print-length* *backtrace-print-length*)  ; ?
-        (*print-level* *backtrace-print-level*)   ; ?
+        (*print-length* *error-print-length*)
+        (*print-level* *error-print-level*)
         (*print-lines* nil)
         (*print-miser-width* nil)
         (*print-readably* nil)
@@ -574,8 +574,8 @@ binding of that symbol is used - or an integer index into the frame's set of loc
       (with-toplevel-commands :break
         (if *continuablep*
           (let* ((*print-circle* *error-print-circle*)
-                 (*print-level* *backtrace-print-level*)
-                 (*print-length* *backtrace-print-length*)
+                 (*print-level* 10)
+                 (*print-length* 20)
 					;(*print-pretty* nil)
                  (*print-array* nil))
             (format t "~&> Type :GO to continue, :POP to abort, :R for a list of available restarts.")
