@@ -4081,7 +4081,7 @@
 	     (broadcast-method stream-terpri (s))
 	     (broadcast-method stream-force-output (s))
 	     (broadcast-method stream-finish-output (s))
-	     (broadcast-method stream-stream-write-list (s l c))
+	     (broadcast-method stream-write-list (s l c))
 	     (broadcast-method stream-write-vector (s v start end)))
 
 (defun last-broadcast-stream (s)
@@ -5191,6 +5191,11 @@
                                  :address fdset
                                  :unsigned-fullword)))))
 
+(defun process-input-would-block (fd)
+  (if (logtest #$O_NONBLOCK (the fixnum (fd-get-flags fd)))
+    (process-input-wait fd)
+    (- #$ETIMEDOUT)))
+    
 (defun process-input-wait (fd &optional ticks)
   "Wait until input is available on a given file-descriptor."
   (let* ((wait-end (if ticks (+ (get-tick-count) ticks))))
@@ -5211,6 +5216,10 @@
             (setq ticks (- wait-end now))))))))
 
 
+(defun process-output-would-block (fd)
+  (if (logtest #$O_NONBLOCK (the fixnum (fd-get-flags fd)))
+    (process-output-wait fd)
+    (- #$ETIMEDOUT)))
 
 (defun process-output-wait (fd)
   "Wait until output is possible on a given file descriptor."
@@ -5338,11 +5347,7 @@
     (setf (io-buffer-idx buf) 0
           (io-buffer-count buf) 0
           (ioblock-eof ioblock) nil)
-    (let* ((avail nil))
-      (when (or read-p (setq avail (stream-listen s)))
-        (if (and (ioblock-interactive ioblock)
-                 (not avail))
-	  (process-input-wait fd))
+      (when (or read-p (stream-listen s))
         (let* ((n (with-eagain fd :input
 		    (fd-read fd bufptr size))))
           (declare (fixnum n))
@@ -5352,7 +5357,7 @@
               (setf (io-buffer-count buf)
 		    (ioblock-octets-to-elements ioblock n))
               (progn (setf (ioblock-eof ioblock) t)
-                     nil))))))))
+                     nil)))))))
 
 (defun fd-stream-eofp (s ioblock)
   (declare (ignore s))
