@@ -1041,7 +1041,14 @@ Generic-function's   : ~s~%" method (or (generic-function-name gf) gf) (flatten-
       (set-slot-value instance 'x new)))
 
 
+(defstatic *non-dt-dcode-functions* () "List of functions which return a dcode function for the GF which is their argument.  The dcode functions will be caled with all of the incoming arguments.")
 
+(defun non-dt-dcode-function (gf)
+  (dolist (f *non-dt-dcode-functions*)
+    (let* ((dcode (funcall f gf)))
+      (when dcode (return dcode)))))
+
+           
 (defparameter dcode-proto-alist
   (list (cons #'%%one-arg-dcode *gf-proto-one-arg*)
         (cons #'%%1st-two-arg-dcode *gf-proto-two-arg*)))
@@ -1070,17 +1077,19 @@ Generic-function's   : ~s~%" method (or (generic-function-name gf) gf) (flatten-
             (when index
               (if (or (null min-index) (< index min-index))
                 (setq min-index index))))))
-      (let ((dcode (if 0-args?
-                     #'%%0-arg-dcode
-                     (or (if multi-method-index
-                           #'%%nth-arg-dcode)
-                         (if (null other-args?)
-                           (if (eql nreq 1)
-                             #'%%one-arg-dcode
-                             (if (eql nreq 2)
-                               #'%%1st-two-arg-dcode
-                               #'%%1st-arg-dcode))                            
-                             #'%%1st-arg-dcode)))))
+      (let* ((non-dt (non-dt-dcode-function gf))
+             (dcode (or non-dt
+                        (if 0-args?
+                          #'%%0-arg-dcode
+                          (or (if multi-method-index
+                                #'%%nth-arg-dcode)
+                              (if (null other-args?)
+                                (if (eql nreq 1)
+                                  #'%%one-arg-dcode
+                                  (if (eql nreq 2)
+                                    #'%%1st-two-arg-dcode
+                                    #'%%1st-arg-dcode))
+                                #'%%1st-arg-dcode))))))
         (setq multi-method-index
               (if multi-method-index
                 (if min-index
@@ -1092,9 +1101,11 @@ Generic-function's   : ~s~%" method (or (generic-function-name gf) gf) (flatten-
                                              (eq '%%call-gf-encapsulation 
                                                  (function-name (%combined-method-dcode old-dcode)))
                                              (cdr (%combined-method-methods old-dcode)))))
-          (when (or (neq dcode (if encapsulated-dcode-cons (cdr encapsulated-dcode-cons) old-dcode))
+          (when (or non-dt (neq dcode (if encapsulated-dcode-cons (cdr encapsulated-dcode-cons) old-dcode))
                     (neq multi-method-index (%gf-dispatch-table-argnum dt)))
-            (let ((proto (or (cdr (assq dcode dcode-proto-alist)) *gf-proto*)))
+            (let* ((proto (if non-dt
+                            #'funcallable-trampoline
+                            (or (cdr (assq dcode dcode-proto-alist)) *gf-proto*))))
               (clear-gf-dispatch-table dt)
               (setf (%gf-dispatch-table-argnum dt) multi-method-index)
               (if encapsulated-dcode-cons ; and more?
@@ -1324,10 +1335,12 @@ to replace that class with ~s" name old-class new-class)
   (%istruct 'class-ctype *class-type-class* nil class nil))
 
 
-(defvar *t-class* (let ((class (%cons-built-in-class 't)))
-                    (setf (%class.cpl class) (list class))
-                    (setf (%class.own-wrapper class)
-                          (%cons-wrapper class (new-class-wrapper-hash-index)))
+(defvar *t-class* (let* ((class (%cons-built-in-class 't))
+                         (wrapper (%cons-wrapper class (new-class-wrapper-hash-index)))
+                         (cpl (list class)))
+                    (setf (%class.cpl class) cpl)
+                    (setf (%wrapper-cpl wrapper) cpl)
+                    (setf (%class.own-wrapper class) wrapper)
                     (setf (%class.ctype class) (make-class-ctype class))
                     (setf (find-class 't) class)
                     class))
@@ -1426,12 +1439,12 @@ to replace that class with ~s" name old-class new-class)
                        own-wrapper)
                      (%cons-wrapper class))))
       (setf (%class.cpl class) cpl
-            (%wrapper-instance-slots wrapper) (vector)
+            (%wrapper-instance-slots wrapper) (vector)            
             (%class.own-wrapper class) wrapper
             (%class.ctype class) (make-class-ctype class)
             (%class.slots class) nil
-            (find-class name) class
-            )
+            (%wrapper-cpl wrapper) cpl
+            (find-class name) class)
       (dolist (sup supers)
         (setf (%class.subclasses sup) (cons class (%class.subclasses sup))))
       class)))
