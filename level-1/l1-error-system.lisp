@@ -367,7 +367,7 @@
 (define-condition reader-error (parse-error stream-error) ())
 (define-condition end-of-file (stream-error) ()
   (:report (lambda (c s)
-             (format s "Unexpected end of file ~s" (stream-error-context c)))))
+             (format s "Unexpected end of file ~a" (stream-error-context c)))))
 (define-condition impossible-number (reader-error)
   ((token :initarg :token :reader impossible-number-token)
    (condition :initarg :condition :reader impossible-number-condition))
@@ -381,7 +381,7 @@
     
 (define-condition simple-stream-error (stream-error simple-condition) () 
   (:report (lambda (c s) 
-             (format s "Error ~s : ~&~a" (stream-error-context c) 
+             (format s "~a : ~&~a" (stream-error-context c) 
                      (apply #'format
                             nil
                             (simple-condition-format-control c)
