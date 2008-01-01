@@ -547,7 +547,8 @@
     (unless (equal (%class.cpl class) cpl)
       (setf (%class.cpl class) cpl)
       #|(force-cache-flushes class)|#)
-    (setf (%class.cpl class) cpl)))
+    (setf (%class.cpl class) cpl))
+  cpl)
 
 
 (defun class-has-a-forward-referenced-superclass-p (original)
@@ -1097,6 +1098,7 @@ governs whether DEFCLASS makes that distinction or not.")
 		 (:name writers :initargs (:writers) :initform nil
 		  :initfunction ,#'false :readers (slot-definition-writers))))
 
+
 (%ensure-class-preserving-wrapper
  'effective-slot-definition
  :direct-superclasses '(slot-definition)
@@ -1126,6 +1128,7 @@ governs whether DEFCLASS makes that distinction or not.")
  'standard-direct-slot-definition
  :direct-superclasses '(standard-slot-definition direct-slot-definition)
 )
+
 
 (%ensure-class-preserving-wrapper
  'standard-effective-slot-definition
@@ -2175,3 +2178,31 @@ changing its name to ~s may have serious consequences." class new))
         (incf nwin)))
     (values ngf nwin 0)))
 
+(defun register-non-dt-dcode-function (f)
+  (flet ((symbol-or-function-name (x)
+           (etypecase x
+             (symbol x)
+             (function (function-name x)))))
+    (let* ((already (member (symbol-or-function-name f) *non-dt-dcode-functions* :key #'symbol-or-function-name)))
+      (if already
+        (setf (car already) f)
+        (push f *non-dt-dcode-functions*))
+      f)))
+
+(defun dcode-for-universally-applicable-singleton (gf)
+  (let* ((methods (generic-function-methods gf))
+         (method (car methods)))
+    (when (and method
+               (null (cdr methods))
+               (null (method-qualifiers method))
+               (dolist (spec (method-specializers method) t)
+                 (unless (eq spec *t-class*)
+                   (return nil))))
+      (method-function method))))
+
+(register-non-dt-dcode-function #'dcode-for-universally-applicable-singleton)
+
+
+
+
+      
