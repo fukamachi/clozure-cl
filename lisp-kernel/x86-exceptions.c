@@ -1361,7 +1361,7 @@ install_signal_handler(int signo, void * handler)
   sigdelset(&sa.sa_mask,SIGSEGV);
 #endif
   sa.sa_flags = 
-    SA_RESTART
+    0 /* SA_RESTART */
 #ifdef USE_SIGALTSTACK
     | SA_ONSTACK
 #endif
