@@ -3384,6 +3384,29 @@
            (^))))
       (^))))
 
+(defun x862-compare-register-to-constant (seg vreg xfer ireg cr-bit true-p constant)
+  (cond ((eq constant *nx-nil*)
+         (x862-compare-register-to-nil seg vreg xfer ireg cr-bit true-p))
+        (t
+         (with-x86-local-vinsn-macros (seg vreg xfer)
+           (when vreg
+             (if (eq constant *nx-t*)
+               (! compare-to-t ireg)
+               (let* ((imm (x862-immediate-operand constant))
+                      (reg (x862-register-constant-p imm))) 
+                 (if reg
+                   (! compare-registers reg ireg)
+                   (! compare-constant-to-register (x86-immediate-label imm) ireg))))
+             (regspec-crf-gpr-case 
+              (vreg dest)
+              (^ cr-bit true-p)
+              (progn
+                (ensuring-node-target (target dest)
+                  (if (not true-p)
+                    (setq cr-bit (logxor 1 cr-bit)))
+                  (! cr-bit->boolean target cr-bit))
+                (^))))))))
+         
 (defun x862-compare-register-to-nil (seg vreg xfer ireg cr-bit true-p)
   (with-x86-local-vinsn-macros (seg vreg xfer)
     (when vreg
@@ -6147,13 +6170,30 @@
         (! fixnum->char target reg)))
     (^)))
 
+(defun x862-eq-test (seg vreg xfer cc form1 form2)
+  (with-x86-local-vinsn-macros (seg)
+    (multiple-value-bind (cr-bit true-p) (acode-condition-to-x86-cr-bit cc)
+      (let* ((f1 (acode-unwrapped-form form1))
+             (f2 (acode-unwrapped-form form2)))
+        (cond ((or (eq f1 *nx-nil*)
+                   (eq f1 *nx-t*)
+                   (and (acode-p f1)
+                        (eq (acode-operator f1) (%nx1-operator immediate))))
+               (x862-compare-register-to-constant seg vreg xfer (x862-one-untargeted-reg-form seg form2 ($ x8664::arg_z)) cr-bit true-p f1))
+              ((or (eq f2 *nx-nil*)
+                   (eq f2 *nx-t*)
+                   (and (acode-p f2)
+                        (eq (acode-operator f2) (%nx1-operator immediate))))
+               (x862-compare-register-to-constant seg vreg xfer
+                                                  (x862-one-untargeted-reg-form seg form1 ($ x8664::arg_z))
+                                                  cr-bit true-p f2))
+              (t (x862-compare seg vreg xfer form1 form2 cr-bit true-p)))))))
+
 (defx862 x862-eq eq (seg vreg xfer cc form1 form2)
-  (multiple-value-bind (cr-bit true-p) (acode-condition-to-x86-cr-bit cc)
-    (x862-compare seg vreg xfer form1 form2 cr-bit true-p)))
+  (x862-eq-test seg vreg xfer cc form1 form2))
 
 (defx862 x862-neq neq (seg vreg xfer cc form1 form2)
-  (multiple-value-bind (cr-bit true-p) (acode-condition-to-x86-cr-bit cc)
-    (x862-compare seg vreg xfer form1 form2 cr-bit true-p)))
+  (x862-eq-test seg vreg xfer cc form1 form2))
 
 (defx862 x862-numcmp numcmp (seg vreg xfer cc form1 form2)
   (let* ((name (ecase (cadr cc)
