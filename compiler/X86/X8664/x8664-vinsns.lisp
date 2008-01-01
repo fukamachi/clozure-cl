@@ -525,10 +525,19 @@
                                     ((arg0 t)))
   (cmpb (:$b x8664::fulltag-nil) (:%b arg0)))
 
+(define-x8664-vinsn compare-to-t (()
+                                    ((arg0 t)))
+  (cmpq (:$l x8664::t-value) (:%q arg0)))
 
 (define-x8664-vinsn ref-constant (((dest :lisp))
                                   ((lab :label)))
   (movq (:@ (:^ lab) (:%q x8664::fn)) (:%q dest)))
+
+(define-x8664-vinsn compare-constant-to-register (()
+                                                  ((lab :label)
+                                                   (reg :lisp)))
+  (cmpq (:@ (:^ lab) (:%q x8664::fn)) (:%q reg)))
+
 
 (define-x8664-vinsn (vpush-constant :push :node :vsp) (()
                                                        ((lab :label)))
