@@ -3503,10 +3503,13 @@ to be at least partially steppable."
    `(loop
       (let ((,res (progn ,@body)))
 	(if (eql ,res (- ,eagain))
-	  (,(ecase direction
-	     (:input 'process-input-wait)
-	     (:output 'process-output-wait))
-	   ,fd)
+          (progn
+            (setq ,res
+                  (,(ecase direction
+                           (:input 'process-input-would-block)
+                           (:output 'process-output-would-block))
+                    ,fd))
+            (unless (eq ,res t) (return ,res)))
 	  (return ,res))))))
 
 (defmacro basic-stream-ioblock (s)
