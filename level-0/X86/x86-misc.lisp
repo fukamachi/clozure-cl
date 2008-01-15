@@ -719,7 +719,7 @@
     (movq (@ (ash (foreign-record-field-offset (%find-foreign-record-type-field (parse-foreign-type '(:struct :__mcontext)) :mc_r12)) -3) (% arg_y)) (% r12))
     (movq (@ (ash (foreign-record-field-offset (%find-foreign-record-type-field (parse-foreign-type '(:struct :__mcontext)) :mc_r11)) -3) (% arg_y)) (% r11))
     (movq (@ (ash (foreign-record-field-offset (%find-foreign-record-type-field (parse-foreign-type '(:struct :__mcontext)) :mc_rbp)) -3) (% arg_y)) (% rbp))
-    (movq (@ (ash (foreign-record-field-offset (%find-foreign-record-type-field (parse-foreign-type '(:struct :__mcontext)) :mc_rsp) -3) (% arg_y)) (% rsp))))
+    (movq (@ (ash (foreign-record-field-offset (%find-foreign-record-type-field (parse-foreign-type '(:struct :__mcontext)) :mc_rsp)) -3) (% arg_y)) (% rsp)))
   #+darwinx8664-target
   (progn
     ;; Yes, this is ugly.
