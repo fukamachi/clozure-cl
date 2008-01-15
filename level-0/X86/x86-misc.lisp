@@ -512,112 +512,6 @@
   (movb ($ x8664::subtag-dead-macptr) (@ x8664::misc-subtag-offset (% macptr)))
   (single-value-return))
 
-#+are-you-kidding
-(defx86lapfunction %%apply-in-frame ((catch-count imm0) (srv temp0) (tsp-count imm0) (db-link imm0)
-                                     (parent arg_x) (function arg_y) (arglist arg_z))
-  (check-nargs 7)
-
-  ; Throw through catch-count catch frames
-  (lwz imm0 12 vsp)                      ; catch-count
-  (vpush parent)
-  (vpush function)
-  (vpush arglist)
-  (bla .SPnthrowvalues)
-
-  ; Pop tsp-count TSP frames
-  (lwz tsp-count 16 vsp)
-  (cmpi cr0 tsp-count 0)
-  (b @test)
-@loop
-  (subi tsp-count tsp-count '1)
-  (cmpi cr0 tsp-count 0)
-  (lwz tsp 0 tsp)
-@test
-  (bne cr0 @loop)
-
-  ; Pop dynamic bindings until we get to db-link
-  (lwz imm0 12 vsp)                     ; db-link
-  (lwz imm1 x8664::tcr.db-link :rcontext)
-  (cmp cr0 imm0 imm1)
-  (beq cr0 @restore-regs)               ; .SPunbind-to expects there to be something to do
-  (bla .SPunbind-to)
-
-@restore-regs
-  ; restore the saved registers from srv
-  (lwz srv 20 vsp)
-@get0
-  (svref imm0 1 srv)
-  (cmpwi cr0 imm0 x8664::nil-value)
-  (beq @get1)
-  (lwz save0 0 imm0)
-@get1
-  (svref imm0 2 srv)
-  (cmpwi cr0 imm0 x8664::nil-value)
-  (beq @get2)
-  (lwz save1 0 imm0)
-@get2
-  (svref imm0 3 srv)
-  (cmpwi cr0 imm0 x8664::nil-value)
-  (beq @get3)
-  (lwz save2 0 imm0)
-@get3
-  (svref imm0 4 srv)
-  (cmpwi cr0 imm0 x8664::nil-value)
-  (beq @get4)
-  (lwz save3 0 imm0)
-@get4
-  (svref imm0 5 srv)
-  (cmpwi cr0 imm0 x8664::nil-value)
-  (beq @get5)
-  (lwz save4 0 imm0)
-@get5
-  (svref imm0 6 srv)
-  (cmpwi cr0 imm0 x8664::nil-value)
-  (beq @get6)
-  (lwz save5 0 imm0)
-@get6
-  (svref imm0 7 srv)
-  (cmpwi cr0 imm0 x8664::nil-value)
-  (beq @get7)
-  (lwz save6 0 imm0)
-@get7
-  (svref imm0 8 srv)
-  (cmpwi cr0 imm0 x8664::nil-value)
-  (beq @got)
-  (lwz save7 0 imm0)
-@got
-
-  (vpop arg_z)                          ; arglist
-  (vpop temp0)                          ; function
-  (vpop parent)                         ; parent
-  (extract-lisptag imm0 parent)
-  (cmpi cr0 imm0 x8664::tag-fixnum)
-  (if (:cr0 :ne)
-    ; Parent is a fake-stack-frame. Make it real
-    (progn
-      (svref sp %fake-stack-frame.sp parent)
-      (stwu sp (- x8664::lisp-frame.size) sp)
-      (svref fn %fake-stack-frame.fn parent)
-      (stw fn x8664::lisp-frame.savefn sp)
-      (svref temp1 %fake-stack-frame.vsp parent)
-      (stw temp1 x8664::lisp-frame.savevsp sp)
-      (svref temp1 %fake-stack-frame.lr parent)
-      (extract-lisptag imm0 temp1)
-      (cmpi cr0 imm0 x8664::tag-fixnum)
-      (if (:cr0 :ne)
-        ;; must be a macptr encoding the actual link register
-        (macptr-ptr loc-pc temp1)
-        ;; Fixnum is offset from start of function vector
-        (progn
-          (svref temp2 0 fn)        ; function vector
-          (unbox-fixnum temp1 temp1)
-          (add loc-pc temp2 temp1)))
-      (stw loc-pc x8664::lisp-frame.savelr sp))
-    ;; Parent is a real stack frame
-    (mr sp parent))
-  (set-nargs 0)
-  (bla .SPspreadargz)
-  (ba .SPtfuncallgen))
 
 
 
@@ -759,6 +653,129 @@
   @done
   (restore-simple-frame)
   (single-value-return))
+
+;;; This is a prototype; it can't easily keep its arguments on the stack,
+;;; or in registers, because its job involves unwinding the stack and
+;;; restoring registers.  Its parameters are thus kept in constants,
+;;; and this protoype is cloned (with the right parameters).
+
+(defx86lapfunction %%apply-in-frame-proto ()
+  (:fixed-constants (target-frame target-catch target-db-link target-xcf target-tsp target-foreign-sp save0-offset save1-offset save2-offset save3-offset function args))
+  (check-nargs 0)
+  ;;(uuo-error-debug-trap)
+  (movq (@ 'target-catch (% fn)) (% temp0))
+  (xorl (%l imm0) (%l imm0))
+  (cmpb ($ x8664::fulltag-nil) (%b temp0))
+  (movq (@ (% :rcontext) target::tcr.catch-top) (% arg_z))
+  (jz @did-catch)
+  @find-catch
+  (testq (% arg_z) (% arg_z))
+  (jz @did-catch)                       ; never found target catch
+  (addq ($ '1)  (% imm0))
+  (cmpq (% temp0) (% arg_z))
+  (je @found-catch)
+  (movq (@ target::catch-frame.link (% arg_z)) (% arg_z))
+  (jmp @find-catch)
+  @found-catch
+  (set-nargs 0)                         ; redundant, but ...
+  (lea (@ (:^ @back-from-nthrow) (% fn)) (% ra0))
+  (:talign 4)
+  (jmp-subprim .SPnthrowvalues)
+  @back-from-nthrow
+  (recover-fn-from-rip)
+  @did-catch
+  ;; Restore special bindings
+  (movq (@ 'target-db-link (% fn)) (% imm0))
+  (cmpb ($ x8664::fulltag-nil) (%b imm0))
+  (jz @no-unbind)
+  (call-subprim .SPunbind-to)
+  @no-unbind
+  ;; If there's at least one exception frame between the target
+  ;; frame and the last catch (or the point of departure), restore
+  ;; the NVRs and foreign sp from the oldest such frame
+  (movq (@ 'target-xcf (% fn)) (% arg_z))
+  (cmpb ($ x8664::fulltag-nil) (%b arg_z))
+  (jz @no-xcf)
+  (movq (@ target::xcf.xp (% arg_z)) (% arg_y))
+  ;; arg_y points to a "portable" ucontext.  Find the platform-specifc
+  ;; "gpr vector" in the uc_mcontext, load the NVRs and stack/frame
+  ;; pointer from there.
+  #+linuxx8664-target
+  (progn
+    (addq ($ gp-regs-offset) (% arg_y))
+    (movq (@ (* #$REG_R15 8) (% arg_y)) (% r15))
+    (movq (@ (* #$REG_R14 8) (% arg_y)) (% r14))
+    (movq (@ (* #$REG_R12 8) (% arg_y)) (% r12))
+    (movq (@ (* #$REG_R11 8) (% arg_y)) (% r11))
+    (movq (@ (* #$REG_RBP 8) (% arg_y)) (% rbp))
+    (movq (@ (* #$REG_RSP 8) (% arg_y)) (% rsp)))
+  #+freebsdx8664-target
+  (progn
+    ;; If you think that this is ugly, just wait until you see the Darwin
+    ;; version.
+    (addq ($ gp-regs-offset) (% arg_y))
+    (movq (@ (ash (foreign-record-field-offset (%find-foreign-record-type-field (parse-foreign-type '(:struct :__mcontext)) :mc_r15)) -3) (% arg_y)) (% r15))
+    (movq (@ (ash (foreign-record-field-offset (%find-foreign-record-type-field (parse-foreign-type '(:struct :__mcontext)) :mc_r14)) -3) (% arg_y)) (% r14))
+    (movq (@ (ash (foreign-record-field-offset (%find-foreign-record-type-field (parse-foreign-type '(:struct :__mcontext)) :mc_r12)) -3) (% arg_y)) (% r12))
+    (movq (@ (ash (foreign-record-field-offset (%find-foreign-record-type-field (parse-foreign-type '(:struct :__mcontext)) :mc_r11)) -3) (% arg_y)) (% r11))
+    (movq (@ (ash (foreign-record-field-offset (%find-foreign-record-type-field (parse-foreign-type '(:struct :__mcontext)) :mc_rbp)) -3) (% arg_y)) (% rbp))
+    (movq (@ (ash (foreign-record-field-offset (%find-foreign-record-type-field (parse-foreign-type '(:struct :__mcontext)) :mc_rsp) -3) (% arg_y)) (% rsp))))
+  #+darwinx8664-target
+  (progn
+    (fix this))
+  ;; This is our best (possibly only) chance to get
+  ;; the foreign sp right.
+  (movq (@ target::xcf.prev-xframe (% arg_z)) (% temp0))
+  (movq (@ target::xcf.foreign-sp (% arg_z)) (% imm0))
+  (movq (% temp0) (@ (% :rcontext) target::tcr.xframe))
+  (movq (% imm0) (@ (% :rcontext) target::tcr.foreign-sp))
+  ;; All done processing the xcf.  NVRs may have been
+  ;; saved between the last catch/last xcf and the
+  ;; target frame.  The save-n-offset parameter/constants
+  ;; are either 0 or negative offsets from the target frame
+  ;; of the stack location where the corresponding GPR
+  ;; was saved.
+  @no-xcf
+  (movq (@ 'target-tsp (% fn)) (% imm0))
+  (cmpb ($ x8664::fulltag-nil) (%b imm0))
+  (movq (@ 'target-foreign-sp (% fn)) (% temp0))
+  (je @no-tsp)
+  (movq (% imm0) (@ (% :rcontext) target::tcr.save-tsp))
+  (movq (% imm0) (@ (% :rcontext) target::tcr.next-tsp))
+  @no-tsp
+  (cmpb ($ x8664::fulltag-nil) (%b temp0))
+  (je @no-sp)
+  (movq (% temp0) (@ (% :rcontext) target::tcr.foreign-sp))
+  @no-sp
+  (movq (@ 'target-frame (% fn)) (% rbp))
+  (movq (@ 'save0-offset (% fn)) (% arg_x))
+  (movq (@ 'save1-offset (% fn)) (% arg_y))
+  (movq (@ 'save2-offset (% fn)) (% arg_z))
+  (movq (@ 'save3-offset (% fn)) (% temp0))
+  (testq (% arg_x) (% arg_x))
+  (cmovneq (@ (% rbp) (% arg_x)) (% save0))
+  (testq (% arg_y) (% arg_y))
+  (cmovneq (@ (% rbp) (% arg_x)) (% save1))
+  (testq (% arg_z) (% arg_z))
+  (cmovneq (@ (% rbp) (% arg_x)) (% save2))
+  (testq (% temp0) (% temp0))
+  (cmovneq (@ (% rbp) (% arg_x)) (% save3))
+  (leave)
+  (pop (% temp0))                       ; return address, not used by subprim
+  (set-nargs 0)
+  (movq (@ 'args (% fn)) (% arg_z))
+  (lea (@ (:^ @back-from-spread) (% fn)) (% ra0))
+  (:talign 4)
+  (jmp-subprim .SPspreadargz)
+  @back-from-spread
+  (recover-fn-from-rip)                 ; .SPspreadargz preserves %fn, but ...
+  (push (% temp0))                      ; return address
+  (jmp (@ 'function (% fn))))
+  
+
+  
+
+
   
 
 ;;; end of x86-misc.lisp

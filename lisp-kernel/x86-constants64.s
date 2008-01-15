@@ -381,11 +381,18 @@ define_subtag(function_boundary_marker,fulltag_imm_1,15)
 
 	_struct(tsp_frame,0)
 	 _node(backlink)
-	 _node(type)
+	 _node(save_rbp)
 	 _struct_label(fixed_overhead)
 	 _struct_label(data_offset)
 	_ends
 
+	_struct(csp_frame,0)
+	 _node(backlink)
+	 _node(save_rbp)
+	 _struct_label(fixed_overhead)
+	 _struct_label(data_offset)
+	_ends
+        
 
 
 	_structf(symbol,-fulltag_symbol)

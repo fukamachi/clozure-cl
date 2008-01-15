@@ -2231,7 +2231,6 @@
   (declare (type (unsigned-byte 8) intop))
   (let* ((stop t))
     (cond ((and (>= intop #x70) (< intop #x80))
-           (setq stop nil)
            (let* ((pseudo-modrm-byte (x86-ds-next-u8 ds)))
              (setf (x86-di-mnemonic instruction)
                    "uuo-error-slot-unbound"

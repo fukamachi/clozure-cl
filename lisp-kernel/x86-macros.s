@@ -127,6 +127,7 @@ define([TSP_Alloc_Fixed],[
         movq %rcontext:tcr.next_tsp,$2
 	zero_dnodes $2,0,TSP_Alloc_Size
 	movq %stack_temp,($2)
+        movq %rbp,tsp_frame.save_rbp($2)
         movq $2,%rcontext:tcr.save_tsp
 	undefine([TSP_Alloc_Size])
 ])
@@ -149,6 +150,7 @@ macro_label(test):
         movq %rcontext:tcr.next_tsp,$2
 	movd %stack_temp,$1
 	movq $1,($2)
+        movq %rbp,tsp_frame.save_rbp($2)
         movq $2,%rcontext:tcr.save_tsp
 	addq $dnode_size,$2
 ])

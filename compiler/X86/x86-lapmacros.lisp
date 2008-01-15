@@ -30,37 +30,58 @@
     `(xorw (% nargs) (% nargs))
     `(movw ($ ',n) (% nargs))))
 
+(defx86lapmacro anchored-uuo (form)
+  `(progn
+    ,form
+    (:byte 0)))
+
 (defx86lapmacro check-nargs (min &optional (max min))
-  (let* ((ok (gensym)))
+  (let* ((anchor (gensym))
+         (bad (gensym)))
     (if (and max (= max min))
       `(progn
-        (rcmp (% nargs) ($ ',min))
-        (je.pt ,ok)
-        (uuo-error-wrong-number-of-args)
-        ,ok)
+        ,anchor
+        ,(if (eql min 0)
+             `(testw (% nargs) (% nargs))
+             `(rcmp (% nargs) ($ ',min)))
+        (jne ,bad)
+        (:anchored-uuo-section ,anchor)
+        ,bad
+        (anchored-uuo (uuo-error-wrong-number-of-args))
+        (:main-section nil))
       (if (null max)
         (unless (zerop min)
           `(progn
+            ,anchor
             (rcmp (% nargs) ($ ',min))
-            (jae.pt  ,ok)
-            (uuo-error-too-few-args)
-            ,ok))
+            (jb ,bad)
+            (:anchored-uuo-section ,anchor)
+            ,bad
+            (anchored-uuo (uuo-error-too-few-args))
+            (:main-section nil)))
         (if (zerop min)
           `(progn
+            ,anchor
             (rcmp (% nargs) ($ ',max))
-            (jb.pt  ,ok)
-            (uuo-error-too-many-args)
-            ,ok)
-          (let* ((sofar (gensym)))
+            (ja ,bad)
+            (:anchored-uuo-section ,anchor)
+            ,bad
+            (anchored-uuo (uuo-error-too-many-args))
+            (:main-section nil))
+          (let* ((toofew (gensym))
+                 (toomany (gensym)))
             `(progn
+              ,anchor
               (rcmp (% nargs) ($ ',min))
-              (jae.pt  ,sofar)
-              (uuo-error-too-few-args)
-              ,sofar
+              (jb ,toofew)
               (rcmp (% nargs) ($ ',max))
-              (jbe.pt  ,ok)
-              (uuo-error-too-many-args)
-              ,ok)))))))
+              (ja ,toomany)
+              (:anchored-uuo-section ,anchor)
+              ,toofew
+              (anchored-uuo (uuo-error-too-few-args))
+              (:anchored-uuo-section ,anchor)
+              ,toomany
+              (anchored-uuo (uuo-error-too-many-args)))))))))
 
 
 

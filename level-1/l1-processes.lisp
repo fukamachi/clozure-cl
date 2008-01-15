@@ -241,10 +241,14 @@
 
                             
 (defun symbol-value-in-process (sym process)
-  (symbol-value-in-tcr sym (process-tcr process)))
+  (if (eq process *current-process*)
+    (symbol-value sym)
+    (symbol-value-in-tcr sym (process-tcr process))))
 
 (defun (setf symbol-value-in-process) (value sym process)
-  (setf (symbol-value-in-tcr sym (process-tcr process)) value))
+  (if (eq process *current-process*)
+    (setf (symbol-value sym) value)
+    (setf (symbol-value-in-tcr sym (process-tcr process)) value)))
 
 
 (defun process-enable (p &optional (wait 1))

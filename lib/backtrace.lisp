@@ -95,24 +95,25 @@
         (progn
           (call 'funcall)
           (call `(function ,(concatenate 'string "#<" (%lfun-name-string lfun) ">")))))
-      (multiple-value-bind (req opt restp keys)
-          (function-args lfun)
-        (when (or (not (eql 0 req)) (not (eql 0 opt)) restp keys)
-          (let* ((arglist (arglist-from-map lfun)))
-            (if (null arglist)
-              (call "???")
-              (progn
-                (dotimes (i req)
-                  (let* ((val (argument-value context cfp lfun pc (pop arglist))))
-                    (if (eq val (%unbound-marker))
-                      (call "?")
-                      (call (let* ((*print-length* *backtrace-print-length*)
-                                   (*print-level* *backtrace-print-level*))
-                              (format nil "~s" val))))))
-                (if (or restp keys (not (eql opt 0)))
-                  (call "[...]"))
-                ))))))
-    (call)))
+      (if (<= pc target::arg-check-trap-pc-limit)
+        (append (call) (arg-check-call-arguments cfp lfun))
+        (multiple-value-bind (req opt restp keys)
+            (function-args lfun)
+          (when (or (not (eql 0 req)) (not (eql 0 opt)) restp keys)
+            (let* ((arglist (arglist-from-map lfun)))
+              (if (null arglist)
+                (call "???")
+                (progn
+                  (dotimes (i req)
+                    (let* ((val (argument-value context cfp lfun pc (pop arglist))))
+                      (if (eq val (%unbound-marker))
+                        (call "?")
+                        (call (let* ((*print-length* *backtrace-print-length*)
+                                     (*print-level* *backtrace-print-level*))
+                                (format nil "~s" val))))))
+                  (if (or restp keys (not (eql opt 0)))
+                    (call "[...]"))))))
+          (call))))))
 
 
 ;;; Return a list of "interesting" frame addresses in context, most
@@ -149,7 +150,8 @@
           (when (or lfun *backtrace-show-internal-frames*)
             (unless (and (typep detailed-p 'fixnum)
                          (not (= (the fixnum detailed-p) frame-number)))
-              (format t "~&(~x) : ~D ~a ~d"
+              (format t "~&~c(~x) : ~D ~a ~d"
+                      (if (exception-frame-p p)  #\* #\space)
                       (index->address p) frame-number
                       (if lfun (backtrace-call-arguments context p lfun pc))
                       pc)

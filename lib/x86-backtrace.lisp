@@ -203,6 +203,27 @@
 (defun index->address (p)
   (ldb (byte #+32-bit-target 32 #+64-bit-target 64 0)  (ash p target::fixnumshift)))
 
+(defun exception-frame-p (x)
+  (and x (xcf-p x)))
+
+;;; Function has failed a number-of-arguments check; return a list
+;;; of the actual arguments.
+;;; On x86-64, the kernel has finished the frame and pushed everything
+;;; for us, so all that we need to do is to hide any inherited arguments.
+(defun arg-check-call-arguments (fp function)
+  (when (xcf-p fp)
+    (with-macptrs (xp)
+      (%setf-macptr-to-object xp (%fixnum-ref fp target::xcf.xp))
+      (let* ((numinh (ldb $lfbits-numinh (lfun-bits function)))
+             (nargs (- (xp-argument-count xp) numinh))
+             (p (- (%fixnum-ref fp target::xcf.backptr)
+                   (* target::node-size numinh))))
+        (declare (fixnum numing nargs p))
+        (collect ((args))
+          (dotimes (i nargs (args))
+            (args (%fixnum-ref p (- target::node-size)))
+            (decf p)))))))
+
 (defun vsp-limits (frame context)
   (let* ((parent (parent-frame frame context)))
     (if (xcf-p frame)
@@ -223,6 +244,14 @@
         (setq last-catch catch
               catch (next-catch catch))))))
 
+(defun last-xcf-since (target-fp start-fp context)
+  (do* ((last-xcf nil)
+        (fp start-fp (parent-frame fp context)))
+       ((or (eql fp target-fp)
+            (null fp)
+            (%stack< target-fp fp)) last-xcf)
+    (if (xcf-p fp) (setq last-xcf fp))))
+
 (defun match-local-name (cellno info pc)
   (when info
     (let* ((syms (%car info))
@@ -233,3 +262,178 @@
                (%i>= pc (uvref ptrs (%i+ j 1)))
                (%i< pc (uvref ptrs (%i+ j 2)))
                (return (aref syms i))))))))
+
+(defun apply-in-frame (frame function arglist &optional context)
+  (setq function (coerce-to-function function))
+  (let* ((parent (parent-frame frame context)))
+    (when parent
+      (if (xcf-p parent)
+        (error "Can't unwind to exception frame ~s" frame)
+        (setq frame parent))
+      (if (or (null context)
+              (eq (bt.tcr context) (%current-tcr)))
+        (%apply-in-frame frame function arglist)
+        (let* ((process (tcr->process (bt.tcr context))))
+          (if process
+            (process-interrupt process #'%apply-in-frame frame function arglist)
+            (error "Can't find process for backtrace context ~s" context)))))))
+
+(defun return-from-frame (frame &rest values)
+  (apply-in-frame frame #'values values nil))
+    
+
+(defun last-tsp-before (target)
+  (declare (fixnum target))
+  (do* ((tsp (%fixnum-ref (%current-tcr) target::tcr.save-tsp)
+             (%fixnum-ref tsp target::tsp-frame.backptr)))
+       ((zerop tsp) nil)
+    (declare (fixnum tsp))
+    (when (> (the fixnum (%fixnum-ref tsp target::tsp-frame.rbp))
+             target)
+      (return tsp))))
+
+    
+
+
+;;; We can't determine this reliably (yet).
+(defun last-foreign-sp-before (target)
+  (declare (fixnum target))
+  (do* ((cfp (%fixnum-ref (%current-tcr) target::tcr.foreign-sp)
+             (%fixnum-ref cfp target::csp-frame.backptr)))
+       ((zerop cfp))
+    (declare (fixnum cfp))
+    (let* ((rbp (%fixnum-ref cfp target::csp-frame.rbp)))
+      (declare (fixnum rbp))
+      (if (> rbp target)
+        (return cfp)
+        (if (zerop rbp)
+          (return nil))))))
+
+
+(defun %tsp-frame-containing-progv-binding (db)
+  (declare (fixnum db))
+  (do* ((tsp (%fixnum-ref (%current-tcr) target::tcr.save-tsp) next)
+        (next (%fixnum-ref tsp target::tsp-frame.backptr)
+              (%fixnum-ref tsp target::tsp-frame.backptr)))
+       ()
+    (declare (fixnum tsp next))
+    (let* ((rbp (%fixnum-ref tsp target::tsp-frame.rbp)))
+      (declare (fixnum rbp))
+      (if (zerop rbp)
+        (return (values nil nil))
+        (if (and (> db tsp)
+                 (< db next))
+          (return (values tsp rbp)))))))
+
+        
+
+
+
+
+(defun last-binding-before (frame)
+  (declare (fixnum frame))
+  (do* ((db (%current-db-link) (%fixnum-ref db 0))
+        (tcr (%current-tcr))
+        (vs-area (%fixnum-ref tcr target::tcr.vs-area))
+        (vs-low (%fixnum-ref vs-area target::area.low))
+        (vs-high (%fixnum-ref vs-area target::area.high)))
+       ((eql db 0) nil)
+    (declare (fixnum db vs-low vs-high))
+    (if (and (> db vs-low)
+             (< db vs-high))
+      (if (> db frame)
+        (return db))
+      ;; db link points elsewhere; PROGV uses the temp stack
+      ;; to store an indefinite number of bindings.
+      (multiple-value-bind (tsp rbp)
+          (%tsp-frame-containing-progv-binding db)
+        (if tsp
+          (if (> rbp frame)
+            (return db)
+            ;; If the tsp frame is too young, we can skip
+            ;; all of the bindings it contains.  The tsp
+            ;; frame contains two words of overhead, followed
+            ;; by a count of binding records in the frame,
+            ;; followed by the youngest of "count" binding
+            ;; records (which happens to be the value of
+            ;; "db".)  Skip "count" binding records.
+            (dotimes (i (the fixnum (%fixnum-ref tsp target::dnode-size)))
+              (setq db (%fixnum-ref db 0))))
+          ;; If the binding record wasn't on the temp stack and wasn't
+          ;; on the value stack, that probably means that things are
+          ;; seriously screwed up.  This error will be almost
+          ;; meaningless to the user.
+          (error "binding record (#x~16,'0x/#x~16,'0x) not on temp or value stack" (index->address db) db))))))
+          
+
+
+(defun find-x8664-saved-nvrs (frame start-fp context)
+  (let* ((locations (make-array 16 :initial-element nil))
+         (need (logior (ash 1 x8664::save0)
+                       (ash 1 x8664::save1)
+                       (ash 1 x8664::save2)
+                       (ash 1 x8664::save3))))
+    (declare (fixnum have need)
+             (dynamic-extent locations))
+    (do* ((parent frame child)
+          (child (child-frame parent context) (child-frame child context)))
+         ((or (= need 0) (eq child start-fp))
+          (values (%svref locations x8664::save0)
+                  (%svref locations x8664::save1)
+                  (%svref locations x8664::save2)
+                  (%svref locations x8664::save3)))
+      (multiple-value-bind (lfun pc) (cfp-lfun child)
+        (when (and lfun pc)
+          (multiple-value-bind (used where) (registers-used-by lfun pc)
+            (when (and used where (logtest used need))
+              (locally (declare (fixnum used))
+                (do* ((i x8664::save3 (1+ i)))
+                     ((or (= i 16) (= used 0)))
+                  (declare (type (mod 16) i))
+                  (when (logbitp i used)
+                    (when (logbitp i need)
+                      (setq need (logandc2 need (ash 1 i)))
+                      (setf (%svref locations i)
+                            (- (the fixnum (1- parent))
+                               (+ where (logcount (logandc2 used (1+ (ash 1 (1+ i)))))))))
+                    (setq used (logandc2 used (ash 1 i)))))))))))))
+                                         
+              
+         
+(defun %apply-in-frame (frame function arglist)
+  (let* ((target-catch (last-catch-since frame nil))
+         (start-fp (if target-catch
+                     (uvref target-catch target::catch-frame.rbp-cell)
+                     (%get-frame-ptr)))
+         (target-xcf (last-xcf-since frame start-fp nil))
+         (target-db-link (last-binding-before frame))
+         (target-tsp (last-tsp-before frame))
+         (target-foreign-sp (last-foreign-sp-before frame)))
+    (multiple-value-bind (save0-loc save1-loc save2-loc save3-loc)
+        (find-x8664-saved-nvrs frame start-fp nil)
+      (let* ((thunk (%clone-x86-function #'%%apply-in-frame-proto
+                                         frame
+                                         target-catch
+                                         target-db-link
+                                         target-xcf
+                                         target-tsp
+                                         target-foreign-sp
+                                         (if save0-loc
+                                           (- save0-loc frame)
+                                           0)
+                                         (if save1-loc
+                                           (- save1-loc frame)
+                                           0)
+                                         (if save2-loc
+                                           (- save2-loc frame)
+                                           0)
+                                         (if save3-loc
+                                           (- save3-loc frame)
+                                           0)
+                                         (coerce-to-function function)
+                                         arglist
+                                         0)))
+        (funcall thunk)))))
+
+            
+    

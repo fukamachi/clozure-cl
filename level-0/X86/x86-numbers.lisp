@@ -112,11 +112,13 @@
 ;;; Don't use %rbp.  Trust callback_for_interrupt() to preserve
 ;;; the word below the stack pointer
 (defx86lapfunction %fixnum-truncate ((dividend arg_y) (divisor arg_z))
+  (save-simple-frame)
   (unbox-fixnum divisor imm0)
-  (movq (% imm0) (@ -8 (% rsp)))
+  (movq (% imm0) (% imm2))
   (unbox-fixnum dividend imm0)
   (cqto)                                ; imm1 := sign_extend(imm0)
-  (idivq (@ -8 (% rsp)))
+  (idivq (% imm2))
+  (pop (% rbp))
   (movq (% rsp) (% temp0))
   (box-fixnum imm1 arg_y)
   (box-fixnum imm0 arg_z)

@@ -28,6 +28,8 @@
   (defmacro xp-gp-regs (xp) xp)
   (defconstant flags-register-offset #$REG_EFL)
   (defconstant rip-register-offset #$REG_RIP)
+  (defun xp-mxcsr (xp)
+    (pref xp :ucontext.uc_mcontext.fpregs.mxcsr))
   (defparameter *encoded-gpr-to-indexed-gpr*
     #(13                                ;rax
       14                                ;rcx
@@ -53,6 +55,9 @@
   (defmacro xp-gp-regs (xp) xp)
   (defconstant flags-register-offset 22)
   (defconstant rip-register-offset 20)
+  (defun xp-mxcsr (xp)
+    (with-macptrs ((state (pref xp :__ucontext.uc_mcontext.mc_fpstate)))
+      (pref state :savefpu.sv_env.en_mxcsr)))
   (defparameter *encoded-gpr-to-indexed-gpr*
     #(7					;rax
       4					;rcx
@@ -96,6 +101,9 @@
                  (:link :address)
                  (:uc_mcsize (:unsigned 64))
                  (:uc_mcontext64 (:* (:struct :portable_mcontext64))))))
+  (defun xp-mxcsr (xp)
+    (%get-unsigned-long
+     (pref (pref xp :portable_ucontext64.uc_mcontext64) :portable_mcontext64.fs) 32))
   (defconstant gp-regs-offset 0)
   (defmacro xp-gp-regs (xp)
     `(pref (pref ,xp :portable_ucontext64.uc_mcontext64) :portable_mcontext64.ss))
@@ -209,7 +217,8 @@
                             'floating-point-invalid-operation))))
                (%error (make-condition condition-name
                                        :operation operation
-                                       :operands operands)
+                                       :operands operands
+                                       :status (xp-mxcsr xp))
                        ()
                        frame-ptr))))
           ((= signal #$SIGSEGV)

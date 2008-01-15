@@ -1014,57 +1014,68 @@
       (if (eq (car (frag-type frag)) :pending-talign)
         (finish-pending-talign-frag frag-list)))))
 
-(defun x86-lap-directive (frag-list directive arg)
-  (if (eq directive :tra)
-    (progn
-      (finish-frag-for-align frag-list 3)
-      (x86-lap-directive frag-list :long `(:^ ,arg))
-      (emit-x86-lap-label frag-list arg))
-    (if (eq directive :fixed-constants)
-      (dolist (constant arg)
-        (ensure-x86-lap-constant-label constant))
-      (if (eq directive :arglist)
-        (setq *x86-lap-lfun-bits* (encode-lambda-list arg))
-        (let* ((exp (parse-x86-lap-expression arg))
-               (constantp (or (constant-x86-lap-expression-p exp)
-                              (not (x86-lap-expression-p exp)))))
-               
-          (if constantp
-            (let* ((val (x86-lap-expression-value exp)))
-              (ecase directive
-                (:code-size
-                 (if *x86-lap-fixed-code-words*
-                   (error "Duplicate :CODE-SIZE directive")
-                   (setq *x86-lap-fixed-code-words* val)))
-                (:byte (frag-list-push-byte frag-list val))
-                (:short (frag-list-push-16 frag-list val))
-                (:long (frag-list-push-32 frag-list val))
-                (:quad (frag-list-push-64 frag-list val))
-                (:align (finish-frag-for-align frag-list val))
-                (:talign (finish-frag-for-talign frag-list val))
-                (:org (finish-frag-for-org frag-list val))))
-            (let* ((pos (frag-list-position frag-list))
-                   (frag (frag-list-current frag-list))
-                   (reloctype nil))
-              (ecase directive
-                (:byte (frag-list-push-byte frag-list 0)
-                       (setq reloctype :expr8))
-                (:short (frag-list-push-16 frag-list 0)
-                        (setq reloctype :expr16))
-                (:long (frag-list-push-32 frag-list 0)
-                       (setq reloctype :expr32))
-                (:quad (frag-list-push-64 frag-list 0)
-                       (setq reloctype :expr64))
-                (:align (error ":align expression ~s not constant" arg))
-                (:talign (error ":talign expression ~s not constant" arg)))
-              (when reloctype
-                (push
-                 (make-reloc :type reloctype
-                             :arg exp
-                             :pos pos
-                             :frag frag)
-                 (frag-relocs frag)))))
-          nil)))))
+;;; Returns the active frag list after processing directive(s).
+(defun x86-lap-directive (frag-list directive arg &optional main-frag-list exception-frag-list)
+  (declare (ignorable main-frag-list exception-frag-list))
+  (case directive
+    (:tra
+     (finish-frag-for-align frag-list 3)
+     (x86-lap-directive frag-list :long `(:^ ,arg))
+     (emit-x86-lap-label frag-list arg))
+    (:fixed-constants
+     (dolist (constant arg)
+       (ensure-x86-lap-constant-label constant)))
+    (:arglist (setq *x86-lap-lfun-bits* (encode-lambda-list arg)))
+    ((:uuo :uuo-section)
+     (if exception-frag-list
+       (progn
+         (setq frag-list exception-frag-list)
+         (finish-frag-for-align frag-list 2))))
+    ((:main :main-section)
+     (when main-frag-list (setq frag-list main-frag-list)))
+    (:anchored-uuo-section
+     (setq frag-list (x86-lap-directive frag-list :uuo-section nil main-frag-list exception-frag-list))
+     (setq frag-list (x86-lap-directive frag-list :long `(:^ ,arg) main-frag-list exception-frag-list)))
+    (t (let* ((exp (parse-x86-lap-expression arg))
+              (constantp (or (constant-x86-lap-expression-p exp)
+                             (not (x86-lap-expression-p exp)))))
+         
+         (if constantp
+           (let* ((val (x86-lap-expression-value exp)))
+             (ecase directive
+               (:code-size
+                (if *x86-lap-fixed-code-words*
+                  (error "Duplicate :CODE-SIZE directive")
+                  (setq *x86-lap-fixed-code-words* val)))
+               (:byte (frag-list-push-byte frag-list val))
+               (:short (frag-list-push-16 frag-list val))
+               (:long (frag-list-push-32 frag-list val))
+               (:quad (frag-list-push-64 frag-list val))
+               (:align (finish-frag-for-align frag-list val))
+               (:talign (finish-frag-for-talign frag-list val))
+               (:org (finish-frag-for-org frag-list val))))
+           (let* ((pos (frag-list-position frag-list))
+                  (frag (frag-list-current frag-list))
+                  (reloctype nil))
+             (ecase directive
+               (:byte (frag-list-push-byte frag-list 0)
+                      (setq reloctype :expr8))
+               (:short (frag-list-push-16 frag-list 0)
+                       (setq reloctype :expr16))
+               (:long (frag-list-push-32 frag-list 0)
+                      (setq reloctype :expr32))
+               (:quad (frag-list-push-64 frag-list 0)
+                      (setq reloctype :expr64))
+               (:align (error ":align expression ~s not constant" arg))
+               (:talign (error ":talign expression ~s not constant" arg)))
+             (when reloctype
+               (push
+                (make-reloc :type reloctype
+                            :arg exp
+                            :pos pos
+                            :frag frag)
+                (frag-relocs frag))))))))
+  frag-list)
 
 
 (defun x862-lap-process-regsave-info (frag-list regsave-label regsave-mask regsave-addr)
@@ -1080,7 +1091,7 @@
                        
          
 
-(defun x86-lap-form (form frag-list instruction)
+(defun x86-lap-form (form frag-list instruction  main-frag-list exception-frag-list)
   (if (and form (symbolp form))
     (emit-x86-lap-label frag-list form)
     (if (or (atom form) (not (symbolp (car form))))
@@ -1088,21 +1099,22 @@
       (multiple-value-bind (expansion expanded)
           (x86-lap-macroexpand-1 form)
         (if expanded
-          (x86-lap-form expansion frag-list instruction)
+          (x86-lap-form expansion frag-list instruction main-frag-list exception-frag-list)
           (if (typep (car form) 'keyword)
-            (destructuring-bind (op arg) form
-              (x86-lap-directive frag-list op arg))
+            (destructuring-bind (op &optional arg) form
+              (setq frag-list (x86-lap-directive frag-list op arg main-frag-list exception-frag-list)))
             (case (car form)
               (progn
                 (dolist (f (cdr form))
-                  (x86-lap-form f frag-list instruction)))
+                  (setq frag-list (x86-lap-form f frag-list instruction main-frag-list exception-frag-list))))
               (let
                   (destructuring-bind (equates &body body)
                       (cdr form)
-                    (x86-lap-equate-form equates frag-list instruction body)))
+                    (setq frag-list (x86-lap-equate-form equates frag-list instruction body main-frag-list exception-frag-list))))
               (t
                (parse-x86-instruction form instruction)
-               (x86-generate-instruction-code frag-list instruction)))))))))
+               (x86-generate-instruction-code frag-list instruction))))))))
+  frag-list)
 
 (defun relax-align (address bits)
   (let* ((mask (1- (ash 1 bits))))
@@ -1301,7 +1313,7 @@
         (format t "~&"))
       (format t "~2,'0x " (frag-ref frag i)))))
 
-(defun x86-lap-equate-form (eqlist fraglist instruction  body) 
+(defun x86-lap-equate-form (eqlist fraglist instruction  body main-frag exception-frag) 
   (let* ((symbols (mapcar #'(lambda (x)
                               (let* ((name (car x)))
                                 (or
@@ -1319,8 +1331,8 @@
                                         (cadr x)))
                          eqlist)))
     (progv symbols values
-      (dolist (form body)
-        (x86-lap-form form fraglist instruction)))))          
+      (dolist (form body fraglist)
+        (setq fraglist (x86-lap-form form fraglist instruction main-frag exception-frag))))))
                 
 (defun cross-create-x86-function (name frag-list constants bits debug-info)
   (let* ((constants-vector (%alloc-misc (+ (length constants)
@@ -1384,7 +1396,9 @@
          (end-code-tag (gensym))
          (entry-code-tag (gensym))
          (instruction (x86::make-x86-instruction))
-         (frag-list (make-frag-list)))
+         (main-frag-list (make-frag-list))
+         (exception-frag-list (make-frag-list))
+         (frag-list main-frag-list))
     (make-x86-lap-label end-code-tag)
     (make-x86-lap-label entry-code-tag)
     (x86-lap-directive frag-list :long `(ash (+ (- (:^ ,end-code-tag ) 8)
@@ -1393,9 +1407,12 @@
     (x86-lap-directive frag-list :byte 0) ;regsave ea
     (x86-lap-directive frag-list :byte 0) ;regsave mask
     (emit-x86-lap-label frag-list entry-code-tag)
-    (x86-lap-form `(lea (@ (:^ ,entry-code-tag) (% rip)) (% fn)) frag-list instruction)
+
+    (x86-lap-form `(lea (@ (:^ ,entry-code-tag) (% rip)) (% fn)) frag-list instruction main-frag-list exception-frag-list)
     (dolist (f forms)
-      (x86-lap-form f frag-list instruction))
+      (setq frag-list (x86-lap-form f frag-list instruction main-frag-list exception-frag-list)))
+    (setq frag-list main-frag-list)
+    (merge-dll-nodes frag-list exception-frag-list)
     (x86-lap-directive frag-list :align 3)
     (when *x86-lap-fixed-code-words*
       (x86-lap-directive frag-list :org (ash *x86-lap-fixed-code-words* 3)))

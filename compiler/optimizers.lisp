@@ -918,8 +918,9 @@
 ;;; optimizers... For now, at least try to get it to become (%car
 ;;; (<typecheck> foo)).
 (define-compiler-macro require-type (&whole call &environment env arg type)
-  (cond ((and (quoted-form-p type)
-	      (setq type (%cadr type))
+  (cond ((and (or (eq type t)
+                  (and (quoted-form-p type)
+                       (setq type (%cadr type))))
 	      (not (typep (specifier-type type) 'unknown-ctype)))	 
          (cond ((nx-form-typep arg type env) arg)
                ((eq type 'simple-vector)
@@ -963,10 +964,12 @@
                 `(the (signed-byte 64) (require-s64 ,arg)))
                ((type= (specifier-type type)
                        (specifier-type '(unsigned-byte 64)))
-                `(the (unsigned-byte 64) (require-u64 ,arg)))               
+                `(the (unsigned-byte 64) (require-u64 ,arg)))
+               #+nil
                ((and (symbolp type)
                      (let ((simpler (type-predicate type)))
                        (if simpler `(the ,type (%require-type ,arg ',simpler))))))
+               #+nil
                ((and (symbolp type)(find-class type nil env))
                   `(%require-type-class-cell ,arg (load-time-value (find-class-cell ',type t))))
                (t (let* ((val (gensym)))
@@ -1529,8 +1532,10 @@
 (define-compiler-macro typep  (&whole call &environment env thing type &optional e)
   (declare (ignore e))
   (if (quoted-form-p type)
-    (or (optimize-typep thing (%cadr type) env)
-        call)
+    (if (constantp thing)
+      (typep (if (quoted-form-p thing) (%cadr thing) thing) (%cadr type))
+      (or (optimize-typep thing (%cadr type) env)
+          call))
     (if (eq type t)
       `(progn ,thing t)
       call)))
@@ -2011,6 +2016,19 @@
           (equal-iff-eql-p y env))
     `(eql ,x ,y)
     call))
+
+(define-compiler-macro instance-slots (&whole w instance)
+  (if (and (constantp instance)
+           (eql (typecode instance) (nx-lookup-target-uvector-subtag :instance)))
+    `(instance.slots ,instance)
+    w))
+
+(define-compiler-macro unsigned-byte-p (x)
+  (if (typep (nx-unquote x) 'unsigned-byte)
+    t
+    (let* ((val (gensym)))
+      `(let* ((,val ,x))
+        (and (integerp ,val) (not (< ,val 0)))))))
 
 (provide "OPTIMIZERS")
 

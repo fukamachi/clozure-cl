@@ -275,12 +275,12 @@ finish_function_entry(ExceptionInformation *xp)
   signed_natural disp = nargs-3;
   LispObj *vsp =  (LispObj *) xpGPR(xp,Isp), ra = *vsp++;
    
-  
+  xpGPR(xp,Isp) = (LispObj) vsp;
+
   if (disp > 0) {               /* implies that nargs > 3 */
     vsp[disp] = xpGPR(xp,Irbp);
     vsp[disp+1] = ra;
     xpGPR(xp,Irbp) = (LispObj)(vsp+disp);
-    xpGPR(xp,Isp) = (LispObj)vsp;
     push_on_lisp_stack(xp,xpGPR(xp,Iarg_x));
     push_on_lisp_stack(xp,xpGPR(xp,Iarg_y));
     push_on_lisp_stack(xp,xpGPR(xp,Iarg_z));
@@ -314,7 +314,7 @@ object_contains_pc(LispObj container, LispObj addr)
 }
 
 LispObj
-create_exception_callback_frame(ExceptionInformation *xp)
+create_exception_callback_frame(ExceptionInformation *xp, TCR *tcr)
 {
   LispObj containing_uvector = 0, 
     relative_pc, 
@@ -369,7 +369,8 @@ create_exception_callback_frame(ExceptionInformation *xp)
     containing_uvector = lisp_nil;
     relative_pc = abs_pc << fixnumshift;
   }
-  
+  push_on_lisp_stack(xp,(LispObj)(tcr->xframe->prev));
+  push_on_lisp_stack(xp,(LispObj)(tcr->foreign_sp));
   push_on_lisp_stack(xp,tra);
   push_on_lisp_stack(xp,(LispObj)xp);
   push_on_lisp_stack(xp,containing_uvector); 
@@ -407,7 +408,7 @@ handle_alloc_trap(ExceptionInformation *xp, TCR *tcr)
   }
   
   {
-    LispObj xcf = create_exception_callback_frame(xp),
+    LispObj xcf = create_exception_callback_frame(xp, tcr),
       cmain = nrs_CMAIN.vcell;
     int skip;
     
@@ -457,7 +458,7 @@ callback_for_interrupt(TCR *tcr, ExceptionInformation *xp)
   LispObj save_rbp = xpGPR(xp,Irbp),
     *save_vsp = (LispObj *)xpGPR(xp,Isp),
     word_beyond_vsp = save_vsp[-1],
-    xcf = create_exception_callback_frame(xp);
+    xcf = create_exception_callback_frame(xp, tcr);
   int save_errno = errno;
   
   callback_to_lisp(tcr, nrs_CMAIN.vcell,xp, xcf, 0, 0, 0, 0);
@@ -482,7 +483,7 @@ handle_error(TCR *tcr, ExceptionInformation *xp)
     if ((op0 == 0xcd) && (op1 >= 0xc0) && (op1 <= 0xc2)) {
       finish_function_entry(xp);
     }
-    xcf0 = create_exception_callback_frame(xp);
+    xcf0 = create_exception_callback_frame(xp, tcr);
     skip = callback_to_lisp(tcr, errdisp, xp, xcf0, 0, 0, 0, 0);
     if (skip == -1) {
       xcf *xcf1 = (xcf *)xcf0;
@@ -590,7 +591,7 @@ do_soft_stack_overflow(ExceptionInformation *xp, protected_area_ptr prot_area, B
     }
     soft = a->softprot;
     unprotect_area(soft);
-    xcf = create_exception_callback_frame(xp);
+    xcf = create_exception_callback_frame(xp, tcr);
     skip = callback_to_lisp(tcr, nrs_CMAIN.vcell, xp, xcf, SIGSEGV, on_TSP, 0, 0);
     xpGPR(xp,Irbp) = save_rbp;
     xpGPR(xp,Isp) = save_vsp;
@@ -641,7 +642,7 @@ handle_fault(TCR *tcr, ExceptionInformation *xp, siginfo_t *info, int old_valenc
       xcf;
     if ((fulltag_of(cmain) == fulltag_misc) &&
       (header_subtag(header_of(cmain)) == subtag_macptr)) {
-      xcf = create_exception_callback_frame(xp);
+      xcf = create_exception_callback_frame(xp, tcr);
       callback_to_lisp(tcr, cmain, xp, xcf, SIGBUS, is_write_fault(xp,info), (natural)addr, 0);
     }
   }
@@ -659,7 +660,7 @@ handle_floating_point_exception(TCR *tcr, ExceptionInformation *xp, siginfo_t *i
 
   if ((fulltag_of(cmain) == fulltag_misc) &&
       (header_subtag(header_of(cmain)) == subtag_macptr)) {
-    xcf = create_exception_callback_frame(xp);
+    xcf = create_exception_callback_frame(xp, tcr);
     skip = callback_to_lisp(tcr, cmain, xp, xcf, SIGFPE, code, 0, 0);
     xpPC(xp) += skip;
     xpGPR(xp,Irbp) = save_rbp;

@@ -308,23 +308,48 @@
   (:anchored-uuo (uuo-error-wrong-number-of-args)))
 
 (define-x8664-vinsn check-min-nargs (()
-                                       ((n :u16const)))
+                                       ((min :u16const)))
   :resume
-  (rcmpw (:%w x8664::nargs) (:$w (:apply ash n x8664::word-shift)))
-  (jb :bad)
+  ((:pred = min 1)
+   (testw (:%w x8664::nargs) (:%w x8664::nargs))
+   (je :toofew))
+  ((:not (:pred = min 1))
+   (rcmpw (:%w x8664::nargs) (:$w (:apply ash min x8664::word-shift)))
+   (jb :toofew))  
   
   (:anchored-uuo-section :resume)
-  :bad
+  :toofew
   (:anchored-uuo (uuo-error-too-few-args)))
 
 (define-x8664-vinsn check-max-nargs (()
                                        ((n :u16const)))
   :resume
   (rcmpw (:%w x8664::nargs) (:$w (:apply ash n x8664::word-shift)))
-  (jg :bad)
+  (ja :bad)
   
   (:anchored-uuo-section :resume)
   :bad
+  (:anchored-uuo (uuo-error-too-many-args)))
+
+
+(define-x8664-vinsn check-min-max-nargs (()
+                                         ((min :u16const)
+                                          (max :u16)))
+  :resume
+  ((:pred = min 1)
+   (testw (:%w x8664::nargs) (:%w x8664::nargs))
+   (je :toofew))
+  ((:not (:pred = min 1))
+   (rcmpw (:%w x8664::nargs) (:$w (:apply ash min x8664::word-shift)))
+   (jb :toofew))
+  (rcmpw (:%w x8664::nargs) (:$w (:apply ash max x8664::word-shift)))
+  (ja :toomany)
+  
+  (:anchored-uuo-section :resume)
+  :toofew
+  (:anchored-uuo (uuo-error-too-few-args))
+  (:anchored-uuo-section :resume)
+  :toomany
   (:anchored-uuo (uuo-error-too-many-args)))
 
 
@@ -1730,6 +1755,7 @@
   (movapd (:%xmm x8664::fpzero) (:@ 16 (:%q temp)))
   (movq (:@ (:%seg :rcontext) x8664::tcr.save-tsp) (:%mmx x8664::stack-temp))
   (movq (:%mmx x8664::stack-temp) (:@ (:%q temp)))
+  (movq (:% x8664::rbp) (:@ x8664::tsp-frame.rbp (:%q temp)))
   (movq (:%q temp) (:@ (:%seg :rcontext) x8664::tcr.save-tsp))
   (leaq (:@ (+ x8664::dnode-size x8664::fulltag-cons) (:%q temp)) (:%q temp))
   (movq (:%q car) (:@ x8664::cons.car (:%q temp)))
@@ -1758,6 +1784,7 @@
   (cmpq (:%q tempa) (:%q tempb))
   (jnz :loop)
   (movq (:%mmx x8664::stack-temp) (:@ (:%q tempa)))
+  (movq (:% x8664::rbp) (:@ x8664::tsp-frame.rbp (:%q tempa)))
   (movq (:%q tempa) (:@ (:%seg :rcontext) x8664::tcr.save-tsp))
   (movl (:$l header) (:@ x8664::dnode-size (:%q tempa)))
   (leaq (:@ (+ x8664::dnode-size x8664::fulltag-misc) (:%q tempa)) (:%q dest)))
@@ -2100,10 +2127,11 @@
     (()
      ((w :u64)))
   (movq (:@ (:%seg :rcontext) x8664::tcr.foreign-sp) (:%mmx x8664::stack-temp))  
-  (subq (:$b 16) (:@ (:%seg :rcontext) x8664::tcr.foreign-sp))
-  (movq (:@ (:%seg :rcontext) x8664::tcr.foreign-sp) (:%q x8664::ra0))  
+  (subq (:$b (* 2 x8664::dnode-size)) (:@ (:%seg :rcontext) x8664::tcr.foreign-sp))
+  (movq (:@ (:%seg :rcontext) x8664::tcr.foreign-sp) (:%q x8664::ra0))
   (movq (:%mmx x8664::stack-temp) (:@ (:%q x8664::ra0)))
-  (movq (:%q w) (:@ 8 (:%q x8664::ra0))))
+  (movq (:% x8664::rbp) (:@ x8664::csp-frame.rbp (:%q x8664::ra0)))
+  (movq (:%q w) (:@ x8664::dnode-size (:%q x8664::ra0))))
 
 
 (define-x8664-vinsn (temp-push-node :push :word :tsp)
@@ -2116,6 +2144,7 @@
   (movapd (:%xmm x8664::fpzero) (:@ (:%q temp)))
   (movapd (:%xmm x8664::fpzero) (:@ 16 (:%q temp)))
   (movq (:%mmx x8664::stack-temp) (:@ (:%q temp)))
+  (movq (:% x8664::rbp) (:@ x8664::tsp-frame.rbp (:%q temp)))  
   (movq (:%q temp) (:@ (:%seg :rcontext) x8664::tcr.save-tsp))
   (movq (:%q w) (:@ x8664::dnode-size (:%q temp))))
 
@@ -2123,10 +2152,11 @@
     (()
      ((f :double-float)))
   (movq (:@ (:%seg :rcontext) x8664::tcr.foreign-sp) (:%mmx x8664::stack-temp))  
-  (subq (:$b 16) (:@ (:%seg :rcontext) x8664::tcr.foreign-sp))
+  (subq (:$b (* 2 x8664::dnode-size)) (:@ (:%seg :rcontext) x8664::tcr.foreign-sp))
   (movq (:@ (:%seg :rcontext) x8664::tcr.foreign-sp) (:%q x8664::ra0))  
   (movq (:%mmx x8664::stack-temp) (:@ (:%q x8664::ra0)))
-  (movsd (:%xmm f) (:@ 8 (:%q x8664::ra0))))
+  (movq (:% x8664::rbp) (:@ x8664::csp-frame.rbp (:%q x8664::ra0)))
+  (movapd (:%xmm f) (:@ x8664::dnode-size (:%q x8664::ra0))))
 
 
 (define-x8664-vinsn (vpush-single-float :push :word :vsp)
@@ -2145,8 +2175,8 @@
     (((w :u64))
      ())
   (movq (:@ (:%seg :rcontext) x8664::tcr.foreign-sp) (:%q x8664::ra0))
-  (movq (:@ 8 (:%q x8664::ra0)) (:%q w))
-  (addq (:$b 16) (:@ (:%seg :rcontext) x8664::tcr.foreign-sp)))
+  (movq (:@ x8664::dnode-size (:%q x8664::ra0)) (:%q w))
+  (addq (:$b (* 2 x8664::dnode-size)) (:@ (:%seg :rcontext) x8664::tcr.foreign-sp)))
 
 
 (define-x8664-vinsn (temp-pop-node :pop :word :tsp)
@@ -2163,18 +2193,19 @@
     (((f :double-float))
      ())
   (movq (:@ (:%seg :rcontext) x8664::tcr.foreign-sp) (:%q x8664::ra0))
-  (movsd (:@ 8 (:%q x8664::ra0)) (:%xmm f))
-  (addq (:$b 16) (:@ (:%seg :rcontext) x8664::tcr.foreign-sp)))
+  (movapd (:@ x8664::dnode-size (:%q x8664::ra0)) (:%xmm f))
+  (addq (:$b (* 2 x8664::dnode-size)) (:@ (:%seg :rcontext) x8664::tcr.foreign-sp)))
 
 
 
 (define-x8664-vinsn macptr->stack (((dest :lisp))
                                    ((ptr :address)))
   (movq (:@ (:%seg :rcontext) x8664::tcr.foreign-sp) (:%mmx x8664::stack-temp))
-  (subq (:$b (+ 16 x8664::macptr.size)) (:@ (:%seg :rcontext) x8664::tcr.foreign-sp))
+  (subq (:$b (+ x8664::dnode-size x8664::macptr.size)) (:@ (:%seg :rcontext) x8664::tcr.foreign-sp))
   (movq (:@ (:%seg :rcontext) x8664::tcr.foreign-sp) (:%q x8664::ra0))
   (movq (:%mmx x8664::stack-temp) (:@ (:%q x8664::ra0)))
-  (leaq (:@ (+ 16 x8664::fulltag-misc) (:%q  x8664::ra0)) (:%q dest))
+  (movq (:% x8664::rbp) (:@ x8664::csp-frame.rbp (:%q x8664::ra0)))
+  (leaq (:@ (+ x8664::dnode-size x8664::fulltag-misc) (:%q  x8664::ra0)) (:%q dest))
   (movq (:$l x8664::macptr-header) (:@ x8664::macptr.header (:%q dest)))
   (movq (:%q ptr) (:@ x8664::macptr.address (:%q dest)))
   (movapd (:%xmm x8664::fpzero)  (:@ x8664::macptr.domain (:%q dest))))
@@ -3583,7 +3614,8 @@
   ((:not (:pred < (:apply ash (:apply logandc2 (:apply + nwords 9) 1) x8664::word-shift) 128))
    (subq (:$l (:apply ash (:apply logandc2 (:apply + nwords 9) 1) x8664::word-shift)) (:@ (:%seg :rcontext) x8664::tcr.foreign-sp)))
   (movq (:@ (:%seg :rcontext) x8664::tcr.foreign-sp) (:%q x8664::ra0))
-  (movq (:%mmx x8664::stack-temp) (:@ (:%q x8664::ra0))))
+  (movq (:%mmx x8664::stack-temp) (:@ (:%q x8664::ra0)))
+  (movq (:% x8664::rbp) (:@ x8664::csp-frame.rbp (:%q x8664::ra0))))
 
 (define-x8664-vinsn alloc-variable-c-frame (()
                                             ((nwords :imm))
@@ -3594,7 +3626,8 @@
   (movq (:@ (:%seg :rcontext) x8664::tcr.foreign-sp) (:%mmx x8664::stack-temp))
   (subq (:%q size) (:@ (:%seg :rcontext) x8664::tcr.foreign-sp))
   (movq (:@ (:%seg :rcontext) x8664::tcr.foreign-sp) (:%q x8664::ra0))
-  (movq (:%mmx x8664::stack-temp) (:@ (:%q x8664::ra0))))
+  (movq (:%mmx x8664::stack-temp) (:@ (:%q x8664::ra0)))
+  (movq (:% x8664::rbp) (:@ x8664::csp-frame.rbp (:%q x8664::ra0))))
 
 (define-x8664-vinsn set-c-arg (()
                                ((arg :u64)
@@ -3655,7 +3688,8 @@
   (movq (:@ (:%seg :rcontext) x8664::tcr.next-tsp) (:%q temp))
   (movapd (:%xmm x8664::fpzero) (:@ (:%q temp)))
   (movapd (:%xmm x8664::fpzero) (:@ x8664::dnode-size (:%q temp)))
-  (movq (:%mmx x8664::stack-temp) (:@ (:%q temp))) 
+  (movq (:%mmx x8664::stack-temp) (:@ (:%q temp)))
+  (movq (:% x8664::rbp) (:@ x8664::tsp-frame.rbp (:%q temp)))  
   (movq (:%q temp) (:@ (:%seg :rcontext) x8664::tcr.save-tsp))  
   (movq (:$l x8664::value-cell-header) (:@ x8664::dnode-size (:%q temp)))
   (movq (:%q closed) (:@ (+ x8664::dnode-size x8664::node-size) (:%q temp)))

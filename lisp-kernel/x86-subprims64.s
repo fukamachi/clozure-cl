@@ -34,10 +34,15 @@ _exportfn(toplevel_loop)
 	__(push %rbp)
 	__(movq %rsp,%rbp)
 	/* Switch to the lisp stack */
+        __(push $0)
+        __(push $0)
 	__(movq %rsp,%rcontext:tcr.foreign_sp)
 	__(movq %rcontext:tcr.save_vsp,%rsp)
 	__(push $0)
 	__(movq %rsp,%rbp)
+        
+        __(TSP_Alloc_Fixed(0,%temp0))
+        __(movsd %fpzero,tsp_frame.save_rbp(%temp0)) /* sentinel */
 	__(jmp local_label(test))
 local_label(loop):
 	__(ref_nrs_value(toplcatch,%arg_z))
@@ -60,7 +65,9 @@ __(tra(local_label(test)))
 	__(cmpq $nil_value,%arg_x)
 	__(jnz local_label(loop))
 local_label(back_to_c):
+        __(discard_temp_frame(%imm0))
 	__(movq %rcontext:tcr.foreign_sp,%rsp)
+        __(addq $dnode_size,%rsp)
 	__(movq %rsp,%rbp)
 	__(leave)
 	__(ret)

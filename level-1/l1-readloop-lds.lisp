@@ -141,6 +141,18 @@ whose name or ID matches <p>, or to any process if <p> is null"
                        :count 1
                        :detailed-p t))
 
+(define-toplevel-command :break return-from-frame (i &rest values) "Return VALUES from the I'th stack frame"
+  (let* ((frame-sp (nth-raw-frame  i *break-frame* nil)))
+    (if frame-sp
+      (apply #'return-from-frame frame-sp values))))
+
+(define-toplevel-command :break apply-in-frame (i function &rest args) "Applies FUNCTION to ARGS in the execution context of the Ith stack frame"
+  (let* ((frame-sp (nth-raw-frame  i *break-frame* nil)))
+    (if frame-sp
+      (apply-in-frame frame-sp function args))))
+                         
+                         
+
 (define-toplevel-command :break raw (n) "Show raw contents of backtrace frame <n>"
    (print-call-history :origin *break-frame*
                        :start-frame-number n
@@ -389,6 +401,7 @@ binding of that symbol is used - or an integer index into the frame's set of loc
 
 (defun abnormal-application-exit ()
   (print-call-history)
+  (force-output *debug-io*)
   (quit -1))
 
 (defun break-loop-handle-error (condition error-pointer)
@@ -574,8 +587,8 @@ binding of that symbol is used - or an integer index into the frame's set of loc
       (with-toplevel-commands :break
         (if *continuablep*
           (let* ((*print-circle* *error-print-circle*)
-                 (*print-level* 10)
-                 (*print-length* 20)
+                 (*print-level* *error-print-level*)
+                 (*print-length* *error-print-length*)
 					;(*print-pretty* nil)
                  (*print-array* nil))
             (format t "~&> Type :GO to continue, :POP to abort, :R for a list of available restarts.")

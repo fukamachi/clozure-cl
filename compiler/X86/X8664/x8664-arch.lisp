@@ -612,6 +612,15 @@
   return-address
   xtra)
 
+(define-storage-layout tsp-frame 0
+  backptr
+  rbp)
+
+(define-storage-layout csp-frame 0
+  backptr
+  rbp)
+
+
 (define-storage-layout xcf 0            ;"exception callback frame"
   backptr
   return-address                        ; always 0
@@ -620,6 +629,9 @@
   containing-object
   xp
   ra0
+  foreign-sp                            ; value of tcr.foreign_sp
+  prev-xframe                           ; tcr.xframe before exception
+                                        ; (last 2 needed by apply-in-frame)
   )
 
 ;;; The kernel uses these (rather generically named) structures
@@ -1315,5 +1327,10 @@
 (defconstant recover-fn-from-rip-word0 #x8d4c)
 (defconstant recover-fn-from-rip-byte2 #x2d)
 
+;;; For backtrace: the relative PC of an argument-check trap
+;;; must be less than or equal to this value.  (Because of
+;;; the way that we do "anchored" UUOs, it should always be =.)
+
+(defconstant arg-check-trap-pc-limit 7)
 
 (provide "X8664-ARCH")

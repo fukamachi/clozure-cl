@@ -448,11 +448,15 @@
 
 (define-condition arithmetic-error (error) 
   ((operation :initform nil :initarg :operation :reader arithmetic-error-operation)
-   (operands :initform nil :initarg :operands :reader arithmetic-error-operands))
-  (:report (lambda (c s) (format s "~S detected ~&performing ~S on ~:S"
-                                 (type-of c) 
-                                 (arithmetic-error-operation c) 
-                                 (arithmetic-error-operands c)))))
+   (operands :initform nil :initarg :operands :reader arithmetic-error-operands)
+   (status :initform nil :initarg :status :reader arithmetic-error-status))
+  (:report (lambda (c s)
+             (format s "~S detected" (type-of c))
+             (let* ((operands (arithmetic-error-operands c)))
+               (when operands
+                 (format s "~&performing ~A on ~:S"
+                         (arithmetic-error-operation c) 
+                         operands))))))
 
 (define-condition division-by-zero (arithmetic-error))
   
