@@ -722,7 +722,15 @@
     (movq (@ (ash (foreign-record-field-offset (%find-foreign-record-type-field (parse-foreign-type '(:struct :__mcontext)) :mc_rsp) -3) (% arg_y)) (% rsp))))
   #+darwinx8664-target
   (progn
-    (fix this))
+    ;; Yes, this is ugly.
+    (movq (@ (ash (foreign-record-field-offset (%find-foreign-record-type-field (parse-foreign-type '(:struct :__darwin_ucontext)) :uc_mcontext)) -3) (% arg_y)) (% arg_y))
+    (addq (@ (ash (foreign-record-field-offset (%find-foreign-record-type-field (parse-foreign-type '(:struct :__darwin_mcontext64)) :__ss)) -3)) (% arg_y))
+    (movq (@ (ash (foreign-record-field-offset (%find-foreign-record-type-field (parse-foreign-type '(:struct :__darwin_x86_thread_state64)) :__r15)) -3) (% arg_y)) (% r15))
+    (movq (@ (ash (foreign-record-field-offset (%find-foreign-record-type-field (parse-foreign-type '(:struct :__darwin_x86_thread_state64)) :__r14)) -3) (% arg_y)) (% r14))
+    (movq (@ (ash (foreign-record-field-offset (%find-foreign-record-type-field (parse-foreign-type '(:struct :__darwin_x86_thread_state64)) :__r12)) -3) (% arg_y)) (% r12))
+    (movq (@ (ash (foreign-record-field-offset (%find-foreign-record-type-field (parse-foreign-type '(:struct :__darwin_x86_thread_state64)) :__r11)) -3) (% arg_y)) (% r11))
+    (movq (@ (ash (foreign-record-field-offset (%find-foreign-record-type-field (parse-foreign-type '(:struct :__darwin_x86_thread_state64)) :__rbp)) -3) (% arg_y)) (% rbp))
+    (movq (@ (ash (foreign-record-field-offset (%find-foreign-record-type-field (parse-foreign-type '(:struct :__darwin_x86_thread_state64)) :__rsp)) -3) (% arg_y)) (% rsp)))
   ;; This is our best (possibly only) chance to get
   ;; the foreign sp right.
   (movq (@ target::xcf.prev-xframe (% arg_z)) (% temp0))
