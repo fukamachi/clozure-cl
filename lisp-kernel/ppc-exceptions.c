@@ -2094,7 +2094,7 @@ install_signal_handler(int signo, void *handler)
   sa.sa_sigaction = (void *)handler;
   sigfillset(&sa.sa_mask);
   sa.sa_flags = 
-    SA_RESTART
+    0 /* SA_RESTART */
     | SA_SIGINFO
 #ifdef DARWIN
 #ifdef PPC64
