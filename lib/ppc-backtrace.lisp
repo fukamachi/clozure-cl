@@ -872,3 +872,9 @@
         (return next))
       (setq next (dll-node-succ next)))))
 
+(defun exception-frame-p (frame)
+  (fake-stack-frame-p frame))
+
+(defun arg-check-call-arguments (frame function)
+  (declare (ignore function))
+  (xp-argument-list (%fake-stack-frame.xp frame)))
