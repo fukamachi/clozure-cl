@@ -990,6 +990,6 @@
     `(ccl::%stack-block ((,buf ,size))
       ,@body)))
 
-
+(defconstant arg-check-trap-pc-limit 8)
                               
 (provide "PPC64-ARCH")
