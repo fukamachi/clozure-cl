@@ -5,9 +5,8 @@
 # (The http: access method allows read-only access; 'svn+ssh' allows people
 # with appropriate permission to commit changes to the repository.)
 
-HTTP_URL=http://svn.clozure.com
-SSH_URL=svn+ssh://svn.clozure.com/usr/local
-CCLDIR=`dirname $0`/..
+SCRIPTS=`dirname $0`
+CCLDIR=$SCRIPTS/..
 
 # This assumes that all directories under CCL are under svn control
 # That's a reasonable assumption after a fresh checkout; if it's
@@ -16,8 +15,6 @@ CCLDIR=`dirname $0`/..
 for d in `ls $CCLDIR`
 do
  if [ -d $CCLDIR/$d ]; then
-   (cd $CCLDIR/$d ; 
-    echo Relocating `pwd` ; 
-    svn switch --relocate $HTTP_URL $SSH_URL)
+   $SCRIPTS/svn-switch $CCLDIR/$d
  fi
 done
