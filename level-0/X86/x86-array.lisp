@@ -371,28 +371,28 @@ n  (movq (@ x8664::misc-data-offset (% b0) (% temp0)) (% imm0))
   (check-nargs 3)
   (jmp-subprim .SParef2))
 
-(defx86lapfunction %aref3 ((array 0) (i arg_x) (j arg_y) (k arg_z))
+(defx86lapfunction %aref3 ((array 8) #|(ra 0)|# (i arg_x) (j arg_y) (k arg_z))
   (check-nargs 4)
+  (pop (% ra0))
   (pop (% temp0))
   (discard-reserved-frame)
+  (push (% ra0))
   (jmp-subprim .SParef3))
 
-(defx86lapfunction %aset2 ((array 0) (i arg_x) (j arg_y) (newval arg_z))
+(defx86lapfunction %aset2 ((array 8) #|(ra 0)|# (i arg_x) (j arg_y) (newval arg_z))
   (check-nargs 4)
+  (pop (% ra0))
   (pop (% temp0))
   (discard-reserved-frame)
+  (push (% ra0))
   (jmp-subprim .SPaset2))
 
-(defx86lapfunction %aset3 ((array 8) (i 0) (j arg_x) (k arg_y) (newval arg_z))
+(defx86lapfunction %aset3 ((array 16) (i 8) #|(ra 0)|# (j arg_x) (k arg_y) (newval arg_z))
   (check-nargs 5)
+  (pop (% ra0))
   (pop (% temp0))
   (pop (% temp1))
   (discard-reserved-frame)
+  (push (% ra0))
   (jmp-subprim .SPaset3))
-
-
-
-
-
-  
 
