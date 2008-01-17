@@ -61,7 +61,7 @@
         (let* ((line-termination
                 (do* ((i 0 (1+ i))
                       (last-was-cr nil))
-                     ((= nchars) (if last-was-cr :cr))
+                     ((= i nchars) (if last-was-cr :cr))
                   (declare (fixnum i))
                   (let* ((char (schar string i)))
                     (if last-was-cr
@@ -72,10 +72,10 @@
                         (#\Newline (return nil))
                         (#\Line_Separator (return :unicode))
                         (#\Return (setq last-was-cr t))))))))
-        (when line-termination
-          (install-ioblock-input-line-termination file-ioblock line-termination)
-          (when (file-ioblock-outbuf file-ioblock)
-            (install-ioblock-output-line-termination file-ioblock line-termination))))))))
+          (when line-termination
+            (install-ioblock-input-line-termination file-ioblock line-termination)
+            (when (file-ioblock-outbuf file-ioblock)
+              (install-ioblock-output-line-termination file-ioblock line-termination))))))))
 
 
 
