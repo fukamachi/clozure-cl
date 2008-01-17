@@ -123,7 +123,7 @@
 	(process-kill cp)))))
 
 
-(defglobal *quitting* nil)
+(defloadvar *quitting* nil)
 
 
 (defun prepare-to-quit (&optional part)
@@ -160,7 +160,9 @@
                   (ioblock-owner ioblock) nil)))
         (close (car streams))))
     (setf (interrupt-level) -1)         ; can't abort after this
-    ))
+    )
+  ;; Didn't abort, so really quitting.
+  (setq *quitting* t))
 
 
 (defun signal (condition &rest args)
