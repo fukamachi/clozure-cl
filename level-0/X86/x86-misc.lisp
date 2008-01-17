@@ -252,9 +252,9 @@
   (save-simple-frame)
   (trap-unless-typecode= ptr x8664::subtag-macptr)
   (call-subprim .SPgetu64)
-  (macptr-ptr ptr ptr)
+  (macptr-ptr ptr imm2)
   (unbox-fixnum offset imm1)
-  (movq (% imm0) (@ (% ptr) (% imm1)))
+  (movq (% imm0) (@ (% imm2) (% imm1)))
   (restore-simple-frame)
   (single-value-return))
 
@@ -265,9 +265,9 @@
   (save-simple-frame)
   (trap-unless-typecode= ptr x8664::subtag-macptr)
   (call-subprim .SPgets64)
-  (macptr-ptr ptr ptr)
+  (macptr-ptr ptr imm2)
   (unbox-fixnum offset imm1)
-  (movq (% imm0) (@ (% ptr) (% imm1)))
+  (movq (% imm0) (@ (% imm2) (% imm1)))
   (restore-simple-frame)
   (single-value-return))
 
@@ -408,49 +408,49 @@
   (single-value-return))
 
 (defx86lapfunction %atomic-incf-ptr ((ptr arg_z))
-  (macptr-ptr ptr ptr)
+  (macptr-ptr ptr imm2)
   @again
-  (movq (@ (% ptr)) (% rax))
+  (movq (@ (% imm2)) (% rax))
   (lea (@ 1 (% rax)) (% imm1))
   (lock)
-  (cmpxchgq (% imm1) (@ (% ptr)))
+  (cmpxchgq (% imm1) (@ (% imm2)))
   (jne @again)
   (box-fixnum imm1 arg_z)
   (single-value-return))
 
 (defx86lapfunction %atomic-incf-ptr-by ((ptr arg_y) (by arg_z))
-  (macptr-ptr ptr ptr)
+  (macptr-ptr ptr imm2)
   @again
-  (movq (@ (% ptr)) (% rax))
+  (movq (@ (% imm2)) (% rax))
   (unbox-fixnum by imm1)
   (add (% rax) (% imm1))
   (lock)
-  (cmpxchgq (% imm1) (@ (% ptr)))
+  (cmpxchgq (% imm1) (@ (% imm2)))
   (jnz @again)
   (box-fixnum imm1 arg_z)
   (single-value-return))
 
 
 (defx86lapfunction %atomic-decf-ptr ((ptr arg_z))
-  (macptr-ptr ptr ptr)
+  (macptr-ptr ptr imm2)
   @again
-  (movq (@ (% ptr)) (% rax))
+  (movq (@ (% imm2)) (% rax))
   (lea (@ -1 (% rax)) (% imm1))
   (lock)
-  (cmpxchgq (% imm1) (@ (% ptr)))
+  (cmpxchgq (% imm1) (@ (% imm2)))
   (jnz @again)
   (box-fixnum imm1 arg_z)
   (single-value-return))
 
 (defx86lapfunction %atomic-decf-ptr-if-positive ((ptr arg_z))
-  (macptr-ptr ptr ptr)                  ;must be fixnum-aligned
+  (macptr-ptr ptr imm2)
   @again
-  (movq (@ (% ptr)) (% rax))
+  (movq (@ (% imm2)) (% rax))
   (testq (% rax) (% rax))
   (lea (@ -1 (% rax)) (% imm1))
   (jz @done)
   (lock)
-  (cmpxchgq (% imm1) (@ (% ptr)))
+  (cmpxchgq (% imm1) (@ (% imm2)))
   (jnz @again)
   @done
   (box-fixnum imm1 arg_z)
@@ -468,15 +468,15 @@
 ;;; Try to store the fixnum NEWVAL at PTR, if and only if the old value
 ;;; was equal to OLDVAL.  Return the old value
 (defx86lapfunction %ptr-store-conditional ((ptr arg_x) (expected-oldval arg_y) (newval arg_z))
-  (macptr-ptr ptr ptr)                  ;  must be fixnum-aligned
+  (macptr-ptr ptr imm2)
   @again
-  (movq (@ (% ptr)) (% imm0))
+  (movq (@ (% imm2)) (% imm0))
   (box-fixnum imm0 temp0)
   (cmpq (% temp0) (% expected-oldval))
   (jne @done)
   (unbox-fixnum newval imm1)
   (lock)
-  (cmpxchgq (% imm1) (@ (% ptr)))
+  (cmpxchgq (% imm1) (@ (% imm2)))
   (jne @again)
   @done
   (movq (% temp0) (% arg_z))
@@ -498,9 +498,9 @@
 
 (defx86lapfunction xchgl ((newval arg_y) (ptr arg_z))
   (unbox-fixnum newval imm0)
-  (macptr-ptr ptr arg_y)                ; had better be aligned
+  (macptr-ptr ptr im1)
   (lock)                                ; implicit ?
-  (xchgl (% imm0.l) (@ (% arg_y)))
+  (xchgl (% imm0.l) (@ (% im1)))
   (box-fixnum imm0 arg_z)
   (single-value-return))
   
