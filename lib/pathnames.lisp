@@ -132,27 +132,29 @@
 
 (defun recursive-copy-directory (source-path dest-path &key test (if-exists :error))
   ;; TODO: Support :if-exists :supersede to blow away any files not in source dir
+  (assert (directoryp source-path)(source-path)
+          "source-path is not a directory in RECURSIVE-COPY-DIRECTORY")
   (setq if-exists (require-type if-exists '(member :overwrite :error)))
   (setq dest-path (ensure-directory-pathname dest-path))
   (when (eq if-exists :error)
     (when (probe-file dest-path)
       (if-exists if-exists dest-path))
-    ;; Skip the probe-file in recursive calls, already know ok.
+    ;; Skip the probe-file in recursive calls, we already know it's ok.
     (setq if-exists :overwrite))
   (let* ((source-dir (ensure-directory-pathname source-path))
-	 (pattern (make-pathname :name :wild :type :wild :defaults source-dir))
-	 (source-files (directory pattern :test test :directories t :files t)))
+         (pattern (make-pathname :name :wild :type :wild :defaults source-dir))
+         (source-files (directory pattern :test test :directories t :files t)))
     (ensure-directories-exist dest-path)
     (dolist (f source-files)
       (when (or (null test) (funcall test f))
-	(if (directory-pathname-p f)
-	    (let ((dest-file (make-pathname :name (first (last (pathname-directory f)))
-					    :defaults dest-path)))
-	      (recursive-copy-directory f dest-file :test test :if-exists if-exists))
-	    (let* ((dest-file (make-pathname :name (pathname-name f)
-					     :type (pathname-type f)
-					     :defaults dest-path)))
-	      (copy-file f dest-file :if-exists :supersede :preserve-attributes t)))))))
+        (if (directory-pathname-p f)
+            (let ((dest-file (make-pathname :name (first (last (pathname-directory f)))
+                                            :defaults dest-path)))
+              (recursive-copy-directory f dest-file :test test :if-exists if-exists))
+            (let* ((dest-file (make-pathname :name (pathname-name f)
+                                             :type (pathname-type f)
+                                             :defaults dest-path)))
+              (copy-file f dest-file :if-exists :supersede :preserve-attributes t)))))))
 
 ;;; use with caution!
 ;;; blows away a directory and all its contents
