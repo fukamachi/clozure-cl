@@ -198,6 +198,7 @@
           (%stack-area-usable-size ts-area)
           (lisp-thread.startup-function thread)
           (thread-make-startup-function thread tcr)))
+  (thread-change-state thread :exit :reset)
   thread)
 
 (defun default-allocation-quantum ()
@@ -301,6 +302,7 @@
     (setf (lisp-thread.tcr thread) tcr
 	  (lisp-thread.startup-function thread)
 	  (thread-make-startup-function thread tcr))
+    (thread-change-state thread :exit :reset)
     tcr))
   
 	 
