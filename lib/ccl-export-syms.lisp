@@ -43,6 +43,7 @@
      toplevel-loop
      toplevel-function
      toplevel
+     *listener-prompt-format*
      cancel
      catch-cancel
      throw-cancel
