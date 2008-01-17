@@ -272,7 +272,7 @@ binding of that symbol is used - or an integer index into the frame's set of loc
             (loop                
               (setq *in-read-loop* nil
                     *break-level* break-level)
-              (multiple-value-bind (form path print-result)
+              (multiple-value-bind (form env print-result)
                   (toplevel-read :input-stream input-stream
                                  :output-stream output-stream
                                  :prompt-function prompt-function
@@ -286,7 +286,7 @@ binding of that symbol is used - or an integer index into the frame's set of loc
                       (abort-break))
                     (exit-interactive-process *current-process*))
                     (or (check-toplevel-command form)
-                        (let* ((values (toplevel-eval form path)))
+                        (let* ((values (toplevel-eval form env)))
                           (if print-result (toplevel-print values))))))))
            (format *terminal-io* "~&Cancelled")))
        (abort () :report (lambda (stream)
@@ -326,7 +326,7 @@ binding of that symbol is used - or an integer index into the frame's set of loc
                         (if params
                           (cons keyword params)
                           keyword)))
-                    (params (eval param))))))))))))
+                    (params param)))))))))))
 
 ;;; Read a form from the specified stream.
 (defun toplevel-read (&key (input-stream *standard-input*)
@@ -345,13 +345,22 @@ binding of that symbol is used - or an integer index into the frame's set of loc
     `(defparameter ,@(cdr form))
     form))
 
-(defun toplevel-eval (form &optional *loading-file-source-file*)
-  (setq +++ ++ ++ + + - - form)
-  (let* ((package *package*)
-         (values (multiple-value-list (cheap-eval-in-environment form nil))))
-    (unless (eq package *package*)
-      (application-ui-operation *application* :note-current-package *package*))
-    values))
+(defun toplevel-eval (form &optional env)
+  (destructuring-bind (vars . vals) (or env '(nil . nil))
+    (progv vars vals
+      (setq +++ ++ ++ + + - - form)
+      (unwind-protect
+          (let* ((package *package*)
+                 (values (multiple-value-list (cheap-eval-in-environment form nil))))
+            (unless (eq package *package*)
+              ;; If changing a local value (e.g. buffer-local), not useful to notify app
+              ;; without more info.  Perhaps should have a *source-context* that can send along?
+              (unless (member '*package* vars)
+                (application-ui-operation *application* :note-current-package *package*)))
+            values)
+        (loop for var in vars as pval on vals
+          do (setf (car pval) (symbol-value var)))))))
+
 
 (defun toplevel-print (values &optional (out *standard-output*))
   (setq /// // // / / values)
@@ -361,15 +370,15 @@ binding of that symbol is used - or an integer index into the frame's set of loc
     (fresh-line out)
     (dolist (val values) (write val :stream out) (terpri out))))
 
+(defparameter *listener-prompt-format* "~[?~:;~:*~d>~] ")
+
+  
 (defun print-listener-prompt (stream &optional (force t))
   (unless *quiet-flag*
     (when (or force (neq *break-level* *last-break-level*))
       (let* ((*listener-indent* nil))
-        (fresh-line stream)            
-        (if (%izerop *break-level*)
-          (%write-string "?" stream)
-          (format stream "~s >" *break-level*)))        
-      (write-string " " stream)        
+        (fresh-line stream)
+        (format stream *listener-prompt-format* *break-level*))
       (setq *last-break-level* *break-level*)))
     (force-output stream))
 
@@ -398,11 +407,6 @@ binding of that symbol is used - or an integer index into the frame's set of loc
 ; does not otherwise wish to be a "lisp-development-system"
 (defmethod application-error ((a lisp-development-system) condition error-pointer)
   (break-loop-handle-error condition error-pointer))
-
-(defun abnormal-application-exit ()
-  (print-call-history)
-  (force-output *debug-io*)
-  (quit -1))
 
 (defun break-loop-handle-error (condition error-pointer)
   (multiple-value-bind (bogus-globals newvals oldvals) (%check-error-globals)
