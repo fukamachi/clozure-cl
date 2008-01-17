@@ -282,14 +282,15 @@ Default version returns OpenMCL version info."
              :temp-stack-size *initial-listener-default-temp-stack-size*
              :class 'tty-listener
              :process initial-listener-process))))
-  (%set-toplevel #'(lambda ()
-                     (with-standard-abort-handling nil 
-                       (loop
-			 (%nanosleep *periodic-task-seconds* *periodic-task-nanoseconds*)
-			 (housekeeping)))))
+  (%set-toplevel #'housekeeping-loop)
   (toplevel))
 
-
+(defun housekeeping-loop ()
+  (with-standard-abort-handling nil 
+    (loop
+      (%nanosleep *periodic-task-seconds* *periodic-task-nanoseconds*)
+      (housekeeping))))
+  
 
 (defmethod application-init-file ((app lisp-development-system))
   ;; This is the init file loaded before cocoa.
