@@ -1260,8 +1260,6 @@ Will differ from *compiling-file* during an INCLUDE")
     #+(and 64-bit-target (not cross-compiling))
     ((simple-array (signed-byte 64) (*))
      (fasl-dump-64-bit-ivector exp $fasl-s64-vector))
-    (vector (fasl-dump-gvector exp $fasl-vector-header))
-    (array (fasl-dump-gvector exp $fasl-array-header))
     (ivector
      (unless (eq (backend-target-arch-name *target-backend*)
                  (backend-target-arch-name *host-backend*))
@@ -1274,6 +1272,9 @@ Will differ from *compiling-file* during an INCLUDE")
        (fasl-out-byte typecode)
        (fasl-out-count n)
        (fasl-out-ivect exp 0 nb)))
+    (vector (fasl-dump-gvector exp $fasl-vector-header))
+    (array (fasl-dump-gvector exp $fasl-array-header))
+
     (gvector
      (if (= (typecode exp) target::subtag-istruct)
        (fasl-dump-gvector exp $fasl-istruct)
