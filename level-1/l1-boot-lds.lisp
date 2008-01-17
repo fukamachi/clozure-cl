@@ -78,6 +78,7 @@
                                   (control-stack-size *default-control-stack-size*)
                                   (value-stack-size *default-value-stack-size*)
                                   (temp-stack-size *default-temp-stack-size*)
+                                  (echoing t)
                                   (process))
   (let ((p (if (typep process class)
              (progn
@@ -91,8 +92,11 @@
                            :tstack-size temp-stack-size))))
     (process-preset p #'(lambda ()
                           (let ((*terminal-io*
-				 (make-echoing-two-way-stream
-				  input-stream output-stream)))
+                                 (if echoing
+                                   (make-echoing-two-way-stream
+                                    input-stream output-stream)
+                                   (make-two-way-stream
+                                    input-stream output-stream))))
 			    (unwind-protect
 				 (progn
                                    (add-auto-flush-stream output-stream)
