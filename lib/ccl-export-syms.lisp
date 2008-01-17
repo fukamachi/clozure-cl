@@ -618,6 +618,8 @@
      map-file-to-octet-vector
      unmap-ivector
      unmap-octet-vector
+     ;; Miscellany
+     heap-utilization
                                       
      ) "CCL"
    )
