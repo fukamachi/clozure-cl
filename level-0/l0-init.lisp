@@ -64,7 +64,6 @@
     #+linuxx8664-target :linuxx8664-host
     #+darwinppc-target :darwinppc-target
     #+darwinppc-target :darwinppc-host
-    #+darwinppc-target :darwin
     #+darwinppc-target :darwin-target
     #+freebsd-target :freebsd-host
     #+freebsd-target :freebsd-target
@@ -85,6 +84,9 @@
     #+ppc-target :big-endian-host
     #+x86-target :little-endian-target
     #+x86-target :little-endian-host
+    #+darwin-target :darwin
+    #+linux-target :linux
+    #+freebsd-target :freebsd
     :mcl                                ;deprecated
     )
   "a list of symbols that describe features provided by the
