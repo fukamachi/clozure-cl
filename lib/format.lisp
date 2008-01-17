@@ -2149,8 +2149,9 @@
           (apply 'format *query-io* format-string arguments))
         (princ " (y or n)  " *query-io*)
 	(setq response (read-char *query-io*))
+        ;; Consume input up to trailing newline
         (when (peek-char #\NewLine *query-io* nil)
-          (unread-char #\NewLine *query-io*)
+          ;; And consume the #\newline
           (read-char *query-io*))
         (clear-input *query-io*)
 	(if (char-equal response #\y) (return t))
